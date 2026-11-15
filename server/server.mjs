@@ -1110,7 +1110,18 @@ const lqProfile = makeProfile({
 });
 
 const xbServer = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  /*
+   * A malformed request line must not take the whole library down.  `//`
+   * and other odd shapes make `new URL` throw, and an exception thrown
+   * inside the request handler kills the process before Node can answer.
+   */
+  let url;
+  try {
+    url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  } catch {
+    sendJson(res, 400, { error: '请求地址无法解析' });
+    return;
+  }
   handleXb(req, res, url, lqProfile).catch((err) => {
     console.error('[xb]', err);
     sendJson(res, 500, { error: String(err.message || err) });
@@ -1119,5 +1130,17 @@ const xbServer = http.createServer((req, res) => {
 
 xbServer.listen(XB_PORT, '127.0.0.1', () => {
   console.log(`乐启享课件库 -> http://localhost:${XB_PORT}/`);
+});
+
+/*
+ * The library is meant to stay up while somebody browses it.  A single
+ * unexpected exception must not take the process down with it, so the
+ * handler logs and keeps serving.
+ */
+process.on('uncaughtException', (err) => {
+  console.error('[uncaught]', err);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandled]', err);
 });
 
