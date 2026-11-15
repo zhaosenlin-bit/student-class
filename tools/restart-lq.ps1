@@ -23,8 +23,6 @@ foreach ($port in @(4173, 4174, 4175)) {
 Start-Sleep -Seconds 1
 
 $proc = Start-Process -FilePath $node -ArgumentList $server -WorkingDirectory $root `
-  -RedirectStandardOutput "$root\recon\server.log" `
-  -RedirectStandardError "$root\recon\server.err.log" `
   -WindowStyle Hidden -PassThru
 Write-Output "server pid=$($proc.Id)"
 Start-Sleep -Seconds 3

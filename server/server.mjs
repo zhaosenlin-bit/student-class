@@ -90,6 +90,23 @@ function mimeForAsset(p) {
   const base = path.basename(p).toLowerCase();
   if (base === 'css2' || base === 'css') return 'text/css; charset=UTF-8';
   if (base === 'js') return 'application/javascript; charset=UTF-8';
+  /*
+   * One work asks for its terrain picture with the extension ".web"
+   * although the file is a webp picture. The type is read from the file
+   * itself, so the picture is shown and a real ".web" video still is.
+   */
+  if (base.endsWith('.web')) {
+    try {
+      const head = fs.readFileSync(p, { encoding: null }).subarray(0, 16);
+      if (head.subarray(0, 4).toString('latin1') === 'RIFF') {
+        const kind = head.subarray(8, 12).toString('latin1');
+        if (kind === 'WEBP') return 'image/webp';
+        if (kind === 'VP8 ') return 'video/webp';
+      }
+    } catch {
+      /* fall through to the table */
+    }
+  }
   return mimeFor(p);
 }
 
@@ -365,6 +382,81 @@ function lqLocalId(programId) {
 }
 
 /*
+ * Some works put the address of their pictures together while they run,
+ * so the address cannot be found by looking at the document. The picture
+ * is then asked of the public CDN even though a copy sits next to the
+ * document.
+ *
+ * A small script is put in front of the page: whenever it asks for one of
+ * the known public addresses, the local copy is asked for instead. The
+ * script goes in before the work's own code, so it is in place by the
+ * time the address is built.
+ */
+function injectLocalCdnShim(html, localId) {
+  const map = LQ_EXT_HOSTS.map((host) => [
+    host,
+    `/api/program-assets/${localId}/_ext/${host.replace(/^https?:\/\//, '')}`,
+  ]);
+  const script = `<script>(function(){
+var map=${JSON.stringify(map)};
+function fix(u){
+  if(typeof u!=='string')return u;
+  for(var i=0;i<map.length;i++){if(u.indexOf(map[i][0])===0)return map[i][1]+u.slice(map[i][0].length);}
+  return u;
+}
+var f=window.fetch;
+if(f){window.fetch=function(u,o){try{u=fix(u);}catch(e){}return f.call(this,u,o);};}
+var x=XMLHttpRequest.prototype.open;
+if(x){XMLHttpRequest.prototype.open=function(m,u){try{u=fix(u);}catch(e){}return x.call(this,m,u);};}
+var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
+if(d&&d.set){Object.defineProperty(HTMLImageElement.prototype,'src',{get:d.get,set:function(v){d.set.call(this,fix(v));}});}
+})();</script>`;
+  /* Right after the opening tag of the head, or of the body. */
+  const head = /<head[^>]*>/i.exec(html);
+  if (head) {
+    const at = head.index + head[0].length;
+    return html.slice(0, at) + script + html.slice(at);
+  }
+  const body = /<body[^>]*>/i.exec(html);
+  if (body) {
+    const at = body.index + body[0].length;
+    return html.slice(0, at) + script + html.slice(at);
+  }
+  return script + html;
+}
+
+/*
+ * The same trick for a copy that is opened from disk: there the files sit
+ * next to the document, so the address points there instead.
+ */
+function injectArchiveCdnShim(html) {
+  const map = LQ_EXT_HOSTS.map((host) => [
+    host,
+    `./assets/_ext/${host.replace(/^https?:\/\//, '')}`,
+  ]);
+  const script = `<script>(function(){
+var map=${JSON.stringify(map)};
+function fix(u){
+  if(typeof u!=='string')return u;
+  for(var i=0;i<map.length;i++){if(u.indexOf(map[i][0])===0)return map[i][1]+u.slice(map[i][0].length);}
+  return u;
+}
+var f=window.fetch;
+if(f){window.fetch=function(u,o){try{u=fix(u);}catch(e){}return f.call(this,u,o);};}
+var x=XMLHttpRequest.prototype.open;
+if(x){XMLHttpRequest.prototype.open=function(m,u){try{u=fix(u);}catch(e){}return x.call(this,m,u);};}
+var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
+if(d&&d.set){Object.defineProperty(HTMLImageElement.prototype,'src',{get:d.get,set:function(v){d.set.call(this,fix(v));}});}
+})();</script>`;
+  const head = /<head[^>]*>/i.exec(html);
+  if (head) {
+    const at = head.index + head[0].length;
+    return html.slice(0, at) + script + html.slice(at);
+  }
+  return script + html;
+}
+
+/*
  * The 小白教育 courseware expects a classroom host and shows a "please
  * reopen it in the library" screen when there is none. A copy that is opened
  * straight from disk has no host, so that screen is taken out. The patch is
@@ -498,8 +590,15 @@ function buildLqZip(id) {
     new RegExp(`/api/program-assets/${numeric}/t/[^"'\`/]+/`, 'g'),
     './assets/'
   );
-  html = html.split(`/api/program-assets/${numeric}/_ext/`).join('./assets/_ext/');
-  html = html.split(`/api/program-assets/${numeric}/`).join('./assets/');
+  /*
+   * The document is written with the local id in it — afe-501 — while the
+   * platform's own number is 501. Both spellings have to become a path
+   * inside the archive.
+   */
+  for (const prefix of [`/api/program-assets/${numeric}/`, `/api/program-assets/${id}/`]) {
+    html = html.split(`${prefix}_ext/`).join('./assets/_ext/');
+    html = html.split(prefix).join('./assets/');
+  }
   /* A document opened from disk has no platform to ask for permission. */
   html = html.replace(/if\(p===\\"file:\\"\|\|p===\\"about:\\"\|\|p===\\"chrome:\\"\)/g, 'if(p===\\"about:\\"||p===\\"chrome:\\")');
   html = html.replace(
@@ -537,6 +636,7 @@ function buildLqZip(id) {
   );
   html = html.replace(/<base href="\/api\/program-assets\/[^"]*">/g, '<base href="./assets/">');
   html = relaxStandaloneGuard(html);
+  html = injectArchiveCdnShim(html);
 
   const entries = [{ name: `${id}.html`, data: Buffer.from(html, 'utf8') }];
   /* A name may only appear once in an archive. The course's own folder and
@@ -551,7 +651,25 @@ function buildLqZip(id) {
   };
   const assets = path.join(LQ_ROOT, 'courseware', `${id}.assets`);
   for (const file of listFiles(assets)) {
-    add(`assets/${file.name}`, fs.readFileSync(file.file));
+    const data = fs.readFileSync(file.file);
+    /* A script or a data file can name a public CDN too; inside the
+       archive the local copy has to be pointed at instead. */
+    if (/\.(?:js|mjs|css|json|html?)$/i.test(file.name)) {
+      const text = data.toString('utf8');
+      let rewritten = rewriteCoursewareUrls(text, id);
+      if (rewritten !== text) {
+        for (const prefix of [
+          `/api/program-assets/${numeric}/`,
+          `/api/program-assets/${id}/`,
+        ]) {
+          rewritten = rewritten.split(`${prefix}_ext/`).join('./assets/_ext/');
+          rewritten = rewritten.split(prefix).join('./assets/');
+        }
+        add(`assets/${file.name}`, Buffer.from(rewritten, 'utf8'));
+        continue;
+      }
+    }
+    add(`assets/${file.name}`, data);
   }
   /*
    * The public libraries are mirrored once and shared. A course that is
@@ -565,6 +683,25 @@ function buildLqZip(id) {
   }
   for (const m of html.matchAll(/\/_shared\/([^"'`\s)]+)/g)) {
     wanted.add(decodeURIComponent(m[1]));
+  }
+  /*
+   * A data file that sits next to the document can name a public CDN as
+   * well, so the files it points at have to travel with the archive too.
+   */
+  for (const file of listFiles(assets)) {
+    if (!/\.(?:js|mjs|css|json|html?)$/i.test(file.name)) continue;
+    let text = '';
+    try {
+      text = fs.readFileSync(file.file, 'utf8');
+    } catch {
+      continue;
+    }
+    for (const m of text.matchAll(/\/api\/program-assets\/[^/"']+\/_ext\/([^"'`\s)]+)/g)) {
+      wanted.add(decodeURIComponent(m[1]));
+    }
+    for (const m of text.matchAll(/\/_shared\/([^"'`\s)]+)/g)) {
+      wanted.add(decodeURIComponent(m[1]));
+    }
   }
   const copied = new Set();
   const queue = [...wanted];
@@ -631,6 +768,15 @@ async function serveLqAssets(res, pathname) {
     root && safeJoin(root, tail),
     safeJoin(shared, tail),
   ]) {
+    /*
+     * A script or a data file can name a public CDN as well. The document
+     * is rewritten when it is handed out, but these files are handed out
+     * as they are, so the same rewrite is done here — otherwise the work
+     * reaches out to the network for a picture that sits next to it.
+     */
+    if (candidate && /\.(?:js|mjs|css|json|html?)$/i.test(candidate) && localId) {
+      if (await serveRewrittenAsset(res, candidate, localId)) return;
+    }
     if (
       candidate &&
       (await serveFile(res, candidate, {
@@ -641,6 +787,33 @@ async function serveLqAssets(res, pathname) {
       return;
   }
   return sendJson(res, 404, { error: '未找到' });
+}
+
+/* Hand out a text asset with the public addresses inside it pointed at
+   the local copies. */
+async function serveRewrittenAsset(res, file, localId) {
+  let body;
+  try {
+    body = await fsp.readFile(file, 'utf8');
+  } catch {
+    return false;
+  }
+  const rewritten = rewriteCoursewareUrls(body, localId);
+  if (rewritten === body) {
+    return serveFile(res, file, {
+      contentType: mimeForAsset(file),
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+  const buf = Buffer.from(rewritten, 'utf8');
+  res.writeHead(200, {
+    'Content-Type': mimeForAsset(file),
+    'Content-Length': buf.length,
+    'Cache-Control': 'no-cache',
+    'Access-Control-Allow-Origin': '*',
+  });
+  res.end(buf);
+  return true;
 }
 
 async function handleXb(req, res, url, profile) {
@@ -724,6 +897,7 @@ async function handleXb(req, res, url, profile) {
     if (profile.kind === 'leqixiang') {
       patched = rewriteCoursewareUrls(patched, id);
       patched = patchLqBody(patched, id);
+      patched = injectLocalCdnShim(patched, id);
     }
     const body = Buffer.from(patched, 'utf8');
     return send(res, 200, body, {

@@ -7,7 +7,12 @@
  * carries the session can still fetch them, so the media is collected
  * from inside a real browser and written next to the documents.
  *
+ * Every chapter is opened in turn, because each one asks for its own
+ * pictures.  A session that refuses to hand out a mount is retried with
+ * a fresh one until the quota runs out.
+ *
  *   node tools/pull-chapter-media.mjs 842 1360 1016 841
+ *   node tools/pull-chapter-media.mjs 842 --sessions 3
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,7 +27,11 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36';
 
-const ids = process.argv.slice(2).map(Number).filter(Boolean);
+const args = process.argv.slice(2);
+const sessionRounds = args.includes('--sessions')
+  ? Number(args[args.indexOf('--sessions') + 1])
+  : 2;
+const ids = args.map(Number).filter(Boolean);
 if (!ids.length) ids.push(842, 1360, 1016, 841);
 
 const post = async (route, body) => {
@@ -63,86 +72,103 @@ await browser.goto(ORIGIN + '/');
 await sleep(1500);
 
 for (const id of ids) {
-  const opened = await post(`/api/reviewed-course-session/${id}/open`, {});
-  if (!opened?.id) {
-    console.log(`${id}: no session`);
-    continue;
-  }
-  const sessionId = opened.id;
-  const resumed = await post(`/api/reviewed-course-session/session/${sessionId}/resume`, {
-    programId: id,
-  });
-  const entries = resumed?.descriptor?.entries || [];
-  if (!entries.length) {
-    console.log(`${id}: cannot resume`);
-    continue;
-  }
+  let totalSaved = 0;
+  const done = new Set();
 
-  const mounted = await post(`/api/reviewed-course-session/session/${sessionId}/mount`, {
-    entry: entries[0].id,
-  });
-  const prefix = mounted?.prefix;
-  if (!prefix) {
-    console.log(`${id}: no mount`);
-    continue;
-  }
-  const url = ORIGIN + prefix + entries[0].path.split('/').map(encodeURIComponent).join('/');
+  for (let round = 1; round <= sessionRounds; round++) {
+    const opened = await post(`/api/reviewed-course-session/${id}/open`, {});
+    if (!opened?.id) {
+      console.log(`${id}: no session`);
+      break;
+    }
+    const sessionId = opened.id;
+    const resumed = await post(`/api/reviewed-course-session/session/${sessionId}/resume`, {
+      programId: id,
+    });
+    const entries = resumed?.descriptor?.entries || [];
+    if (!entries.length) {
+      console.log(`${id}: cannot resume`);
+      break;
+    }
 
-  /* Open the document in a frame that carries the session. */
-  await browser.evaluate(`(() => {
-    document.querySelectorAll('iframe[data-pull]').forEach(f => f.remove());
-    const frame = document.createElement('iframe');
-    frame.setAttribute('data-pull', '1');
-    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-    frame.style.cssText = 'width:1200px;height:800px;border:0;position:fixed;left:0;top:0;z-index:99999';
-    document.body.append(frame);
-    window.__pullFrame = frame;
-    frame.src = ${JSON.stringify(url)};
-    return true;
-  })()`);
-  await sleep(9000);
+    for (const entry of entries) {
+      if (done.has(entry.id)) continue;
+      const mounted = await post(`/api/reviewed-course-session/session/${sessionId}/mount`, {
+        entry: entry.id,
+      });
+      const prefix = mounted?.prefix;
+      if (!prefix) {
+        console.log(`  ${id}: ${entry.id} no mount`);
+        continue;
+      }
+      done.add(entry.id);
+      const url = ORIGIN + prefix + entry.path.split('/').map(encodeURIComponent).join('/');
 
-  const frameEntry = [...browser.sessions.entries()]
-    .reverse()
-    .find(([, s]) => s.targetInfo.type === 'iframe');
-  if (!frameEntry) {
-    console.log(`${id}: no frame`);
-    continue;
-  }
-  const [frameSession] = frameEntry;
+      /* Open the document in a frame that carries the session. */
+      await browser.evaluate(`(() => {
+        document.querySelectorAll('iframe[data-pull]').forEach(f => f.remove());
+        const frame = document.createElement('iframe');
+        frame.setAttribute('data-pull', '1');
+        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+        frame.style.cssText = 'width:1200px;height:800px;border:0;position:fixed;left:0;top:0;z-index:99999';
+        document.body.append(frame);
+        window.__pullFrame = frame;
+        frame.src = ${JSON.stringify(url)};
+        return true;
+      })()`);
+      await sleep(9000);
 
-  /* Every picture and sound the frame asked for. */
-  const responses = browser.events
-    .filter((e) => e.method === 'Network.responseReceived')
-    .filter((e) => e.params.sessionId === frameSession)
-    .map((e) => e.params.response)
-    .filter((r) => r.status === 200);
+      const frameEntry = [...browser.sessions.entries()]
+        .reverse()
+        .find(([, s]) => s.targetInfo.type === 'iframe');
+      if (!frameEntry) {
+        console.log(`  ${id}: ${entry.id} no frame`);
+        continue;
+      }
+      const [frameSession] = frameEntry;
 
-  let saved = 0;
-  let missed = 0;
-  for (const r of responses) {
-    const type = r.mimeType || '';
-    if (!/^(image|audio|video)\//.test(type)) continue;
-    const target = localPath(r.url, id, prefix);
-    if (!target) continue;
-    if (fs.existsSync(target) && fs.statSync(target).size > 0) continue;
-    try {
-      const body = await browser.raw(
-        'Network.getResponseBody',
-        { requestId: r.requestId },
-        frameSession
+      /* Every picture and sound the frame asked for. */
+      const responses = browser.events
+        .filter((e) => e.method === 'Network.responseReceived')
+        .filter((e) => e.params.sessionId === frameSession)
+        .map((e) => e.params.response)
+        .filter((r) => r.status === 200);
+
+      let saved = 0;
+      let present = 0;
+      let missed = 0;
+      for (const r of responses) {
+        const type = r.mimeType || '';
+        if (!/^(image|audio|video)\//.test(type)) continue;
+        const target = localPath(r.url, id, prefix);
+        if (!target) continue;
+        if (fs.existsSync(target) && fs.statSync(target).size > 0) {
+          present++;
+          continue;
+        }
+        try {
+          const body = await browser.raw(
+            'Network.getResponseBody',
+            { requestId: r.requestId },
+            frameSession
+          );
+          if (!body?.body) continue;
+          const buf = Buffer.from(body.body, body.base64Encoded ? 'base64' : 'utf8');
+          if (!buf.length) continue;
+          fs.mkdirSync(path.dirname(target), { recursive: true });
+          fs.writeFileSync(target, buf);
+          saved++;
+        } catch {
+          missed++;
+        }
+      }
+      totalSaved += saved;
+      console.log(
+        `  ${id}: ${entry.id} 存下 ${saved} 个, 已有 ${present} 个, 读不到 ${missed} 个`
       );
-      if (!body?.body) continue;
-      const buf = Buffer.from(body.body, body.base64Encoded ? 'base64' : 'utf8');
-      if (!buf.length) continue;
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.writeFileSync(target, buf);
-      saved++;
-    } catch {
-      missed++;
     }
   }
-  console.log(`${id}: saved ${saved}, unreadable ${missed}`);
+  console.log(`${id}: 本轮共存下 ${totalSaved} 个文件`);
 }
 
 await browser.close();

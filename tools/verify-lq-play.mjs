@@ -73,7 +73,7 @@ for (const id of ids) {
     report.requests = reqs.length;
     report.failed = reqs
       .filter((r) => r.status >= 400)
-      .map((r) => `${r.status} ${r.url.replace(`http://localhost:${PORT}`, '').slice(0, 130)}`)
+      .map((r) => `${r.status} ${r.url.replace(`http://localhost:${PORT}`, '').slice(0, 220)}`)
       .slice(0, 12);
     report.offsite = [
       ...new Set(
