@@ -146,6 +146,8 @@ for (const file of fs.readdirSync(SITE)) {
     .replace('<span>© 乐启享</span>', `<span>© 2025-2026 ${BRAND.name} · 所有权利保留</span>`)
     .replace(/<a class="brand footer-brand"[^>]*><img class="site-logo" src="\/brand\/brand-logo.png\?v=8" alt="" width="36" height="36"><span>乐启享<\/span><\/a>/,
       `<a class="brand footer-brand" href="#catalog"><img class="site-logo" src="/brand/brand-logo.png" alt="" width="36" height="36"><span>${BRAND.short}</span></a>`)
+    /* The footer's logo points at the library as well. */
+    .replace(/(<a class="brand footer-brand"[^>]*href=")[^"]*(")/, '$1#catalog$2')
     .replace('<p>互动课件库 · 在线使用 · 课件下载</p>',
       `<p>${BRAND.slogan}</p>`);
   /* The local build keeps one line only: browse → use → download. */
@@ -223,10 +225,11 @@ const swapLine = (source, head, replacement) => {
   let js = read(p);
   const about = `function about(){modal('<div class="dialog-content">`
     + `<div class="profile"><img src="/brand/brand-logo.png" alt="${BRAND.name} Logo" width="56" height="56">`
-    + `<div><p class="eyebrow">关于课件</p><h2>${BRAND.name}</h2></div></div>`
+    + `<div><p class="eyebrow">关于我们</p><h2>${BRAND.name}</h2></div></div>`
     + `<p>${BRAND.intro}</p>`
     + `<p class="subtle">${BRAND.slogan} · ${BRAND.phone} · ${BRAND.address}</p>`
     + `<p class="subtle">统一社会信用代码 / 备案号：${BRAND.icp}</p>`
+    + `<p><a class="button secondary small" href="https://codebn.cn/" target="_blank" rel="noreferrer">官网 codebn.cn ↗</a></p>`
     + `</div>');}`;
   js = js.replace(/function about\(\)\{modal\([\s\S]*?\);?\}/, about);
   /* The catalogue panel is rewritten on every build, so its module tag
