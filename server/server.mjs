@@ -232,6 +232,12 @@ function loadXb(profile) {
   }
   state.installed = installed;
 
+  /*
+   * The catalogue answers with the courses whose body is on this disk.
+   * The two platforms publish far more than that, and every one of the
+   * rest refuses to open — so listing them here would only produce a
+   * card that leads to an error. A library shows what it holds.
+   */
   const products = (catalog.products || []).map((p) => {
     const has = installed.has(p.id);
     return {
@@ -250,7 +256,7 @@ function loadXb(profile) {
       localInstalled: has,
       launchUrl: `/api/launch/${p.id}`,
     };
-  });
+  }).filter((p) => p.localInstalled);
 
   state.catalog = {
     ...catalog,
@@ -641,6 +647,47 @@ async function handleXb(req, res, url, profile) {
   const pathname = decodeURIComponent(url.pathname);
   const method = req.method.toUpperCase();
 
+  /*
+   * The WeChat sign-in code for the upstream platform. Its ticket lives
+   * for about a minute, so the page that shows it re-reads the picture
+   * every few seconds and the reader always scans a code that is still
+   * alive. Nothing here talks to the platform; the watcher process does
+   * that and leaves the picture behind.
+   */
+  if (pathname === '/login-qr' || pathname === '/login-qr.png') {
+    if (method !== 'GET' && method !== 'HEAD') {
+      return sendJson(res, 405, { error: '不支持此操作' });
+    }
+    const qr = path.join(ROOT, 'recon', 'scratch', 'afe-qr.png');
+    if (pathname === '/login-qr.png') {
+      if (!fs.existsSync(qr)) return sendJson(res, 404, { error: '还没有登录码' });
+      const body = fs.readFileSync(qr);
+      return send(res, 200, body, {
+        'Content-Type': 'image/png',
+        'Content-Length': body.length,
+        'Cache-Control': 'no-store',
+      });
+    }
+    const html =
+      '<!doctype html><meta charset="utf-8">' +
+      '<title>微信扫码登录</title>' +
+      '<style>body{margin:0;display:grid;place-items:center;min-height:100vh;' +
+      'font:16px/1.7 system-ui,"Microsoft YaHei",sans-serif;background:#f4f6f5;color:#1d2422}' +
+      'figure{margin:0;text-align:center;background:#fff;padding:28px 32px;border-radius:14px;' +
+      'box-shadow:0 18px 44px rgba(20,40,34,.12)}' +
+      'img{width:260px;height:260px;image-rendering:pixelated}' +
+      'p{margin:14px 0 0;color:#5d6a66;font-size:14px}</style>' +
+      '<figure><img src="/login-qr.png" alt="微信登录二维码">' +
+      '<p>用微信扫这个码，每 10 秒自动换一张新的。</p></figure>' +
+      '<script>setTimeout(function(){location.reload();},10000)</script>';
+    const body = Buffer.from(html, 'utf8');
+    return send(res, 200, body, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Length': body.length,
+      'Cache-Control': 'no-store',
+    });
+  }
+
   /* Courseware assets that live next to the body (the 图灵智赋 works). */
   if (pathname.startsWith('/api/program-assets/')) {
     return serveLqAssets(res, pathname);
@@ -1011,786 +1058,10 @@ async function handleXbApi(req, res, pathname, profile) {
   return notFound();
 }
 
-/* ------------------------------------------------------------------ *
- * 图灵智赋 (aifunengjiaoyu.com)
- * ------------------------------------------------------------------ */
-
-const afe = { programs: null, loaded: false };
-
-/*
- * 图灵智赋 gates every interactive path behind a WeChat session, so the
- * shell never reaches /api/program-file unless a token exists.  The replica
- * has no accounts, so it issues a clearly-labelled *local* identity instead:
- * no payment, no remote account, no server-side state.  It only unlocks the
- * interface; the courseware still has to exist in the local drop-in slot.
- */
-const AFE_LOCAL_USER = {
-  wechatId: 'local',
-  name: '本地用户',
-  points: 0,
-  isMember: false,
-  avatar: '',
-};
-
-const isLocalSession = (req) => /^Bearer\s+local-/i.test(req.headers.authorization || '');
-
-// The live site hands out a short hex captcha token; the local copy keeps
-// the same shape so the front-end code path is unchanged.
-const captchaToken = () =>
-  Array.from({ length: 16 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
-
-const AFE_LOCAL_BOOT = [
-  '<script>',
-  '(function(){try{',
-  "if(!localStorage.getItem('aiedu_token'))localStorage.setItem('aiedu_token','local-'+Date.now().toString(36));",
-  'if(!localStorage.getItem(\'aiedu_user\'))localStorage.setItem(\'aiedu_user\',JSON.stringify(' +
-    JSON.stringify(AFE_LOCAL_USER) +
-    '));',
-  '}catch(e){}})();',
-  '</script>',
-].join('');
-
-/**
- * Take the last two requests to the live internet out of the 图灵智赋 shell:
- * the Google Fonts stylesheet (mirrored under /fonts) and Cloudflare's
- * analytics beacon (no local counterpart at all).  Everything else the page
- * needs is already served from the mirror.
- */
-function makeOfflineHtml(html) {
-  return html
-    .replace(
-      /<link[^>]*href="https:\/\/fonts\.googleapis\.com\/css2[^"]*"[^>]*>/g,
-      '<link rel="stylesheet" href="/fonts/noto-serif-sc.css">'
-    )
-    .replace(/<link[^>]*href="https:\/\/fonts\.gstatic\.com[^"]*"[^>]*>/g, '')
-    .replace(/<script[^>]*src="https:\/\/static\.cloudflareinsights\.com[^"]*"[^>]*><\/script>/g, '')
-    .replace(/<link[^>]*rel="preconnect"[^>]*fonts\.(googleapis|gstatic)\.com[^>]*>/g, '');
-}
-
-/*
- * The 图小灵 model preview builds its own import map inside a sandboxed
- * srcdoc frame, and that map points the three.js engine at unpkg.com.  The
- * engine is mirrored under /tuxiaoling/vendor/three, so the map is repointed
- * on the way out — the file on disk stays byte-identical to the site.
- */
-function makeOfflineJs(text) {
-  if (!text.includes('unpkg.com/three@0.160.0')) return text;
-  return text
-    .replace(
-      /https:\/\/unpkg\.com\/three@0\.160\.0\/build\/three\.module\.js/g,
-      '/tuxiaoling/vendor/three/build/three.module.js'
-    )
-    .replace(
-      /https:\/\/unpkg\.com\/three@0\.160\.0\/examples\/jsm\//g,
-      '/tuxiaoling/vendor/three/examples/jsm/'
-    );
-}
-
-function loadAfe() {
-  if (afe.loaded) return;
-  const file = path.join(AFE_ROOT, 'programs.json');
-  const raw = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '{"programs":[]}';
-  const parsed = JSON.parse(raw);
-  const cwDir = path.join(AFE_ROOT, 'courseware');
-  const installed = new Set();
-  if (fs.existsSync(cwDir)) {
-    for (const f of fs.readdirSync(cwDir)) installed.add(f.replace(/\.html$/, ''));
-  }
-  afe.installed = installed;
-  afe.programs = (parsed.programs || []).map((p) => ({
-    ...p,
-    localInstalled: installed.has(String(p.id)),
-  }));
-  afe.loaded = true;
-}
-
-/*
- * The 精品课 payloads are mirrored verbatim, so they are replayed byte for
- * byte instead of being rebuilt from parsed objects.
- */
-function serveAfePremiumJson(res, name) {
-  const file = path.join(AFE_ROOT, 'premium', name);
-  if (!fs.existsSync(file)) {
-    return sendJson(res, 500, { error: '本地副本缺少 ' + name });
-  }
-  const body = fs.readFileSync(file);
-  send(res, 200, body, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': body.length,
-  });
-}
-
-/*
- * The public, content-bearing API payloads (site notice, revenue split,
- * full work list) are mirrored byte for byte under mirror/aifunengjiaoyu/api.
- * They are replayed as they were published, except that the CDN media URLs
- * are pointed at the mirrored /prod/uploads/... tree so the browser never
- * leaves localhost.
- */
-function serveAfeApiJson(res, name) {
-  const file = path.join(AFE_ROOT, 'api', name);
-  if (!fs.existsSync(file)) {
-    return sendJson(res, 500, { error: '本地副本缺少 api/' + name });
-  }
-  const body = fs
-    .readFileSync(file, 'utf8')
-    .replace(/https:\/\/static\.aifunengjiaoyu\.com\//g, '/');
-  const buf = Buffer.from(body, 'utf8');
-  send(res, 200, buf, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': buf.length,
-  });
-}
-
-/*
- * The premium playback and admin routes only answer a POST that carries the
- * site's own Origin *and* the catalogue intent header.  Missing either one
- * is refused with same_origin_required before routing happens.
- */
-function afeSameOrigin(req) {
-  const host = req.headers.host || `localhost:${XB_PORT}`;
-  const origin = req.headers.origin || '';
-  const intent = req.headers['x-premium-catalogue-intent'] || '';
-  return origin === `http://${host}` && intent === 'cataloguing';
-}
-
-/*
- * The 精品课 catalogue lists 480 courses pointing at programme ids in the
- * 846-1346 range.  The live site is in the "catalogue-only" phase and
- * refuses every playback launch, so this copy does the same — except for
- * the courses whose courseware has been dropped into
- * mirror/aifunengjiaoyu/courseware/, which get a local playback lease.
- */
-const afePremiumLeases = new Map();
-
-function afePremiumInstalled() {
-  const dir = path.join(AFE_ROOT, 'courseware');
-  const installed = {};
-  if (!fs.existsSync(dir)) return installed;
-  for (const name of fs.readdirSync(dir)) {
-    const id = name.replace(/\.html$/, '');
-    if (!/^\d+$/.test(id)) continue;
-    installed[id] = {
-      allowed: true,
-      premium: true,
-      direct: false,
-      sampleAvailable: true,
-      sampleRemaining: null,
-      localInstalled: true,
-    };
-  }
-  return installed;
-}
-
-async function handleAfe(req, res, url) {
-  loadAfe();
-  const pathname = decodeURIComponent(url.pathname);
-  const method = req.method.toUpperCase();
-
-  /*
-   * The 图小灵 assistant has its own API namespace, and the live site treats
-   * it separately from the top-level /api/ one: some of these paths exist
-   * only under /tuxiaoling/, and the login wall sits on different methods.
-   */
-  if (pathname.startsWith('/tuxiaoling/api/')) {
-    const rest = pathname.slice('/tuxiaoling/api/'.length);
-    if (method !== 'GET' && method !== 'HEAD') await readBody(req);
-    if (rest === 'runtime-status') {
-      if (method !== 'GET') return expressNotFound(res, method, pathname);
-      return sendJson(res, 200, {
-        success: true,
-        mode: 'enabled',
-        readOnly: true,
-        canCreate: false,
-        canRestore: false,
-        message: '本地离线副本：课件创作依赖云端模型，本地不提供。',
-      });
-    }
-    if (rest === 'materials') {
-      if (method !== 'POST') return expressNotFound(res, method, pathname);
-      return sendJson(res, 401, { success: false, msg: '请先登录' });
-    }
-    if (rest === 'chat-list') {
-      if (method !== 'GET') return expressNotFound(res, method, pathname);
-      return sendJson(res, 401, { success: false, msg: '请先登录' });
-    }
-    return sendJson(res, 401, { success: false, msg: '请先登录' });
-  }
-
-  // The 图小灵 assistant page resolves its API calls relative to /tuxiaoling/,
-  // so those requests arrive as /tuxiaoling/api/... — route them to the same
-  // handler as the top-level /api/... namespace.
-  const apiPath = pathname.startsWith('/tuxiaoling/api/')
-    ? pathname.slice('/tuxiaoling'.length)
-    : pathname;
-
-  if (apiPath.startsWith('/api/')) {
-    const body = method !== 'GET' && method !== 'HEAD' ? await readBody(req) : null;
-    if (apiPath === '/api/programs' && req.method === 'GET') {
-      return sendJson(res, 200, {
-        success: true,
-        programs: afe.programs,
-        guestLimited: false,
-        placementAvailable: true,
-      });
-    }
-    if (apiPath.startsWith('/api/programs/') && /^\d+$/.test(apiPath.slice('/api/programs/'.length))) {
-      // The live site routes this one for GET only.
-      if (method !== 'GET') return plainNotFound(res);
-      const id = apiPath.slice('/api/programs/'.length);
-      const program = afe.programs.find((p) => String(p.id) === id);
-      if (!program) return sendJson(res, 404, { success: false, msg: '作品不存在' });
-      return sendJson(res, 200, { success: true, program });
-    }
-    if (apiPath.startsWith('/api/program-file/')) {
-      /*
-       * The shell asks for a program in two steps: a JSON handshake that
-       * must carry a token, then it loads /api/program-file/<id>?token=...
-       * (or .../body?token=...) as the courseware document itself.  Serve
-       * both from the same local drop-in slot.
-       */
-      if (method !== 'GET') return plainNotFound(res);
-      let rest = apiPath.slice('/api/program-file/'.length);
-      /*
-       * A bare /api/program-file/ is not a per-id route at all: the live
-       * site answers it with the whole work list (prices and all), which
-       * is public and therefore mirrored.
-       */
-      if (rest === '' || rest === 'body') {
-        return serveAfeApiJson(res, 'program-file.json');
-      }
-      let body = false;
-      if (rest.endsWith('/body')) {
-        body = true;
-        rest = rest.slice(0, -'/body'.length);
-      }
-      const id = rest.replace(/\.html$/, '');
-      const file = path.join(AFE_ROOT, 'courseware', `${id}.html`);
-      if (!fs.existsSync(file)) {
-        return sendJson(res, 401, {
-          success: false,
-          msg:
-            '本地未安装这份课件：请把在官网下载到的 HTML 放进 ' +
-            'mirror/aifunengjiaoyu/courseware/' + id + '.html',
-        });
-      }
-      const token = url.searchParams.get('token');
-      if (token !== null || body) {
-        if (await serveFile(res, file)) return;
-        return sendJson(res, 404, { success: false, msg: '本地未安装' });
-      }
-      return sendJson(res, 200, {
-        success: true,
-        token: 'local',
-        accessType: 'local',
-        url: `/api/program-file/${id}?token=local`,
-      });
-    }
-    /* The same list is served without the trailing slash. */
-    if (apiPath === '/api/program-file') {
-      if (method !== 'GET') return plainNotFound(res);
-      return serveAfeApiJson(res, 'program-file.json');
-    }
-    if (/^\/api\/programs\/\d+\/long-march-playback\//.test(apiPath)) {
-      // The 长征 courseware streams under an account-bound playback lease.
-      // Locally there is no account, so report the same refusal the online
-      // site gives an anonymous visitor.
-      return sendJson(res, 401, {
-        error: 'PUBLIC_LEASE',
-        msg: '请先登录后打开课件。',
-      });
-    }
-    if (/^\/api\/programs\/\d+\/(access-token|external-url|camera-launch)$/.test(apiPath)) {
-      const parts = /^(\/api\/programs\/\d+)\/(access-token|external-url|camera-launch)$/.exec(
-        apiPath
-      );
-      const kind = parts[2];
-      const id = parts[1].slice('/api/programs/'.length);
-      const file = path.join(AFE_ROOT, 'courseware', `${id}.html`);
-      if (kind === 'external-url') {
-        return sendJson(res, 200, {
-          success: false,
-          msg: '本地副本不提供外链作品。',
-        });
-      }
-      if (kind === 'access-token' && method !== 'GET') {
-        return sendJson(res, 403, { success: false, msg: '访问凭证无效或已过期' });
-      }
-      if (kind === 'camera-launch' && method !== 'GET') {
-        return sendJson(res, 401, { success: false, msg: '请先登录' });
-      }
-      if (!isLocalSession(req)) {
-        return sendJson(res, 401, { success: false, msg: '请先登录' });
-      }
-      if (!fs.existsSync(file)) {
-        return sendJson(res, 200, {
-          success: false,
-          msg:
-            '本地未安装这份课件：请把在官网下载到的 HTML 放进 ' +
-            'mirror/aifunengjiaoyu/courseware/' + id + '.html',
-        });
-      }
-      if (kind === 'camera-launch') {
-        return sendJson(res, 200, {
-          success: true,
-          launchUrl: `/api/program-file/${id}?token=local`,
-        });
-      }
-      return sendJson(res, 200, { success: true, token: 'local' });
-    }
-    if (apiPath === '/api/premium/capabilities' && req.method === 'GET') {
-      return serveAfePremiumJson(res, 'capabilities.json');
-    }
-    /*
-     * The 精品课 (premium catalogue) side of the site.  /api/programs only
-     * shows a guest the 12 published works; the whole catalogue — 10
-     * packages, 224 categories and 480 courses pointing at programme ids
-     * 846-1346 — is public under /api/premium/catalogue, so it is mirrored
-     * byte for byte and replayed exactly.
-     */
-    if (apiPath === '/api/premium/catalogue') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      return serveAfePremiumJson(res, 'catalogue.json');
-    }
-    if (apiPath === '/api/premium/prices') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      return serveAfePremiumJson(res, 'prices.json');
-    }
-    if (apiPath === '/api/pay/vip-prices') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      return serveAfePremiumJson(res, 'vip-prices.json');
-    }
-    if (apiPath === '/api/premium/account') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      return sendJson(res, 401, { error: 'login_required' });
-    }
-    if (apiPath.startsWith('/api/premium/admin/')) {
-      if (method === 'GET') return sendJson(res, 401, { error: 'login_required' });
-      if (!afeSameOrigin(req)) {
-        return sendJson(res, 403, { error: 'same_origin_required' });
-      }
-      return expressNotFound(res, method, apiPath);
-    }
-    if (/^\/api\/premium\/playback\/(launch|close|renew)$/.test(apiPath)) {
-      if (method === 'GET') return expressNotFound(res, method, apiPath);
-      if (!afeSameOrigin(req)) {
-        return sendJson(res, 403, { error: 'same_origin_required' });
-      }
-      const action = /launch|close|renew/.exec(apiPath)[1];
-      if (action === 'launch') {
-        const programId = Number(body?.programId);
-        const useId = typeof body?.useId === 'string' ? body.useId : '';
-        const file = path.join(AFE_ROOT, 'courseware', `${programId}.html`);
-        if (!Number.isInteger(programId) || !useId || !fs.existsSync(file)) {
-          return sendJson(res, 400, { error: 'invalid_launch' });
-        }
-        afePremiumLeases.set(useId, { programId, at: Date.now() });
-        return sendJson(res, 200, {
-          token: 'local',
-          accessType: 'local',
-          sampleRemaining: null,
-          useId,
-        });
-      }
-      const useId = typeof body?.useId === 'string' ? body.useId : '';
-      if (!afePremiumLeases.has(useId)) {
-        return sendJson(res, 400, { error: 'invalid_launch' });
-      }
-      if (action === 'close') afePremiumLeases.delete(useId);
-      return sendJson(res, 200, { success: true });
-    }
-    if (apiPath === '/api/announcement') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      return serveAfeApiJson(res, 'announcement.json');
-    }
-    if (apiPath === '/api/creator-agreement/share-policy') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      return serveAfeApiJson(res, 'share-policy.json');
-    }
-    if (apiPath === '/api/runtime-status') {
-      // Only the /tuxiaoling/ copy of this path exists on the live site.
-      return expressNotFound(res, method, apiPath);
-    }
-
-    /* --- the local identity ------------------------------------------- */
-    if (apiPath === '/api/auth/verify') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      if (!isLocalSession(req)) return sendJson(res, 200, { success: false });
-      return sendJson(res, 200, {
-        success: true,
-        user: AFE_LOCAL_USER,
-        dailyBonusAwarded: false,
-      });
-    }
-    // The live site only routes these on GET; a POST to the same path is a
-    // plain 404 there, so keep the method check and let POST fall through.
-    if (apiPath === '/api/points/balance' && req.method === 'GET') {
-      if (!isLocalSession(req)) {
-        return sendJson(res, 401, { success: false, msg: '请先登录' });
-      }
-      return sendJson(res, 200, {
-        success: true,
-        points: 0,
-        available: 0,
-        frozen: 0,
-        balance: 0,
-        total: 0,
-        used: 0,
-        bonus: 0,
-        granted: 0,
-        expired: 0,
-      });
-    }
-    if (apiPath === '/api/premium/access' && req.method === 'GET') {
-      if (!isLocalSession(req)) {
-        return sendJson(res, 401, { error: 'login_required' });
-      }
-      return sendJson(res, 200, {
-        success: true,
-        token: 'local',
-        accessType: 'local',
-        openid: 'local',
-        courses: afePremiumInstalled(),
-      });
-    }
-    if (apiPath === '/api/trials' && req.method === 'GET') {
-      if (!isLocalSession(req)) {
-        return sendJson(res, 401, { success: false, msg: '请先登录' });
-      }
-      const program = url.searchParams.get('program_id') || url.searchParams.get('program');
-      const file = path.join(AFE_ROOT, 'courseware', `${program}.html`);
-      if (!fs.existsSync(file)) {
-        return sendJson(res, 404, {
-          success: false,
-          msg: '本地未安装这份课件，请将下载好的 HTML 放入 mirror/aifunengjiaoyu/courseware/',
-        });
-      }
-      /* The front-end reads "used" and "total"; the live site answers
-       * {success, used, total} for the signed-in teacher. */
-      return sendJson(res, 200, {
-        success: true,
-        used: 0,
-        total: 3,
-        limit: 3,
-        token: 'local',
-      });
-    }
-    if (apiPath === '/api/get-qrcode') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      return sendJson(res, 200, {
-        success: false,
-        msg: '本地离线副本已自动使用本地身份，无需扫码登录。',
-      });
-    }
-    if (apiPath === '/api/user/purchases') {
-      if (method !== 'GET') return expressNotFound(res, method, apiPath);
-      if (!isLocalSession(req)) {
-        return sendJson(res, 401, { success: false, msg: '请先登录' });
-      }
-      /*
-       * Everything that is present in the local courseware drop-in slot
-       * counts as owned.  This is what makes the local copy behave like
-       * 小白教育: an installed work opens straight away and can be saved,
-       * instead of asking for a purchase.
-       */
-      const ids = [];
-      const dir = path.join(AFE_ROOT, 'courseware');
-      if (fs.existsSync(dir)) {
-        for (const name of fs.readdirSync(dir)) {
-          const id = name.replace(/\.html$/, '');
-          if (/^\d+$/.test(id)) ids.push(Number(id));
-        }
-      }
-      return sendJson(res, 200, { success: true, purchasedIds: ids });
-    }
-
-    /*
-     * Everything below mirrors what the live site answers for a guest
-     * (signed-out) visitor, so the original front-end renders exactly the
-     * same states it does online.  Nothing here unlocks paid content.
-     *
-     * The live site answers some of these differently per method, so each
-     * entry carries a GET and a POST response.  tools\compare-guest-responses.mjs
-     * re-checks every row against the live site.
-     */
-    const guest = {
-      '/api/auth/check-scan': {
-        GET: [404, null],
-        POST: [200, { success: false }],
-      },
-      '/api/captcha-token': {
-        GET: [404, null],
-        POST: [200, { success: true, token: captchaToken() }],
-      },
-      '/api/pay/create-order': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/points/create-points-order': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/points/balance': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [404, null],
-      },
-      '/api/premium/access': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [404, null],
-      },
-      '/api/programs/click': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [200, { success: false }],
-      },
-      '/api/programs': {
-        POST: [405, { success: false, msg: 'Method not allowed' }],
-      },
-      '/api/programs/rate': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/programs/ratings': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [404, 'plain'],
-      },
-      '/api/programs/placement': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/programs/sort-by-uses': {
-        GET: [405, { success: false, msg: 'Method not allowed' }],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/programs/approve': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/programs/delist': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/programs/resubmit': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/programs/update': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/redeem-member-code': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/trials': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [404, null],
-      },
-      '/api/users/delete': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/user/update': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/inquiry': {
-        GET: [404, null],
-        POST: [200, { success: false, msg: '请填写必填信息' }],
-      },
-      '/api/report-missed': {
-        GET: [404, null],
-        POST: [200, { success: false, msg: '参数不完整' }],
-      },
-      '/api/upload': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/upload-cover': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/feedback/admin': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [404, null],
-      },
-      '/api/creator/earnings': {
-        GET: [401, { success: false, msg: '请先登录' }],
-        POST: [404, null],
-      },
-      '/api/creator/withdraw': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      '/api/creator/withdraw-qr': {
-        GET: [404, null],
-        POST: [401, { success: false, msg: '请先登录' }],
-      },
-      /*
-       * The 图小灵 assistant posts here, but under its own /tuxiaoling/
-       * namespace — the top-level path does not exist on the live site.
-       */
-      '/api/materials': {
-        GET: [404, null],
-        POST: [404, null],
-      },
-    };
-    const entry = guest[apiPath];
-    if (entry) {
-      const picked = Array.isArray(entry)
-        ? entry
-        : entry[req.method] || entry[req.method.toUpperCase()];
-      if (picked) {
-        if (picked[1] === null) return expressNotFound(res, req.method, apiPath);
-        if (picked[1] === 'plain') return plainNotFound(res);
-        return sendJson(res, picked[0], picked[1]);
-      }
-    }
-    if (apiPath.startsWith('/api/admin/')) {
-      return sendJson(res, 401, { success: false, msg: '请先登录' });
-    }
-    return expressNotFound(res, req.method, apiPath);
-  }
-
-  if (pathname.startsWith('/courseware/')) {
-    if (method !== 'GET' && method !== 'HEAD') {
-      return expressNotFound(res, method, pathname);
-    }
-    const id = path.basename(pathname).replace(/\.html$/, '');
-    const file = path.join(AFE_ROOT, 'courseware', `${id}.html`);
-    if (fs.existsSync(file) && (await serveFile(res, file))) return;
-    return sendJson(res, 404, { success: false, msg: '本地未安装' });
-  }
-
-  // The standalone player pages, /play/<program id>.
-  if (pathname.startsWith('/play/')) {
-    if (method !== 'GET' && method !== 'HEAD') {
-      return expressNotFound(res, method, pathname);
-    }
-    const id = path.basename(pathname).replace(/\.html$/, '');
-    const file = path.join(AFE_ROOT, 'play', `${id}.html`);
-    if (fs.existsSync(file)) {
-      const html = fs.readFileSync(file, 'utf8');
-      // Drop the anti-devtools handler, same as the 小白教育 content guard:
-      // it blocks the browser tools needed to work on the local copy.
-      let patched = html.replace(
-        /\/\/ 反调试[\s\S]*?\}\)\(\);/,
-        '// anti-devtools handler removed in the local replica'
-      );
-      patched = makeOfflineHtml(patched);
-      // Seed the local identity the player page expects to find.
-      patched = patched.replace(
-        /<body>/,
-        `<body>\n${AFE_LOCAL_BOOT}`
-      );
-      const body = Buffer.from(patched, 'utf8');
-      res.writeHead(200, {
-        'Content-Type': MIME['.html'],
-        'Content-Length': body.length,
-        'Cache-Control': 'no-cache',
-      });
-      return res.end(body);
-    }
-    return sendJson(res, 404, { success: false, msg: '本地未找到该作品的播放页' });
-  }
-
-  // The CDN's public media, mirrored under public/ keeping the URL path.
-  if (pathname.startsWith('/prod/uploads/')) {
-    if (method !== 'GET' && method !== 'HEAD') {
-      return expressNotFound(res, method, pathname);
-    }
-    const file = safeJoin(path.join(AFE_ROOT, 'public'), pathname);
-    if (file && (await serveFile(res, file))) return;
-    return expressNotFound(res, method, pathname);
-  }
-
-  /*
-   * A courseware that is present in the local drop-in slot can be taken
-   * away and used on its own, the same way 小白教育 hands its files out.
-   * The preview overlay in the shell can save the page too, but this route
-   * always serves the file exactly as it was mirrored.
-   */
-  if (pathname.startsWith('/download/')) {
-    if (method !== 'GET' && method !== 'HEAD') {
-      return expressNotFound(res, method, pathname);
-    }
-    const id = path.basename(pathname).replace(/\.html$/, '');
-    const file = path.join(AFE_ROOT, 'courseware', `${id}.html`);
-    if (fs.existsSync(file) && (await serveFile(res, file, { download: true }))) return;
-    return sendJson(res, 404, { success: false, msg: '本地未安装这份课件' });
-  }
-
-  // Cloudflare's beacon has no local counterpart.
-  if (pathname.startsWith('/cdn-cgi/')) {
-    res.writeHead(204);
-    return res.end();
-  }
-
-  if (pathname === '/favicon.ico') {
-    const mark = path.join(AFE_ROOT, 'assets', 'assets', 'turing-brand-mark.svg');
-    if (fs.existsSync(mark) && (await serveFile(res, mark))) return;
-  }
-
-  const rel = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
-  const file = safeJoin(path.join(AFE_ROOT, 'assets'), rel);
-  if (file) {
-    if (method !== 'GET' && method !== 'HEAD') {
-      return expressNotFound(res, method, pathname);
-    }
-    const contentType = AFE_MIME[path.extname(file).toLowerCase()];
-    if (rel === 'index.html') {
-      // Seed the local identity before the shell boots.
-      try {
-        const html = fs.readFileSync(file, 'utf8');
-        const patched = makeOfflineHtml(html.replace(
-          /<div id="app"><\/div>/,
-          `<div id="app"></div>\n${AFE_LOCAL_BOOT}`
-        ));
-        const body = Buffer.from(patched, 'utf8');
-        res.writeHead(200, {
-          'Content-Type': AFE_MIME['.html'],
-          'Content-Length': body.length,
-          'Cache-Control': 'no-cache',
-        });
-        return res.end(body);
-      } catch {
-        /* fall through to the plain file */
-      }
-    }
-    if (/\.(js|mjs)$/i.test(rel)) {
-      try {
-        const text = fs.readFileSync(file, 'utf8');
-        const patched = makeOfflineJs(text);
-        if (patched !== text) {
-          const body = Buffer.from(patched, 'utf8');
-          res.writeHead(200, {
-            'Content-Type': contentType,
-            'Content-Length': body.length,
-            'Cache-Control': 'no-cache',
-          });
-          return res.end(body);
-        }
-      } catch {
-        /* fall through to the plain file */
-      }
-    }
-    if (await servePath(res, file, { contentType })) return;
-  }
-  return expressNotFound(res, method, pathname);
-}
-
 /* ------------------------------------------------------------------ */
 
 const XB_PORT = Number(process.env.XB_PORT || 4173);
-/*
- * The delivered library is one site on one port.  The two comparison
- * mirrors — the 小白教育 catalogue on its own and the 图灵智赋 site as it
- * was published — stay in the tree as evidence and can be switched on
- * again with AFE_PORT=4174 (original 图灵智赋 shell) or XB_REF_PORT=4175
- * (小白教育 catalogue), but they are not part of the local library.
- */
-const AFE_PORT = Number(process.env.AFE_PORT || 0);
 const LQ_PORT = Number(process.env.LQ_PORT || 4173);
-const XB_REF_PORT = Number(process.env.XB_REF_PORT || 0);
 
 /*
  * The 乐启享 library: the 小白教育 shell carrying both courseware sources,
@@ -1838,21 +1109,6 @@ const lqProfile = makeProfile({
   ],
 });
 
-const xbProfile = makeProfile({
-  kind: 'xbjiaoyu',
-  port: XB_REF_PORT,
-  /*
-   * The second port serves the same cleaned 乐启享 shell as the first one,
-   * with only the 小白教育 catalogue in it. The published shell still had
-   * a sign-in form, download cards, orders, refunds and a feedback form;
-   * none of them belong in a library that is read offline.
-   */
-  assetsDir: path.join(LQ_ROOT, 'site'),
-  coursewareDir: path.join(LQ_ROOT, 'courseware'),
-  catalogFile: path.join(LQ_ROOT, 'catalog-xb.json'),
-  mounts: lqProfile.mounts,
-});
-
 const xbServer = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   handleXb(req, res, url, lqProfile).catch((err) => {
@@ -1861,33 +1117,7 @@ const xbServer = http.createServer((req, res) => {
   });
 });
 
-const xbRefServer = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  handleXb(req, res, url, xbProfile).catch((err) => {
-    console.error('[xb-ref]', err);
-    sendJson(res, 500, { error: String(err.message || err) });
-  });
-});
-
-const afeServer = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  handleAfe(req, res, url).catch((err) => {
-    console.error('[afe]', err);
-    sendJson(res, 500, { error: String(err.message || err) });
-  });
-});
-
 xbServer.listen(XB_PORT, '127.0.0.1', () => {
   console.log(`乐启享课件库 -> http://localhost:${XB_PORT}/`);
 });
-if (XB_REF_PORT > 0) {
-  xbRefServer.listen(XB_REF_PORT, '127.0.0.1', () => {
-    console.log(`乐启享 · 小白教育 -> http://localhost:${XB_REF_PORT}/`);
-  });
-}
-if (AFE_PORT > 0) {
-  afeServer.listen(AFE_PORT, '127.0.0.1', () => {
-    console.log(`图灵智赋  -> http://localhost:${AFE_PORT}/`);
-  });
-}
 

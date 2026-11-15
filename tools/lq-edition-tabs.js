@@ -11,5 +11,7 @@ const editionTabs=(products,selected='all',action='download-edition')=>{
   const label=(downloadEditions.find(([value])=>value===selected)||[])[1]||'全部课件';
   const count=products.filter(p=>matchesDownloadEdition(p,selected)).length;
   const open=window.lqEditionOpen===true;
-  return `<div class="download-edition-fold" data-collapsed="${open?'false':'true'}"><button type="button" class="download-edition-toggle" data-lq-fold-toggle aria-expanded="${open?'true':'false'}"><span>版本</span><small>${esc(label)} · ${count} 份</small></button><nav class="download-edition-tabs" aria-label="课件版本目录">${downloadEditions.map(([value,title])=>`<button type="button" data-action="${action}" data-value="${value}" aria-pressed="${selected===value}"><strong>${title}</strong><span>${products.filter(p=>matchesDownloadEdition(p,value)).length} 份</span></button>`).join('')}</nav></div>`;
+  /* A version that holds nothing is not a choice, so it is not shown. */
+  const shown=downloadEditions.filter(([value])=>value==='all'||value===selected||products.some(p=>matchesDownloadEdition(p,value)));
+  return `<div class="download-edition-fold" data-collapsed="${open?'false':'true'}"><button type="button" class="download-edition-toggle" data-lq-fold-toggle aria-expanded="${open?'true':'false'}"><span>版本</span><small>${esc(label)} · ${count} 份</small></button><nav class="download-edition-tabs" aria-label="课件版本目录">${shown.map(([value,title])=>`<button type="button" data-action="${action}" data-value="${value}" aria-pressed="${selected===value}"><strong>${title}</strong><span>${products.filter(p=>matchesDownloadEdition(p,value)).length} 份</span></button>`).join('')}</nav></div>`;
 };

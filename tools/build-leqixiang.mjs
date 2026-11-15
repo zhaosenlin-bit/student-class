@@ -120,6 +120,10 @@ for (const file of fs.readdirSync(SITE)) {
     .replace('<link rel="icon" href="/brand/brand-logo.png?v=8" type="image/svg+xml">',
       '<link rel="icon" href="/brand/favicon.ico" type="image/x-icon">')
     .replace(/<div class="download-quicknav">[\s\S]*?<\/div>\s*/, '')
+    /* "首页" and "课件库" rendered the same list once the shop was gone,
+       so the header keeps one entry and the logo points at the library. */
+    .replace('<a href="#works" class="nav-link">首页</a>', '')
+    .replace('<a class="brand" href="#works"', '<a class="brand" href="#catalog"')
     .replace(/<a class="nav-link" href="#teachers">教师课件<\/a>/, '')
     .replace(/<a class="nav-link" href="#refunds">退款与售后<\/a>/, '')
     .replace(/<a class="nav-link mobile-publish" href="#creator">发布课件<\/a>/, '')
@@ -136,15 +140,30 @@ for (const file of fs.readdirSync(SITE)) {
     .replace(/<button type="button" data-announcement-open>更新公告<\/button>/, '')
     .replace(/<button data-action="terms">购买说明<\/button>/, '')
     .replace(/<button data-action="privacy">隐私说明<\/button>/, '')
+    .replace(/<button data-action="guide">使用帮助<\/button>/, '')
+    .replace(/<button data-action="business" id="business" hidden>经营信息<\/button>/, '')
     .replace(/<a href="#refunds">退款与售后<\/a>/, '')
     .replace('<span>© 乐启享</span>', `<span>© 2025-2026 ${BRAND.name} · 所有权利保留</span>`)
     .replace(/<a class="brand footer-brand"[^>]*><img class="site-logo" src="\/brand\/brand-logo.png\?v=8" alt="" width="36" height="36"><span>乐启享<\/span><\/a>/,
-      `<a class="brand footer-brand" href="#works"><img class="site-logo" src="/brand/brand-logo.png" alt="" width="36" height="36"><span>${BRAND.short}</span></a>`)
+      `<a class="brand footer-brand" href="#catalog"><img class="site-logo" src="/brand/brand-logo.png" alt="" width="36" height="36"><span>${BRAND.short}</span></a>`)
     .replace('<p>互动课件库 · 在线使用 · 课件下载</p>',
       `<p>${BRAND.slogan}</p>`);
   /* The local build keeps one line only: browse → use → download. */
   html = html.replace('<script type="module" src="/app.js',
     '<script src="/lq-mode.js"></script><script type="module" src="/app.js');
+  /*
+   * The store sheet also carried the catalogue's own layout rules — the
+   * chapter tree, the result row, the card grid.  The sheet goes with the
+   * shop, so those rules move into a sheet of their own that takes its
+   * place in the cascade.
+   */
+  html = html.replace(
+    /<link[^>]*href="\/online-store\.css[^>]*>/,
+    '<link rel="stylesheet" href="/lq-catalog.css?v=lq-20261115">'
+  );
+  if (!html.includes('/lq-catalog.css')) {
+    throw new Error('index.html patch missed: lq-catalog.css');
+  }
   /* The preview on a course page is loaded only when the reader asks for
      it, so the script itself stays out of the way until then. */
   html = html.replace('</body>',
@@ -154,6 +173,16 @@ for (const file of fs.readdirSync(SITE)) {
   html = html.replace('</body>',
     '<script src="/lq-folds.js?v=1"></script></body>');
   if (!html.includes('/lq-folds.js')) throw new Error('index.html patch missed: lq-folds.js');
+  /*
+   * The shell and its modules are cached by the browser under the version
+   * in the URL. A rebuilt library that keeps the old tag keeps the old
+   * file, so the tags are raised once per build.
+   */
+  html = html
+    .replace('/app.js?v=all-subject-upgrade-20261026.1', '/app.js?v=lq-20261115')
+    .replace('/lq-preview.js?v=1', '/lq-preview.js?v=lq-20261115')
+    .replace('/lq-folds.js?v=1', '/lq-folds.js?v=lq-20261115');
+  if (!html.includes('app.js?v=lq-20261115')) throw new Error('index.html patch missed: the app version');
   write(p, html);
 }
 
@@ -163,6 +192,8 @@ fs.copyFileSync(path.join(ROOT, 'tools', 'lq-mode.js'), path.join(SITE, 'lq-mode
 fs.copyFileSync(path.join(ROOT, 'tools', 'lq-preview.js'), path.join(SITE, 'lq-preview.js'));
 /* lq-folds.js: the groups that fold away on a phone. */
 fs.copyFileSync(path.join(ROOT, 'tools', 'lq-folds.js'), path.join(SITE, 'lq-folds.js'));
+/* lq-catalog.css: the catalogue layout rules that the store sheet carried. */
+fs.copyFileSync(path.join(ROOT, 'tools', 'lq-catalog.css'), path.join(SITE, 'lq-catalog.css'));
 
 /* A whole function is easier to replace than a fragment of a long line. */
 const swapFunction = (source, head, replacement) => {
@@ -198,6 +229,12 @@ const swapLine = (source, head, replacement) => {
     + `<p class="subtle">统一社会信用代码 / 备案号：${BRAND.icp}</p>`
     + `</div>');}`;
   js = js.replace(/function about\(\)\{modal\([\s\S]*?\);?\}/, about);
+  /* The catalogue panel is rewritten on every build, so its module tag
+     has to move with it or the browser keeps the old one. */
+  js = js.replace(
+    "from './download-store.js?v=all-subject-upgrade-20261026.1'",
+    "from './download-store.js?v=lq-20261115'"
+  );
   js = js.replace(
     "const state=p.mode==='free'?'免费下载'",
     "const state=p.localInstalled?'本地可用':p.localReason||'本地未收录'"
@@ -275,19 +312,21 @@ const swapLine = (source, head, replacement) => {
     '如有问题或改进建议，可在课件介绍页点击“改进建议与反馈”，登录有使用权限的账号后提交。',
     '课件默认高清，卡顿时可在课件设置中调整画质。'
   );
+  js = js.replace('遇到问题可在介绍页提交使用反馈。', '');
 
   /*
-   * The catalogue holds everything the two platforms publish, but only the
-   * bodies that were pulled down can actually be opened here. A fourth
-   * filter lets a teacher separate the two without reading every card.
+   * The catalogue only ever held what can be opened here. There is no
+   * price facet and no availability facet: the server answers with the
+   * courses whose body is on this disk, and the shell does not second-
+   * guess it.
    */
   js = js.replace(
     ".filter(p=>priceFilter==='全部'||p.mode===(priceFilter==='免费'?'free':'paid'))",
-    ".filter(p=>priceFilter==='本地'?!!p.localInstalled:priceFilter==='待补齐'?!p.localInstalled:priceFilter==='全部'||p.mode===(priceFilter==='免费'?'free':'paid'))"
+    ".filter(p=>true)"
   );
   js = js.replace(
     "const shown=browseCatalog(info.downloadMode&&originFilter!=='教师课件'?catalog.filter(p=>matchesDownloadEdition(p,editionFilter)):catalog,{origin:originFilter,stage,subject:filter,price:priceFilter,",
-    "const shown=browseCatalog((info.downloadMode&&originFilter!=='教师课件'?catalog.filter(p=>matchesDownloadEdition(p,editionFilter)):catalog).filter(p=>priceFilter==='本地'?p.localInstalled:priceFilter==='待补齐'?!p.localInstalled:true),{origin:originFilter,stage,subject:filter,price:['本地','待补齐'].includes(priceFilter)?'全部':priceFilter,"
+    "const shown=browseCatalog(info.downloadMode&&originFilter!=='教师课件'?catalog.filter(p=>matchesDownloadEdition(p,editionFilter)):catalog,{origin:originFilter,stage,subject:filter,price:'全部',"
   );
 
   /*
@@ -316,9 +355,7 @@ const swapLine = (source, head, replacement) => {
     'download-gallery-filters',
     'download-gallery-filters-toggle',
     'data-lq-fold-toggle',
-    "priceFilter==='本地'?!!p.localInstalled",
-    "priceFilter==='待补齐'?!p.localInstalled:true",
-    "priceFilter==='待补齐'?!p.localInstalled:true",
+    "price:'全部'",
     "function accountLabel(){const el",
     'async function account(){about();}',
     "if(page==='purchase'&&id)",
@@ -447,6 +484,53 @@ const swapLine = (source, head, replacement) => {
     "const tabIdentity={id:newTabId(),ready:Promise.resolve(newTabId())};"
   );
 
+  /*
+   * The creator desk, the moderation queue and the shop routes were the
+   * last of the commercial shell.  The route head above already turned
+   * every one of those addresses into the catalogue, so the branches
+   * behind them — and the pages they drew — go too.
+   */
+  const dropRange = (source, startHead, endHead) => {
+    const start = source.indexOf(startHead);
+    if (start < 0) throw new Error('app.js patch missed: ' + startHead);
+    const end = source.indexOf(endHead, start);
+    if (end < 0) throw new Error('app.js patch missed: ' + endHead);
+    const stop = source.indexOf('\n', end);
+    return source.slice(0, start) + source.slice(stop + 1);
+  };
+  js = dropRange(
+    js,
+    'let creatorDashboard=null,creatorSelectedId=null,',
+    "document.addEventListener('submit',async e=>{const f=e.target;if(!f.matches('[data-creator-form]'))return;"
+  );
+  js = js.replace(
+    "if(page==='course'){await resolveLibraryProduct(id);if(serial!==routeSerial)return;introPage(id);}"
+      + "else if(page==='bundle'){if(id)$('#main').classList.add('bundle-detail-page');"
+      + "store.bundlesPage(id,{selectedChapter:restoringBrowse?.bundleChapter,onRender:observeReveals});observeReveals();}"
+      + "else if(page==='bulk-download-admin'){await downloadBulkAdmin.render(id);}"
+      + "else if(page==='feedback-admin'){await store.feedbackAdmin();}"
+      + "else if(page==='account-safety'){await accountSafety.render();}"
+      + "else if(page==='creator'){await renderCreatorPage();}"
+      + "else if(page==='moderation'){await renderModerationPage();}"
+      + "else if(page==='purchases'){await refreshCatalog();if(serial!==routeSerial)return;await purchases(serial);}"
+      + "else if(page==='refunds'||page==='refund-admin')await refundPage(page==='refund-admin',serial);"
+      + "else if(page==='admin')await admin(serial);"
+      + "else works();",
+    "if(page==='course'){await resolveLibraryProduct(id);if(serial!==routeSerial)return;introPage(id);}else works();"
+  );
+  /* The admin desk kept a handle that the service-request button calls. */
+  js = swapFunction(
+    js,
+    'async function admin(serial=routeSerial){',
+    "async function admin(){history.replaceState(null,'','#catalog');works();}"
+  );
+  /* The bulk entry was a hidden node the bulk module could mount into. */
+  js = js.replace(
+    "const bulkEntry=document.createElement('div');bulkEntry.dataset.bulkDownloadEntry='';"
+      + "bulkEntry.hidden=true;$('#main .download-gallery-heading').append(bulkEntry);downloadBulk.mount(bulkEntry);",
+    ''
+  );
+
   for (const marker of [
     'const store={bundle:',
     'const refundUI={orderMarkup:',
@@ -456,6 +540,7 @@ const swapLine = (source, head, replacement) => {
     'const phone={cancel:',
     'const updateAnnouncement={show:',
     'const tabIdentity={id:',
+    "if(page==='course'){await resolveLibraryProduct(id);if(serial!==routeSerial)return;introPage(id);}else works();",
   ]) {
     if (!js.includes(marker)) throw new Error('app.js patch missed: ' + marker);
   }
@@ -480,6 +565,10 @@ const swapLine = (source, head, replacement) => {
     'library-view.js',
     'promotion-countdown.js',
     'classroom-tab.js',
+    'renderCreatorPage',
+    'renderModerationPage',
+    'creatorRenderDashboard',
+    'bulkDownloadEntry',
   ]) {
     if (js.includes(gone)) throw new Error('app.js patch missed: ' + gone + ' is still there');
   }
@@ -601,20 +690,29 @@ const swapLine = (source, head, replacement) => {
     "if(unavailable(fresh)){toast('这份资源暂未开放下载');return;}",
     "if(unavailable(fresh)){toast('本地库还没有这份课件的正文，暂时不能下载');return;}"
   );
-  /* The card in the catalogue carries the same wording. */
+  /*
+   * The card in the catalogue carries a badge that says what the reader
+   * is about to get: free, unlocked, or a card to pick. None of that
+   * belongs to a library, and a badge that says "pending" on a course
+   * that is not in the list at all is noise. So the badge goes, and the
+   * state it described goes with it.
+   */
   js = js.replace(
     "const state=p.mode==='free'?'免费下载':integrated(p)?unavailable(p)?'暂未开放':p.downloadReason==='count'?trial(p)?'尝鲜卡可选':'次卡可选':p.canDownload?'已解锁':'选择下载卡':p.mode==='free'?'免费下载':p.downloadReason==='count'?'可选资源':p.canDownload?'已解锁':'下载资源';",
-    "const state=p.localInstalled?'本地可用':'待补齐';"
+    ''
+  );
+  js = js.replace(
+    "<span${p.mode==='free'?' class=\"download-free-badge\"':''}>${state}</span>",
+    ''
   );
   /*
-   * The card's own button used to be one link to the course page. A
-   * course whose body is on disk can be opened straight from the grid,
-   * so the grid says so; a course that is not on disk offers what is
-   * there — the cover and the lesson plan — instead of a promise.
+   * The card's own buttons used to be one link to the course page. Two
+   * buttons do the whole job: open the courseware here, or take the
+   * file away.
    */
   js = js.replace(
     "${p.onlineAccessible?`<button class=\"button wide\" data-action=\"trial\" data-id=\"${esc(p.id)}\">免费在线使用 ↗</button>`:''}<a class=\"button secondary wide\" href=\"#course/${esc(p.id)}\">查看资源 →</a>",
-    "${p.localInstalled?`<div class=\"download-card-actions\"><button class=\"button wide\" data-lq-preview-start=\"${esc(p.id)}\">▶ 在线预览</button><a class=\"button secondary wide\" href=\"#course/${esc(p.id)}\">课件详情 →</a></div>`:`<a class=\"button wide\" href=\"#course/${esc(p.id)}\">查看资料 →</a>`}"
+    "<div class=\"download-card-actions\"><button class=\"button wide\" data-lq-preview-start=\"${esc(p.id)}\">▶ 在线预览</button><button class=\"button secondary wide\" data-download-action=\"download\" data-id=\"${esc(p.id)}\">↓ 下载</button></div>"
   );
   /*
    * The version strip is five buttons with a count each. On a phone it
@@ -648,20 +746,24 @@ const swapLine = (source, head, replacement) => {
     read(path.join(ROOT, 'tools', 'lq-detail-panel.js')).trimEnd() +
     js.slice(detailEnd + 3);
   for (const marker of [
-    "const state=p.localInstalled?'本地可用':'待补齐';",
     '下载链接 5 分钟内有效。',
     '本地库还没有这份课件的正文',
     'data-lq-preview-host',
     'data-lq-preview=',
     'data-lq-preview-start',
-    'download-pending-badge',
-    'download-notes-body',
+    'data-download-action="download"',
     'download-edition-fold',
     'download-lede',
   ]) {
     if (!js.includes(marker)) throw new Error('download-store.js patch missed: ' + marker);
   }
   if (js.includes('course-feedback')) throw new Error('download-store.js patch missed: course-feedback');
+  if (js.includes('download-free-badge')) {
+    throw new Error('download-store.js patch missed: the price badge is still there');
+  }
+  if (js.includes('待补齐')) {
+    throw new Error('download-store.js patch missed: the availability wording is still there');
+  }
   if (js.includes("const status=unavailable(p)?'这份资源暂未开放下载。'")) {
     throw new Error('download-store.js patch missed: the old detail panel is still there');
   }
@@ -682,7 +784,7 @@ const swapLine = (source, head, replacement) => {
   let html = read(index);
   html = html.replace(
     '</head>',
-    '<link rel="stylesheet" href="/lq-ui.css?v=1"></head>'
+    '<link rel="stylesheet" href="/lq-ui.css?v=lq-20261115"></head>'
   );
   if (!html.includes('/lq-ui.css')) throw new Error('index.html patch missed: lq-ui.css');
   write(index, html);
@@ -1285,23 +1387,6 @@ const merged = {
     '本地离线副本，保存后用浏览器打开即可。仅供教学使用。',
 };
 write(path.join(LQ, 'catalog.json'), JSON.stringify(merged));
-
-/*
- * The 小白教育 part on its own. The second port serves the same clean
- * shell with only this source's catalogue, so the login, the purchase
- * cards and the feedback form are gone there too.
- */
-const xbOnly = {
-  ...merged,
-  products: products.filter((p) => p.source === 'xbjiaoyu'),
-  localReplica: {
-    ...merged.localReplica,
-    scope: 'xiaobai',
-    installedCount: products.filter((p) => p.source === 'xbjiaoyu' && p.localInstalled).length,
-    totalCount: products.filter((p) => p.source === 'xbjiaoyu').length,
-  },
-};
-write(path.join(LQ, 'catalog-xb.json'), JSON.stringify(xbOnly));
 
 const installed = products.filter((p) => p.localInstalled).length;
 console.log(`catalogue: ${products.length} entries, ${installed} playable`);
