@@ -1148,7 +1148,7 @@ function serveAfeApiJson(res, name) {
  * is refused with same_origin_required before routing happens.
  */
 function afeSameOrigin(req) {
-  const host = req.headers.host || `localhost:${AFE_PORT}`;
+  const host = req.headers.host || `localhost:${XB_PORT}`;
   const origin = req.headers.origin || '';
   const intent = req.headers['x-premium-catalogue-intent'] || '';
   return origin === `http://${host}` && intent === 'cataloguing';
@@ -1781,9 +1781,16 @@ async function handleAfe(req, res, url) {
 /* ------------------------------------------------------------------ */
 
 const XB_PORT = Number(process.env.XB_PORT || 4173);
-const AFE_PORT = Number(process.env.AFE_PORT || 4174);
+/*
+ * The delivered library is one site on one port.  The two comparison
+ * mirrors — the 小白教育 catalogue on its own and the 图灵智赋 site as it
+ * was published — stay in the tree as evidence and can be switched on
+ * again with AFE_PORT=4174 (original 图灵智赋 shell) or XB_REF_PORT=4175
+ * (小白教育 catalogue), but they are not part of the local library.
+ */
+const AFE_PORT = Number(process.env.AFE_PORT || 0);
 const LQ_PORT = Number(process.env.LQ_PORT || 4173);
-const XB_REF_PORT = Number(process.env.XB_REF_PORT || 4175);
+const XB_REF_PORT = Number(process.env.XB_REF_PORT || 0);
 
 /*
  * The 乐启享 library: the 小白教育 shell carrying both courseware sources,
@@ -1873,10 +1880,14 @@ const afeServer = http.createServer((req, res) => {
 xbServer.listen(XB_PORT, '127.0.0.1', () => {
   console.log(`乐启享课件库 -> http://localhost:${XB_PORT}/`);
 });
-xbRefServer.listen(XB_REF_PORT, '127.0.0.1', () => {
-  console.log(`乐启享 · 小白教育 -> http://localhost:${XB_REF_PORT}/`);
-});
-afeServer.listen(AFE_PORT, '127.0.0.1', () => {
-  console.log(`图灵智赋  -> http://localhost:${AFE_PORT}/`);
-});
+if (XB_REF_PORT > 0) {
+  xbRefServer.listen(XB_REF_PORT, '127.0.0.1', () => {
+    console.log(`乐启享 · 小白教育 -> http://localhost:${XB_REF_PORT}/`);
+  });
+}
+if (AFE_PORT > 0) {
+  afeServer.listen(AFE_PORT, '127.0.0.1', () => {
+    console.log(`图灵智赋  -> http://localhost:${AFE_PORT}/`);
+  });
+}
 

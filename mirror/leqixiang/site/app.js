@@ -1,18 +1,10 @@
-import {createUpdateAnnouncement} from './update-announcement.js?v=20261024.1';
 import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=all-subject-upgrade-20261026.1';
-import {createDownloadBulkUI} from './download-bulk.js?v=20261025.1';
-import {createDownloadBulkAdmin} from './download-bulk-admin.js?v=20261025.1';
 import {createCourseTools,pptMarkup,requiresPptLogin,purchaseNotice} from './course-tools.js?v=ppt-refund-20261020';
-import {createRefundUI} from './refund-ui.js?v=download-cdn-20261020.1';
-import {createOnlineStore} from './online-store.js?v=integrated-downloads-20261020.1';
-import {syncPromotionClock,startPromotionCountdowns,promotionNow} from './promotion-countdown.js?v=20261019';
-import {organizeLibrary} from './purchase-library.js?v=20261012';
-import {mountPurchaseLibrary} from './library-view.js?v=refund-entry-20261020';
-import {createPhoneAuth} from './phone-auth.js?v=graph-20261019';
-import {createAccountSafetyUI} from './account-safety.js?v=20261012';
+const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
+const organizeLibrary=()=>[];
+const mountPurchaseLibrary=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
-import {createClassroomTab} from './classroom-tab.js?v=13';
-import {classroomReply,isClassroomRequest} from './classroom-channel.js?v=20261004';
+const classroomReply=async()=>{};const isClassroomRequest=()=>false;
 import {showHome} from './home.js?v=mobile-20261019';
 import {createCourseNavigation} from './course-navigation.js?v=mobile-20261019';
 import {prepareSiteEntry} from './site-entry.js?v=download-cdn-20261020.1';
@@ -26,16 +18,16 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let authSerial=0,pendingPurchase=null;
 let catalog=[],info={},user=null,filter='全部',stage='全部',search='',timer=null,toastTimer=null,authMode='login',currentLesson=null,routeSerial=0,frameTimer=null,activePage='works',originFilter='全部',sortBy='default',priceFilter='全部',authorFilter='',subjectsOpen=false;
-const store=createOnlineStore({api,esc,money:n=>money(n),getInfo:()=>info,getUser:()=>user,getCatalog:()=>catalog,product:id=>product(id),card:p=>card(p),main:()=>$('#main'),login:()=>auth(),toast});
+const store={bundle:()=>null,courseBundles:()=>[],bundleSummary:()=>'',purchaseOptions:()=>[],bundlePricing:()=>'',bundlesPage:()=>{history.replaceState(null,'','#catalog');},feedbackAdmin:()=>{}};
 const courseTools=createCourseTools({modal,toast,getProduct:id=>product(id),origin:location.origin});
-const refundUI=createRefundUI({api,esc,money:n=>money(n),modal,close,toast,refresh:()=>route(),title:id=>product(id)?.title||info.downloadPlans?.find(p=>p.id===id)?.title||store.bundle(id)?.title||id});
+const refundUI={orderMarkup:()=>'',loginMarkup:()=>'',adminPageMarkup:()=>'',customerMarkup:()=>'',adminMarkup:()=>'',open:async()=>{},review:()=>{},submit:async()=>{}};
 const downloadUI=createDownloadUI({api,esc,money:n=>money(n),getInfo:()=>info,getUser:()=>user,product:id=>product(id),main:()=>$('#main'),modal,close,toast,login:id=>{pendingPurchase=id||null;auth();},refresh:refreshCatalog,showPayment,refundUI});
-const downloadBulk=createDownloadBulkUI({api,esc,getUser:()=>user,modal,close,toast});
-const downloadBulkAdmin=createDownloadBulkAdmin({api,esc,getUser:()=>user,main:()=>$('#main'),toast});
-const accountSafety=createAccountSafetyUI({api,esc,getUser:()=>user,main:()=>$('#main'),toast});
-const phone=createPhoneAuth({api,esc,getUser:()=>user,phoneOnly:true,modal,close,toast,onLogin:completeAuth,onVerified:target=>target&&openLesson(target.id,++routeSerial,target.takeover)});
+const downloadBulk={mount:()=>{},invalidate:()=>{}};
+const downloadBulkAdmin={render:async()=>{}};
+const accountSafety={render:async()=>{}};
+const phone={cancel:()=>{},phoneMasked:()=>'',refresh:async()=>{},open:async()=>{toast('本地版无需登录，课件可直接在线使用或下载。');}};
 const courseNavigation=createCourseNavigation({location,history,getBundles:()=>info.bundles||[],getScrollY:()=>window.scrollY,getViewState:captureBrowseView,restoreViewState:restoreBrowseView,render:()=>route()});
-const updateAnnouncement=createUpdateAnnouncement({getUser:()=>user,now:promotionNow,canShow:()=>!currentLesson&&!$('#dialog').open});
+const updateAnnouncement={show:async()=>{}};
 let chapterFilter='',editionFilter='all',lease=null,heartbeatTimer=null,heartbeatPromise=null,leaseDeadlineTimer=null,leaseExpired=false;
 
 let restoringBrowse=null,lockedScroll=null;
@@ -50,7 +42,7 @@ function unlockClassroomScroll(){if(lockedScroll===null)return;const y=lockedScr
 document.addEventListener('click',e=>{if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;const a=e.target.closest('a[href]');if(!a||a.dataset.action||a.target==='_blank'||a.hasAttribute('download'))return;const m=/^#(course|play|classroom)\/([a-z0-9-]+)$/.exec(a.getAttribute('href'));if(!m)return;e.preventDefault();courseNavigation.navigate(m[1],m[2]);});
 
 const newTabId=()=>{if(globalThis.crypto?.randomUUID)return crypto.randomUUID();if(globalThis.crypto?.getRandomValues)return [...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);};
-const tabIdentity=createClassroomTab({makeId:newTabId});
+const tabIdentity={id:newTabId(),ready:Promise.resolve(newTabId())};
 let tabId=tabIdentity.id;
 const viewerChecks=new WeakMap();
 const freeViewerDeadline=courseId=>{const end=product(courseId)?.timedFree?.endsAt;return Date.now()+(Number.isSafeInteger(end)?Math.max(0,Math.min(600000,end-promotionNow())):600000);};
@@ -174,18 +166,22 @@ function subjectMarkup(){return availableSubjects().map(x=>`<button class="filte
  * The catalogue filter row of the 乐启享 courseware library.
  *
  * The published shell lists every subject it knows about — sixty of them —
- * and the row buries the catalogue below the fold. Two changes follow from
- * that:
+ * and the row buries the catalogue below the fold. Three changes follow
+ * from that:
  *
- *   - the busiest subjects stay on the surface, the rest sit behind a
- *     disclosure the reader opens on demand, and the choice survives the
- *     re-render that follows every filter change;
- *   - on a phone the whole row folds away behind one line that says what
- *     is currently chosen, so the catalogue starts right under the title.
+ *   - the row is a toolbar: search, availability and sorting stay on the
+ *     surface, because those are what a teacher reaches for first;
+ *   - stage and subject sit behind a disclosure, so a reader who only
+ *     wants to type a word sees the catalogue right away, and the folded
+ *     line still names the choice that is in force;
+ *   - of the subjects, the busiest stay visible once the disclosure is
+ *     open and the rest sit behind a second one, and the choice survives
+ *     the re-render that follows every filter change.
  *
  * The fold is a button and a data attribute rather than a <details>
- * element, because the wide screen has to show the row whether the
- * element is open or not, and that is easier to say in a stylesheet.
+ * element, because the stylesheet has to decide the open state on its
+ * own, and a remembered state is not what a reader who just arrived
+ * should see.
  */
 function downloadGalleryFilters(){
   const stages=['全部',...['小学','初中','高中'].filter(s=>catalog.some(p=>p.stages?.includes(s)))];
@@ -210,16 +206,16 @@ function downloadGalleryFilters(){
   const visible=catalog.filter(p=>matchesOrigin(p,originFilter)&&(!authorFilter||String(p.creatorId)===authorFilter));
   const localCount=visible.filter(p=>p.localInstalled).length;
   const missingCount=visible.length-localCount;
-  /* The folded line says what is chosen, so nothing is hidden twice. */
+  /* The folded line names what is folded away — stage and subject. The
+     search and the availability filter are on the surface, so repeating
+     them would say nothing new. */
   const chosen=[
     stage==='全部'?'':'学段 '+stage,
-    filter==='全部'?'':filter,
-    priceFilter==='全部'?'':({'本地':'本地可用','待补齐':'待补齐'}[priceFilter]||priceFilter),
-    search.trim()?'“'+search.trim()+'”':''
+    filter==='全部'?'':'学科 '+filter
   ].filter(Boolean).join(' · ');
-  const summaryText=chosen||'全部学段 · 全部学科 · 全部资源';
+  const summaryText=chosen||'全部学段 · 全部学科';
   const open=window.lqFiltersOpen===true;
-  return `<section class="download-gallery-filters" data-collapsed="${open?'false':'true'}"><button type="button" class="download-gallery-filters-toggle" data-lq-fold-toggle aria-expanded="${open?'true':'false'}"><span>筛选与搜索</span><small>${esc(summaryText)}</small></button><div class="download-gallery-controls"><div class="download-gallery-top"><div class="download-stage-tabs" role="group" aria-label="按学段筛选">${stages.map(s=>`<button type="button" data-action="stage" data-value="${s}" aria-pressed="${stage===s}">${s==='全部'?'全部学段':s}</button>`).join('')}</div><label class="download-gallery-search"><span aria-hidden="true">⌕</span><input class="search" id="search" type="search" placeholder="搜索课件或知识点" aria-label="搜索课件或知识点" value="${esc(search)}"></label></div><div class="download-subject-options" role="group" aria-label="按学科筛选">${chip('全部')}${common.map(chip).join('')}</div>${extra.length?`<details class="download-subject-more" ${subjectsOpen?'open':''}><summary><span>更多学科</span><small>${extra.length}</small></summary><div class="download-subject-options" role="group" aria-label="更多学科筛选">${extra.map(chip).join('')}</div></details>`:''}<div class="download-gallery-bottom"><div class="download-usage-tabs" role="group" aria-label="按可用性筛选">${[['全部','全部资源 '+catalog.length],['本地','本地可用 '+localCount],['待补齐','待补齐 '+missingCount]].map(([v,t])=>`<button type="button" data-action="price-filter" data-value="${v}" aria-pressed="${priceFilter===v}">${t}</button>`).join('')}</div><label class="download-sort">排序 <select id="course-sort" aria-label="课件排序"><option value="default" ${sortBy==='default'?'selected':''}>${search.trim()?'相关度':'目录顺序'}</option><option value="newest" ${sortBy==='newest'?'selected':''}>最近更新</option></select></label></div></div></section>`;
+  return `<section class="download-gallery-filters" data-collapsed="${open?'false':'true'}"><div class="download-gallery-toolbar"><label class="download-gallery-search"><span aria-hidden="true">⌕</span><input class="search" id="search" type="search" placeholder="搜索课件或知识点" aria-label="搜索课件或知识点" value="${esc(search)}"></label><div class="download-usage-tabs" role="group" aria-label="按可用性筛选">${[['全部','全部资源 '+catalog.length],['本地','本地可用 '+localCount],['待补齐','待补齐 '+missingCount]].map(([v,t])=>`<button type="button" data-action="price-filter" data-value="${v}" aria-pressed="${priceFilter===v}">${t}</button>`).join('')}</div><button type="button" class="download-gallery-filters-toggle" data-lq-fold-toggle aria-expanded="${open?'true':'false'}"><span>筛选</span><small>${esc(summaryText)}</small></button><label class="download-sort">排序 <select id="course-sort" aria-label="课件排序"><option value="default" ${sortBy==='default'?'selected':''}>${search.trim()?'相关度':'目录顺序'}</option><option value="newest" ${sortBy==='newest'?'selected':''}>最近更新</option></select></label></div><div class="download-gallery-controls"><div class="download-stage-tabs" role="group" aria-label="按学段筛选">${stages.map(s=>`<button type="button" data-action="stage" data-value="${s}" aria-pressed="${stage===s}">${s==='全部'?'全部学段':s}</button>`).join('')}</div><div class="download-subject-options" role="group" aria-label="按学科筛选">${chip('全部')}${common.map(chip).join('')}</div>${extra.length?`<details class="download-subject-more" ${subjectsOpen?'open':''}><summary><span>更多学科</span><small>${extra.length}</small></summary><div class="download-subject-options" role="group" aria-label="更多学科筛选">${extra.map(chip).join('')}</div></details>`:''}</div></section>`;
 }function curriculumChapters(){
  const fixed=(info.downloadMode&&editionFilter!=='standalone'?[]:info.curriculum?.chapters||[]).map(ch=>({...ch,subject:'物理',stage:'初中'}));
  let chapters=originFilter!=='教师课件'&&(stage==='全部'||stage==='初中')&&(filter==='全部'||filter==='物理')?[...fixed]:[];

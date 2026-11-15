@@ -333,10 +333,234 @@ const swapLine = (source, head, replacement) => {
   write(p, js);
 }
 
+/* ------------------------------------------------------- trimmed shell ---
+ *
+ * The published shell carried a whole commerce desk next to the library:
+ * a store with prices, a checkout, refunds, bulk-download administration,
+ * phone sign-in, account security, update announcements, promotion clocks,
+ * the purchased-library view, the classroom tab and an anti-devtools
+ * guard.  A library that is read offline has none of them, so the modules
+ * are dropped and the few call sites in app.js become local no-ops.
+ */
+{
+  const p = path.join(SITE, 'app.js');
+  let js = read(p);
+
+  /* Replace a whole line of app.js by the words it starts with. */
+  const swapHead = (source, head, replacement) => {
+    const start = source.indexOf(head);
+    if (start < 0) throw new Error('app.js patch missed: ' + head);
+    let end = source.indexOf('\n', start);
+    if (end < 0) end = source.length;
+    else if (end > 0 && source[end - 1] === '\r') end -= 1;
+    return source.slice(0, start) + replacement + source.slice(end);
+  };
+  /* Take a whole line out of app.js. */
+  const dropHead = (source, head) => {
+    const start = source.indexOf(head);
+    if (start < 0) throw new Error('app.js patch missed: ' + head);
+    let end = source.indexOf('\n', start);
+    if (end < 0) end = source.length;
+    else end += 1;
+    return source.slice(0, start) + source.slice(end);
+  };
+
+  /* The imports of the dropped modules. */
+  for (const head of [
+    "import {createUpdateAnnouncement} from './update-announcement.js",
+    "import {createDownloadBulkUI} from './download-bulk.js",
+    "import {createDownloadBulkAdmin} from './download-bulk-admin.js",
+    "import {createRefundUI} from './refund-ui.js",
+    "import {createOnlineStore} from './online-store.js",
+    "import {createPhoneAuth} from './phone-auth.js",
+    "import {createAccountSafetyUI} from './account-safety.js",
+    "import {createClassroomTab} from './classroom-tab.js",
+  ]) {
+    js = dropHead(js, head);
+  }
+
+  /* The imports whose names are still used by app.js get local versions. */
+  js = swapHead(
+    js,
+    "import {syncPromotionClock,startPromotionCountdowns,promotionNow} from './promotion-countdown.js",
+    'const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};'
+  );
+  js = swapHead(
+    js,
+    "import {organizeLibrary} from './purchase-library.js",
+    'const organizeLibrary=()=>[];'
+  );
+  js = swapHead(
+    js,
+    "import {mountPurchaseLibrary} from './library-view.js",
+    'const mountPurchaseLibrary=()=>{};'
+  );
+  js = swapHead(
+    js,
+    "import {classroomReply,isClassroomRequest} from './classroom-channel.js",
+    'const classroomReply=async()=>{};const isClassroomRequest=()=>false;'
+  );
+
+  /* The objects the app.js call sites use. Each one keeps the shape the
+     shell expects and answers with what a local library can say. */
+  js = swapHead(
+    js,
+    'const store=createOnlineStore({',
+    "const store={bundle:()=>null,courseBundles:()=>[],bundleSummary:()=>'',purchaseOptions:()=>[],"
+      + "bundlePricing:()=>'',bundlesPage:()=>{history.replaceState(null,'','#catalog');},feedbackAdmin:()=>{}};"
+  );
+  js = swapHead(
+    js,
+    'const refundUI=createRefundUI({',
+    "const refundUI={orderMarkup:()=>'',loginMarkup:()=>'',adminPageMarkup:()=>'',customerMarkup:()=>'',"
+      + "adminMarkup:()=>'',open:async()=>{},review:()=>{},submit:async()=>{}};"
+  );
+  js = swapHead(
+    js,
+    'const downloadBulk=createDownloadBulkUI({',
+    'const downloadBulk={mount:()=>{},invalidate:()=>{}};'
+  );
+  js = swapHead(
+    js,
+    'const downloadBulkAdmin=createDownloadBulkAdmin({',
+    'const downloadBulkAdmin={render:async()=>{}};'
+  );
+  js = swapHead(
+    js,
+    'const accountSafety=createAccountSafetyUI({',
+    'const accountSafety={render:async()=>{}};'
+  );
+  js = swapHead(
+    js,
+    'const phone=createPhoneAuth({',
+    "const phone={cancel:()=>{},phoneMasked:()=>'',refresh:async()=>{},"
+      + "open:async()=>{toast('本地版无需登录，课件可直接在线使用或下载。');}};"
+  );
+  js = swapHead(
+    js,
+    'const updateAnnouncement=createUpdateAnnouncement({',
+    'const updateAnnouncement={show:async()=>{}};'
+  );
+  js = swapHead(
+    js,
+    'const tabIdentity=createClassroomTab({makeId:newTabId});',
+    "const tabIdentity={id:newTabId(),ready:Promise.resolve(newTabId())};"
+  );
+
+  for (const marker of [
+    'const store={bundle:',
+    'const refundUI={orderMarkup:',
+    'const downloadBulk={mount:',
+    'const downloadBulkAdmin={render:',
+    'const accountSafety={render:',
+    'const phone={cancel:',
+    'const updateAnnouncement={show:',
+    'const tabIdentity={id:',
+  ]) {
+    if (!js.includes(marker)) throw new Error('app.js patch missed: ' + marker);
+  }
+  for (const gone of [
+    'createOnlineStore',
+    'createRefundUI',
+    'createPhoneAuth',
+    'createAccountSafetyUI',
+    'createDownloadBulkUI',
+    'createDownloadBulkAdmin',
+    'createUpdateAnnouncement',
+    'createClassroomTab',
+    'classroom-channel.js',
+    'online-store.js',
+    'refund-ui.js',
+    'phone-auth.js',
+    'account-safety.js',
+    'download-bulk.js',
+    'download-bulk-admin.js',
+    'update-announcement.js',
+    'purchase-library.js',
+    'library-view.js',
+    'promotion-countdown.js',
+    'classroom-tab.js',
+  ]) {
+    if (js.includes(gone)) throw new Error('app.js patch missed: ' + gone + ' is still there');
+  }
+  write(p, js);
+
+  /* index.html: the sheets and the guard of the dropped modules go too. */
+  const index = path.join(SITE, 'index.html');
+  let html = read(index);
+  for (const file of [
+    'online-store.css',
+    'graph-auth.css',
+    'download-bulk.css',
+    'download-bulk-admin.css',
+    'update-announcement.css',
+    'library-view.css',
+    'content-guard.js',
+  ]) {
+    const safe = file.replace(/\./g, '\\.');
+    html = html.replace(
+      new RegExp(`<link[^>]*href="/${safe}[^>]*>`, 'g'),
+      ''
+    );
+    html = html.replace(
+      new RegExp(`<script[^>]*src="/${safe}[^>]*><\\/script>`, 'g'),
+      ''
+    );
+    if (html.includes(file)) throw new Error('index.html patch missed: ' + file);
+  }
+  write(index, html);
+
+  /* The modules themselves. */
+  for (const file of [
+    'account-safety.js',
+    'bundle-directory.js',
+    'classroom-channel.js',
+    'classroom-tab.js',
+    'content-guard.js',
+    'download-bulk-admin.css',
+    'download-bulk-admin.js',
+    'download-bulk.css',
+    'download-bulk.js',
+    'graph-auth.css',
+    'graph-auth.js',
+    'library-view.css',
+    'library-view.js',
+    'online-store.css',
+    'online-store.js',
+    'phone-auth.js',
+    'promotion-countdown.js',
+    'purchase-library.js',
+    'refund-ui.js',
+    'update-announcement.css',
+    'update-announcement.js',
+  ]) {
+    fs.rmSync(path.join(SITE, file), { force: true });
+  }
+}
+
 /* download-store.js: the download panel of one course. */
 {
   const p = path.join(SITE, 'download-store.js');
   let js = read(p);
+  /*
+   * The panel grouped its chapters with a helper that lived in the
+   * purchased-library view. That view is gone, so the helper gets a file
+   * of its own; the grouping itself is unchanged.
+   */
+  js = js.replace(
+    "import {countdownMarkup,promotionNow} from './promotion-countdown.js?v=20261019';",
+    "const countdownMarkup=()=>'';const promotionNow=()=>Date.now();"
+  );
+  js = js.replace(
+    "import {libraryChapters} from './library-view.js?v=refund-entry-20261020';",
+    "import {libraryChapters} from './lq-chapters.js?v=1';"
+  );
+  for (const marker of [
+    "const countdownMarkup=()=>''",
+    "import {libraryChapters} from './lq-chapters.js?v=1';",
+  ]) {
+    if (!js.includes(marker)) throw new Error('download-store.js patch missed: ' + marker);
+  }
   /* The feedback link under the download button has no place in a local
      library, and the panel it scrolled to is gone. */
   js = js.replace(
@@ -464,19 +688,13 @@ const swapLine = (source, head, replacement) => {
   write(index, html);
 }
 
-/* update-announcement.js: the announcement on the live site talks about
-   invoices and refunds, which the local library has neither of. */
+/* lq-chapters.js: the chapter grouping the download panel uses. */
 {
-  const p = path.join(SITE, 'update-announcement.js');
-  let js = read(p);
-  js = js.replace(
-    "load = () => fetch('/update-announcement.json', {cache:'no-store'}).then(r => r.ok ? r.json() : null)",
-    'load = () => Promise.resolve(null)'
-  );
-  if (js.includes("fetch('/update-announcement.json'")) {
-    throw new Error('update-announcement.js patch missed');
-  }
-  write(p, js);
+  const src = read(path.join(XB, 'assets', 'library-view.js'));
+  const start = src.indexOf('export function libraryChapters');
+  const end = src.indexOf('\n}', start);
+  if (start < 0 || end < 0) throw new Error('lq-chapters.js patch missed: the helper is gone');
+  write(path.join(SITE, 'lq-chapters.js'), src.slice(start, end + 2).trimEnd() + '\n');
 }
 
 /* courseware-load.js: the 图灵智赋 works are plain documents. They do not

@@ -1,6 +1,6 @@
 import {orderCourses} from './course-order.js?v=delivery-parity-20261023.1';
-import {countdownMarkup,promotionNow} from './promotion-countdown.js?v=20261019';
-import {libraryChapters} from './library-view.js?v=refund-entry-20261020';
+const countdownMarkup=()=>'';const promotionNow=()=>Date.now();
+import {libraryChapters} from './lq-chapters.js?v=1';
 export const downloadEditions=[['all','全部课件'],['integrated','三维整合版'],['2d-integrated','二维整合版'],['standalone','三维独立版'],['2d-standalone','二维独立版']];
 export const validDownloadEdition=value=>downloadEditions.some(([key])=>key===value)?value:'all';
 export const matchesDownloadEdition=(product,edition='all')=>edition==='all'||(product.dimension==='2d')===edition.startsWith('2d-')&&(edition.endsWith('integrated')?product.edition==='integrated':product.edition!=='integrated');

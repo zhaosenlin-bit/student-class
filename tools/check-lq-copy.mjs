@@ -45,6 +45,14 @@ const ROUTES = [
 
 let bad = 0;
 for (const [port, routes] of ROUTES) {
+  /* The comparison mirrors are off by default; skip them when they are. */
+  try {
+    const res = await fetch(`http://localhost:${port}/`, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error('status ' + res.status);
+  } catch {
+    console.log(port, '=> 端口未开启，跳过');
+    continue;
+  }
   for (const route of routes) {
     await browser.goto(`http://localhost:${port}/${route}`);
     await sleep(2800);
