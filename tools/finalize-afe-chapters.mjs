@@ -12,18 +12,29 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CW = path.join(ROOT, 'mirror', 'aifunengjiaoyu', 'courseware');
+const MANIFEST = path.join(ROOT, 'mirror', 'aifunengjiaoyu', 'chapters.json');
+const WORKS = path.join(ROOT, 'mirror', 'aifunengjiaoyu', 'programs-all.json');
 
-const COURSES = {
-  841: {
-    title: '法国大革命1789：七语言沉浸式互动历史课',
-    home: 'index.html',
-    chapters: [
-      ['国家地形总图', 'index.html'],
-      ['第1章', 'delivery/20260912/index.html'],
-      ['第2章', 'delivery/20260912/chapter02.html'],
-    ],
-  },
-};
+/*
+ * The chapter list comes from what the pull actually managed to mount, so
+ * a course that the platform opens in more or fewer parts is written as it
+ * really is instead of as a hand-written list.
+ */
+const courses = {};
+if (fs.existsSync(MANIFEST)) {
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+  const works = fs.existsSync(WORKS) ? JSON.parse(fs.readFileSync(WORKS, 'utf8')) : [];
+  const titleOf = new Map(works.map((w) => [String(w.id), String(w.title || '')]));
+  for (const [id, info] of Object.entries(manifest)) {
+    const chapters = (info.entries || []).map((e) => [e.title || e.id, e.path]);
+    if (!chapters.length) continue;
+    courses[id] = {
+      title: titleOf.get(String(id)) || `课件 ${id}`,
+      home: chapters[0][1],
+      chapters,
+    };
+  }
+}
 
 const ASSET = (id) => `/api/program-assets/${id}/`;
 
@@ -31,8 +42,17 @@ const ASSET = (id) => `/api/program-assets/${id}/`;
 const localise = (html, id, dir) => {
   const toLocal = (rel) => {
     const clean = rel.replace(/^\.?\//, '');
-    const joined = dir ? path.posix.join(dir, clean) : clean;
-    return `${ASSET(id)}${joined}`;
+    /*
+     * A "./" reference inside a chapter can point at that chapter's own
+     * folder or at the course root — the platform mixes the two.  The file
+     * that is actually on disk decides which spelling is the right one.
+     */
+    const inChapter = dir ? path.posix.join(dir, clean) : clean;
+    const root = path.posix.join(CW, `${id}.assets`, clean);
+    const inChapterFile = dir ? path.join(CW, `${id}.assets`, inChapter) : null;
+    const useChapter =
+      inChapterFile && fs.existsSync(inChapterFile) ? true : fs.existsSync(root);
+    return `${ASSET(id)}${useChapter ? inChapter : clean}`;
   };
   let out = html;
   out = out.replace(/(["'])\.\/([^"']+?)\1/g, (m, quote, rest) => `${quote}${toLocal(rest)}${quote}`);
@@ -64,7 +84,7 @@ const SCRIPT = [
   'show();',
 ].join('\n');
 
-for (const [id, course] of Object.entries(COURSES)) {
+for (const [id, course] of Object.entries(courses)) {
   const dir = path.join(CW, `${id}.assets`);
   if (!fs.existsSync(dir)) continue;
 

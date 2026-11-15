@@ -27,9 +27,14 @@ const UA =
 const args = process.argv.slice(2);
 const onlyIds = args.includes('--ids') ? args[args.indexOf('--ids') + 1] : null;
 
-/* The session address of each chapter course, found while it was open. */
-const SESSIONS = {
-  841: 'e547484ae39c1c50abdb4d69dde927f3b3375f6d79b0461c',
+/* The chapter courses that are filed as chapters rather than as one file. */
+const CHAPTER_COURSES = [1360, 1016, 842, 841];
+
+/* Sessions expire, so a new one is opened for every course on every run. */
+const openSession = async (programId) => {
+  const opened = await post(`/api/reviewed-course-session/${programId}/open`, {});
+  if (!opened?.id) return null;
+  return opened.id;
 };
 
 const post = async (route, body) => {
@@ -101,8 +106,20 @@ const browser = await connect(9222);
 await browser.goto(ORIGIN + '/');
 await sleep(1200);
 
-for (const [programId, sessionId] of Object.entries(SESSIONS)) {
-  if (onlyIds && !onlyIds.split(',').includes(programId)) continue;
+/* What was pulled, so the entry shell can be built without guessing. */
+const manifestPath = path.join(ROOT, 'mirror', 'aifunengjiaoyu', 'chapters.json');
+const manifest = fs.existsSync(manifestPath)
+  ? JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  : {};
+
+for (const programId of CHAPTER_COURSES) {
+  if (onlyIds && !onlyIds.split(',').map((s) => s.trim()).includes(String(programId))) continue;
+  const sessionId = await openSession(programId);
+  if (!sessionId) {
+    console.log(`${programId}: cannot open a session`);
+    continue;
+  }
+  console.log(`${programId}: session ${sessionId}`);
   const outDir = path.join(CW, `${programId}.assets`);
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -116,6 +133,7 @@ for (const [programId, sessionId] of Object.entries(SESSIONS)) {
   const entries = resumed.descriptor.entries;
   const allowed = new Set(resumed.allowedEntryIds || []);
   console.log(`${programId}: ${entries.length} entries, allowed ${[...allowed].join(',')}`);
+  const pulled = [];
 
   for (const entry of entries) {
     const mounted = await post(`/api/reviewed-course-session/session/${sessionId}/mount`, {
@@ -125,6 +143,7 @@ for (const [programId, sessionId] of Object.entries(SESSIONS)) {
       console.log(`  ${entry.id}: no grant (${allowed.has(entry.id) ? 'open' : 'locked'})`);
       continue;
     }
+    pulled.push({ id: entry.id, title: entry.title || entry.id, path: entry.path });
     const prefix = mounted.prefix;
     const rel = entry.path.split('/').map(encodeURIComponent).join('/');
     const url = ORIGIN + prefix + rel;
@@ -207,6 +226,12 @@ for (const [programId, sessionId] of Object.entries(SESSIONS)) {
       fetched++;
     }
     console.log(`    direct fetch added ${fetched}`);
+  }
+
+  if (pulled.length) {
+    manifest[programId] = { entries: pulled };
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 1));
+    console.log(`${programId}: manifest written, ${pulled.length} entries`);
   }
 }
 

@@ -35,9 +35,9 @@ for (const id of ids) {
     await p.goto(`http://localhost:${PORT}/#course/${id}`);
     await sleep(1500);
 
-    // The detail page renders a "在线使用" button; click it.
+    // The detail page renders a "在线预览" button; click it.
     const clicked = await p.evaluate(`(() => {
-      const b = [...document.querySelectorAll('button')].find(e => /在线使用/.test(e.innerText||''));
+      const b = [...document.querySelectorAll('button')].find(e => /在线预览|在线使用/.test(e.innerText||''));
       if (!b) return { found: false, buttons: [...document.querySelectorAll('button')].map(e=>(e.innerText||'').trim().slice(0,14)).slice(0,20) };
       b.click();
       return { found: true, text: b.innerText.trim() };
@@ -105,3 +105,4 @@ for (const id of ids) {
   console.log(JSON.stringify(report, null, 1));
   console.log('---');
 }
+

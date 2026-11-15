@@ -12,7 +12,7 @@ await browser.raw('Network.enable', {}, browser.pageSession).catch(() => {});
 await browser.goto(`http://localhost:${PORT}/#course/${id}`);
 await sleep(1200);
 await browser.evaluate(`(() => {
-  const b = [...document.querySelectorAll('button')].find((e) => /在线使用/.test(e.innerText || ''));
+  const b = [...document.querySelectorAll('button')].find((e) => /在线预览|在线使用/.test(e.innerText || ''));
   if (b) b.click();
   return !!b;
 })()`);
@@ -33,3 +33,4 @@ console.log('requests seen:', [...new Set(frames)].length);
 
 await browser.shot(`recon/scratch/fail-${id}.png`);
 await browser.close();
+
