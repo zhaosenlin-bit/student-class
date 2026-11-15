@@ -1,131 +1,98 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#17150f}body{display:grid;place-items:center}.ring{width:32px;height:32px;border:3px solid #5d5136;border-top-color:#dfc48d;border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="ring" role="status" aria-label="正在恢复进度"></div><script>(function longMarchSaveClient(config, html) {
-  'use strict';
-  const schedule = window.setTimeout.bind(window), cancel = window.clearTimeout.bind(window);
-  const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
-  const allowed = new Set(config.keys), pending = new Map(), children = new Map(), replayed = new WeakSet();
-  let upstream, values = {}, sequence = 0, failed = false, failure = 'SAVE_UNAVAILABLE', loaded = false, timer, deadline, observer, disposed = false;
-  function notice(message) {
-    let node = document.getElementById('lm-save-error');
-    if (!node) { node = document.createElement('div'); node.id='lm-save-error'; node.setAttribute('role','alert'); node.style='position:fixed;z-index:2147483647;top:4px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#59251d;color:#fff3db;font:14px system-ui;border-radius:8px'; (document.body||document.documentElement).append(node); }
-    node.textContent=message;
-  }
-  function reason(error) {
-    const value=typeof error==='string'?error:error?.message;
-    return ['VERSION_CONFLICT','SESSION_CHANGED','INVALID_SAVE','SAVE_TIMEOUT'].includes(value)?value:'SAVE_UNAVAILABLE';
-  }
-  function delayNotice() {
-    if(!failed&&!disposed)notice('正在等待保存确认，请保留本页。连接恢复后会自动完成，请勿重复刷新。');
-  }
-  function clearDelay() {
-    if(!failed&&!disposed&&!pending.size)document.getElementById('lm-save-error')?.remove();
-  }
-  function fail(error) {
-    if(failed||disposed)return;
-    failed = true; failure=reason(error); cancel(timer); cancel(deadline);
-    for (const p of pending.values()) { cancel(p.timer); p.reject(Error(failure)); } pending.clear();
-    notice(!loaded?'无法恢复进度，请重新从网站打开课件。':failure==='VERSION_CONFLICT'?
-      '其他页面已更新存档，当前页已暂停保存以免覆盖新进度。请从网站重新打开课件，继续最新进度。':
-      '保存连接已中断，请保留本页，暂勿刷新或继续操作。');
-  }
-  function validPatch(p) { return p && allowed.has(p.key) && ['set','remove'].includes(p.op) && (p.op==='remove'||typeof p.value==='string'&&p.value.length<=4096); }
-  function send(patch) {
-    if (disposed || failed || !upstream || !validPatch(patch) || pending.size>=64) { fail(); return Promise.reject(Error(disposed?'SESSION_CHANGED':failure)); }
-    if (patch.op==='remove') delete values[patch.key]; else values[patch.key]=patch.value;
-    const id=++sequence;
-    let resolve,reject;
-    const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
-    // Background throttling can delay a real ACK. Keep the bounded pending
-    // write; do not resend, declare success, or turn a late ACK into data loss.
-    const timeout=schedule(delayNotice,5000);
-    pending.set(id,{resolve,reject,promise,timer:timeout});upstream.postMessage({id,...patch});return promise;
-  }
-  async function flush() {
-    while(pending.size) { if(failed||disposed)throw Error(failed?failure:'SESSION_CHANGED'); await Promise.all(Array.from(pending.values(),p=>p.promise)); }
-    if(failed||disposed)throw Error(failed?failure:'SESSION_CHANGED');
-  }
-  function storage(data, persistent) {
-    return {get length(){return Object.keys(data()).length;},key:i=>Object.keys(data())[Number(i)]??null,
-      getItem:k=>Object.hasOwn(data(),String(k))?data()[String(k)]:null,
-      setItem(k,v){k=String(k);v=String(v);if(persistent){if(!allowed.has(k)||v.length>4096)throw Error('SAVE_KEY_DENIED');send({op:'set',key:k,value:v}).catch(()=>{});}else data()[k]=v;},
-      removeItem(k){k=String(k);if(persistent){if(!allowed.has(k))throw Error('SAVE_KEY_DENIED');send({op:'remove',key:k}).catch(()=>{});}else delete data()[k];},
-      clear(){throw Error('BULK_SAVE_CLEAR_DENIED');}};
-  }
-  function childFrame(event) {
-    if(event.origin!=='null')return null;
-    for(const frame of document.querySelectorAll('iframe')) {
-      if(frame.contentWindow!==event.source)continue;
-      try { const u=new URL(frame.getAttribute('src'),document.baseURI), base=new URL(document.baseURI);
-        if(u.origin!==base.origin||!u.pathname.startsWith(config.assetRoot))return null;
-        const entry=decodeURIComponent(u.pathname.slice(config.assetRoot.length));
-        return config.entries.includes(entry)&&entry!=='index.html'?{frame,entry}:null;
-      }catch{return null;}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>长征 · 754</title>
+<style>html,body{margin:0;height:100%;background:#17150f;overflow:hidden}
+#frame{display:block;width:100%;height:100%;border:0}</style>
+</head>
+<body>
+<iframe id="frame" title="课件画面" allow="autoplay; fullscreen" src="/api/program-assets/754/index.html"></iframe>
+<script>/*
+ * The host side of the 长征 course.
+ *
+ * This course is a wrapper: the document that is opened asks a page
+ * around it for two things — the saved progress and a channel to write
+ * it back on.  On the published site a session server answers; here the
+ * page answers for itself and keeps the progress in the browser's own
+ * storage.
+ *
+ * The placeholders are filled in when the entry page is written:
+ *   754   the number of the course
+ *   turing-long-march-save-v1  the name of the handshake
+ *   ["longMarch_ruijin_chapterState","longMarch_progress","longMarch_chapter_yudu_v2","longMarch_progress_v2","longMarch.xiangjiang.chapter.v1","longMarch_zunyi_chapterState","chishui-chapter-state","longMarch_jinsha_chapter6_state","longMarchMapProgress","longMarch_ludingBridge_chapter7_v3","longMarch_demo_settings","long-march-chapter-9-v2","long-march-master-volume-v2"]      the keys the course is allowed to save
+ */
+(function () {
+  const PROTOCOL = 'turing-long-march-save-v1';
+  const PROGRAM = '754';
+  const KEYS = ["longMarch_ruijin_chapterState","longMarch_progress","longMarch_chapter_yudu_v2","longMarch_progress_v2","longMarch.xiangjiang.chapter.v1","longMarch_zunyi_chapterState","chishui-chapter-state","longMarch_jinsha_chapter6_state","longMarchMapProgress","longMarch_ludingBridge_chapter7_v3","longMarch_demo_settings","long-march-chapter-9-v2","long-march-master-volume-v2"];
+  const STORE = 'lq.longmarch.' + PROGRAM + '.';
+
+  const frame = document.getElementById('frame');
+  if (!frame) return;
+
+  const readValues = () => {
+    const out = {};
+    for (const key of KEYS) {
+      try {
+        const raw = localStorage.getItem(STORE + key);
+        if (typeof raw === 'string' && raw.length <= 4096) out[key] = raw;
+      } catch (e) {
+        /* the browser may refuse; the course carries on without it */
+      }
     }
-    return null;
-  }
-  function receiveChild(event) {
-    if(!config.root||replayed.has(event))return;
-    const found=childFrame(event);if(!found)return;
-    const d=event.data;
-    if(d?.type==='longMarch:closeScene') {
-      event.stopImmediatePropagation();
-      const child=children.get(found.frame);if(!child){fail();return;}
-      child.checkpoint().then(flush).then(()=>{if(!found.frame.isConnected)return;clearDelay();const e=new MessageEvent('message',{data:d,source:event.source,origin:event.origin});replayed.add(e);window.dispatchEvent(e);}).catch(error=>{if(reason(error)==='SAVE_TIMEOUT')delayNotice();else fail(error);});
-      return;
-    }
-    if(d?.type!==config.protocol+':ready'||d.programId!==config.programId||d.revision!==config.revision||d.entry!==found.entry||!/^[a-f0-9]{32}$/.test(d.nonce||''))return;
-    const previous=children.get(found.frame);
-    if(previous?.nonce===d.nonce)return;
-    // Reload keeps the iframe and WindowProxy, but creates a new document/nonce.
-    // Drain already accepted writes before hydrating that new document.
-    const settled=previous?.drain();
-    previous?.close();
-    const channel=new MessageChannel();let serial=0,chain=Promise.resolve(),active=true;
-    const src=found.frame.getAttribute('src');
-    const current=()=>active&&found.frame.isConnected&&found.frame.getAttribute('src')===src;
-    let checkpoint;
-    function close(){active=false;channel.port1.close();if(children.get(found.frame)===child)children.delete(found.frame);if(checkpoint){cancel(checkpoint.timeout);checkpoint.reject(Error('SESSION_CHANGED'));checkpoint=null;}}
-    function requestCheckpoint(){
-      if(!current())return Promise.reject(Error('SESSION_CHANGED'));
-      if(checkpoint)return checkpoint.promise;
-      let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
-      const id=crypto.randomUUID(),timeout=schedule(()=>{checkpoint=null;reject(Error('SAVE_TIMEOUT'));},5000);
-      checkpoint={id,resolve,reject,timeout,promise};channel.port1.postMessage({control:'checkpoint',id});return promise;
-    }
-    const child={nonce:d.nonce,current,close,checkpoint:requestCheckpoint,drain:()=>chain.then(flush)};
-    children.set(found.frame,child);
-    channel.port1.onmessage=e=>{const p=e.data;
-      if(p?.control==='checkpoint-result'){if(checkpoint&&p.id===checkpoint.id){cancel(checkpoint.timeout);p.ok?checkpoint.resolve():checkpoint.reject(Error(reason(p.error)));checkpoint=null;}return;}
-      if(!current()||!p||p.id!==++serial||serial>20000||!validPatch(p)){close();return;}
-      chain=chain.then(()=>send({op:p.op,key:p.key,...(p.op==='set'?{value:p.value}:{})})).then(()=>{if(current())channel.port1.postMessage({id:p.id,ok:true});}).catch(error=>{if(current())channel.port1.postMessage({id:p.id,ok:false,error:reason(error)});});};
-    const hydrate=()=>{if(current()&&!disposed&&!failed)event.source.postMessage({type:config.protocol+':connect',nonce:d.nonce,values:{...values}},'*',[channel.port2]);else channel.port2.close();};
-    if(settled)settled.then(hydrate).catch(fail);else hydrate();
-  }
-  function install() {
-    Object.defineProperty(window,'localStorage',{configurable:true,value:storage(()=>values,true)});
-    let reloading=false;
-    Object.defineProperty(window,'LongMarchSave',{configurable:true,value:Object.freeze({
-      async reload(){if(reloading)return false;reloading=true;try{await flush();window.location.reload();return true;}catch(error){reloading=false;fail(error);return false;}}
-    })});
-    const session=Object.create(null);Object.defineProperty(window,'sessionStorage',{configurable:true,value:storage(()=>session,false)});
-    window.addEventListener('message',receiveChild,true);
-    observer=new MutationObserver(()=>{for(const child of children.values())if(!child.current())child.close();});
-    observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});
-    window.addEventListener('pagehide',()=>{disposed=true;cancel(timer);cancel(deadline);observer.disconnect();for(const child of children.values())child.close();for(const p of pending.values()){cancel(p.timer);p.reject(Error('SESSION_CHANGED'));}pending.clear();upstream?.close();});
-  }
-  function connect(event) {
-    const d=event.data;
-    if(event.source!==window.parent||d?.nonce!==nonce||loaded)return;
-    if(config.root ? event.origin!==location.origin : event.origin!=='null')return;
-    if(d.type===config.protocol+':unavailable'){fail();return;}
-    if(d.type!==config.protocol+':connect'||event.ports.length!==1||!d.values||typeof d.values!=='object'||Array.isArray(d.values)||Object.entries(d.values).some(([k,v])=>!allowed.has(k)||typeof v!=='string'||v.length>4096))return;
-    values=Object.fromEntries(Object.entries(d.values));upstream=event.ports[0];
-    upstream.onmessage=e=>{if(e.data?.control==='checkpoint'){Promise.all(Array.from(children,([frame,child])=>frame.isConnected?child.checkpoint():undefined)).then(flush).then(()=>upstream.postMessage({control:'checkpoint-result',id:e.data.id,ok:true}),error=>upstream.postMessage({control:'checkpoint-result',id:e.data.id,ok:false,error:reason(error)}));return;}const p=pending.get(e.data?.id);if(!p)return;if(!e.data.ok){fail(e.data.error);return;}cancel(p.timer);pending.delete(e.data.id);p.resolve();clearDelay();};
-    cancel(timer);cancel(deadline);loaded=true;
-    window.__longMarchResumeSave=install;
-    // Hydrate before ANY authored script runs; keep the response sandbox/CSP.
-    document.open();document.write(html.replace(/<head>/i,'<head><script>window.__longMarchResumeSave();<\/script>'));document.close();
-  }
-  window.addEventListener('message',connect);
-  function ready(){if(loaded||failed)return;window.parent.postMessage({type:config.protocol+':ready',programId:config.programId,revision:config.revision,entry:config.entry,nonce},'*');timer=schedule(ready,150);}
-  deadline=schedule(fail,10000);ready();
-})({"protocol":"turing-long-march-save-v1","schema":"legacy-keys-v1","revision":"dd0d0e7ed5689fd93522ede552faf68c","keys":["longMarch_ruijin_chapterState","longMarch_progress","longMarch_chapter_yudu_v2","longMarch_progress_v2","longMarch.xiangjiang.chapter.v1","longMarch_zunyi_chapterState","chishui-chapter-state","longMarch_jinsha_chapter6_state","longMarchMapProgress","longMarch_ludingBridge_chapter7_v3","longMarch_demo_settings","long-march-chapter-9-v2","long-march-master-volume-v2"],"entries":["index.html","scenes/ruijin/index.html","scenes/yudu/index.html","scenes/xiangjiang/index.html","scenes/zunyi/index.html","scenes/chishui/index.html","scenes/jinshajiang/index.html","scenes/luding/index.html","scenes/snowgrass/index.html","scenes/final/index.html"],"compatibleRevisions":["4fe45c0dd86a3b5875a25701600027a8","5c667983fbba77a3d41a9f857a7da4ef","dd0d0e7ed5689fd93522ede552faf68c"],"programId":754,"entry":"index.html","root":true,"assetRoot":"/api/program-assets/754/t/eyJhY2Nlc3NUeXBlIjoidHJpYWwiLCJwcml2YXRlUmV2aXNpb24iOiJkZDBkMGU3ZWQ1Njg5ZmQ5MzUyMmVkZTU1MmZhZjY4YyIsIm8iOiJvSHNWcjJ6N0VYZURDS1RlMkNXYXJleVU2QjdnIiwicCI6Ijc1NCIsImV4cCI6MTc5NDU1OTY4NCwicHVycG9zZSI6ImxvbmdfbWFyY2hfY2hhcHRlcl9hc3NldF9yZXZpc2lvbl92MSJ9.rAIqRWMy0N19aDfSqqjsoAp0WSOFNjEdDmHawKayeCc/"},"\u003c!DOCTYPE html>\n\u003chtml lang=\"zh-CN\">\n\u003chead>\u003cscript data-long-march-memory-storage>\n(function(){function createMemoryStorage(){var values=Object.create(null),keys=[];return{get length(){return keys.length;},key:function(i){i=Number(i);return Number.isInteger(i)&&i>=0&&i\u003ckeys.length?keys[i]:null;},getItem:function(k){k=String(k);return Object.prototype.hasOwnProperty.call(values,k)?values[k]:null;},setItem:function(k,v){k=String(k);if(!Object.prototype.hasOwnProperty.call(values,k))keys.push(k);values[k]=String(v);},removeItem:function(k){k=String(k);if(!Object.prototype.hasOwnProperty.call(values,k))return;delete values[k];keys=keys.filter(function(x){return x!==k;});},clear:function(){values=Object.create(null);keys=[];}};}function install(name){try{var current=window[name];void current.length;return;}catch(e){}try{Object.defineProperty(window,name,{configurable:true,enumerable:true,value:createMemoryStorage()});}catch(e){}}install(\"localStorage\");install(\"sessionStorage\");})();\n\u003c/script>\u003cscript>\n(function(){var prefixes=[\"/api/program-assets/754/\"];function needsCors(v){if(!v||typeof v!==\"string\")return false;try{var href=new URL(v,document.baseURI).href;for(var i=0;i\u003cprefixes.length;i++){var p=new URL(prefixes[i],location.origin).href;if(href.indexOf(p)===0)return true;}return false;}catch(e){return false;}}function mark(img,v){if(needsCors(v)){try{img.crossOrigin=\"anonymous\";}catch(e){}}}var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,\"src\");if(d&&d.set&&d.get){try{Object.defineProperty(HTMLImageElement.prototype,\"src\",{get:d.get,set:function(v){mark(this,v);return d.set.call(this,v);},configurable:true,enumerable:d.enumerable});}catch(e){}}var set=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(this instanceof HTMLImageElement&&String(n).toLowerCase()===\"src\")mark(this,String(v||\"\"));return set.apply(this,arguments);};})();\n\u003c/script>\u003cbase href=\"/api/program-assets/754/t/eyJhY2Nlc3NUeXBlIjoidHJpYWwiLCJwcml2YXRlUmV2aXNpb24iOiJkZDBkMGU3ZWQ1Njg5ZmQ5MzUyMmVkZTU1MmZhZjY4YyIsIm8iOiJvSHNWcjJ6N0VYZURDS1RlMkNXYXJleVU2QjdnIiwicCI6Ijc1NCIsImV4cCI6MTc5NDU1OTY4NCwicHVycG9zZSI6ImxvbmdfbWFyY2hfY2hhcHRlcl9hc3NldF9yZXZpc2lvbl92MSJ9.rAIqRWMy0N19aDfSqqjsoAp0WSOFNjEdDmHawKayeCc/\">\n\u003cscript src=\"./courseware/website-bridge.js\">\u003c/script>\n\u003cscript src=\"./courseware/runtime.js\">\u003c/script>\n\u003clink rel=\"stylesheet\" href=\"./courseware/classroom.css\">\n\u003cscript defer src=\"./courseware/classroom.js\">\u003c/script>\n\n  \u003cmeta charset=\"UTF-8\" />\n  \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  \u003ctitle>长征史实修订版 · 3D总览\u003c/title>\n  \u003clink rel=\"stylesheet\" href=\"./shared-audio.css\">\n  \u003cscript src=\"./shared-audio.js\">\u003c/script>\n  \u003clink rel=\"stylesheet\" href=\"./shared-ui/unified-topbar.css\">\n  \u003cscript defer src=\"./shared-ui/unified-topbar.js\">\u003c/script>\n  \u003cscript src=\"./hide-map-overlay-button.js\">\u003c/script>\n  \u003cscript src=\"./map-stability.js?v=20260902-zoom-stability-2\">\u003c/script>\n  \u003cscript src=\"./map-node-position-fix.js?v=20260902-node-position-fix-3\">\u003c/script>\n  \u003cscript type=\"module\" crossorigin src=\"./map-app-loader.js?v=20260902-node-position-fix-3\">\u003c/script>\n  \u003clink rel=\"stylesheet\" crossorigin href=\"./assets/index-Cv5KdO45.css\">\n  \u003clink rel=\"stylesheet\" href=\"./map-stability.css?v=20260902-zoom-stability-2\">\n  \u003clink rel=\"stylesheet\" href=\"./map-node-position-fix.css?v=20260902-node-position-fix-3\">\n\u003c/head>\n\u003cbody>\u003cscript>\n(function(){try{document.body.style.visibility=\"hidden\"}catch(e){}var h=location.hostname,p=location.protocol;if(p===\"file:\"||p===\"about:\"||p===\"chrome:\"){document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">内容仅在授权平台运行\u003c/div>\";return;}var a=[\"aifunengjiaoyu.com\",\"www.aifunengjiaoyu.com\",\"play.aifunengjiaoyu.com\",\"localhost\",\"127.0.0.1\"],ok=false;for(var i=0;i\u003ca.length;i++){if(h===a[i]||h.endsWith(\".\"+a[i])){ok=true;break;}}if(!ok&&h!==\"localhost\"&&h!==\"127.0.0.1\"){document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">未授权的运行环境\u003c/div>\";return;}var x=new XMLHttpRequest();x.open(\"GET\",location.origin+\"/api/program-file/verify-access?id=754&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI3NTQiLCJleHAiOjE3OTQ1NTk2ODR9.nNsJ3cNmvZAzkcX3zRW58BD1N-QJevKpxlh_sFRR2o4\",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility=\"visible\"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">授权验证失败\u003c/div>\";};x.onerror=function(){document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">网络连接异常，请确保在网络环境中使用\u003c/div>\";};x.send();})();\u003c/script>\n  \u003cdiv id=\"root\">\u003c/div>\n\n\u003cscript>\n(function() {\n  // 防右键\n  document.addEventListener('contextmenu', function(e) {\n    e.preventDefault();\n    return false;\n  });\n\n  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S\n  document.addEventListener('keydown', function(e) {\n    if (\n      e.key === 'F12' ||\n      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||\n      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||\n      (e.ctrlKey && (e.key === 's' || e.key === 'S'))\n    ) {\n      e.preventDefault();\n      return false;\n    }\n  });\n\n  // DevTools 检测（基于 debugger 语句执行耗时）\n  var _cdt = function() {\n    var t0 = performance.now();\n    (function(){}).constructor('debugger')();\n    if (performance.now() - t0 > 100) {\n      (function lp() {\n        (function(){}).constructor('debugger')();\n        setTimeout(lp, 50);\n      })();\n    }\n  };\n  setTimeout(_cdt, 1000);\n  setInterval(_cdt, 3000);\n\n  // 控制台版权声明\n  setTimeout(function() {\n    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');\n    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');\n  }, 500);\n})();\n\u003c/script>\n\u003c/body>\n\u003c/html>\n");</script></body></html>
+    return out;
+  };
+
+  const writeValue = (key, value) => {
+    try {
+      localStorage.setItem(STORE + key, String(value));
+    } catch (e) {}
+  };
+
+  const dropValue = (key) => {
+    try {
+      localStorage.removeItem(STORE + key);
+    } catch (e) {}
+  };
+
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (event.source !== frame.contentWindow) return;
+    if (!data || data.type !== PROTOCOL + ':ready') return;
+
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (message) => {
+      const patch = message.data || {};
+      if (patch.control === 'checkpoint') {
+        /* Every write was stored the moment it arrived. */
+        channel.port1.postMessage({ control: 'checkpoint-result', id: patch.id, ok: true });
+        return;
+      }
+      if (typeof patch.id !== 'number') return;
+      try {
+        if (patch.op === 'set') writeValue(patch.key, patch.value);
+        else if (patch.op === 'remove') dropValue(patch.key);
+        channel.port1.postMessage({ id: patch.id, ok: true });
+      } catch (error) {
+        channel.port1.postMessage({
+          id: patch.id,
+          ok: false,
+          error: String((error && error.message) || error),
+        });
+      }
+    };
+
+    frame.contentWindow.postMessage(
+      /* The course checks that the answer belongs to the question it
+         asked, so the nonce travels back with it. */
+      { type: PROTOCOL + ':connect', nonce: data.nonce, values: readValues() },
+      location.origin,
+      [channel.port2]
+    );
+  });
+})();
+</script>
+</body>
+</html>

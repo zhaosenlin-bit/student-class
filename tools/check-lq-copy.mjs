@@ -47,14 +47,14 @@ let bad = 0;
 for (const [port, routes] of ROUTES) {
   /* The comparison mirrors are off by default; skip them when they are. */
   try {
-    const res = await fetch(`http://localhost:${port}/`, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(20000) });
     if (!res.ok) throw new Error('status ' + res.status);
   } catch {
     console.log(port, '=> 端口未开启，跳过');
     continue;
   }
   for (const route of routes) {
-    await browser.goto(`http://localhost:${port}/${route}`);
+    await browser.goto(`http://127.0.0.1:${port}/${route}`);
     await sleep(2800);
     const out = await browser.evaluate(`(() => {
       const re = new RegExp(${JSON.stringify(PAT)});

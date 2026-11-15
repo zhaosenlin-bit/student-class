@@ -120,7 +120,7 @@
     var boxes = document.querySelectorAll('[data-lq-lede]');
     for (var i = 0; i < boxes.length; i++) {
       var box = boxes[i];
-      var text = box.querySelector('p');
+      var text = box.querySelector('[data-lq-lede-text]') || box.querySelector('p');
       var button = box.querySelector('[data-lq-lede-toggle]');
       if (!text || !button) continue;
       button.hidden = text.scrollHeight <= text.clientHeight + 2;

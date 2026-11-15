@@ -944,6 +944,10 @@ async function handleXb(req, res, url, profile) {
 
   // Static shell assets, served from their original paths.
   const rel = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+  /* Every browser asks for this one; the site has no icon of its own. */
+  if (rel === 'favicon.ico') {
+    return send(res, 204, Buffer.alloc(0), { 'Cache-Control': 'max-age=86400' });
+  }
   for (const mount of profile.mounts || []) {
     if (!rel.startsWith(mount.prefix)) continue;
     const mounted = safeJoin(mount.dir, rel.slice(mount.prefix.length));

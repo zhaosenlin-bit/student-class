@@ -16,7 +16,7 @@ prepareSiteEntry({location,history});
 showHome(false);
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const richText=value=>{if(!value||!/[&]lt;[a-z]/.test(String(value)))return esc(value);const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;return esc(value).replace(/&lt;\/?([a-z][a-z0-9]*)&gt;/gi,(whole,tag)=>allowed.test(tag.toLowerCase())?whole.replace(/&lt;/g,"<").replace(/&gt;/g,">"):whole);};
+const richText=value=>{const raw=String(value??"");if(!raw)return "";const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;const open=whole=>whole.replace(/&lt;/g,"<").replace(/&gt;/g,">");if(/&lt;[a-z]/i.test(raw))return raw.replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);if(!/<[a-z][a-z0-9]*>/i.test(raw))return esc(raw);return esc(raw).replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);};
 let authSerial=0,pendingPurchase=null;
 let catalog=[],info={},user=null,filter='全部',stage='全部',search='',timer=null,toastTimer=null,authMode='login',currentLesson=null,routeSerial=0,frameTimer=null,activePage='works',originFilter='全部',sortBy='default',priceFilter='全部',authorFilter='',subjectsOpen=false;
 const store={bundle:()=>null,courseBundles:()=>[],bundleSummary:()=>'',purchaseOptions:()=>[],bundlePricing:()=>'',bundlesPage:()=>{history.replaceState(null,'','#catalog');},feedbackAdmin:()=>{}};

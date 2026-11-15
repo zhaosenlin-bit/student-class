@@ -244,10 +244,14 @@ const swapLine = (source, head, replacement) => {
    */
   const richText = [
     'const richText=value=>{',
-    'if(!value||!/[&]lt;[a-z]/.test(String(value)))return esc(value);',
+    'const raw=String(value??"");',
+    'if(!raw)return "";',
     'const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;',
-    'return esc(value).replace(/&lt;\\/?([a-z][a-z0-9]*)&gt;/gi,(whole,tag)=>',
-    'allowed.test(tag.toLowerCase())?whole.replace(/&lt;/g,"<").replace(/&gt;/g,">"):whole);',
+    'const open=whole=>whole.replace(/&lt;/g,"<").replace(/&gt;/g,">");',
+    /* Some texts arrive already escaped, the others arrive as markup. */
+    'if(/&lt;[a-z]/i.test(raw))return raw.replace(/&lt;(\\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);',
+    'if(!/<[a-z][a-z0-9]*>/i.test(raw))return esc(raw);',
+    'return esc(raw).replace(/&lt;(\\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);',
     '};'
   ].join('');
   js = js.replace(
