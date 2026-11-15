@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head><base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抢答大作战 · 人体内物质的运输</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0f1a2b 0%, #1f3048 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            transition: filter 0.1s;
+        }
+
+        body.shake {
+            animation: screenShake 0.25s ease-in-out;
+        }
+
+        @keyframes screenShake {
+            0% { transform: translate(0, 0); }
+            20% { transform: translate(-6px, 4px); }
+            40% { transform: translate(5px, -6px); }
+            60% { transform: translate(-4px, 3px); }
+            80% { transform: translate(3px, -2px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 50%, rgba(255, 200, 100, 0.25), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 999;
+        }
+        .flash-overlay.active {
+            opacity: 1;
+        }
+
+        .game-container {
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(4px);
+            border-radius: 48px;
+            padding: 28px 24px 32px;
+            box-shadow: 0 30px 40px -15px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 215, 100, 0.15);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 连击奖励区域 */
+        .combo-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 18px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .combo-badge {
+            background: #2d1f2e;
+            padding: 6px 24px;
+            border-radius: 60px;
+            border: 1px solid #f9c74f;
+            box-shadow: 0 0 18px #f9c74f66;
+            color: #f9c74f;
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            backdrop-filter: blur(4px);
+        }
+        .combo-badge span {
+            background: #f9c74f;
+            padding: 0 14px;
+            border-radius: 40px;
+            color: #1a1a2c;
+        }
+        .bonus-indicator {
+            font-size: 1.1rem;
+            background: #f8961e;
+            color: #1a1a2c;
+            padding: 4px 18px;
+            border-radius: 40px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 0 12px #f8961e;
+        }
+        .bonus-indicator.show {
+            opacity: 1;
+        }
+
+        /* 双英雄区域 ———— 两个玩家各自独立卡片 */
+        .fighters-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .fighter-card {
+            flex: 1 1 240px;
+            min-width: 180px;
+            background: linear-gradient(145deg, #17273b, #0e1a2a);
+            border-radius: 40px;
+            padding: 16px 16px 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 215, 0, 0.15);
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(2px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fighter-card.player1 {
+            border-color: #5bc0eb;
+            box-shadow: 0 0 20px #5bc0eb33;
+        }
+        .fighter-card.player2 {
+            border-color: #f25f5c;
+            box-shadow: 0 0 20px #f25f5c33;
+        }
+
+        /* ---- 技能特效层 ---- */
+        .skill-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 40px;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0;
+            transform: scale(0.6);
+        }
+        .skill-effect.p1-skill {
+            background: radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.75) 0%, rgba(255, 180, 50, 0.4) 40%, transparent 75%);
+            animation: skillBurstP1 0.9s ease-out forwards;
+        }
+        .skill-effect.p2-skill {
+            background: radial-gradient(circle at 50% 50%, rgba(180, 50, 255, 0.75) 0%, rgba(130, 30, 200, 0.45) 40%, transparent 75%);
+            animation: skillBurstP2 0.9s ease-out forwards;
+        }
+
+        @keyframes skillBurstP1 {
+            0% {
+                opacity: 0;
+                transform: scale(0.3) rotate(0deg);
+            }
+            30% {
+                opacity: 1;
+                transform: scale(1.2) rotate(20deg);
+            }
+            60% {
+                opacity: 0.9;
+                transform: scale(1.5) rotate(-10deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.8) rotate(0deg);
+            }
+        }
+
+        @keyframes skillBurstP2 {
+            0% {
+                opacity: 0;
+                transform: scale(0.2) rotate(0deg);
+            }
+            25% {
+                opacity: 1;
+                transform: scale(0.8) rotate(120deg);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.3) rotate(240deg);
+            }
+            80% {
+                opacity: 0.4;
+                transform: scale(1.6) rotate(320deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(2.0) rotate(360deg);
+            }
+        }
+
+        /* ---- 卡片跳跃 ---- */
+        .fighter-card.jump {
+            animation: cardJump 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes cardJump {
+            0% {
+                transform: translateY(0);
+            }
+            25% {
+                transform: translateY(-28px) scale(1.04);
+            }
+            50% {
+                transform: translateY(-32px) scale(1.06);
+            }
+            70% {
+                transform: translateY(-12px) scale(1.02);
+            }
+            100% {
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* ---- 卡片颤抖（受击） ---- */
+        .fighter-card.shake {
+            animation: cardShake 0.5s ease-in-out forwards;
+        }
+        @keyframes cardShake {
+            0% {
+                transform: translateX(0) rotate(0deg);
+            }
+            12% {
+                transform: translateX(-10px) rotate(-3deg);
+            }
+            25% {
+                transform: translateX(10px) rotate(3deg);
+            }
+            37% {
+                transform: translateX(-8px) rotate(-2deg);
+            }
+            50% {
+                transform: translateX(8px) rotate(2deg);
+            }
+            62% {
+                transform: translateX(-5px) rotate(-1deg);
+            }
+            75% {
+                transform: translateX(5px) rotate(1deg);
+            }
+            87% {
+                transform: translateX(-2px) rotate(0deg);
+            }
+            100% {
+                transform: translateX(0) rotate(0deg);
+            }
+        }
+
+        .fighter-avatar {
+            font-size: 3.8rem;
+            line-height: 1;
+            filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.6));
+            margin-bottom: 2px;
+            position: relative;
+            z-index: 1;
+            transition: transform 0.2s;
+        }
+        .fighter-name {
+            font-weight: 800;
+            font-size: 1.4rem;
+            color: white;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 8px black;
+            margin: 2px 0 2px;
+            position: relative;
+            z-index: 1;
+        }
+        .fighter-sub {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            color: #ccc;
+            margin-bottom: 6px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hp-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            margin: 4px 0 2px;
+            position: relative;
+            z-index: 1;
+        }
+        .hp-bar-bg {
+            flex: 1;
+            height: 20px;
+            background: #1e1e2a;
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+        }
+        .hp-fill {
+            height: 100%;
+            width: 100%;
+            border-radius: 40px;
+            transition: width 0.25s ease;
+        }
+        .player1 .hp-fill {
+            background: linear-gradient(90deg, #43aa8b, #90be6d);
+            box-shadow: 0 0 12px #43aa8baa;
+        }
+        .player2 .hp-fill {
+            background: linear-gradient(90deg, #f94144, #f3722c);
+            box-shadow: 0 0 12px #f94144aa;
+        }
+        .hp-text {
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 56px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 8px;
+            border-radius: 40px;
+        }
+
+        .vs-divider {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: #f9c74f;
+            color: #1a1a2c;
+            padding: 4px 16px;
+            border-radius: 60px;
+            box-shadow: 0 4px 0 #b5832f;
+            transform: rotate(2deg) scale(0.9);
+            flex-shrink: 0;
+            align-self: center;
+            text-shadow: 0 1px 0 white;
+        }
+
+        /* 抢答面板 */
+        .buzz-panel {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 12px 0 10px;
+            flex-wrap: wrap;
+        }
+        .buzz-btn {
+            background: #2b3d54;
+            border: none;
+            border-radius: 80px;
+            padding: 16px 40px;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: white;
+            box-shadow: 0 8px 0 #141e2b, 0 12px 24px rgba(0, 0, 0, 0.5);
+            transition: all 0.06s linear;
+            cursor: pointer;
+            letter-spacing: 2px;
+            border: 2px solid #4b6589;
+            min-width: 160px;
+        }
+        .buzz-btn:active:not(:disabled) {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #141e2b;
+        }
+        .buzz-btn:disabled {
+            opacity: 0.5;
+            filter: grayscale(0.6);
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #141e2b;
+            cursor: not-allowed;
+        }
+        .buzz-btn.player1-buzz {
+            border-color: #5bc0eb;
+            background: #1f4b6e;
+        }
+        .buzz-btn.player2-buzz {
+            border-color: #f25f5c;
+            background: #6e2a2a;
+        }
+        .buzz-btn:hover:not(:disabled) {
+            transform: scale(1.04);
+            border-color: #f9c74f;
+            box-shadow: 0 8px 0 #141e2b, 0 0 28px #f9c74f77;
+        }
+
+        /* 题目面板 */
+        .question-panel {
+            background: rgba(10, 18, 30, 0.7);
+            backdrop-filter: blur(4px);
+            border-radius: 40px;
+            padding: 20px 24px;
+            margin: 8px 0 14px;
+            border: 1px solid rgba(255, 215, 100, 0.2);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+        }
+        .question-text {
+            color: #f8f9fa;
+            font-size: 1.6rem;
+            font-weight: 600;
+            line-height: 1.3;
+            text-align: center;
+            word-break: break-word;
+            padding: 4px 0 8px;
+            text-shadow: 0 2px 6px black;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin: 14px 0 6px;
+        }
+
+        .option-btn {
+            background: #2b3d54;
+            border: none;
+            border-radius: 60px;
+            padding: 14px 8px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            box-shadow: 0 6px 0 #141e2b, 0 8px 16px rgba(0, 0, 0, 0.5);
+            transition: all 0.08s linear;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            border: 1px solid #4b6589;
+        }
+        .option-btn:disabled {
+            opacity: 0.5;
+            filter: grayscale(0.5);
+            cursor: not-allowed;
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #141e2b;
+        }
+        .option-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background: #3f5a7a;
+            border-color: #f9c74f;
+            box-shadow: 0 6px 0 #141e2b, 0 0 18px #f9c74f77;
+        }
+        .option-btn:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #141e2b;
+        }
+        .correct-feedback {
+            background: #2d6a4f !important;
+            border-color: #95d5b2 !important;
+            box-shadow: 0 0 25px #40916c !important;
+        }
+        .wrong-feedback {
+            background: #9b2226 !important;
+            border-color: #f25f5c !important;
+            box-shadow: 0 0 25px #c1121f !important;
+        }
+
+        /* 正确答案高亮提示 */
+        .correct-answer-highlight {
+            background: #1e4d3a !important;
+            border-color: #52b788 !important;
+            box-shadow: 0 0 30px #40916c !important;
+            color: #fff !important;
+        }
+
+        .explain-box {
+            background: #1e2a3a;
+            border-radius: 40px;
+            padding: 14px 22px;
+            margin: 14px 0 2px;
+            color: #e0e7f0;
+            font-size: 1.05rem;
+            border-left: 6px solid #f9c74f;
+            display: none;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .explain-box.show {
+            display: block;
+        }
+        .explain-box .correct-answer-label {
+            color: #95d5b2;
+            font-weight: 700;
+            font-size: 1.15rem;
+            display: block;
+            margin-bottom: 6px;
+            background: rgba(45, 106, 79, 0.3);
+            padding: 6px 14px;
+            border-radius: 30px;
+            border-left: 4px solid #52b788;
+        }
+
+        /* 日志 */
+        .log-area {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            border-radius: 30px;
+            padding: 14px 22px;
+            margin-top: 14px;
+            border: 1px solid #3a4c62;
+            max-height: 110px;
+            overflow-y: auto;
+            color: #d3dcec;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6);
+        }
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid #2a3a4e;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .log-hero {
+            color: #8fd6bd;
+        }
+        .log-enemy {
+            color: #f4a2a0;
+        }
+        .log-system {
+            color: #f9c74f;
+            font-weight: 600;
+        }
+
+        .gameover-msg {
+            text-align: center;
+            font-size: 1.7rem;
+            font-weight: 800;
+            padding: 10px 0 2px;
+            background: linear-gradient(135deg, #f9c74f, #f8961e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px #f9c74f55;
+        }
+
+        .reset-btn {
+            background: #f9c74f;
+            border: none;
+            border-radius: 60px;
+            padding: 10px 30px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #1a1a2c;
+            box-shadow: 0 6px 0 #b5832f;
+            cursor: pointer;
+            transition: 0.07s;
+            display: inline-block;
+            margin: 8px auto 0;
+            border: 1px solid #ffe599;
+        }
+        .reset-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 1px 0 #b5832f;
+        }
+        .footer-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .log-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .log-area::-webkit-scrollbar-track {
+            background: #1a2639;
+            border-radius: 20px;
+        }
+        .log-area::-webkit-scrollbar-thumb {
+            background: #f9c74f;
+            border-radius: 20px;
+        }
+
+        .turn-indicator {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #f9c74f;
+            background: #1e2a3a;
+            border-radius: 40px;
+            padding: 4px 16px;
+            display: inline-block;
+            margin: 0 auto 8px;
+            border: 1px solid #f9c74f44;
+        }
+
+        @media (max-width: 650px) {
+            .game-container {
+                padding: 16px 10px;
+            }
+            .question-text {
+                font-size: 1.3rem;
+            }
+            .option-btn {
+                font-size: 1rem;
+                padding: 12px 6px;
+            }
+            .vs-divider {
+                font-size: 1.8rem;
+                padding: 2px 12px;
+            }
+            .fighter-avatar {
+                font-size: 3rem;
+            }
+            .buzz-btn {
+                font-size: 1.4rem;
+                padding: 12px 20px;
+                min-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=209&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIyMDkiLCJleHAiOjE3OTQ1NTk4OTV9.aDu0qf_h32xZa-CrB3JWo7IHVenl1e_-qT6Eb9lnnM4",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+    <div class="flash-overlay" id="flashOverlay"></div>
+
+    <div class="game-container">
+        <!-- 连击奖励 -->
+        <div class="combo-area">
+            <div class="combo-badge">🔥 连击 <span id="comboCount">0</span></div>
+            <div class="bonus-indicator" id="bonusIndicator">⚡ 奖励伤害 +5</div>
+        </div>
+
+        <!-- 双英雄卡片：玩家1 & 玩家2 -->
+        <div class="fighters-area">
+            <div class="fighter-card player1" id="cardP1">
+                <!-- 技能特效层 -->
+                <div class="skill-effect" id="skillP1"></div>
+                <div class="fighter-avatar">🦸</div>
+                <div class="fighter-name">知识勇者</div>
+                <div class="fighter-sub">⚡ 玩家1 · 圣光冲击</div>
+                <div class="hp-wrapper">
+                    <div class="hp-bar-bg">
+                        <div id="heroHpFill" class="hp-fill" style="width: 100%"></div>
+                    </div>
+                    <span class="hp-text" id="heroHpText">100/100</span>
+                </div>
+            </div>
+
+            <div class="vs-divider">⚔️ VS ⚔️</div>
+
+            <div class="fighter-card player2" id="cardP2">
+                <!-- 技能特效层 -->
+                <div class="skill-effect" id="skillP2"></div>
+                <div class="fighter-avatar">👾</div>
+                <div class="fighter-name">暗影智者</div>
+                <div class="fighter-sub">🌪️ 玩家2 · 暗影侵袭</div>
+                <div class="hp-wrapper">
+                    <div class="hp-bar-bg">
+                        <div id="enemyHpFill" class="hp-fill" style="width: 100%"></div>
+                    </div>
+                    <span class="hp-text" id="enemyHpText">100/100</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 抢答按钮区域 -->
+        <div class="buzz-panel" id="buzzPanel">
+            <button class="buzz-btn player1-buzz" id="buzzP1">🔔 玩家1抢答</button>
+            <button class="buzz-btn player2-buzz" id="buzzP2">🔔 玩家2抢答</button>
+        </div>
+        <div id="turnIndicator" class="turn-indicator">⏳ 等待抢答 ...</div>
+
+        <!-- 题目区域 -->
+        <div class="question-panel">
+            <div class="question-text" id="questionDisplay">加载题目中...</div>
+            <div class="options-grid" id="optionsContainer"></div>
+            <div id="explainBox" class="explain-box"></div>
+        </div>
+
+        <!-- 战斗日志 -->
+        <div class="log-area" id="logArea">
+            <div class="log-entry log-system">🩸 人体内物质的运输 · 双人抢答对决！</div>
+        </div>
+
+        <!-- 重置 & 游戏结束信息 -->
+        <div class="footer-center">
+            <button class="reset-btn" id="resetGameBtn">🔄 重新挑战</button>
+        </div>
+        <div id="gameoverMessage" class="gameover-msg"></div>
+    </div>
+
+    <script>function _0x1755(_0x1a83c8,_0x25f529){_0x1a83c8=_0x1a83c8-(0x151b+-0x57e+-0x4a6*0x3);const _0x675678=_0x34db();let _0xf11bdc=_0x675678[_0x1a83c8];if(_0x1755['cyMkuP']===undefined){var _0x1c7f55=function(_0x2d9af1){const _0x2bb902='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x40b7ea='';let _0x4ab224='';let _0x46d0b7=_0x40b7ea+_0x1c7f55;let _0x548fa3=(''+function(){return-0x13f4+-0xc5c+0x2050*0x1;})['indexOf']('\x0a')!==-(-0x1b*0x9f+0x5*0xdb+0xc7f);for(let _0x3168a2=-0x22dc+0x496+0x1e46,_0x5ab7a2,_0xb76476,_0x28876d=-0x138b+0x993+0x9f8;_0xb76476=_0x2d9af1['charAt'](_0x28876d++);~_0xb76476&&(_0x5ab7a2=_0x3168a2%(-0x1608+0x8*0x230+-0x48c*-0x1)?_0x5ab7a2*(0x1d*-0x119+-0x1*-0x16d8+0x93d)+_0xb76476:_0xb76476,_0x3168a2++%(-0x1f6*0x5+-0x6*0x1cb+0x1b7*0xc))?_0x40b7ea+=_0x548fa3||_0x46d0b7['charCodeAt'](_0x28876d+(-0x1db0+-0x5*0x2bd+0x2b6b))-(0x135a+-0xb00+-0x850)!==0x1e65+-0x3*-0x18f+0x1189*-0x2?String['fromCharCode'](-0x1*-0x17e9+0x1*-0x16f6+0x3*0x4&_0x5ab7a2>>(-(0xee4+-0xa9a+-0x448)*_0x3168a2&0x148e*-0x1+-0x25c7+0x3a5b)):_0x3168a2:-0x9d*0x3+0x215d+0x2*-0xfc3){_0xb76476=_0x2bb902['indexOf'](_0xb76476);}for(let _0x5c2e7a=-0x1692+0x1f44+-0x8b2,_0x1d1325=_0x40b7ea['length'];_0x5c2e7a<_0x1d1325;_0x5c2e7a++){_0x4ab224+='%'+('00'+_0x40b7ea['charCodeAt'](_0x5c2e7a)['toString'](0x93a+0x28*-0xb2+0xd9*0x16))['slice'](-(-0xf2a+0x7*-0x151+0x1863));}return decodeURIComponent(_0x4ab224);};_0x1755['WIlkaq']=_0x1c7f55;_0x1755['YDEDJx']={};_0x1755['cyMkuP']=!![];}const _0x5998de=_0x675678[0x941+0x2c3*0x8+-0x1f59];const _0xfad0dd=_0x1a83c8+_0x5998de;const _0xcef945=_0x1755['YDEDJx'][_0xfad0dd];if(!_0xcef945){const _0x2cc52b=function(_0x203ecd){this['hEuwed']=_0x203ecd;this['nxoHIt']=[0x2d*-0x3+-0x2e*-0x8b+-0x1872,-0xc3f+-0x9e+0xcdd,0x269b+0x2*-0x9d2+-0x12f7];this['VVPDTa']=function(){return'newState';};this['fgCKyj']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['wgqzse']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x2cc52b['prototype']['TfZrIa']=function(){const _0x200143=new RegExp(this['fgCKyj']+this['wgqzse']);const _0x833fe5=_0x200143['test'](this['VVPDTa']['toString']())?--this['nxoHIt'][-0x64*0x3+0x12b2+-0x1185]:--this['nxoHIt'][0x18d1*-0x1+0x9d9*0x1+0x2*0x77c];return this['WAgnfU'](_0x833fe5);};_0x2cc52b['prototype']['WAgnfU']=function(_0xbdb71b){if(!Boolean(~_0xbdb71b)){return _0xbdb71b;}return this['nGSbVa'](this['hEuwed']);};_0x2cc52b['prototype']['nGSbVa']=function(_0x44c6d4){for(let _0x3a3b2e=0x233d+0x18d4+0x3c11*-0x1,_0x134c10=this['nxoHIt']['length'];_0x3a3b2e<_0x134c10;_0x3a3b2e++){this['nxoHIt']['push'](Math['round'](Math['random']()));_0x134c10=this['nxoHIt']['length'];}return _0x44c6d4(this['nxoHIt'][-0x3df+-0x620+0x9ff*0x1]);};if((''+function(){return-0x2a*-0x7c+-0xe2b+-0x62d;})['indexOf']('\x0a')===-(0x1*0x124d+0x22f*0x7+-0x1*0x2195)){new _0x2cc52b(_0x1755)['TfZrIa']();}_0xf11bdc=_0x1755['WIlkaq'](_0xf11bdc);_0x1755['YDEDJx'][_0xfad0dd]=_0xf11bdc;}else{_0xf11bdc=_0xcef945;}return _0xf11bdc;}function _0x34db(){const _0x44cae0=['A21lzw8','Exn0zw0','5lQ65l2t5yAf54MP6lsO','zxjV','De5IDuK','AwXS','5y2G5l2t6yEn55QenW','qwT4uuy','5yED6kga5yQF6io955Qe','mteWlte','Exz4wuK','5P6q5yE655Qe5REH6BUe','mtiW5AsP','5lI75yQO6isj','6l6d5Bcr77Ym6AkC6iMY','tg9Hzgu','6l+q6l6t5lQm5RcN5yYw','mtGW5AsP','vKfvAwi','BNrYEsa','sMHADfC','qwnIuhG','A1HLDM8','6k+k5PAT5lI66AUy6kga','B250zw4','rfjevM4','ufHXB00','tfLAwue','C2TpC0m','57Ue57Uh57Ug6ioE5lUJ','6ik65B6Q546V55Qe57Ui','5lIk6iEc55Qe5zoQ5P2H','Cgzvyw0','nZaWltG','wM96yLi','uNvTwwm','6z2z6isj6kga5y+y5yQO','57QI6jUl55M95yEp5Bcr','yK5tse4','5Q2I6kga5RAY5lUo5yQO','CMvTB3y','qKXnzeq','57o757UF5lIT77Ym5zoQ','sgFJGii','q1vqz28','r2nczK8','5yYw56kZ5Rwt5BQM5PYa','6ik65B6Q546V5lIT77Ym','C3r5Bgu','BLfczuW','DfDPzhq','6z2z6isj55oJ55Qe5yQF','57Ue57Uh57Ug6ioE','6kga5RAY5ycs5Rwb55Qe','6iIs5BYG5y6l77Yi5l2o','5lIW5A+m77Ym6AkC6iMY','77Yb6k+36ycj5OUP562u','ywrKrxy','Aw5N','zgf0yxm','5yQO6isj6kga55Qe54M5','ANvTCa','57QMotaTmq','56En6kga5z6l6kkR56EW','5lUJ6kgO5B+d5A6K6zMK','54MP5PIV77YF','se5SA20','qwHLr20','6ikH5yQO6isj','BvHfEg0','zw1LBNq','qxnyrhe','BK9nEu0','566H5Aob5y+Q5PYj5yEG','nJaGBw0','yMX1rei','5Q2J5BI45Ps257YP5y6l','5y6A55Qe5PIV77YF','C3bSyxK','5y+y5OIq5lUa5lMi77YF','nY04jq','Dg9tDhi','mxW4Fdm','DMH6v1y','zwzYrMO','moASOs/LIiBJGii','6icf5ycs5lIl5lQg77Yb','5BI45yc857QMmY4','B24TyNq','mowKQEoaGG','u1fTAM8','shbgAwW','qxzpv0q','6z2z6isj6kga5y6l5PYa','5lI76kAb5zMO5A6y44cc','A05IyNy','54MP5PIV6jUl55M96lsO','ENjmAhK','5B6U5yQO6isj','BgvUz3q','zLvnsNy','zgL2','z2fTzw8','oc4Wlte','5l2t5PYa57kx55Qe5yQO','6ik65B6Q546V5yQO6isj','u3fqq3G','thn1r0S','ntaWlty','z2v0','6iMY5PQx57QI','5lQ65l2t5yAf5PYa57Ug','77Ym6kga5z2x5zgO5zU0','Fdr8mG','6ikm6ikj5OYK5y6l','mddLHyS','mtuL','y29YCMu','y0LKEfO','54k55PIV5BEM5B+d5OI/','5OIq5BM05lQ655Qe5B+d','Dgv4Dem','6kga5RAY5Oc76yEp57QM','5PYa5AsA77Ym5Q+p5B6U','Aw5JBhu','6iwu5lIT77Ym5Aob5PYa','zgv4','5RwM6ikV6yEo57QK57U0','6ikX5yQO6isj','55Uq5B2I5BYp6l+q6l6t','5A+/5zg957QMmti','6z2z6isj55oJ6zIY5Q2I','tu9YAgi','yxbWBhK','5yQG6ycF6kga5RAY5Rwb','y3jLyxq','lwfUC3C','CeL6CMK','5lUJ6kgO5lUa5lMi77YF','vxbIt2i','BeT1Due','562j5B6f5zUE562u','5zcR5RcN5lIW5A+m44cb','6kga5Rwg5lIT5zcR6yEp','yuXZrxe','oxfgtNzNrW','ig1TB2W','8j+MUcdNJQNLRRyX','6AkC6iMY6BkC57QI','57Ug6ioE44cc','8j+rVIdNJQNLRRyY','55M957Ug6ioE','vgnUEwG','lM9WDgK','pc9ZCge','EMvYsey','B2WVta','5BcK5yw25zYO5zUB6ikI','Dg9YqwW','sfrnta','5l2t5B6Q546V5yQO6isj','zM1PEve','CdeTC2S','5Bcg6kga5RAY5Ro15ywL','5Rwt5BQM5PYa6AUy77Ym','5l+d57QI57Ug6ioE55sF','vKzlB3a','thrRvMi','4O+ZioATO+wCQoETLa','5B+d5A6K6zMK5P6b','BNrLBNq','BeHLAwC','nsxVViZMMk/LKkS','55oJ6iAC5PIV77YF','6kAb5yQF6io95PIV77YF','4PQG77IpioIVT+wfIoAkOG','5Q+B57Ug6kga566H55Qe','5B+d6isp77Ym6kga5y6l','5OI/5A6K55oJ6zIY5Q2I','mtqWnZeWvMHrDNrM','zeTZEe0','mti1ote3mNrKCMfutW','5BEM5B+d5OI/','qulLNOVOOydLJ68','zw92zxO','Bg9Nlwu','Bfffzu8','FdeWFdi','57o757UF5lIT77Ym6lw3','5yE6546W77Ym6k+35OQI','Ew1wweK','5B+d55s15zU+5lIT77Ym','ioAkOUETLoAiKowkNW','5Oc76yEp57QM5y2G5l2t','5Rwt5BQM5PYa6AUy55Qe','uLLhv0e','6ik65RoH5yAf5RcN5Rcu','4O+ZioETIEw+HEAkOG','ndbRv1resLO','Bg9Nlxm','BgPAExO','5Bcp5yQO6isj','8j+oIsdMMPFLVBhMMBO','5lIl6iwu6z2z6isj','5y+Z5B+d5OI/','yxrVCG','6kga57QI6jUl55M95OIw','6lcI5lQN55sF5lQm5RcN','CxvLCNK','mtb8n3W','6yEp5PYa5AsA55Qe5OIq','svrZzhe','CMvNtey','55+L6k+g5yUh6icf6i63','z2v0rwW','BvjvtxC','57Y66kga5z2p5Q2777Ym','nta1ntm2ogDNENfRCq','zw50tgK','5l6B5BQu5P2L6iEQ77YF','vxvhqxm','Bwf4','5zcE5zMS55Ef6i+m','wgnHv2q','5B+d6isp5lIT6zIY5Q2I','55Qe5QYH5PwW44cc','C3rLBMu','5PYa6AUy44cc','6yoO5y+y5OIq5yQO6isj','6kga5RAY5lIT5zcR6yEp','zenOAwW','sMHWquG','5A6j6z2z5B+d546h57QM','6kga5RAY5lIT5yw35PYj','CKzuvhi','y3zdCwe','yMvSiJ4','vvDfA08','q2Xyzw8','6AUy6kga5y6l','DKjwBxK','mJaGBw0','BwPhvMW','5B+d6l6t5yE66yEp','DLPJvgC','5yEp5Bcr77YF','rejhA2O','5l2t5B6Q546V5lUo5BEM','56wE57Up57Ue57Uh','uKXMChy','6ioE5Qc477Ym55M957Ug','5BYv5y+r5B+d6ikm5Qkx','ntdLHyS','m3W0FdC','DMvYtwu','zhv6rNC','CMfUzg8','C3LIzLe','zNzOB3u','C2vHCMm','5yQO6isj6kga5zcR5RcN','y2XHC3m','5l6B5BQu44cc','5P6b77Yi5B+d5A6K5Ps2','6kAb5zMO5A6y5PIV77YF','FdiYFde','5y+Q5PYj5OI/5A6K55oJ','5OIq54AF57QI57Ug6ioE','qufptK8','5REl5BE057Ug6ioE','4PYfioATO+EHRUETLa','5lMi57Ue57Uh77YF','6kga5RAY5Ro15zcr5ywO','5lUL6l6t5ywL5lUa5lMi','6jAe44cb6kga5Rwb5OwI','57QI57Ug6ioE','CNvJDg8','5lQ65l2t5yAf6kga5y6l','6yoO5l2n5PIV77YF','B2zMC2u','6kga566H5Rwl6yEp77YF','ntK5ntqZngHLA2vkCW','6lQR77Ym6ikm6ikj5Aob','vMLpA1u','5Q+B57Ug6kga566H5Aob','5PYa5l2o55Qe6kga566H','mZdLPkK','57Ue57Uh5RAY','C2TPBgW','y0vtsuu','lwzLzwq','6lsF6lsJ6l+q6l6t5RcN','5O6L5y+x5lU75l2v6kga','6kga5RAY5lIT6jgH6jce','5PYa5y6A44cc','6ik65yQO6isj','q0PrwhO','qK11B1m','5yIW5BEM5B+d5OI/44cc','6l+h5RUK6kga5RAY','5B+d6isp55Qe6kga5RAY','qulLNOS','q291BNq','5B6x6ioC5yIP77Yb','5PYa6AUy55Qe6kga566H','5lI65lIh6io95y+x6kga','CdiTC2S','Dg9Y','B3b0sw4','wujKrhy','EfvMD1K','5zoQ5lIQ5zMO5A6y5yIg','Bg9Nqxi','ugToDKC','5RAY5lUo5B+d6isp6l6t','qu5zqLC','wvr3Cui','5l2t5B6Q546V55Qe6lw3','5zcR5lQm5RcN5yYw56kZ','Bg9NlwG','57YP77Yj44cc','Fde5Fde','5lI76kAb5y6F5zUG5PIV','mtmWig0','ywrK','BMTsDvO','EfLozeq','5PQx5B2X5PM66icf6lwI','C0Tqs08','t++8IEs4U+IMGEEuSq','vwDgrNC','5B+d6ikm5Qkx5Q2755Qe','4O+Ziow3SUE7J+ACIq','sLHdyxC','5OI/5A6K5P2F','5yIz77Ym6yg/5ywn5yED','6yoO5yIg77Ym5lI65B+d','5lQ65l2t5yAf57QI57Ug','ug9RyuW','s0D4zue','6kga5RAY5Rwb5yQO55Qe','5yAG54Q25yQO6isj6zI7','5l2t5lUa5lMi6yoO5l2n','5RQ26kEJ5zYO6kga5Rwg','6jUl55M957Ut5zci44cc','ywn0Axy','C2HHA2u','B3b0Aw8','57QMns0Xma','6isj6kga44cc','BuHN','uvjt5RoI576K','rw9qyuK','AuvmsLC','5zcR5yw75PAz5AsA','5yYw56kZ77Ym5Rwt5BQM','ENbJBvO','y29UC3q','5Pcp54k55PIV77YF','zwrIywm','A0rvDgO','5PQx57QI44cc','5B+d5OI/5Asn5P6b','5zcm5z6l6kga5lI65y6F','5B+d6isp5l2n5lQo5lQ6','6kga5Bcp5P2/55Qe5A+/','5l2t5B6Q546V55Qe57Ui','rxrwu3e','5lI75yQO6isj6z2G6l+r','y3vYCMu','Bw1iz+wpRW','mxWWFdm','77Ym6yoO5yIg5RQ26kEJ','yNv6ELa','y1vlruW','562uic4UlG','mY015AsP','B2DWve8','5lQ65l2t5PYa57Ug55Qe','zMXVB3i','s2z4Dgy','EvnvCve','yMfJAW','5PQx5B2X5PM66icf6ycG','nNWYmhW','vLDrveq','AhP1t0y','5zY65OMa5PIV77YF','6yEn572U77Ym5yEg5Ash','nhWXmNW','mcbTBuG','6yEn55Qe77YF','zMLYC3q','6kga5RAY5lUo5B+d5A6K','5PYa5AsA55Qe5PYj5PY6','rKzcBwi','5PQx5B2X5PM66icf6i63','EeXVAgm','mtH8mJe','6kAb5lUL56kZ6yw45RcI','5yQO6isj6kga5y+y6z2z','ioETLoMuMEs6HU+8Gq','5B+d5OI/6zMK5P6b','5zYJ5ywj5yAY5yE75A+5','6zUg5y+n5BQu44cc','D3jVBMC','57QMnY0Xna','57QI57Ug6ioE5A+m5zcR','6ioE5PYj57Ug6ioE5Qc4','5ycs5Rwb5zUE5B+d5OI/','5zcR5yw75PAz5Bcr','5zg957QM5lI677YF','tMfTzq','CgjhuM8','6ioE5PIV77YF','otaTmti','6zIY5Q2I6kga5RAY5ycs','nY0XnowKQq','77Yi57QMnYxVViK','6l+h5OMP5PwJ5l2C55sO','6kga5Bcp5P2/6yEk5Ps+','5OI/5Ps257YP77Yj44cc','zw50','zMXHC2G','5yQO6isj6kga5zYO57Ue','5lI75yQO6isj5PIV5lQ6','5lI76kAb5PA55BYp5PIV','5yED6kga5zUG5A2q77Ym','6lsR6kga55Qe5lI76kAb','5yAG54Q25yQO6isj5BgE','5Bcp6z2z6isj','y0vOzwq','mZmZmty2ntbbsgLpyvy','ioEcUEs8PowUS++8Gq','5yQO6isj55oJ','6ycb5yIW5ywO6lQR5zce','ntaW5lIh5lIQ','BgvK','A0Heruq','5B+d5B6l5AsX5BI4','veXmANC','FdeZFde','v3H4q24','Bw1VBc8','6kga5RAY5lIT6l+q6l6t','6jUl55M96lsO','5yQO5yQB5P2L6iEQ77YF','6zkF5B+d6isp6lEZ5yQO','s1bKAvu','vMzcyvC','5B+d6isp55Qe5Ps257YP','zK5bEwC','5PA55BYp5PIV77YF','vffptMG','uoAZOUs7O+IHQos7Ga','6l+q6l6t5RcN5Rcu','5zcm5z6l6kga','5Q2J5BI45OIq5BM05lQ6','nJaTmta','BNruyxi','5O2F5AsXia','6kga5z6l5lI65y6F5yIz','6kga5Bcp5P2/','77Ym6z2z6isj6kga5zUE','ANrAA2y','ig1TsgC','q2HPBgq','5OI/6zMK5P6b77Yi5B+d','mtaL','57Ut57Yu57Ue57Uh','8j+tMIdPOPJNM67LT7i','546V55Qe6lw354k55PIV','sw5KAwm','5yAG54Q25yQO6isj5PIV','yundDwG','ioEcUEEuN+wrVEwaVa','5RAY6l+B5ywL57Ue57Uh','57Ug6ioE55sF5OIq55Qe','5BEM5B+d5A6K','6icf6kkR5yE76lsL77Yb','qNLjza','y3qTzMu','r3jJsNa','5lUL5lIk44cc','5ywO6lQR44cc','C3bSAxq','otyXmJGXmhbzvvnrra','6io46iwu5lIT6yoO5ygp','AgvYB0G','shbuzxG','y2XPy2S','nI4XltG','5OI/5A6K55oJ5zkm5yQO','ntm4mtm5vNrcy05K','6BkC57QI44cc','57QM5lI677YF','v0TXr08','5BEM5B+d5A6K6zYa5Bcg','q0PfruW','tgLZDa','ioETLowVUEs6HU+8Gq','AgLNAgW','5yED5zU65zco5P6q5yE6','uhLKBve','y3qTyw4','54k55PIV77YF','57Ug6kga566H5PYa5OwI','5B+d6isp55Qe5zUB5lIQ','CxvLC3q','5QYHl+wiHG','5y+Z5B+d5A6K','55Qe5lQm5RcN5yYw56kZ','zxiTBge','y2fYzfa','55M957Ug6ioE5yw35PYj','5PwJ5l2C55sO5lUo6kga','AwDODa','6kga57QI6jUl55M977Ym','5B+d6isp55Qe6yEn6yEp','5zYO6kga5Rwg5lIT77Ym','mtuWig0','5lQ65l2t5yAf5PwW6yEp','B3H1wKm','Aw5Uzxi','57QI57Ug6ioE5BMZ5z2h','uu1zu2m','EfvhuvC','5PQx5B2X5l616kkT5A+5','57QI57Ug6ioE5OIw6kga','5OI/5A6K57Ut','57QI57Ug6ioE5PwW6yEp','5yQO6isj5OQk6kga5RAY','nJaTota','5y2p5yQP5OMP5PwJ','BfrVCa','77Ym5yQO6isj55oJ6zIY','mtaWlte','5lIo6kga57QI6jUl55M9','r2fTzui','6isp6yEn6yEp57QMmG','BMvTEq','v3HhBLO','AxbxAwG','nuf0vuL0EG','8j+pGsdMUlJMIi/NU5m','EffOzg0','D2LKDgG','otaTmte','5RcN5Rcu6ycA6l+h5OMP','D0ziExe','5lIk6iwu6z2z6isj','r21Wzee','5QgH5yQO6isj','5lQm5RcN5yYw56kZ6ycA','B0D1Agq','AKXHAKW','5BYa5AEl77Yb','sKrnAuO','5y6l77Yj55Qe6iYd5zU0','vKvnzwq','zgLZywi','5y+V6l6+mtaW','5OIq57sG77Yirva','5A6j6z2z5PE255Qe5B+d','u2LbAe0','5Ps257YP5y6l5OYb57UT','5lIT5Rwb5yQO5PYa5B+R','u2vSzwm','C3DLCI0','BMf0Aw8','55+L6k+g5yUh6icf6lwI','t0HVDuq','zgvZ','zxHWBge','C2HVDW','5REl5BE0566H','5Q+B57Ug6kga566H','6z2z6isj6kga','5lQ65l2t5yAf5lQm5RcN','Aw5cB3G','C3nHz2u','zunOAwW','qLLmyw4','55Qe5RAY5l2t77Ym5lIn','EeXvugS','6AUy55Qe6yoO5l2n5PIV','zM9Yrwe','uMjsD3C','mtiWlte','57Ug6ioE5Qc477YF','6lEZ5yQO55Qe5QYH5PwW'];_0x34db=function(){return _0x44cae0;};return _0x34db();}(function(_0x4b5df5,_0x2b463d){const _0x18267b=_0x1755;const _0x5a3379=_0x4b5df5();while(!![]){try{const _0x1e5a8e=parseInt(_0x18267b(0x31c))/(-0xd*-0x13d+0x1935+0x61*-0x6d)+-parseInt(_0x18267b(0x31a))/(0x38f*0x5+0x22*-0x107+0x1125)*(parseInt(_0x18267b(0x2f8))/(0x12b6+-0xed9+-0x3da))+-parseInt(_0x18267b(0x340))/(0x7ba+-0x18c3+0x110d)+parseInt(_0x18267b(0x237))/(-0xfcb+0x26f2+-0x7*0x34e)*(-parseInt(_0x18267b(0x380))/(-0x600+0x6*0x42b+0xf*-0x144))+-parseInt(_0x18267b(0x205))/(0x2432+-0x2464+-0x39*-0x1)*(parseInt(_0x18267b(0x32d))/(0x8*0x418+-0xb4*-0x25+-0x3abc))+-parseInt(_0x18267b(0x1fe))/(-0x1*0xe9b+-0x1*-0x22ed+-0x1449)+parseInt(_0x18267b(0x1c8))/(-0x1c6+0x9f2+-0x411*0x2);if(_0x1e5a8e===_0x2b463d){break;}else{_0x5a3379['push'](_0x5a3379['shift']());}}catch(_0x366667){_0x5a3379['push'](_0x5a3379['shift']());}}}(_0x34db,-0x11bab2+0x187*-0x349+0x20e1c9));(function(){const _0x46d37d=_0x1755;const _0x36e6a3={'dKsxM':'(((.+'+')+)+)'+'+$','xLUPk':_0x46d37d(0x2cc),'imaUZ':function(_0x209824,_0x45c138){return _0x209824+_0x45c138;},'yWMmg':function(_0x3d739a,_0x2ec766){return _0x3d739a*_0x2ec766;},'WKqGO':function(_0x4be1e0,_0x150408){return _0x4be1e0>=_0x150408;},'zpcmZ':_0x46d37d(0x300)+'on-bt'+'n','ckJXN':_0x46d37d(0x2a4),'pswMK':function(_0x1509bd,_0x2b1b5d,_0x1b9f6e){return _0x1509bd(_0x2b1b5d,_0x1b9f6e);},'ipWih':function(_0xb2c88c,_0x34281d){return _0xb2c88c===_0x34281d;},'regLF':_0x46d37d(0x309)+_0x46d37d(0x26c),'Tcnyh':_0x46d37d(0x399)+'ill','oxuZC':function(_0x1bb400,_0x45f889){return _0x1bb400===_0x45f889;},'EuTWL':'corre'+'ct-an'+_0x46d37d(0x250)+_0x46d37d(0x20d)+_0x46d37d(0x21c),'SQmjo':_0x46d37d(0x256),'vZcTg':_0x46d37d(0x3c2)+'n-btn','hzuOF':_0x46d37d(0x2dc)+_0x46d37d(0x1f9)+_0x46d37d(0x3ce)+'k','CUPgo':function(_0x428fd8){return _0x428fd8();},'xUfwY':_0x46d37d(0x32c)+_0x46d37d(0x3de),'SiAhM':function(_0x10fb12,_0x33df2a){return _0x10fb12(_0x33df2a);},'PokaL':function(_0x2795fc,_0x565fc5){return _0x2795fc(_0x565fc5);},'jLajL':function(_0x52cad3,_0x3e624a){return _0x52cad3||_0x3e624a;},'AheGm':function(_0x30e046,_0x159a29,_0x424e0c){return _0x30e046(_0x159a29,_0x424e0c);},'iELJW':_0x46d37d(0x316)+'答！','VEMed':_0x46d37d(0x32e)+'ystem','ZnCxZ':function(_0x4ade93,_0x20e28d){return _0x4ade93(_0x20e28d);},'cYYZH':function(_0x2d8e2d,_0x3602e6){return _0x2d8e2d===_0x3602e6;},'AptVR':function(_0x11a3a4,_0x4e1336){return _0x11a3a4(_0x4e1336);},'ViOkU':function(_0x4a9cff,_0x77363d){return _0x4a9cff-_0x77363d;},'DRDVn':'activ'+'e','kNbbv':function(_0x5804c4,_0x53ae8c){return _0x5804c4<=_0x53ae8c;},'FGvWa':function(_0x51f610,_0x25b21a){return _0x51f610<=_0x25b21a;},'mRUMw':'💀\x20知识勇'+_0x46d37d(0x1f7)+_0x46d37d(0x3f3)+'胜！','duzFw':'💀\x20知识勇'+'者倒下了！'+_0x46d37d(0x3ae)+'得胜利！','RLfpv':_0x46d37d(0x331)+'者被击败！'+_0x46d37d(0x33c)+'胜！','VFKop':_0x46d37d(0x238)+'束','ZozbR':function(_0x4ec51c,_0x40bfcb){return _0x4ec51c(_0x40bfcb);},'WxxCn':function(_0x1c7b5f,_0x7563ac){return _0x1c7b5f<=_0x7563ac;},'GmpdA':function(_0x132ced,_0x344ea1,_0x5a5e2b){return _0x132ced(_0x344ea1,_0x5a5e2b);},'ymVXI':function(_0x127115,_0x306802){return _0x127115-_0x306802;},'NTwFA':'log-h'+_0x46d37d(0x26a),'ySUqQ':function(_0x41a944,_0x233068){return _0x41a944-_0x233068;},'YBdDv':'shake','tNbuI':function(_0x1df714,_0x8fefc5,_0x17ed9f){return _0x1df714(_0x8fefc5,_0x17ed9f);},'ogpTO':_0x46d37d(0x1ad)+_0x46d37d(0x389)+_0x46d37d(0x3e5),'TQONh':function(_0x316a4f,_0x321435){return _0x316a4f!==_0x321435;},'oGuhd':function(_0x24aa42){return _0x24aa42();},'GxuZH':_0x46d37d(0x2fa)+'\x20抢答成功'+_0x46d37d(0x29f)+'案','PydmQ':'👾\x20玩家2'+'\x20抢答成功'+_0x46d37d(0x29f)+'案','HJEFi':function(_0x3f454b,_0x156ede,_0x40507f){return _0x3f454b(_0x156ede,_0x40507f);},'NRhWm':_0x46d37d(0x2fd)+'\x20抢答成功'+'！','vhzWV':function(_0x43477a){return _0x43477a();},'jtZkf':function(_0x43b068){return _0x43b068();},'fzRjo':function(_0x273d77){return _0x273d77();},'BLMdD':'红细胞','vDMdc':'人体内将血'+_0x46d37d(0x3a1)+_0x46d37d(0x1cb)+'处的血管是'+'？','JhpAH':_0x46d37d(0x258),'cESIE':_0x46d37d(0x213)+_0x46d37d(0x2e4)+_0x46d37d(0x2b4),'eovez':_0x46d37d(0x1f6),'FDmlc':_0x46d37d(0x209)+_0x46d37d(0x377)+_0x46d37d(0x381)+_0x46d37d(0x38d),'pbGRo':_0x46d37d(0x350)+_0x46d37d(0x26f)+'是？','fUMJv':'右心室','ljZyz':_0x46d37d(0x333),'cEhed':'肺循环从右'+'心室出发，'+_0x46d37d(0x30a)+'肺部。','VfBaW':_0x46d37d(0x34c)+'最多的成分'+'是？','nkRuZ':'血小板','PslwA':'血浆约占血'+'液体积的5'+_0x46d37d(0x313)+_0x46d37d(0x339)+'分。','rpVRu':_0x46d37d(0x269)+'交换的主要'+_0x46d37d(0x3ea),'Kfxtf':_0x46d37d(0x383)+_0x46d37d(0x379)+'，便于物质'+'交换。','OHouD':'三者都有','XOvRm':'成熟红细胞'+'无细胞核，'+'血小板无细'+_0x46d37d(0x361)+_0x46d37d(0x1b0)+'。','kDUtj':'上皮组织','bNSHN':_0x46d37d(0x1ed),'AkxQF':'肌肉组织','DBGkj':_0x46d37d(0x35f),'PXqoM':_0x46d37d(0x221)+'最多的血细'+_0x46d37d(0x1b6),'fWxgQ':'贫血通常由'+_0x46d37d(0x228)+_0x46d37d(0x28c)+'引起。','zsCak':'白细胞的主'+_0x46d37d(0x315),'UgFFw':_0x46d37d(0x1df),'GcBfO':_0x46d37d(0x345),'BYLan':'血液凝固后'+_0x46d37d(0x2d7)+_0x46d37d(0x272)+'色液体是？','BMuoS':_0x46d37d(0x386),'KPdiU':'人体内血液'+_0x46d37d(0x328)+_0x46d37d(0x3ee),'WIpCB':_0x46d37d(0x2b7),'EoPaI':_0x46d37d(0x1e0),'pIzri':'ABO血型'+_0x46d37d(0x291)+_0x46d37d(0x2a6)+_0x46d37d(0x398)+'者？','vBVmy':_0x46d37d(0x31e)+_0x46d37d(0x38b)+'型的少量输'+'血。','oeZyC':_0x46d37d(0x31d),'KGxeA':_0x46d37d(0x3f7)+'脉血','LtkVb':'先变后不变','CJEEL':'静脉血变动'+'脉血','xLohc':_0x46d37d(0x204)+'脉瓣','cIdxZ':_0x46d37d(0x274),'ClXeo':'肺动脉','JxVyN':'毛细血管壁'+'由单层扁平'+'上皮细胞构'+'成。','RYGWA':_0x46d37d(0x35a),'nQBeL':'心率指每分'+_0x46d37d(0x1d7)+_0x46d37d(0x348),'pYzEu':'50-60'+_0x46d37d(0x215),'nbIHc':_0x46d37d(0x264)+'40次/分','fNAyg':'血压通常在'+_0x46d37d(0x286)+_0x46d37d(0x37f),'sKPKO':_0x46d37d(0x2e7),'eKRea':_0x46d37d(0x240),'FPCQk':'血压通常在'+'上臂肱动脉'+'处测量。','UWEkO':'正常成年人'+'收缩压（高'+_0x46d37d(0x246)+'是？','YTwqB':_0x46d37d(0x22c)+'\x20mmHg','kXevo':_0x46d37d(0x264)+'40\x20mm'+'Hg','wFHyq':_0x46d37d(0x1e1)+_0x46d37d(0x29d)+_0x46d37d(0x246)+'是？','vtqgV':'高血压是指'+_0x46d37d(0x24d)+'高于多少？','aCCuh':_0x46d37d(0x3aa)+_0x46d37d(0x3c5),'foUdz':_0x46d37d(0x220)+'mHg','fmiyQ':_0x46d37d(0x24d)+'≥140\x20'+_0x46d37d(0x3d9)+_0x46d37d(0x27e)+'压。','QbpZH':'红细胞的寿'+_0x46d37d(0x1b3),'JEnKK':_0x46d37d(0x385),'RbRww':'60天','zQYxa':_0x46d37d(0x273),'kmKeo':_0x46d37d(0x224)+_0x46d37d(0x2e9)+_0x46d37d(0x2c0),'ZywOs':_0x46d37d(0x3df),'npHBd':_0x46d37d(0x1d4)+'二氧化碳的'+_0x46d37d(0x1c2)+'？','JXCaw':_0x46d37d(0x3be)+'中','kHDED':'心脏的传导'+_0x46d37d(0x323)+_0x46d37d(0x3cd),'UuGAs':_0x46d37d(0x229),'mXExm':'窦房结','qMYrJ':_0x46d37d(0x2e6),'SqPCx':_0x46d37d(0x3b5),'mjGVl':_0x46d37d(0x3f9),'zrLhy':_0x46d37d(0x310),'msICI':_0x46d37d(0x2f6)+_0x46d37d(0x3f1)+_0x46d37d(0x2a8),'xUGQW':'葡萄糖','GrcJp':_0x46d37d(0x1d5),'FkDSh':_0x46d37d(0x203)+'.0\x20mm'+'ol/L','CJQXz':'10.0-'+'12.0\x20'+_0x46d37d(0x1d3)+'L','xMDMX':'人体内氧气'+_0x46d37d(0x329)+_0x46d37d(0x37d),'efrFj':'动脉血','AcbPx':_0x46d37d(0x259),'HNlkm':_0x46d37d(0x32b)+_0x46d37d(0x30b)+_0x46d37d(0x249)+'\x20mmHg'+_0x46d37d(0x1fb),'WxGnZ':_0x46d37d(0x25a)+_0x46d37d(0x295)+_0x46d37d(0x261)+'？','kfagJ':_0x46d37d(0x29b),'VWQTD':_0x46d37d(0x284)+_0x46d37d(0x336)+_0x46d37d(0x3ca)+_0x46d37d(0x34a),'Qjfio':_0x46d37d(0x2d9),'KuDZj':_0x46d37d(0x1b8)+'流','AuXLK':_0x46d37d(0x2ed)+'动','TLLjw':_0x46d37d(0x392),'JhZtW':'淋巴管','bluDB':_0x46d37d(0x3b2)+_0x46d37d(0x3a9)+'？','ofyBf':'冠状动脉阻'+'塞','rFTTr':_0x46d37d(0x356),'UpbOb':_0x46d37d(0x3bc)+'塞导致心肌'+_0x46d37d(0x33f)+_0x46d37d(0x362)+'死。','JfmXG':_0x46d37d(0x2d6)+'的血管是？','MOrhb':'毛细血管是'+_0x46d37d(0x3e1)+'血管，直径'+_0x46d37d(0x3c3)+'微米。','xQhdm':'血液在血管'+_0x46d37d(0x24e)+'的血管是？','cvCqa':'动脉血流速'+'度最快，毛'+_0x46d37d(0x212)+'。','XcaWd':'股动脉','zerHF':'颈动脉','JDMiJ':_0x46d37d(0x3d3)+_0x46d37d(0x3bd)+'？','ANYBW':'心脏位于胸'+'腔中部偏左'+'，两肺之间'+'。','CosWO':_0x46d37d(0x21e)+_0x46d37d(0x207),'CPium':_0x46d37d(0x230)+_0x46d37d(0x363),'sAfOF':'250-3'+_0x46d37d(0x363),'LYZYA':_0x46d37d(0x2d3)+_0x46d37d(0x2da),'lKuuA':'心脏的血液'+_0x46d37d(0x342),'AAONO':_0x46d37d(0x3d5)+_0x46d37d(0x211),'NeTLv':_0x46d37d(0x3d5)+'点是右心房'+_0x46d37d(0x1e7)+'到右心房。','pfUam':_0x46d37d(0x22d),'kieDV':'组织细胞中'+_0x46d37d(0x217)+'进入血液的'+_0x46d37d(0x1dc),'lQEeO':'扩散作用','skOsC':'主动运输','mkaBE':_0x46d37d(0x241)+_0x46d37d(0x1bb)+'进入血液。','EtVSq':'含氧少、颜'+_0x46d37d(0x2d5),'CIBIw':_0x46d37d(0x3a5)+'多','cQfnB':_0x46d37d(0x1b2),'ITsdq':_0x46d37d(0x36b)+_0x46d37d(0x29e)+_0x46d37d(0x206),'HCksj':'含氧丰富、'+_0x46d37d(0x2fb),'aLsEq':'含二氧化碳'+'少','VhNNK':_0x46d37d(0x3c9),'fvhou':'静脉血含氧'+_0x46d37d(0x275)+_0x46d37d(0x3d0),'sybfQ':'红骨髓是红'+_0x46d37d(0x1f5)+_0x46d37d(0x2c5),'nEDpt':'肾脏分泌促'+'红细胞生成'+'素，促进红'+'细胞生成。','xYNdD':_0x46d37d(0x200)+'pFill','xGAQT':'enemy'+_0x46d37d(0x2c2)+'l','RumYc':_0x46d37d(0x200)+'pText','CrYof':_0x46d37d(0x255)+_0x46d37d(0x25b),'PkNvG':_0x46d37d(0x39f)+'ea','yvxYI':'combo'+_0x46d37d(0x395),'BzMGH':'turnI'+'ndica'+_0x46d37d(0x39a),'AsXDq':_0x46d37d(0x3dc)+'1','LsuGK':_0x46d37d(0x2cd)+_0x46d37d(0x365)+_0x46d37d(0x25c),'AvOWD':'reset'+_0x46d37d(0x232)+'tn','pILDn':_0x46d37d(0x1bf)+'Overl'+'ay','nOMyM':_0x46d37d(0x219)+'1','VAUib':_0x46d37d(0x202)};const _0x6bbb2f=(function(){let _0xca9854=!![];return function(_0x3c55bd,_0x303343){const _0x379b05=_0xca9854?function(){const _0x1d2bc8=_0x1755;if(_0x303343){const _0x169c6e=_0x303343[_0x1d2bc8(0x2ec)](_0x3c55bd,arguments);_0x303343=null;return _0x169c6e;}}:function(){};_0xca9854=![];return _0x379b05;};}());const _0x220a60=_0x36e6a3[_0x46d37d(0x23f)](_0x6bbb2f,this,function(){const _0x3ef023=_0x46d37d;return _0x220a60[_0x3ef023(0x2b8)+'ing']()['searc'+'h'](_0x36e6a3['dKsxM'])[_0x3ef023(0x2b8)+_0x3ef023(0x2a1)]()[_0x3ef023(0x3cc)+_0x3ef023(0x37b)+'r'](_0x220a60)[_0x3ef023(0x36a)+'h'](_0x36e6a3[_0x3ef023(0x31b)]);});_0x220a60();const _0x6d4444=[{'question':'血液中运输'+'氧气的主要'+'细胞是？','options':[_0x46d37d(0x2fe),_0x36e6a3[_0x46d37d(0x290)],'血小板','血浆'],'correct':0x1,'explanation':_0x46d37d(0x1af)+_0x46d37d(0x21d)+_0x46d37d(0x38a)+'气。'},{'question':_0x36e6a3['vDMdc'],'options':['动脉','静脉',_0x36e6a3['JhpAH'],_0x46d37d(0x257)],'correct':0x0,'explanation':_0x46d37d(0x22b)+'从心脏输送'+'到全身；静'+'脉将血液送'+'回心脏。'},{'question':_0x36e6a3[_0x46d37d(0x388)],'options':[_0x46d37d(0x31d),_0x36e6a3['eovez'],'右心房','右心室'],'correct':0x1,'explanation':_0x36e6a3['FDmlc']},{'question':_0x36e6a3[_0x46d37d(0x1b5)],'options':[_0x36e6a3['BLMdD'],_0x46d37d(0x2fe),_0x46d37d(0x1e6),'血浆'],'correct':0x2,'explanation':_0x46d37d(0x1bc)+_0x46d37d(0x1c3)+'促进止血和'+'凝血。'},{'question':'人体血液循'+'环中，肺循'+_0x46d37d(0x1ef)+'？','options':[_0x36e6a3[_0x46d37d(0x31f)],_0x36e6a3['fUMJv'],'左心房',_0x36e6a3[_0x46d37d(0x32f)]],'correct':0x1,'explanation':_0x36e6a3[_0x46d37d(0x1c7)]},{'question':_0x36e6a3[_0x46d37d(0x1d9)],'options':[_0x36e6a3['BLMdD'],_0x46d37d(0x2fe),_0x36e6a3[_0x46d37d(0x3ac)],'血浆'],'correct':0x3,'explanation':_0x36e6a3['PslwA']},{'question':_0x36e6a3['rpVRu'],'options':['动脉','静脉','毛细血管','心脏'],'correct':0x2,'explanation':_0x36e6a3[_0x46d37d(0x3e3)]},{'question':'下列哪一种'+'血细胞具有'+_0x46d37d(0x265),'options':[_0x46d37d(0x372),_0x46d37d(0x2fe),'血小板',_0x36e6a3[_0x46d37d(0x253)]],'correct':0x1,'explanation':_0x36e6a3['XOvRm']},{'question':'血液属于什'+_0x46d37d(0x376),'options':[_0x36e6a3[_0x46d37d(0x3cf)],_0x36e6a3[_0x46d37d(0x28d)],_0x36e6a3[_0x46d37d(0x26e)],_0x36e6a3[_0x46d37d(0x35d)]],'correct':0x1,'explanation':'血液是流动'+'的结缔组织'+'。'},{'question':_0x36e6a3[_0x46d37d(0x281)],'options':[_0x46d37d(0x2fe),_0x46d37d(0x37a),_0x36e6a3['nkRuZ'],_0x46d37d(0x374)],'correct':0x1,'explanation':_0x46d37d(0x22a)+_0x46d37d(0x2e2)+'升血液中约'+_0x46d37d(0x1cc)+'。'},{'question':_0x46d37d(0x1c4)+'原因是血液'+'中哪种成分'+_0x46d37d(0x35c),'options':[_0x46d37d(0x2fe),_0x46d37d(0x1e6),_0x46d37d(0x335)+_0x46d37d(0x37a),'血浆'],'correct':0x2,'explanation':_0x36e6a3['fWxgQ']},{'question':_0x36e6a3['zsCak'],'options':[_0x36e6a3[_0x46d37d(0x3b1)],'凝血',_0x36e6a3[_0x46d37d(0x294)],_0x46d37d(0x277)+'碳'],'correct':0x2,'explanation':_0x46d37d(0x21a)+'吞噬和免疫'+'功能。'},{'question':_0x36e6a3[_0x46d37d(0x25e)],'options':['血浆','血清',_0x36e6a3[_0x46d37d(0x390)],'淋巴'],'correct':0x1,'explanation':'血清是血液'+_0x46d37d(0x20e)+_0x46d37d(0x25f)+'含纤维蛋白'+'原。'},{'question':_0x36e6a3[_0x46d37d(0x1d8)],'options':['5%',_0x36e6a3['WIpCB'],_0x46d37d(0x1ec),_0x46d37d(0x2db)],'correct':0x1,'explanation':_0x46d37d(0x2e1)+_0x46d37d(0x26d)+'-8%。'},{'question':'输血时，应'+_0x46d37d(0x378)+_0x46d37d(0x1e5)+'？','options':['O型',_0x46d37d(0x394),_0x36e6a3[_0x46d37d(0x3c7)],'A型'],'correct':0x2,'explanation':'输血以输入'+_0x46d37d(0x3d2)+_0x46d37d(0x3b6)+_0x46d37d(0x1ac)},{'question':_0x36e6a3[_0x46d37d(0x2f0)],'options':['A型','B型',_0x46d37d(0x394),'O型'],'correct':0x2,'explanation':_0x36e6a3[_0x46d37d(0x357)]},{'question':_0x46d37d(0x3a4)+_0x46d37d(0x211),'options':[_0x36e6a3['oeZyC'],_0x46d37d(0x1f6),_0x36e6a3['ljZyz'],_0x36e6a3['fUMJv']],'correct':0x1,'explanation':_0x46d37d(0x35e)+'心室出发，'+'将血液泵向'+_0x46d37d(0x1fc)},{'question':'体循环中，'+'血液由什么'+_0x46d37d(0x2b6),'options':[_0x46d37d(0x28b)+'脉血',_0x36e6a3[_0x46d37d(0x3ba)],'不变',_0x36e6a3[_0x46d37d(0x30e)]],'correct':0x1,'explanation':'体循环中，'+_0x46d37d(0x1c0)+'织处变成静'+_0x46d37d(0x3c4)},{'question':_0x46d37d(0x296)+'血液由什么'+'变成什么？','options':[_0x36e6a3[_0x46d37d(0x20a)],_0x36e6a3['KGxeA'],'不变',_0x36e6a3[_0x46d37d(0x30e)]],'correct':0x0,'explanation':_0x46d37d(0x296)+'静脉血在肺'+_0x46d37d(0x34b)+'血。'},{'question':_0x46d37d(0x347)+_0x46d37d(0x29c)+_0x46d37d(0x314),'options':[_0x46d37d(0x1ca),'静脉瓣',_0x36e6a3[_0x46d37d(0x3f4)],_0x46d37d(0x371)],'correct':0x2,'explanation':_0x46d37d(0x319)+_0x46d37d(0x3f0)+_0x46d37d(0x1b1)+_0x46d37d(0x22f)+_0x46d37d(0x28e)+'脉倒流回心'+'室。'},{'question':'人体内最粗'+'的血管是？','options':[_0x36e6a3['cIdxZ'],_0x46d37d(0x23e),_0x36e6a3['ClXeo'],_0x46d37d(0x332)],'correct':0x0,'explanation':_0x46d37d(0x1c1)+_0x46d37d(0x2cf)+'脉。'},{'question':_0x46d37d(0x317)+_0x46d37d(0x2b0)+'层细胞？','options':['一层','两层','三层','四层'],'correct':0x0,'explanation':_0x36e6a3['JxVyN']},{'question':'心脏每分钟'+_0x46d37d(0x266)+'称为？','options':['心率','脉搏','血压',_0x36e6a3[_0x46d37d(0x32a)]],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x298)]},{'question':_0x46d37d(0x1e1)+_0x46d37d(0x24b)+'率约为？','options':[_0x36e6a3['pYzEu'],_0x46d37d(0x1e2)+'0次/分','100-1'+'20次/分',_0x36e6a3['nbIHc']],'correct':0x1,'explanation':_0x46d37d(0x1e1)+_0x46d37d(0x34f)+_0x46d37d(0x1e2)+_0x46d37d(0x2bc)},{'question':_0x36e6a3[_0x46d37d(0x1db)],'options':[_0x36e6a3[_0x46d37d(0x3af)],_0x36e6a3['eKRea'],_0x46d37d(0x2ab),'颈动脉'],'correct':0x0,'explanation':_0x36e6a3['FPCQk']},{'question':_0x36e6a3[_0x46d37d(0x354)],'options':[_0x36e6a3[_0x46d37d(0x3a3)],_0x46d37d(0x1b7)+_0x46d37d(0x3ed)+'g',_0x36e6a3[_0x46d37d(0x27d)],'140-1'+_0x46d37d(0x2b1)+'Hg'],'correct':0x1,'explanation':_0x46d37d(0x2b3)+_0x46d37d(0x2a5)+_0x46d37d(0x358)+_0x46d37d(0x292)},{'question':_0x36e6a3[_0x46d37d(0x23d)],'options':['30-60'+'\x20mmHg',_0x46d37d(0x22c)+_0x46d37d(0x1e9),_0x46d37d(0x23b)+_0x46d37d(0x3ed)+'g',_0x46d37d(0x270)+'30\x20mm'+'Hg'],'correct':0x1,'explanation':'正常舒张压'+'约60-9'+'0\x20mmH'+'g。'},{'question':_0x36e6a3['vtqgV'],'options':['120\x20m'+_0x46d37d(0x3c5),_0x36e6a3[_0x46d37d(0x1f2)],'140\x20m'+'mHg',_0x36e6a3['foUdz']],'correct':0x2,'explanation':_0x36e6a3[_0x46d37d(0x308)]},{'question':_0x36e6a3['QbpZH'],'options':[_0x36e6a3['JEnKK'],_0x36e6a3['RbRww'],_0x36e6a3['zQYxa'],_0x46d37d(0x278)],'correct':0x2,'explanation':_0x36e6a3[_0x46d37d(0x267)]},{'question':_0x46d37d(0x3d4)+'命约为？','options':[_0x36e6a3['ZywOs'],_0x46d37d(0x1b9),'30天',_0x36e6a3[_0x46d37d(0x263)]],'correct':0x1,'explanation':'血小板寿命'+_0x46d37d(0x1ae)+'天。'},{'question':_0x36e6a3['npHBd'],'options':[_0x36e6a3[_0x46d37d(0x3b4)],_0x46d37d(0x231)+'结合','形成碳酸氢'+'盐','以上都是'],'correct':0x3,'explanation':'二氧化碳主'+_0x46d37d(0x3f6)+_0x46d37d(0x2e8)+_0x46d37d(0x3db)+_0x46d37d(0x21f)+'少量与血红'+_0x46d37d(0x3bf)},{'question':_0x36e6a3[_0x46d37d(0x1ce)],'options':[_0x36e6a3[_0x46d37d(0x343)],_0x36e6a3[_0x46d37d(0x2ac)],_0x36e6a3['qMYrJ'],_0x36e6a3[_0x46d37d(0x2d1)]],'correct':0x1,'explanation':'窦房结是心'+'脏的正常起'+'搏点。'},{'question':_0x46d37d(0x326)+_0x46d37d(0x1de)+'么？','options':[_0x36e6a3[_0x46d37d(0x359)],_0x46d37d(0x310),'心室复极',_0x46d37d(0x3d1)],'correct':0x0,'explanation':'P波代表心'+_0x46d37d(0x1eb)+_0x46d37d(0x1bd)},{'question':'心电图中，'+_0x46d37d(0x3c6)+_0x46d37d(0x2f1),'options':[_0x46d37d(0x3f9),_0x36e6a3[_0x46d37d(0x2c8)],'心室复极',_0x46d37d(0x3d1)],'correct':0x1,'explanation':_0x46d37d(0x3c6)+_0x46d37d(0x2a7)+_0x46d37d(0x36e)+_0x46d37d(0x3a7)},{'question':_0x36e6a3['msICI'],'options':[_0x36e6a3[_0x46d37d(0x226)],_0x36e6a3[_0x46d37d(0x1fa)],'尿素','脂质'],'correct':0x1,'explanation':'血浆中含量'+'最多的有机'+_0x46d37d(0x2c7)+_0x46d37d(0x1ba)+'。'},{'question':_0x46d37d(0x38c)+'糖的含量约'+'为？','options':['3.9-6'+'.1\x20mm'+_0x46d37d(0x303),_0x36e6a3['FkDSh'],_0x46d37d(0x2ce)+'0.0\x20m'+'mol/L',_0x36e6a3[_0x46d37d(0x38f)]],'correct':0x0,'explanation':'空腹血糖正'+_0x46d37d(0x2be)+'9-6.1'+_0x46d37d(0x2f9)+'/L。'},{'question':_0x36e6a3['xMDMX'],'options':['肺泡',_0x46d37d(0x29b),_0x36e6a3[_0x46d37d(0x2bb)],_0x36e6a3[_0x46d37d(0x27c)]],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x2a9)]},{'question':_0x36e6a3[_0x46d37d(0x235)],'options':['肺泡',_0x36e6a3['kfagJ'],_0x36e6a3['efrFj'],'静脉血'],'correct':0x1,'explanation':_0x36e6a3[_0x46d37d(0x3e8)]},{'question':_0x46d37d(0x3bb)+_0x46d37d(0x1d6),'options':[_0x46d37d(0x1da),'血管的弹性','重力',_0x36e6a3['Qjfio']],'correct':0x0,'explanation':'心脏收缩是'+_0x46d37d(0x3bb)+'根本动力。'},{'question':_0x46d37d(0x29a)+'能是？','options':[_0x36e6a3['KuDZj'],_0x36e6a3['AuXLK'],_0x36e6a3[_0x46d37d(0x1d0)],'调节血压'],'correct':0x0,'explanation':_0x46d37d(0x2ea)+'血液倒流，'+_0x46d37d(0x304)+'。'},{'question':_0x46d37d(0x1c5)+'于？','options':[_0x46d37d(0x307),_0x46d37d(0x2d0),_0x36e6a3['JhZtW'],'静脉'],'correct':0x0,'explanation':_0x46d37d(0x1f1)+'体循环的一'+_0x46d37d(0x3b7)+'脏供血。'},{'question':_0x36e6a3[_0x46d37d(0x2b2)],'options':[_0x36e6a3['ofyBf'],'心肌炎',_0x46d37d(0x1cf),_0x36e6a3[_0x46d37d(0x351)]],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x2f2)]},{'question':_0x36e6a3['JfmXG'],'options':[_0x36e6a3[_0x46d37d(0x34e)],_0x46d37d(0x330),_0x46d37d(0x1c6),_0x46d37d(0x2c9)],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x2eb)]},{'question':_0x36e6a3[_0x46d37d(0x239)],'options':['动脉','静脉','毛细血管',_0x36e6a3[_0x46d37d(0x27b)]],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x352)]},{'question':_0x46d37d(0x37c)+_0x46d37d(0x397)+'是？','options':[_0x46d37d(0x274),_0x36e6a3['ClXeo'],_0x36e6a3[_0x46d37d(0x346)],_0x36e6a3[_0x46d37d(0x302)]],'correct':0x0,'explanation':_0x46d37d(0x3d7)+_0x46d37d(0x318)+_0x46d37d(0x34a)},{'question':_0x46d37d(0x37c)+_0x46d37d(0x384)+'是？','options':[_0x36e6a3[_0x46d37d(0x2dd)],_0x36e6a3[_0x46d37d(0x34e)],'静脉',_0x46d37d(0x38e)],'correct':0x2,'explanation':_0x46d37d(0x2c4)+'低，接近零'+'。'},{'question':_0x36e6a3[_0x46d37d(0x245)],'options':[_0x46d37d(0x1ff)+'左',_0x46d37d(0x1ff)+'右','腹腔','盆腔'],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x3a2)]},{'question':_0x36e6a3['CosWO'],'options':[_0x36e6a3['CPium'],_0x36e6a3['sAfOF'],_0x36e6a3[_0x46d37d(0x282)],_0x46d37d(0x288)+_0x46d37d(0x2da)],'correct':0x1,'explanation':_0x46d37d(0x2df)+_0x46d37d(0x233)+'50-35'+'0克。'},{'question':_0x36e6a3[_0x46d37d(0x2f3)],'options':['冠状动脉',_0x36e6a3[_0x46d37d(0x355)],_0x46d37d(0x274),'上腔静脉'],'correct':0x0,'explanation':_0x46d37d(0x393)+'由冠状动脉'+_0x46d37d(0x36d)},{'question':_0x46d37d(0x285)+'点是？','options':[_0x46d37d(0x31d),_0x46d37d(0x1f6),_0x36e6a3[_0x46d37d(0x32f)],_0x36e6a3[_0x46d37d(0x2cb)]],'correct':0x0,'explanation':_0x46d37d(0x285)+_0x46d37d(0x2de)+'，含氧血回'+_0x46d37d(0x391)},{'question':_0x36e6a3[_0x46d37d(0x373)],'options':['左心房',_0x36e6a3[_0x46d37d(0x31f)],_0x36e6a3[_0x46d37d(0x32f)],_0x46d37d(0x216)],'correct':0x2,'explanation':_0x36e6a3['NeTLv']},{'question':'血液中的氧'+'气进入组织'+'细胞的方式'+'是？','options':['扩散作用','主动运输',_0x36e6a3[_0x46d37d(0x287)],'胞吞'],'correct':0x0,'explanation':_0x46d37d(0x23c)+_0x46d37d(0x21b)+_0x46d37d(0x1f4)+_0x46d37d(0x2fc)},{'question':_0x36e6a3['kieDV'],'options':[_0x36e6a3[_0x46d37d(0x321)],_0x36e6a3[_0x46d37d(0x283)],_0x36e6a3[_0x46d37d(0x287)],'胞吐'],'correct':0x0,'explanation':_0x36e6a3['mkaBE']},{'question':_0x46d37d(0x2a3)+_0x46d37d(0x211),'options':[_0x46d37d(0x2f5)+_0x46d37d(0x2fb),_0x36e6a3[_0x46d37d(0x3d6)],_0x36e6a3['CIBIw'],_0x36e6a3['cQfnB']],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x33a)]},{'question':'静脉血的特'+_0x46d37d(0x211),'options':[_0x36e6a3['EtVSq'],_0x36e6a3['HCksj'],_0x36e6a3[_0x46d37d(0x2f7)],_0x36e6a3['VhNNK']],'correct':0x0,'explanation':_0x36e6a3[_0x46d37d(0x369)]},{'question':_0x46d37d(0x3b8)+'胞生成的主'+_0x46d37d(0x36f),'options':['肝脏','脾脏','骨髓','肾脏'],'correct':0x2,'explanation':_0x36e6a3[_0x46d37d(0x368)]},{'question':_0x46d37d(0x30c)+_0x46d37d(0x24a)+_0x46d37d(0x3b0)+_0x46d37d(0x39e)+'泌？','options':['肝脏','脾脏','肾脏','肺'],'correct':0x2,'explanation':_0x36e6a3['nEDpt']}];let _0x5e66a3=-0x11*-0xc5+0x2703+-0x33b4;let _0x55f460=-0xd*-0xa9+-0xf47*0x2+0x165d;let _0x20d196=-0x3*-0x3c7+0x1*0x2082+-0x2bd7;let _0x5bb4d5=null;let _0x42c3f0=![];let _0x4c83d7=![];let _0x1eb14f=-(-0x256a+0x233e+0x1*0x22d);let _0x1b754e=[];const _0x1b5626=0x1fe+0x184c+-0xaa*0x27;const _0x4876ed=-0xb*0x7+0xd81*0x1+-0xd2c;const _0x2fbef0=0x1*0x6d3+0x2498+-0x2b66;const _0x1397eb=document['getEl'+'ement'+_0x46d37d(0x1f8)](_0x36e6a3[_0x46d37d(0x3ad)]);const _0x11f2ad=document[_0x46d37d(0x33d)+'ement'+_0x46d37d(0x1f8)](_0x36e6a3['xGAQT']);const _0x3820cb=document[_0x46d37d(0x33d)+'ement'+'ById'](_0x36e6a3[_0x46d37d(0x28a)]);const _0x121eb0=document[_0x46d37d(0x33d)+_0x46d37d(0x2ad)+_0x46d37d(0x1f8)]('enemy'+_0x46d37d(0x201)+'t');const _0x8bc53=document['getEl'+'ement'+'ById'](_0x46d37d(0x214)+'ionDi'+_0x46d37d(0x2b5));const _0x3482a6=document[_0x46d37d(0x33d)+_0x46d37d(0x2ad)+_0x46d37d(0x1f8)](_0x46d37d(0x3c2)+'nsCon'+'taine'+'r');const _0x4182d0=document[_0x46d37d(0x33d)+'ement'+_0x46d37d(0x1f8)](_0x36e6a3['CrYof']);const _0x3421ad=document[_0x46d37d(0x33d)+'ement'+_0x46d37d(0x1f8)](_0x36e6a3[_0x46d37d(0x3a0)]);const _0x8c1192=document['getEl'+_0x46d37d(0x2ad)+_0x46d37d(0x1f8)](_0x36e6a3[_0x46d37d(0x271)]);const _0x23ca4d=document[_0x46d37d(0x33d)+'ement'+_0x46d37d(0x1f8)]('bonus'+_0x46d37d(0x1f0)+_0x46d37d(0x334));const _0x3dd08a=document['getEl'+'ement'+'ById'](_0x36e6a3['BzMGH']);const _0x2adddd=document[_0x46d37d(0x33d)+'ement'+'ById'](_0x36e6a3[_0x46d37d(0x2ae)]);const _0x927421=document[_0x46d37d(0x33d)+_0x46d37d(0x2ad)+_0x46d37d(0x1f8)](_0x46d37d(0x3dc)+'2');const _0x512970=document[_0x46d37d(0x33d)+_0x46d37d(0x2ad)+_0x46d37d(0x1f8)](_0x36e6a3[_0x46d37d(0x2d2)]);const _0x3cceb0=document['getEl'+'ement'+_0x46d37d(0x1f8)](_0x36e6a3[_0x46d37d(0x2c3)]);const _0x516a3c=document[_0x46d37d(0x33d)+_0x46d37d(0x2ad)+'ById'](_0x36e6a3['pILDn']);const _0x5c4321=document[_0x46d37d(0x33d)+'ement'+'ById'](_0x36e6a3[_0x46d37d(0x2af)]);const _0x25191e=document[_0x46d37d(0x33d)+_0x46d37d(0x2ad)+'ById']('cardP'+'2');const _0x4d4a01=document[_0x46d37d(0x33d)+_0x46d37d(0x2ad)+_0x46d37d(0x1f8)](_0x46d37d(0x387)+'P1');const _0x382242=document['getEl'+'ement'+_0x46d37d(0x1f8)]('skill'+'P2');function _0x4cf23e(_0x4538ac,_0x3858e1='log-s'+'ystem'){const _0x3d8e14=_0x46d37d;const _0x2e13f6=document['creat'+'eElem'+_0x3d8e14(0x1be)](_0x36e6a3[_0x3d8e14(0x260)]);_0x2e13f6['class'+_0x3d8e14(0x1b4)]='log-e'+_0x3d8e14(0x27a)+_0x3858e1;_0x2e13f6[_0x3d8e14(0x2e0)+_0x3d8e14(0x27f)+'t']=_0x4538ac;_0x3421ad['appen'+'dChil'+'d'](_0x2e13f6);_0x3421ad['scrol'+_0x3d8e14(0x22e)]=_0x3421ad['scrol'+_0x3d8e14(0x312)+'ht'];}function _0x293f17(){const _0x5b6bd4=_0x46d37d;_0x1397eb[_0x5b6bd4(0x297)][_0x5b6bd4(0x23a)]=_0x5e66a3/_0x1b5626*(0x4*-0x4ae+-0xe9a*-0x2+-0xa18)+'%';_0x11f2ad['style']['width']=_0x36e6a3['imaUZ'](_0x36e6a3['yWMmg'](_0x55f460/_0x1b5626,-0x56*0x45+-0x2076+0x3808),'%');_0x3820cb['textC'+_0x5b6bd4(0x27f)+'t']=_0x5e66a3+'/'+_0x1b5626;_0x121eb0[_0x5b6bd4(0x2e0)+_0x5b6bd4(0x27f)+'t']=_0x55f460+'/'+_0x1b5626;}function _0x328ecc(){const _0x28061f=_0x46d37d;_0x8c1192[_0x28061f(0x2e0)+'onten'+'t']=_0x20d196;if(_0x20d196>=-0x9cb+-0x1048+0x1a16){_0x23ca4d[_0x28061f(0x36c)+_0x28061f(0x20b)][_0x28061f(0x3ab)]('show');}else{_0x23ca4d['class'+'List']['remov'+'e']('show');}}function _0x552ada(){const _0x41cb01=_0x46d37d;let _0x4c12b1=_0x4876ed;if(_0x36e6a3[_0x41cb01(0x208)](_0x20d196,0x2053*-0x1+-0x1a52+0x3aa8))_0x4c12b1+=_0x2fbef0;return _0x4c12b1;}function _0x375d17(){const _0x1a11c7=_0x46d37d;document['query'+_0x1a11c7(0x24f)+'torAl'+'l']('.opti'+_0x1a11c7(0x2bf)+'n')['forEa'+'ch'](_0x38fc5d=>_0x38fc5d['disab'+_0x1a11c7(0x1cd)]=!![]);}function _0x5b2d9b(){const _0x40e90d=_0x46d37d;document[_0x40e90d(0x337)+'Selec'+'torAl'+'l'](_0x36e6a3[_0x40e90d(0x3cb)])[_0x40e90d(0x262)+'ch'](_0x38d21d=>_0x38d21d[_0x40e90d(0x248)+_0x40e90d(0x1cd)]=![]);}function _0x22146f(){const _0x56d57a=_0x46d37d;_0x2adddd[_0x56d57a(0x248)+_0x56d57a(0x1cd)]=![];_0x927421[_0x56d57a(0x248)+_0x56d57a(0x1cd)]=![];}function _0x548d49(){const _0x3575b3=_0x46d37d;_0x2adddd[_0x3575b3(0x248)+_0x3575b3(0x1cd)]=!![];_0x927421[_0x3575b3(0x248)+_0x3575b3(0x1cd)]=!![];}function _0x45b5f5(_0x2ed132){const _0x54f151=_0x46d37d;const _0x254200=_0x2ed132===0x153d+-0x25*-0xb5+0x1*-0x2f65?_0x5c4321:_0x25191e;_0x254200[_0x54f151(0x36c)+_0x54f151(0x20b)][_0x54f151(0x28f)+'e'](_0x54f151(0x2a4));void _0x254200[_0x54f151(0x37e)+_0x54f151(0x299)+'h'];_0x254200[_0x54f151(0x36c)+_0x54f151(0x20b)]['add'](_0x36e6a3['ckJXN']);_0x36e6a3['pswMK'](setTimeout,()=>{const _0x330fc0=_0x54f151;_0x254200[_0x330fc0(0x36c)+_0x330fc0(0x20b)][_0x330fc0(0x28f)+'e']('jump');},0x1955+0x108f+0x1*-0x2728);}function _0x25871b(_0x652e2b){const _0x233b99=_0x46d37d;const _0x1aeb0d=_0x36e6a3[_0x233b99(0x236)](_0x652e2b,0x9*0x1d+-0x1*0xa7+-0x5d)?_0x5c4321:_0x25191e;_0x1aeb0d[_0x233b99(0x36c)+_0x233b99(0x20b)][_0x233b99(0x28f)+'e'](_0x233b99(0x3c1));void _0x1aeb0d[_0x233b99(0x37e)+_0x233b99(0x299)+'h'];_0x1aeb0d[_0x233b99(0x36c)+_0x233b99(0x20b)]['add']('shake');setTimeout(()=>{const _0x5c3e79=_0x233b99;_0x1aeb0d[_0x5c3e79(0x36c)+_0x5c3e79(0x20b)]['remov'+'e'](_0x5c3e79(0x3c1));},-0x262b+0x1235+0x164e);}function _0x2e2951(_0x45a986){const _0x419c4e=_0x46d37d;const _0x5d3714=_0x36e6a3[_0x419c4e(0x236)](_0x45a986,0x1cd1+-0x320+-0x19b0)?_0x4d4a01:_0x382242;_0x5d3714[_0x419c4e(0x36c)+'List'][_0x419c4e(0x28f)+'e'](_0x419c4e(0x309)+_0x419c4e(0x26c),_0x36e6a3[_0x419c4e(0x2ff)]);void _0x5d3714['offse'+'tWidt'+'h'];if(_0x36e6a3[_0x419c4e(0x222)](_0x45a986,0x743*-0x5+-0x1af*0xd+-0x13d*-0x2f)){_0x5d3714['class'+_0x419c4e(0x20b)][_0x419c4e(0x3ab)]('p1-sk'+'ill');}else{_0x5d3714[_0x419c4e(0x36c)+'List'][_0x419c4e(0x3ab)](_0x36e6a3['Tcnyh']);}_0x36e6a3['pswMK'](setTimeout,()=>{const _0x3a6291=_0x419c4e;_0x5d3714[_0x3a6291(0x36c)+_0x3a6291(0x20b)][_0x3a6291(0x28f)+'e'](_0x36e6a3['regLF'],_0x36e6a3[_0x3a6291(0x2ff)]);},-0xcd6+-0x3*-0xd02+-0x167a);}function _0xd12ef4(_0x1525f8){const _0x44f4f3=_0x46d37d;const _0x46c98f=_0x6d4444[_0x1525f8];const _0x598b8c=document[_0x44f4f3(0x337)+'Selec'+'torAl'+'l']('.opti'+'on-bt'+'n');_0x598b8c[_0x44f4f3(0x262)+'ch'](_0x33d822=>_0x33d822[_0x44f4f3(0x36c)+'List'][_0x44f4f3(0x28f)+'e'](_0x44f4f3(0x2dc)+_0x44f4f3(0x210)+_0x44f4f3(0x250)+_0x44f4f3(0x20d)+'ight'));if(_0x598b8c[_0x46c98f[_0x44f4f3(0x2dc)+'ct']]){_0x598b8c[_0x46c98f[_0x44f4f3(0x2dc)+'ct']]['class'+_0x44f4f3(0x20b)][_0x44f4f3(0x3ab)](_0x36e6a3['EuTWL']);}const _0x3d7fef=_0x46c98f[_0x44f4f3(0x3c2)+'ns'][_0x46c98f[_0x44f4f3(0x2dc)+'ct']];_0x4182d0['inner'+_0x44f4f3(0x306)]='<span'+'\x20clas'+'s=\x22co'+'rrect'+_0x44f4f3(0x2ef)+_0x44f4f3(0x218)+_0x44f4f3(0x353)+_0x44f4f3(0x375)+'案：'+_0x3d7fef+(_0x44f4f3(0x301)+'n>')+_0x46c98f['expla'+_0x44f4f3(0x251)+'n'];_0x4182d0[_0x44f4f3(0x36c)+'List'][_0x44f4f3(0x3ab)](_0x36e6a3[_0x44f4f3(0x2c1)]);}function _0x16898b(){const _0x38e555=_0x46d37d;document[_0x38e555(0x337)+'Selec'+_0x38e555(0x305)+'l']('.opti'+_0x38e555(0x2bf)+'n')[_0x38e555(0x262)+'ch'](_0x2d50c8=>_0x2d50c8[_0x38e555(0x36c)+_0x38e555(0x20b)][_0x38e555(0x28f)+'e']('corre'+_0x38e555(0x210)+_0x38e555(0x250)+_0x38e555(0x20d)+_0x38e555(0x21c)));}function _0xf33f90(){const _0x5560b6=_0x46d37d;if(_0x1b754e[_0x5560b6(0x2ca)+'h']>=_0x6d4444[_0x5560b6(0x2ca)+'h']){_0x1b754e=[];}let _0x3fa356;do{_0x3fa356=Math[_0x5560b6(0x3e2)](Math[_0x5560b6(0x367)+'m']()*_0x6d4444['lengt'+'h']);}while(_0x1b754e[_0x5560b6(0x2e3)+_0x5560b6(0x254)](_0x3fa356));_0x1b754e['push'](_0x3fa356);return _0x3fa356;}function _0x27c1c9(_0x5214cb){const _0x2328c6=_0x46d37d;const _0x16de7c={'VxnDc':_0x36e6a3[_0x2328c6(0x3e9)]};const _0x45d54f=_0x6d4444[_0x5214cb];_0x8bc53['textC'+_0x2328c6(0x27f)+'t']=_0x45d54f['quest'+'ion'];_0x3482a6[_0x2328c6(0x223)+_0x2328c6(0x306)]='';_0x45d54f[_0x2328c6(0x3c2)+'ns']['forEa'+'ch']((_0x4446d6,_0x3cec2e)=>{const _0x30713f=_0x2328c6;const _0x6807fa=document[_0x30713f(0x2ee)+'eElem'+'ent']('butto'+'n');_0x6807fa[_0x30713f(0x36c)+_0x30713f(0x1b4)]=_0x36e6a3[_0x30713f(0x35b)];_0x6807fa[_0x30713f(0x2e0)+'onten'+'t']=_0x4446d6;_0x6807fa['datas'+'et'][_0x30713f(0x39b)+_0x30713f(0x2e5)]=_0x3cec2e;_0x6807fa[_0x30713f(0x248)+_0x30713f(0x1cd)]=!![];_0x6807fa[_0x30713f(0x2a0)+'entLi'+'stene'+'r'](_0x30713f(0x202),_0x4c5c41=>_0x5e940c(_0x4c5c41,_0x5214cb));_0x3482a6['appen'+_0x30713f(0x34d)+'d'](_0x6807fa);});_0x36e6a3[_0x2328c6(0x293)](_0x16898b);_0x4182d0[_0x2328c6(0x36c)+_0x2328c6(0x20b)]['remov'+'e'](_0x2328c6(0x256));_0x4182d0['inner'+_0x2328c6(0x306)]='';document[_0x2328c6(0x337)+'Selec'+_0x2328c6(0x305)+'l'](_0x2328c6(0x300)+'on-bt'+'n')[_0x2328c6(0x262)+'ch'](_0x4f7367=>{const _0x56596c=_0x2328c6;_0x4f7367[_0x56596c(0x36c)+_0x56596c(0x20b)][_0x56596c(0x28f)+'e'](_0x16de7c['VxnDc'],'wrong'+'-feed'+_0x56596c(0x3e5));});_0x3dd08a[_0x2328c6(0x2e0)+_0x2328c6(0x27f)+'t']=_0x2328c6(0x32c)+_0x2328c6(0x3de);if(!_0x4c83d7){_0x22146f();}}function _0x5e940c(_0x119182,_0x4c357b){const _0x36b1f0=_0x46d37d;const _0x3cc1f8={'FFBmb':function(_0x2deaa8){return _0x36e6a3['CUPgo'](_0x2deaa8);},'cUKEL':function(_0x215f99,_0x3a2d8b){const _0x382f4e=_0x1755;return _0x36e6a3[_0x382f4e(0x3b9)](_0x215f99,_0x3a2d8b);},'QMYSc':_0x36e6a3[_0x36b1f0(0x39d)]};if(_0x36e6a3[_0x36b1f0(0x243)](_0x42c3f0,_0x4c83d7))return;if(_0x5bb4d5===null){_0x36e6a3[_0x36b1f0(0x2aa)](_0x4cf23e,_0x36e6a3[_0x36b1f0(0x3c8)],_0x36e6a3[_0x36b1f0(0x247)]);return;}const _0x43ae90=_0x119182[_0x36b1f0(0x3d8)+_0x36b1f0(0x1e3)+_0x36b1f0(0x2d4)];const _0xf6b49b=_0x36e6a3['ZnCxZ'](parseInt,_0x43ae90[_0x36b1f0(0x2a2)+'et'][_0x36b1f0(0x39b)+'dex']);const _0x8ffa0=_0x6d4444[_0x4c357b];const _0x204db9=_0x36e6a3['cYYZH'](_0xf6b49b,_0x8ffa0[_0x36b1f0(0x2dc)+'ct']);_0x42c3f0=!![];_0x375d17();_0x36e6a3['CUPgo'](_0x548d49);if(_0x204db9){_0x43ae90['class'+_0x36b1f0(0x20b)][_0x36b1f0(0x3ab)]('corre'+_0x36b1f0(0x1f9)+'edbac'+'k');_0x36e6a3['PokaL'](_0x2e2951,_0x5bb4d5);_0x36e6a3['SiAhM'](_0x45b5f5,_0x5bb4d5);const _0x3608b6=_0x5bb4d5===0x1*-0x24b7+-0x335*-0x1+0x2183?-0x11*-0xdd+0x1810+-0x3*0xce9:0x959*0x3+0x2af+-0x37*0x8f;_0x36e6a3['AptVR'](_0x25871b,_0x3608b6);_0x20d196++;const _0x51fce7=_0x552ada();if(_0x36e6a3['oxuZC'](_0x5bb4d5,0x28*-0xad+0x2d1+0x28*0x9b)){_0x55f460=Math[_0x36b1f0(0x344)](-0x1*-0x1715+0x2219+0x233*-0x1a,_0x36e6a3[_0x36b1f0(0x382)](_0x55f460,_0x51fce7));_0x4cf23e('🦸\x20玩家1'+_0x36b1f0(0x20c)+_0x36b1f0(0x1ab)+_0x36b1f0(0x3e6)+'成\x20'+_0x51fce7+'\x20点伤害！',_0x36b1f0(0x3a6)+_0x36b1f0(0x26a));}else{_0x5e66a3=Math['max'](0x379*-0xa+-0x41*0x81+0x437b,_0x5e66a3-_0x51fce7);_0x36e6a3['AheGm'](_0x4cf23e,_0x36b1f0(0x2fd)+_0x36b1f0(0x20c)+_0x36b1f0(0x227)+'知识勇者造'+'成\x20'+_0x51fce7+_0x36b1f0(0x1c9),_0x36b1f0(0x320)+_0x36b1f0(0x234));}_0x328ecc();_0x516a3c['class'+'List']['add'](_0x36e6a3[_0x36b1f0(0x280)]);setTimeout(()=>_0x516a3c[_0x36b1f0(0x36c)+_0x36b1f0(0x20b)][_0x36b1f0(0x28f)+'e'](_0x36b1f0(0x3c0)+'e'),-0x1859+0x7*0x10d+0x8e3*0x2);_0x4182d0[_0x36b1f0(0x2e0)+'onten'+'t']=_0x8ffa0[_0x36b1f0(0x255)+_0x36b1f0(0x251)+'n'];_0x4182d0[_0x36b1f0(0x36c)+_0x36b1f0(0x20b)][_0x36b1f0(0x3ab)](_0x36b1f0(0x256));_0x293f17();if(_0x36e6a3[_0x36b1f0(0x2c6)](_0x5e66a3,0x1479+-0x29e+-0x11db*0x1)||_0x55f460<=-0x7e1*-0x3+-0x122e*-0x1+-0x5*0x85d){if(_0x36e6a3['FGvWa'](_0x5e66a3,0x5*0x18d+0x83a*-0x4+0x1927)){_0x512970[_0x36b1f0(0x2e0)+'onten'+'t']=_0x36e6a3[_0x36b1f0(0x33e)];_0x36e6a3[_0x36b1f0(0x2aa)](_0x4cf23e,_0x36e6a3[_0x36b1f0(0x366)],_0x36e6a3['VEMed']);}else{_0x512970[_0x36b1f0(0x2e0)+_0x36b1f0(0x27f)+'t']=_0x36e6a3[_0x36b1f0(0x360)];_0x36e6a3['AheGm'](_0x4cf23e,_0x36b1f0(0x331)+'者倒下了！'+_0x36b1f0(0x252)+_0x36b1f0(0x396),_0x36b1f0(0x32e)+'ystem');}_0x4c83d7=!![];_0x3dd08a[_0x36b1f0(0x2e0)+_0x36b1f0(0x27f)+'t']=_0x36e6a3[_0x36b1f0(0x30d)];_0x375d17();_0x548d49();return;}setTimeout(()=>{const _0x5415f5=_0x36b1f0;const _0x257add=(_0x5415f5(0x3da)+_0x5415f5(0x2d8))[_0x5415f5(0x1fd)]('|');let _0x3fdb21=-0xef*-0x3+-0x1dcf+0x1b02;while(!![]){switch(_0x257add[_0x3fdb21++]){case'0':_0x42c3f0=![];continue;case'1':_0x5bb4d5=null;continue;case'2':if(!_0x4c83d7){_0x3dd08a[_0x5415f5(0x2e0)+_0x5415f5(0x27f)+'t']=_0x36e6a3[_0x5415f5(0x39d)];}continue;case'3':_0x1eb14f=_0xf33f90();continue;case'4':_0x36e6a3[_0x5415f5(0x24c)](_0x27c1c9,_0x1eb14f);continue;}break;}},0x24*0x2d+-0x1996+0x17f2);}else{const _0x305eef=(_0x36b1f0(0x338)+'5|4|0'+'|6|8|'+'1|9|2'+'|3')[_0x36b1f0(0x1fd)]('|');let _0x467b14=0x64f+0x1*-0xb85+0x536;while(!![]){switch(_0x305eef[_0x467b14++]){case'0':_0x328ecc();continue;case'1':_0x36e6a3[_0x36b1f0(0x289)](_0xd12ef4,_0x4c357b);continue;case'2':if(_0x5e66a3<=-0x211b+-0x2a5+0x23c0||_0x55f460<=0x59*-0x5f+-0x259c+-0x46a3*-0x1){if(_0x36e6a3[_0x36b1f0(0x1d2)](_0x5e66a3,-0x3d*-0xa+0x1051+-0x12b3)){_0x512970['textC'+_0x36b1f0(0x27f)+'t']='💀\x20知识勇'+_0x36b1f0(0x1f7)+'暗影智者获'+'胜！';_0x36e6a3['pswMK'](_0x4cf23e,'💀\x20知识勇'+'者倒下了！'+_0x36b1f0(0x3ae)+_0x36b1f0(0x396),_0x36b1f0(0x32e)+_0x36b1f0(0x268));}else{_0x512970['textC'+'onten'+'t']=_0x36e6a3['RLfpv'];_0x36e6a3[_0x36b1f0(0x23f)](_0x4cf23e,_0x36b1f0(0x331)+_0x36b1f0(0x2bd)+_0x36b1f0(0x252)+'得胜利！',_0x36b1f0(0x32e)+_0x36b1f0(0x268));}_0x4c83d7=!![];_0x3dd08a['textC'+_0x36b1f0(0x27f)+'t']=_0x36b1f0(0x238)+'束';_0x375d17();_0x548d49();return;}continue;case'3':_0x36e6a3[_0x36b1f0(0x23f)](setTimeout,()=>{const _0x5b1aa9=_0x36b1f0;_0x3cc1f8[_0x5b1aa9(0x3f2)](_0x16898b);_0x5bb4d5=null;_0x42c3f0=![];_0x1eb14f=_0xf33f90();_0x3cc1f8[_0x5b1aa9(0x3dd)](_0x27c1c9,_0x1eb14f);if(!_0x4c83d7){_0x3dd08a[_0x5b1aa9(0x2e0)+_0x5b1aa9(0x27f)+'t']=_0x3cc1f8[_0x5b1aa9(0x225)];}},-0x3*-0xbb7+-0x11bc+-0x1c9);continue;case'4':if(_0x36e6a3['ipWih'](_0x5bb4d5,0xd5*0x15+0x1c1*-0x2+-0xdf6)){_0x5e66a3=Math['max'](-0x983+0x6*0x31f+0x7*-0x151,_0x36e6a3[_0x36b1f0(0x325)](_0x5e66a3,_0x4876ed));_0x36e6a3['AheGm'](_0x4cf23e,_0x36b1f0(0x2fa)+'\x20答错了！'+_0x36b1f0(0x1e4)+_0x4876ed+_0x36b1f0(0x1f3),_0x36e6a3['NTwFA']);}else{_0x55f460=Math['max'](0x6b*-0x43+0xd9e+0x7f*0x1d,_0x36e6a3[_0x36b1f0(0x3e4)](_0x55f460,_0x4876ed));_0x36e6a3['AheGm'](_0x4cf23e,_0x36b1f0(0x2fd)+_0x36b1f0(0x3f8)+_0x36b1f0(0x1e4)+_0x4876ed+_0x36b1f0(0x1f3),'log-e'+_0x36b1f0(0x234));}continue;case'5':_0x20d196=-0x178+-0xee6+0x105e;continue;case'6':document['body'][_0x36b1f0(0x36c)+'List']['add'](_0x36e6a3['YBdDv']);continue;case'7':_0x36e6a3[_0x36b1f0(0x289)](_0x25871b,_0x5bb4d5);continue;case'8':_0x36e6a3[_0x36b1f0(0x26b)](setTimeout,()=>document['body'][_0x36b1f0(0x36c)+'List'][_0x36b1f0(0x28f)+'e'](_0x36b1f0(0x3c1)),-0x3cc+0xfd3+0x18d*-0x7);continue;case'9':_0x36e6a3['CUPgo'](_0x293f17);continue;case'10':_0x43ae90['class'+'List']['add'](_0x36e6a3['ogpTO']);continue;}break;}}}function _0x17df23(_0x16bcb3){const _0xf53cd4=_0x46d37d;if(_0x4c83d7)return;if(_0x42c3f0){_0x36e6a3['pswMK'](_0x4cf23e,_0xf53cd4(0x30f)+'题中，不可'+'抢答',_0xf53cd4(0x32e)+_0xf53cd4(0x268));return;}if(_0x36e6a3[_0xf53cd4(0x1dd)](_0x5bb4d5,null)){_0x36e6a3['tNbuI'](_0x4cf23e,_0xf53cd4(0x3b3)+'人抢答了，'+_0xf53cd4(0x2f4),'log-s'+_0xf53cd4(0x268));return;}_0x5bb4d5=_0x16bcb3;_0x36e6a3[_0xf53cd4(0x242)](_0x548d49);_0x36e6a3[_0xf53cd4(0x293)](_0x5b2d9b);if(_0x16bcb3===0xf7e+0x365+0x2*-0x971){_0x3dd08a['textC'+_0xf53cd4(0x27f)+'t']=_0x36e6a3['GxuZH'];_0x4cf23e(_0xf53cd4(0x2fa)+_0xf53cd4(0x327)+'！','log-h'+_0xf53cd4(0x26a));}else{_0x3dd08a['textC'+'onten'+'t']=_0x36e6a3[_0xf53cd4(0x20f)];_0x36e6a3['HJEFi'](_0x4cf23e,_0x36e6a3['NRhWm'],_0xf53cd4(0x320)+'nemy');}}function _0x2466ef(){const _0x49da92=_0x46d37d;const _0x4f7bf1=('0|9|1'+_0x49da92(0x3ec)+_0x49da92(0x3f5)+_0x49da92(0x322)+_0x49da92(0x364)+_0x49da92(0x370)+_0x49da92(0x3e7)+_0x49da92(0x2b9)+'|6|17'+_0x49da92(0x1d1)+'1|5|2'+_0x49da92(0x3a8)+'5')[_0x49da92(0x1fd)]('|');let _0xb6fbc3=0x176f+0x7c9*-0x2+-0x29f*0x3;while(!![]){switch(_0x4f7bf1[_0xb6fbc3++]){case'0':_0x5e66a3=_0x1b5626;continue;case'1':document[_0x49da92(0x337)+'Selec'+_0x49da92(0x305)+'l'](_0x49da92(0x300)+'on-bt'+'n')['forEa'+'ch'](_0x4f40f7=>{const _0x507841=_0x49da92;_0x4f40f7[_0x507841(0x36c)+_0x507841(0x20b)][_0x507841(0x28f)+'e'](_0x36e6a3[_0x507841(0x3e9)],_0x36e6a3[_0x507841(0x3e0)]);});continue;case'2':_0x36e6a3['GmpdA'](_0x4cf23e,'🔄\x20游戏已'+_0x49da92(0x3eb)+_0x49da92(0x244),_0x36e6a3['VEMed']);continue;case'3':_0x25191e['class'+'List'][_0x49da92(0x28f)+'e'](_0x49da92(0x2a4),_0x49da92(0x3c1));continue;case'4':_0x293f17();continue;case'5':_0x3dd08a[_0x49da92(0x2e0)+_0x49da92(0x27f)+'t']=_0x36e6a3[_0x49da92(0x39d)];continue;case'6':_0x4d4a01[_0x49da92(0x36c)+_0x49da92(0x20b)][_0x49da92(0x28f)+'e'](_0x36e6a3['regLF'],_0x49da92(0x399)+'ill');continue;case'7':_0x328ecc();continue;case'8':_0x5c4321[_0x49da92(0x36c)+_0x49da92(0x20b)][_0x49da92(0x28f)+'e'](_0x49da92(0x2a4),_0x36e6a3[_0x49da92(0x39c)]);continue;case'9':_0x55f460=_0x1b5626;continue;case'10':_0x1b754e=[];continue;case'11':_0x27c1c9(_0x1eb14f);continue;case'12':_0x5bb4d5=null;continue;case'13':_0x1eb14f=_0x36e6a3[_0x49da92(0x242)](_0xf33f90);continue;case'14':_0x20d196=0x105d+-0x1c*0x4b+-0x829;continue;case'15':while(_0x3421ad['child'+'ren']['lengt'+'h']>-0x1*-0x260a+-0x65*0x17+-0x1cf2){_0x3421ad[_0x49da92(0x28f)+_0x49da92(0x25d)+'d'](_0x3421ad[_0x49da92(0x3ef)+_0x49da92(0x1ea)]);}continue;case'16':_0x4182d0[_0x49da92(0x223)+'HTML']='';continue;case'17':_0x382242[_0x49da92(0x36c)+'List'][_0x49da92(0x28f)+'e'](_0x36e6a3[_0x49da92(0x33b)],_0x36e6a3[_0x49da92(0x2ff)]);continue;case'18':_0x42c3f0=![];continue;case'19':_0x22146f();continue;case'20':_0x36e6a3[_0x49da92(0x2ba)](_0x16898b);continue;case'21':_0x4c83d7=![];continue;case'22':_0x4182d0['class'+_0x49da92(0x20b)]['remov'+'e'](_0x36e6a3[_0x49da92(0x2c1)]);continue;case'23':_0x512970[_0x49da92(0x2e0)+'onten'+'t']='';continue;}break;}}_0x2adddd[_0x46d37d(0x2a0)+_0x46d37d(0x341)+_0x46d37d(0x349)+'r'](_0x36e6a3[_0x46d37d(0x279)],()=>_0x17df23(-0x471+-0xd*0x29+-0x22d*-0x3));_0x927421['addEv'+'entLi'+'stene'+'r'](_0x36e6a3[_0x46d37d(0x279)],()=>_0x17df23(-0x611+-0x226e+0x2881*0x1));_0x3cceb0['addEv'+_0x46d37d(0x341)+_0x46d37d(0x349)+'r'](_0x46d37d(0x202),_0x2466ef);window[_0x46d37d(0x2a0)+_0x46d37d(0x341)+'stene'+'r']('DOMCo'+_0x46d37d(0x311)+_0x46d37d(0x276)+'d',()=>{const _0x2dc3f3=_0x46d37d;_0x1eb14f=_0x36e6a3[_0x2dc3f3(0x1e8)](_0xf33f90);_0x27c1c9(_0x1eb14f);_0x36e6a3['fzRjo'](_0x293f17);_0x328ecc();_0x4cf23e(_0x2dc3f3(0x1ee)+_0x2dc3f3(0x324)+'答！',_0x36e6a3[_0x2dc3f3(0x247)]);_0x3dd08a['textC'+'onten'+'t']=_0x36e6a3[_0x2dc3f3(0x39d)];_0x375d17();_0x22146f();});}());</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>可见光光谱实验</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(160deg, #e3f0fa 0%, #d4e8f8 50%, #c9e4f6 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+}
+
+.main-container {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== Header ===== */
+.header-card {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 20px;
+  padding: 22px 28px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(60,100,160,0.10);
+}
+.header-card h1 {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #1a3a5c;
+  letter-spacing: 0.04em;
+}
+.header-card .subtitle {
+  font-size: 0.95rem;
+  color: #5a7a9a;
+  margin-top: 4px;
+}
+
+/* ===== Spectrum Band ===== */
+.spectrum-card {
+  background: rgba(255,255,255,0.50);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.65);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 32px rgba(60,100,160,0.10);
+}
+
+.spectrum-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #446688;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+.spectrum-label-row .left  { text-align: left; }
+.spectrum-label-row .right { text-align: right; }
+
+.spectrum-band-wrap {
+  position: relative;
+  margin: 6px 0 14px 0;
+}
+
+.spectrum-band {
+  width: 100%;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(to right,
+    hsl(270,100%,25%) 0%,
+    hsl(260,100%,40%) 6%,
+    hsl(240,100%,50%) 13%,
+    hsl(200,100%,50%) 25%,
+    hsl(180,100%,50%) 37%,
+    hsl(140,100%,50%) 50%,
+    hsl(100,100%,50%) 58%,
+    hsl(60,100%,50%) 67%,
+    hsl(45,100%,50%) 75%,
+    hsl(30,100%,50%) 83%,
+    hsl(10,100%,50%) 90%,
+    hsl(0,100%,45%) 100%
+  );
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
+  cursor: pointer;
+  position: relative;
+}
+
+.spectrum-slider {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 14px;
+  background: #fff;
+  border: 3px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  transition: left 0.05s linear;
+}
+.spectrum-slider::after {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 10px solid #333;
+}
+
+.tick-marks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+  font-size: 0.75rem;
+  color: #557799;
+  margin-top: 2px;
+}
+
+/* ===== Main Display ===== */
+.display-card {
+  background: rgba(255,255,255,0.50);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.65);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 32px rgba(60,100,160,0.10);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.light-spot {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  transition: background-color 0.15s ease;
+  box-shadow: 0 0 40px 16px currentColor;
+}
+
+.light-beam-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+.prism-icon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+.light-beam {
+  width: 260px;
+  height: 8px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+  box-shadow: 0 0 12px 4px currentColor;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+  width: 100%;
+  max-width: 500px;
+}
+.info-item {
+  background: rgba(255,255,255,0.45);
+  border-radius: 12px;
+  padding: 12px 16px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.5);
+}
+.info-item .label {
+  font-size: 0.78rem;
+  color: #6688aa;
+  margin-bottom: 4px;
+}
+.info-item .value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a3a5c;
+}
+.info-item.full {
+  grid-column: 1 / -1;
+}
+
+/* ===== Quick Buttons ===== */
+.quick-btn-card {
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.6);
+  border-radius: 20px;
+  padding: 16px 24px;
+  box-shadow: 0 8px 32px rgba(60,100,160,0.08);
+}
+.quick-btn-card h3 {
+  font-size: 0.95rem;
+  color: #2a4a6c;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.btn-row button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+}
+.btn-row button:hover   { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.18); }
+.btn-row button:active  { transform: translateY(0); }
+.btn-violet { background: #7b2fbe; }
+.btn-blue   { background: #215fdd; }
+.btn-green  { background: #1b8a3d; }
+.btn-red    { background: #c0392b; }
+.btn-deeprd { background: #8b1a1a; }
+
+/* ===== Insight Banner ===== */
+.insight-banner {
+  background: rgba(255,255,255,0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.6);
+  border-radius: 16px;
+  padding: 16px 22px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(60,100,160,0.06);
+}
+.insight-banner .arrow-row {
+  font-size: 1.5rem;
+  letter-spacing: 0.3em;
+  color: #2a5a8a;
+  font-weight: 700;
+}
+.insight-banner .rule-text {
+  font-size: 0.9rem;
+  color: #4477aa;
+  margin-top: 4px;
+}
+
+/* ===== Comparison Bars ===== */
+.compare-card {
+  background: rgba(255,255,255,0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.65);
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 8px 32px rgba(60,100,160,0.10);
+}
+.compare-card h3 {
+  text-align: center;
+  color: #1a3a5c;
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.compare-col {
+  background: rgba(255,255,255,0.4);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.compare-col .col-title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.compare-col .bar-wrap {
+  position: relative;
+  height: 20px;
+  background: rgba(0,0,0,0.06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.compare-col .bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s;
+}
+.compare-col .bar-label {
+  font-size: 0.75rem;
+  color: #557799;
+}
+
+/* ===== Bottom Sections ===== */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.glass-card {
+  background: rgba(255,255,255,0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.65);
+  border-radius: 20px;
+  padding: 20px 22px;
+  box-shadow: 0 8px 32px rgba(60,100,160,0.08);
+}
+.glass-card h3 {
+  font-size: 1rem;
+  color: #1a3a5c;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(100,140,180,0.2);
+}
+.glass-card ul {
+  list-style: none;
+  padding: 0;
+}
+.glass-card ul li {
+  padding: 5px 0;
+  font-size: 0.88rem;
+  color: #335577;
+  position: relative;
+  padding-left: 16px;
+}
+.glass-card ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5588bb;
+}
+
+.full-width-card {
+  background: rgba(255,255,255,0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.65);
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 8px 32px rgba(60,100,160,0.08);
+}
+
+/* Quiz */
+.quiz-card h3 {
+  font-size: 1rem;
+  color: #1a3a5c;
+  margin-bottom: 14px;
+  text-align: center;
+}
+.quiz-q {
+  margin-bottom: 14px;
+}
+.quiz-q .q-text {
+  font-size: 0.92rem;
+  color: #2a4a6c;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.quiz-q .q-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quiz-q .q-opts button {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1.5px solid #aac8e8;
+  background: rgba(255,255,255,0.55);
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #335577;
+  transition: all 0.15s;
+}
+.quiz-q .q-opts button:hover {
+  border-color: #5588cc;
+  background: rgba(100,160,220,0.12);
+}
+.quiz-q .q-opts button.correct {
+  background: #d4edda;
+  border-color: #28a745;
+  color: #155724;
+}
+.quiz-q .q-opts button.wrong {
+  background: #f8d7da;
+  border-color: #dc3545;
+  color: #721c24;
+}
+.quiz-feedback {
+  font-size: 0.88rem;
+  min-height: 20px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .main-container { gap: 14px; padding: 0; }
+  .bottom-grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .header-card h1 { font-size: 1.35rem; }
+  .btn-row button { padding: 8px 14px; font-size: 0.8rem; }
+}
+</style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=315&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIzMTUiLCJleHAiOjE3OTQ1NjA0NjJ9.XIV0SpoN_v7Um7Dqm071tncn_FZ3PONYYgUMHKUQXoQ",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+
+<div class="main-container">
+
+  <!-- Header -->
+  <div class="header-card">
+    <h1>可见光光谱实验</h1>
+    <div class="subtitle">Exploring the Visible Spectrum &mdash; 电磁波谱中的可见光波段</div>
+  </div>
+
+  <!-- Spectrum Band -->
+  <div class="spectrum-card">
+    <div class="spectrum-label-row">
+      <span class="left">紫外 UV</span>
+      <span class="right">红外 IR</span>
+    </div>
+    <div class="spectrum-band-wrap" id="spectrumWrap">
+      <div class="spectrum-band" id="spectrumBand"></div>
+      <div class="spectrum-slider" id="spectrumSlider"></div>
+    </div>
+    <div class="tick-marks">
+      <span>380nm</span><span>430nm</span><span>500nm</span>
+      <span>550nm</span><span>620nm</span><span>700nm</span><span>780nm</span>
+    </div>
+  </div>
+
+  <!-- Main Display -->
+  <div class="display-card">
+    <div class="light-spot" id="lightSpot"></div>
+    <div class="light-beam-row">
+      <span class="prism-icon">🔽</span>
+      <div class="light-beam" id="lightBeam"></div>
+      <span class="prism-icon">🔽</span>
+    </div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="label">波长 Wavelength</div>
+        <div class="value" id="valLambda">550 nm</div>
+      </div>
+      <div class="info-item">
+        <div class="label">颜色 Color</div>
+        <div class="value" id="valColor">绿色 Green</div>
+      </div>
+      <div class="info-item">
+        <div class="label">频率 Frequency</div>
+        <div class="value" id="valFreq">5.45e14 Hz</div>
+      </div>
+      <div class="info-item">
+        <div class="label">光子能量 Photon Energy</div>
+        <div class="value" id="valEnergy">2.26 eV</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Buttons -->
+  <div class="quick-btn-card">
+    <h3>快捷波长选择</h3>
+    <div class="btn-row">
+      <button class="btn-violet" onclick="setWavelength(380)">380 nm 紫光</button>
+      <button class="btn-blue"   onclick="setWavelength(450)">450 nm 蓝光</button>
+      <button class="btn-green"  onclick="setWavelength(550)">550 nm 绿光</button>
+      <button class="btn-red"    onclick="setWavelength(650)">650 nm 红光</button>
+      <button class="btn-deeprd" onclick="setWavelength(780)">780 nm 深红</button>
+    </div>
+  </div>
+
+  <!-- Insight Banner -->
+  <div class="insight-banner">
+    <div class="arrow-row">波长越短  →  频率越高  →  光子能量越大</div>
+    <div class="rule-text">Shorter wavelength implies higher frequency and greater photon energy.</div>
+  </div>
+
+  <!-- Comparison Bars -->
+  <div class="compare-card">
+    <h3>三种典型色光对比</h3>
+    <div class="compare-grid">
+      <!-- Violet -->
+      <div class="compare-col">
+        <div class="col-title" style="color:#7b2fbe;">紫光 400nm</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:51%;background:#7b2fbe;"></div></div>
+        <div class="bar-label">波长 · 最短</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:100%;background:#7b2fbe;"></div></div>
+        <div class="bar-label">频率 7.5e14 Hz · 最高</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:100%;background:#7b2fbe;"></div></div>
+        <div class="bar-label">能量 3.10 eV · 最大</div>
+      </div>
+      <!-- Green -->
+      <div class="compare-col">
+        <div class="col-title" style="color:#1b8a3d;">绿光 550nm</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:71%;background:#1b8a3d;"></div></div>
+        <div class="bar-label">波长 · 中等</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:73%;background:#1b8a3d;"></div></div>
+        <div class="bar-label">频率 5.45e14 Hz · 中等</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:73%;background:#1b8a3d;"></div></div>
+        <div class="bar-label">能量 2.26 eV · 中等</div>
+      </div>
+      <!-- Red -->
+      <div class="compare-col">
+        <div class="col-title" style="color:#c0392b;">红光 700nm</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:90%;background:#c0392b;"></div></div>
+        <div class="bar-label">波长 · 最长</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:57%;background:#c0392b;"></div></div>
+        <div class="bar-label">频率 4.29e14 Hz · 最低</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:57%;background:#c0392b;"></div></div>
+        <div class="bar-label">能量 1.77 eV · 最小</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Sections -->
+  <div class="bottom-grid">
+    <!-- Spectrum Segments -->
+    <div class="glass-card">
+      <h3>可见光谱分段说明</h3>
+      <ul>
+        <li><strong>紫光 380-450nm</strong>：波长最短，频率最高，光子能量最大，易被大气散射。</li>
+        <li><strong>蓝光 450-495nm</strong>：天空呈蓝色的原因，瑞利散射强度与λ<sup>-4</sup>成正比。</li>
+        <li><strong>绿光 495-570nm</strong>：人眼最敏感波段，植物光合作用主要吸收红蓝光、反射绿光。</li>
+        <li><strong>黄光 570-590nm</strong>：钠灯特征谱线 589nm，常用于路灯照明。</li>
+        <li><strong>橙/红光 590-780nm</strong>：波长最长，穿透力强，用于远距离信号灯。</li>
+      </ul>
+    </div>
+
+    <!-- Life Applications -->
+    <div class="glass-card">
+      <h3>生活应用实例</h3>
+      <ul>
+        <li><strong>彩虹</strong>：阳光经小水滴色散形成连续光谱，牛顿 1666 年首次用棱镜分解白光。</li>
+        <li><strong>LED 照明</strong>：不同半导体材料发出不同波长光，蓝光 LED 获 2014 年诺贝尔物理奖。</li>
+        <li><strong>植物生长灯</strong>：红蓝 LED 组合提供光合作用最有效波长，促进植物生长。</li>
+        <li><strong>光纤通信</strong>：1550nm 红外光损耗最小，可见光通信 (LiFi) 是新兴研究方向。</li>
+        <li><strong>光谱分析</strong>：通过物质发射或吸收光谱鉴定元素组成，天文学重要工具。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Quiz -->
+  <div class="full-width-card quiz-card">
+    <h3>知识检测</h3>
+
+    <div class="quiz-q" id="q1">
+      <div class="q-text">1. 可见光的波长范围约为：</div>
+      <div class="q-opts">
+        <button onclick="answerQ('q1', this, false)">A. 10-380nm</button>
+        <button onclick="answerQ('q1', this, true)">B. 380-780nm</button>
+        <button onclick="answerQ('q1', this, false)">C. 780nm-1mm</button>
+        <button onclick="answerQ('q1', this, false)">D. 1mm-1m</button>
+      </div>
+      <div class="quiz-feedback" id="fb1"></div>
+    </div>
+
+    <div class="quiz-q" id="q2">
+      <div class="q-text">2. 关于可见光，下列说法正确的是：</div>
+      <div class="q-opts">
+        <button onclick="answerQ('q2', this, false)">A. 红光频率最高</button>
+        <button onclick="answerQ('q2', this, false)">B. 紫光波长最长</button>
+        <button onclick="answerQ('q2', this, true)">C. 波长越短，光子能量越大</button>
+        <button onclick="answerQ('q2', this, false)">D. 所有色光频率相同</button>
+      </div>
+      <div class="quiz-feedback" id="fb2"></div>
+    </div>
+
+    <div class="quiz-q" id="q3">
+      <div class="q-text">3. 紫光 (400nm) 的光子能量约为绿光 (550nm) 的多少倍？</div>
+      <div class="q-opts">
+        <button onclick="answerQ('q3', this, false)">A. 约 0.73 倍</button>
+        <button onclick="answerQ('q3', this, true)">B. 约 1.38 倍</button>
+        <button onclick="answerQ('q3', this, false)">C. 约 2 倍</button>
+        <button onclick="answerQ('q3', this, false)">D. 两者相等</button>
+      </div>
+      <div class="quiz-feedback" id="fb3"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>const _0x39cac7=_0x43d7;(function(_0x5ce554,_0x21fcaa){const _0x41870d=_0x43d7;const _0x115b49=_0x5ce554();while(!![]){try{const _0x459c89=parseInt(_0x41870d(0x242))/(-0xd*-0xbb+-0x1d*-0xc1+0x17*-0x15d)+-parseInt(_0x41870d(0x204))/(-0xc26+0xb72+-0x2*-0x5b)*(-parseInt(_0x41870d(0x1eb))/(-0x5c8+-0x225c+0x1*0x2827))+parseInt(_0x41870d(0x1e0))/(-0x13*-0xac+0x256+0x1*-0xf16)+-parseInt(_0x41870d(0x249))/(-0x3f3*-0x9+0x2314+-0x469a)*(parseInt(_0x41870d(0x229))/(-0x87a+0x14cf*-0x1+0x29*0xb7))+parseInt(_0x41870d(0x1d2))/(-0x3*-0x10f+-0x72*-0x31+0x178*-0x11)+parseInt(_0x41870d(0x228))/(0x1c10+-0x1b92+0x3b*-0x2)*(parseInt(_0x41870d(0x1c7))/(0xb73+0x1cf4+-0x142f*0x2))+-parseInt(_0x41870d(0x247))/(-0x24ae+0x15ca+0x62*0x27);if(_0x459c89===_0x21fcaa){break;}else{_0x115b49['push'](_0x115b49['shift']());}}catch(_0x164e60){_0x115b49['push'](_0x115b49['shift']());}}}(_0x1c53,0x3ea*-0x30+-0x4aa83+0x83c60));const _0x329268=(function(){let _0x35087b=!![];return function(_0x5a816a,_0x3af4b4){const _0x55cfcc=_0x35087b?function(){if(_0x3af4b4){const _0x9825c5=_0x3af4b4['apply'](_0x5a816a,arguments);_0x3af4b4=null;return _0x9825c5;}}:function(){};_0x35087b=![];return _0x55cfcc;};}());const _0x404dd4=_0x329268(this,function(){const _0x248f01=_0x43d7;return _0x404dd4[_0x248f01(0x1e7)+_0x248f01(0x224)]()[_0x248f01(0x239)+'h'](_0x248f01(0x23d)+_0x248f01(0x20b)+'+$')['toStr'+_0x248f01(0x224)]()['const'+'ructo'+'r'](_0x404dd4)[_0x248f01(0x239)+'h'](_0x248f01(0x23d)+_0x248f01(0x20b)+'+$');});_0x404dd4();const C=0x1174b04b+0x1*-0x8c997e+0xf98c33;const H=0x1610+-0x5*0xef+-0x1165+6.626e-34;function _0x43d7(_0xdab87,_0x4e8f2c){_0xdab87=_0xdab87-(0x26*-0xd7+-0x16*-0x36+0xe7e*0x2);const _0x2a47c3=_0x1c53();let _0x478bb9=_0x2a47c3[_0xdab87];if(_0x43d7['xqKZaC']===undefined){var _0x23fe06=function(_0x2acb62){const _0x5ed397='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x2082f8='';let _0x39472b='';let _0xcc8f43=_0x2082f8+_0x23fe06;let _0x202ec7=(''+function(){return 0x10c*-0xf+0xa49+0x49*0x13;})['indexOf']('\x0a')!==-(0x248e+0x2587*-0x1+0xfa);for(let _0x4c2848=0x1a2f+0x1*0xd26+0x2755*-0x1,_0x285cb3,_0x4216a5,_0x180757=-0x1dab+0x1*-0x18d2+0x367d;_0x4216a5=_0x2acb62['charAt'](_0x180757++);~_0x4216a5&&(_0x285cb3=_0x4c2848%(0x660+0x11*0x1d3+0xc75*-0x3)?_0x285cb3*(0x4bd*-0x3+-0x1*0x76d+0x15e4)+_0x4216a5:_0x4216a5,_0x4c2848++%(-0x1fc7+0x1*-0x38f+0x235a))?_0x2082f8+=_0x202ec7||_0xcc8f43['charCodeAt'](_0x180757+(0x5*0x505+0xf1d+-0x282c))-(-0xb2*-0x10+0x23b+-0x1*0xd51)!==-0x2e*-0x2d+0x257*-0xf+0x567*0x5?String['fromCharCode'](0x1*0x110c+-0x18c*0xb+0xf7&_0x285cb3>>(-(-0x3e*0x80+-0x347*-0x5+0x13*0xc5)*_0x4c2848&-0x265e+0x3*-0x9e+0x1*0x283e)):_0x4c2848:0x13*0x1d+0x6d0+-0x8f7){_0x4216a5=_0x5ed397['indexOf'](_0x4216a5);}for(let _0x199a9c=0x1378+0xf8b+-0x2303*0x1,_0x6a5c04=_0x2082f8['length'];_0x199a9c<_0x6a5c04;_0x199a9c++){_0x39472b+='%'+('00'+_0x2082f8['charCodeAt'](_0x199a9c)['toString'](0x15e7+-0xc1c+-0x9bb))['slice'](-(0x296*0x3+0x680+-0xe40));}return decodeURIComponent(_0x39472b);};_0x43d7['lTEsOB']=_0x23fe06;_0x43d7['wStYWy']={};_0x43d7['xqKZaC']=!![];}const _0x25980d=_0x2a47c3[-0x1*0xee9+-0x299*-0x9+-0x878];const _0x37cdff=_0xdab87+_0x25980d;const _0x4ee3bf=_0x43d7['wStYWy'][_0x37cdff];if(!_0x4ee3bf){const _0x3d7412=function(_0x3da5dd){this['bDklmA']=_0x3da5dd;this['ZMFeUB']=[-0x1fb7+0x1*-0x656+0x1307*0x2,0x2*0xaa3+0x1c01+-0x3147*0x1,-0x1aff+-0x1686+0x713*0x7];this['yCqYPx']=function(){return'newState';};this['MgdNej']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['kybEkf']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x3d7412['prototype']['dEiHNw']=function(){const _0x9d48f0=new RegExp(this['MgdNej']+this['kybEkf']);const _0x508ed7=_0x9d48f0['test'](this['yCqYPx']['toString']())?--this['ZMFeUB'][-0x1abf+-0x3*-0xa6f+-0x48d]:--this['ZMFeUB'][0x2264*-0x1+-0xa3*0x1+0x2307];return this['iSOVts'](_0x508ed7);};_0x3d7412['prototype']['iSOVts']=function(_0x1a629a){if(!Boolean(~_0x1a629a)){return _0x1a629a;}return this['Jtwtxi'](this['bDklmA']);};_0x3d7412['prototype']['Jtwtxi']=function(_0x41ceec){for(let _0x12592c=0x57a+0x204d+-0x1fd*0x13,_0x68b7=this['ZMFeUB']['length'];_0x12592c<_0x68b7;_0x12592c++){this['ZMFeUB']['push'](Math['round'](Math['random']()));_0x68b7=this['ZMFeUB']['length'];}return _0x41ceec(this['ZMFeUB'][-0x1*0x2237+0xa04*-0x2+0x1215*0x3]);};if((''+function(){return 0xed2+0x2428+-0x32fa;})['indexOf']('\x0a')===-(0x5*-0x43a+-0x240b+0x392e)){new _0x3d7412(_0x43d7)['dEiHNw']();}_0x478bb9=_0x43d7['lTEsOB'](_0x478bb9);_0x43d7['wStYWy'][_0x37cdff]=_0x478bb9;}else{_0x478bb9=_0x4ee3bf;}return _0x478bb9;}const E_CHARGE=-0x19f3+0xd86+-0xc6d*-0x1+1.602e-19;const LAMBDA_MIN=0x424+0x41f*0x1+-0x6c7;const LAMBDA_MAX=-0x1b93+0xe87*0x1+0x1018;const spectrumWrap=document[_0x39cac7(0x208)+_0x39cac7(0x1d7)+'ById'](_0x39cac7(0x1fe)+_0x39cac7(0x235)+'ap');const spectrumBand=document[_0x39cac7(0x208)+_0x39cac7(0x1d7)+'ById']('spect'+_0x39cac7(0x226)+'nd');const spectrumSlider=document[_0x39cac7(0x208)+_0x39cac7(0x1d7)+_0x39cac7(0x221)](_0x39cac7(0x1fe)+'rumSl'+_0x39cac7(0x20e));const lightSpot=document[_0x39cac7(0x208)+'ement'+_0x39cac7(0x221)](_0x39cac7(0x1be)+'Spot');const lightBeam=document[_0x39cac7(0x208)+_0x39cac7(0x1d7)+'ById']('light'+'Beam');const valLambda=document['getEl'+_0x39cac7(0x1d7)+'ById'](_0x39cac7(0x22e)+'mbda');const valColor=document[_0x39cac7(0x208)+'ement'+_0x39cac7(0x221)](_0x39cac7(0x1e3)+_0x39cac7(0x1c6));const valFreq=document[_0x39cac7(0x208)+_0x39cac7(0x1d7)+_0x39cac7(0x221)](_0x39cac7(0x23a)+'eq');const valEnergy=document['getEl'+'ement'+_0x39cac7(0x221)](_0x39cac7(0x203)+_0x39cac7(0x23c));let currentLambda=0x1e13*0x1+0x1*-0x41b+-0xbe9*0x2;function _0x1c53(){const _0x5656dc=['lNeTB3a','iZCYmwm','mZi0mJa2me5Ut0feBq','q29SB3i','nvrHDfvIva','Agv4','vg5rv1q','C2XPy2u','BwfW','yMLSDw0','EM5TDKq','BKv0D3C','vxHnvKK','Dg9gAxG','BgLNAhq','r3jLzw4','sNbRrMi','yxrPB24','BMfTzq','vMLVBgu','tevfEw0','yMfJA2C','Bg9Y','mJe0mKTNCgrNAW','C3r5Bgu','vvDVsei','BvrTseG','ywrVDW','A05ft1q','qMX1zq','BuHnwM0','zNjLCq','6z2B6joDieLU','ruztChi','mJy4nti3qLziEhPj','ywrK','C3rLBMu','iZe1ntC','y2XPzw4','zw1LBNq','rLfpB3C','nhW2Fdi','AMrTsNy','CM9WywC','zwvU','z2v0qM8','zg93BG','AM9PBG','otuWmdCYBfz3vvL3','s2THwwi','57QI5ywjifjL','DMfSq28','BgvMDa','Dg91y2G','u2vSzwm','Dg9tDhi','vfL0zLi','6z2s5ywjien5','seHMuM8','mtjxveHwrwy','B2XLDa','BNqH','ywrKrxy','DhrVBG','C3bSAxq','zw50tgK','Fdv8mxW','Cg93','wvPQzva','yxj0','qxHgy0q','qu9Nzgy','EhfXq2m','Bwf4','mcaWide','tvHdr00','Bw92zq','zw5LCMC','C3bLy3q','57sR5ywjifzP','q0jAChm','BMnZAvy','CxvLCNK','DMfSrw4','mte1odK0CuTPsNfb','z1DNBKy','imoxideW','y2XHC3m','z2v0rwW','B250zw4','Dgv4Dem','ksSPkYK','ohb4ia','uMvK','AwrLCG','Dw5KAw4','q3DmyvO','y29YCMu','5QMz5ywjie9Y','Euvw','uLflve8','nhb4idu','CM91BMq','zw5K','swXVqwW','y29SB3i','mcaWidu','u2LnrwK','yM94u2G','sw5KAwC','BLLxvhK','zM9Yrwe','n3WWFdm','qNLjza','Dg9YqwW','u1LLtwC','Aw5N','zgLZywi','CNvTqMe','D2LKDgG','mZe3nMzNCMDxDa','mJaXmZeWofb0v1LqzW','wfzUsKW','BfvIywS','ChGG','EgTNCNO','DMfStge','BffpqxO','D3jVBMC','BgXVDW','tgLZDa','DhmGyNu','CNHxt0C','CNvTv3i','wLzfDeC','C3rHCNq','uhjdA0e','C2vHCMm','DMfSrNi','5Q2J56gU77YbrxG','zxjNEq','kcGOlIS','CePoDg4','Bw91C2u','yM5VCwe','wvrsBxG','mJqZndi0C3nZvNfq','renAyLq','zxzMrem'];_0x1c53=function(){return _0x5656dc;};return _0x1c53();}function wavelengthToColor(_0x12a7e3){const _0x30a0c8=_0x39cac7;const _0x3baf9f={'AxFcD':function(_0x261598,_0x125acc){return _0x261598>=_0x125acc;},'AOgdf':function(_0x1f749d,_0xb8d26a){return _0x1f749d-_0xb8d26a;},'gIHIA':function(_0x4c582d,_0x12a33f){return _0x4c582d<_0x12a33f;},'KkaYb':function(_0x467f6e,_0x431d7b){return _0x467f6e-_0x431d7b;},'EFSpr':function(_0x215300,_0x562419){return _0x215300>=_0x562419;},'evfDC':function(_0x51b996,_0x1ee73b){return _0x51b996/_0x1ee73b;},'bilum':function(_0x510fde,_0x1a0330){return _0x510fde>=_0x1a0330;},'qcdzV':function(_0x205b43,_0x5884ae){return _0x205b43-_0x5884ae;},'jdmJv':function(_0x1d6853,_0x5055f6){return _0x1d6853>=_0x5055f6;},'HHfRo':function(_0x46d711,_0x1e2cf7){return _0x46d711+_0x1e2cf7;},'TboDw':function(_0x314e3c,_0x12065f){return _0x314e3c-_0x12065f;},'FQOow':function(_0x1fe63f,_0x292e05){return _0x1fe63f>=_0x292e05;},'xqqCc':function(_0x4a35e8,_0x3346d9){return _0x4a35e8<=_0x3346d9;},'MXCGM':function(_0x45d09e,_0x4c292c){return _0x45d09e/_0x4c292c;},'GMBGH':function(_0x5b5204,_0x4ae7d6){return _0x5b5204*_0x4ae7d6;},'jZEZZ':function(_0x249cc9,_0x19d84f){return _0x249cc9*_0x19d84f;},'LMmWT':function(_0x47abf6,_0x4d8216){return _0x47abf6*_0x4d8216;},'nEtww':function(_0x8a3dee,_0x397523){return _0x8a3dee*_0x397523;},'SiMEi':function(_0x5101d0,_0x2af892){return _0x5101d0+_0x2af892;}};let _0xd032d2,_0xaf100c,_0x5d1439;if(_0x3baf9f[_0x30a0c8(0x1f6)](_0x12a7e3,0x252d+-0x1f6c+-0x445)&&_0x12a7e3<-0x1185+0xb11+0x4*0x20b){_0xd032d2=-(_0x12a7e3-(0xbca*-0x1+-0x16ff+0x2481))/_0x3baf9f[_0x30a0c8(0x1f7)](-0x1110+-0x19a*-0x1+0x3*0x5ba,-0x19d9+-0x18eb+-0x4c0*-0xb);_0xaf100c=-0x2140+-0x3af*-0x7+-0x31*-0x27;_0x5d1439=0x1055*-0x1+0x194f+-0x8f9;}else if(_0x12a7e3>=0x2609+-0x2464+0x1*0x13&&_0x3baf9f['gIHIA'](_0x12a7e3,0x137*0x16+0x65+-0x1935)){_0xd032d2=-0x4b7+0x2408+0x1f51*-0x1;_0xaf100c=(_0x12a7e3-(0x682+-0x5ea*-0x4+-0x1c72))/_0x3baf9f[_0x30a0c8(0x1e1)](0x7*0x16f+-0x1*-0x1912+-0x2131,0x2308+0x26d4+-0x4824);_0x5d1439=-0x4ac*-0x5+-0x2*0x182+-0x1457;}else if(_0x3baf9f[_0x30a0c8(0x1d1)](_0x12a7e3,-0xd*-0x1ea+-0x913+-0xde5)&&_0x12a7e3<-0x1bc+-0xad6*-0x2+-0x11f2){_0xd032d2=-0xe3b*-0x2+0x2*0x853+-0x2d1c;_0xaf100c=0x1*0x16b5+-0x7*0x10+-0x1*0x1644;_0x5d1439=_0x3baf9f['evfDC'](-(_0x12a7e3-(0x7a7+-0x1*-0x205+0x2*-0x3d7)),0x7*-0x335+0x19e4+-0x173-(0xe57*0x1+0x20*-0x7b+0x1*0x2f3));}else if(_0x3baf9f[_0x30a0c8(0x1b9)](_0x12a7e3,-0xb7*-0x13+-0x101a+0x1*0x483)&&_0x12a7e3<-0x8ef*0x1+0x2159*-0x1+0x1646*0x2){_0xd032d2=_0x3baf9f['qcdzV'](_0x12a7e3,-0x1233+-0x1*0x15b+-0x158c*-0x1)/(0x75b+-0x11b3+-0xc*-0x10d-(0x8ca+-0x4*0x306+-0x3*-0x1c4));_0xaf100c=-0x22fe*-0x1+0x3ec+0x7*-0x58f;_0x5d1439=0x2447+0x1712+-0x3b59;}else if(_0x3baf9f[_0x30a0c8(0x1da)](_0x12a7e3,-0x1*0x1e15+0xc6b+0x2*0x9f7)&&_0x12a7e3<-0x44*0x47+0x1bb6+-0x1*0x655){_0xd032d2=-0xfe+0x173*-0x7+0xb24*0x1;_0xaf100c=-(_0x12a7e3-(0x1cd*-0x9+0x7a3+-0x11*-0xa7))/_0x3baf9f[_0x30a0c8(0x1f7)](-0x1*-0x2637+0x1ee7+-0x3*0x1633,-0x190a+-0x14db+0x3029);_0x5d1439=0x1*-0x2566+-0x2011+0x4577;}else if(_0x3baf9f[_0x30a0c8(0x1da)](_0x12a7e3,0xbcf*-0x3+-0x595+0x2b87)&&_0x12a7e3<=0x1ab5*-0x1+0xc5d+0x1164){_0xd032d2=-0x26eb+0x142*0x6+-0x1f60*-0x1;_0xaf100c=0x3*-0xc41+0xd31+0x1792;_0x5d1439=0xba+-0x8*0x407+0x1f7e*0x1;}else{_0xd032d2=-0x2268+-0x6d1*0x3+-0x97*-0x5d;_0xaf100c=0x1*-0x10+0x243+0x233*-0x1;_0x5d1439=0x95*-0x5+0xbcf*-0x1+0xeb8;}let _0x4fdea1;if(_0x3baf9f[_0x30a0c8(0x1da)](_0x12a7e3,-0x272*-0x1+0x1*-0x43f+-0x1*-0x349)&&_0x12a7e3<-0xc7*-0x32+0x91*0x2b+0x1*-0x3d95){_0x4fdea1=_0x3baf9f[_0x30a0c8(0x1ea)](0x21*0xf4+0x97+0x277*-0xd+0.3,_0x3baf9f[_0x30a0c8(0x244)]((-0x182b+0x123f+0x5ec+0.7)*_0x3baf9f['TboDw'](_0x12a7e3,-0x1a3*-0xb+-0x1*-0x110f+-0x2194),0x1a01+0x19a2*-0x1+0x19*0xd-(0x6f1*0x2+0x1520+-0x2*0x10c3)));}else if(_0x3baf9f[_0x30a0c8(0x1d8)](_0x12a7e3,0x1881+0x20a0+-0x3665)&&_0x3baf9f[_0x30a0c8(0x1f8)](_0x12a7e3,0xc0d*0x2+0x1*-0x19cf+0x4c1)){_0x4fdea1=_0x3baf9f[_0x30a0c8(0x1ea)](-0x13c9*0x1+0x136*-0x1+0xd7*0x19+0.3,_0x3baf9f[_0x30a0c8(0x1fb)](_0x3baf9f['GMBGH'](-0xb2e+0x227c+0x13*-0x13a+0.7,0x18ec+0x9c4+-0x3*0xa8c-_0x12a7e3),_0x3baf9f[_0x30a0c8(0x1f7)](-0x29*0xee+0x1f8a+0x10*0x9a,0x25a7+-0x676+0x1c75*-0x1)));}else{_0x4fdea1=-0x1733*0x1+0x2197+0xa63*-0x1;}_0xd032d2=Math[_0x30a0c8(0x216)]((0x1127*-0x1+0xff4+0x232*0x1)*Math['pow'](_0xd032d2*_0x4fdea1,-0x1ec+-0x2*0x137+0x45a+0.8));_0xaf100c=Math[_0x30a0c8(0x216)](_0x3baf9f['jZEZZ'](-0x6*-0x503+0x2040+0x3d53*-0x1,Math[_0x30a0c8(0x1f3)](_0x3baf9f['LMmWT'](_0xaf100c,_0x4fdea1),-0x728+-0x1*-0x13e3+-0xcbb+0.8)));_0x5d1439=Math['round']((-0x246*-0x9+-0xa85+0x8f2*-0x1)*Math[_0x30a0c8(0x1f3)](_0x3baf9f[_0x30a0c8(0x1bb)](_0x5d1439,_0x4fdea1),-0xb*0x6d+0x1d23+-0x1874+0.8));return{'r':_0xd032d2,'g':_0xaf100c,'b':_0x5d1439,'hex':_0x3baf9f[_0x30a0c8(0x21b)]('#',[_0xd032d2,_0xaf100c,_0x5d1439][_0x30a0c8(0x1b8)](_0x4ed9c1=>_0x4ed9c1[_0x30a0c8(0x1e7)+_0x30a0c8(0x224)](0x6*-0x4af+0x2f+0x179*0x13)['padSt'+_0x30a0c8(0x1f5)](-0xfcb*0x1+-0xb39*0x1+0x3*0x902,'0'))[_0x30a0c8(0x1df)](''))};}function getColorName(_0xec6f39){const _0xe6bc8c=_0x39cac7;const _0x77658b={'kGfYZ':'Orang'+'e','CwLaZ':_0xe6bc8c(0x1bf),'YZjeP':_0xe6bc8c(0x1e2)+'d','xkgrz':_0xe6bc8c(0x20d),'rxWOG':function(_0x7954d8,_0x3387f5){return _0x7954d8<_0x3387f5;},'IloAl':_0xe6bc8c(0x1c3)+'t','UWoHB':_0xe6bc8c(0x1d0)+'digo','jwOZA':'黄光\x20Ye'+_0xe6bc8c(0x231),'Mrioo':'Yello'+'w'};const _0x1cdf76=(_0xe6bc8c(0x1d9)+_0xe6bc8c(0x1f2)+_0xe6bc8c(0x220))[_0xe6bc8c(0x1f0)]('|');let _0x1d1b34=0x1*0x1661+-0x61+-0x1600;while(!![]){switch(_0x1cdf76[_0x1d1b34++]){case'0':if(_0xec6f39<0xc37*0x3+-0x3d*-0x5b+-0x37e8)return{'name':_0xe6bc8c(0x212)+'ange','en':_0x77658b['kGfYZ']};continue;case'1':if(_0xec6f39<-0x1e04*-0x1+-0x115b+0xa6f*-0x1)return{'name':'绿光\x20Gr'+_0xe6bc8c(0x1dc),'en':_0x77658b[_0xe6bc8c(0x210)]};continue;case'2':if(_0xec6f39<0x1292*0x1+-0x2342+0x129f)return{'name':'蓝光\x20Bl'+'ue','en':_0xe6bc8c(0x1cd)};continue;case'3':return{'name':_0x77658b[_0xe6bc8c(0x1f4)],'en':_0x77658b[_0xe6bc8c(0x22d)]};case'4':if(_0x77658b[_0xe6bc8c(0x234)](_0xec6f39,-0x5fb*0x1+0x1bf6+-0x1457))return{'name':_0xe6bc8c(0x1ff)+_0xe6bc8c(0x1ec),'en':_0x77658b[_0xe6bc8c(0x218)]};continue;case'5':if(_0x77658b[_0xe6bc8c(0x234)](_0xec6f39,-0x8e2+-0x2*0xc7d+0x23da))return{'name':_0xe6bc8c(0x1e9)+'an','en':'Cyan'};continue;case'6':if(_0xec6f39<-0x9e7+-0x2251+0x2dfa)return{'name':_0x77658b[_0xe6bc8c(0x1c9)],'en':_0xe6bc8c(0x21d)+'o'};continue;case'7':if(_0xec6f39<-0xe0b+-0x22d2*0x1+0x332b)return{'name':_0x77658b['jwOZA'],'en':_0x77658b['Mrioo']};continue;}break;}}function calcPhysics(_0x57c7c7){const _0x3c5c36=_0x39cac7;const _0x30df48={'gWgnF':function(_0x55edfc,_0x99295c){return _0x55edfc*_0x99295c;},'knWRj':function(_0x279301,_0x305e9a){return _0x279301/_0x305e9a;},'mHMZm':function(_0x4fe0ca,_0x72ed18){return _0x4fe0ca/_0x72ed18;}};const _0x59abbd=_0x30df48[_0x3c5c36(0x205)](_0x57c7c7,0x123b*-0x1+0x2131+0x77b*-0x2+1e-9);const _0x2a2bcd=C/_0x59abbd;const _0xf2c755=_0x30df48['knWRj'](H*C,_0x59abbd);const _0x4142a3=_0x30df48[_0x3c5c36(0x1ce)](_0xf2c755,E_CHARGE);return{'lambdaM':_0x59abbd,'freq':_0x2a2bcd,'energyJ':_0xf2c755,'energyEV':_0x4142a3};}function updateDisplay(_0x2423d3){const _0x57e4d5=_0x39cac7;const _0x4200f3={'DCZbT':function(_0x7ad9ed,_0x127845){return _0x7ad9ed(_0x127845);},'SYeMg':function(_0x3e7c3c,_0x2c35d1){return _0x3e7c3c(_0x2c35d1);},'eptfi':function(_0x2d940e,_0x17b77e){return _0x2d940e/_0x17b77e;},'bnoqa':function(_0x3bfdae,_0x4c95f6){return _0x3bfdae-_0x4c95f6;},'mTmHH':function(_0x4aea06,_0x1ec1c2){return _0x4aea06*_0x1ec1c2;},'uspwE':function(_0x3bd706,_0x2b85ac){return _0x3bd706+_0x2b85ac;},'PrCkA':_0x57e4d5(0x21a)+'0px\x201'+_0x57e4d5(0x20c),'ZeWky':_0x57e4d5(0x1fa)+_0x57e4d5(0x215)+_0x57e4d5(0x22c),'CBZps':function(_0x368e91,_0x1c5256){return _0x368e91+_0x1c5256;},'kNEOT':'\x20nm','DIxgG':function(_0x2735a8,_0x481790){return _0x2735a8>=_0x481790;},'YTRmx':function(_0x1a0a5a,_0x2a2ee8){return _0x1a0a5a+_0x2a2ee8;},'pJNtn':_0x57e4d5(0x206)+'¹⁴\x20Hz','ZVEtG':function(_0xc574d3,_0x1a45b7){return _0xc574d3+_0x1a45b7;},'ncsiV':function(_0x4ed014,_0x4d8cf7){return _0x4ed014*_0x4d8cf7;}};currentLambda=_0x2423d3;const _0x2ed811=wavelengthToColor(_0x2423d3);const _0x49e4c3=_0x4200f3[_0x57e4d5(0x243)](getColorName,_0x2423d3);const _0x4faf60=_0x4200f3[_0x57e4d5(0x223)](calcPhysics,_0x2423d3);const _0x5c96ba=_0x4200f3['eptfi'](_0x4200f3[_0x57e4d5(0x240)](_0x2423d3,LAMBDA_MIN),LAMBDA_MAX-LAMBDA_MIN);spectrumSlider[_0x57e4d5(0x1c8)][_0x57e4d5(0x1e4)]=_0x4200f3[_0x57e4d5(0x1ca)](_0x5c96ba,0x1*-0x1fff+0x27*-0xbf+-0xc4c*-0x5)+'%';lightSpot['style'][_0x57e4d5(0x1c5)+_0x57e4d5(0x216)+_0x57e4d5(0x248)]=_0x2ed811['hex'];lightSpot[_0x57e4d5(0x1c8)]['boxSh'+_0x57e4d5(0x1cb)]=_0x4200f3['uspwE'](_0x4200f3[_0x57e4d5(0x238)],_0x2ed811[_0x57e4d5(0x24a)]);lightBeam[_0x57e4d5(0x1c8)]['backg'+'round'+_0x57e4d5(0x248)]=_0x2ed811[_0x57e4d5(0x24a)];lightBeam[_0x57e4d5(0x1c8)][_0x57e4d5(0x21c)+_0x57e4d5(0x1cb)]=_0x4200f3['ZeWky']+_0x2ed811['hex'];valLambda['textC'+'onten'+'t']=_0x4200f3[_0x57e4d5(0x200)](_0x2423d3,_0x4200f3[_0x57e4d5(0x1cc)]);valColor['textC'+_0x57e4d5(0x209)+'t']=_0x4200f3[_0x57e4d5(0x200)](_0x49e4c3[_0x57e4d5(0x1c2)],'\x20/\x20')+_0x49e4c3['en'];if(_0x4200f3['DIxgG'](_0x4faf60[_0x57e4d5(0x1cf)],-0xa27ebb1*0x3fde6b+-0x1*0x1442a3aca5b9f+0x2f*0x280c91a47c86)){valFreq['textC'+'onten'+'t']=_0x4200f3[_0x57e4d5(0x241)]((_0x4faf60['freq']/(-0x238ef322723a7+-0x1abfc34ab0*0x244e+0x9918bbaef2547))[_0x57e4d5(0x1bd)+'ed'](0x6*-0x5e7+0x1b3+0x59*0x61),_0x57e4d5(0x206)+'¹⁵\x20Hz');}else{valFreq[_0x57e4d5(0x20a)+'onten'+'t']=(_0x4faf60[_0x57e4d5(0x1cf)]/(-0x4a40771152*-0x1cd+-0x582dfd385218+-0x1bf30e53ed3*-0x1a))[_0x57e4d5(0x1bd)+'ed'](0x236+-0x17a5*-0x1+-0x19d9*0x1)+_0x4200f3[_0x57e4d5(0x23e)];}valEnergy[_0x57e4d5(0x20a)+_0x57e4d5(0x209)+'t']=_0x4200f3[_0x57e4d5(0x236)](_0x4faf60[_0x57e4d5(0x1fd)+_0x57e4d5(0x213)]['toFix'+'ed'](-0x1*-0x571+-0x20d2+-0x30b*-0x9)+('\x20eV\x20\x20'+'('),_0x4200f3[_0x57e4d5(0x201)](_0x4faf60[_0x57e4d5(0x1fd)+'yJ'],0x8ac7230489e80000)['toFix'+'ed'](0x191c+-0x27f*0x3+0x3*-0x5df))+('\x20×\x2010'+'⁻¹⁹\x20J'+')');}function setWavelength(_0x5a7538){updateDisplay(_0x5a7538);}function getLambdaFromClientX(_0x80f836){const _0x41df57=_0x39cac7;const _0x4a3a81={'JpkFb':function(_0x20da4c,_0xdab101){return _0x20da4c-_0xdab101;},'znmvD':function(_0x1420e6,_0x5d1f63){return _0x1420e6+_0x5d1f63;},'lUbak':function(_0x16b814,_0x43d9ca){return _0x16b814*_0x43d9ca;},'lQOAz':function(_0x2cb4f6,_0xa22194){return _0x2cb4f6-_0xa22194;}};const _0x29f701=spectrumBand[_0x41df57(0x1dd)+_0x41df57(0x20f)+'gClie'+'ntRec'+'t']();const _0xa43896=Math[_0x41df57(0x1f9)](-0x1*-0x65b+-0x4f3+0x3c*-0x6,Math['min'](0x2dc*-0x1+0xcd3+-0x9f6,_0x4a3a81[_0x41df57(0x1c0)](_0x80f836,_0x29f701[_0x41df57(0x1e4)])/_0x29f701[_0x41df57(0x227)]));return Math['round'](_0x4a3a81[_0x41df57(0x1ba)](LAMBDA_MIN,_0x4a3a81[_0x41df57(0x22b)](_0xa43896,_0x4a3a81[_0x41df57(0x22f)](LAMBDA_MAX,LAMBDA_MIN))));}let dragging=![];spectrumBand[_0x39cac7(0x1ee)+_0x39cac7(0x1f1)+'stene'+'r']('mouse'+'down',_0x3960bc=>{const _0x52cdb2=_0x39cac7;const _0x51e310={'TYtfR':function(_0x3ad832,_0x570cf2){return _0x3ad832(_0x570cf2);},'LEEym':function(_0x4b1b85,_0x25f31c){return _0x4b1b85(_0x25f31c);}};dragging=!![];_0x51e310[_0x52cdb2(0x1e8)](updateDisplay,_0x51e310[_0x52cdb2(0x1c4)](getLambdaFromClientX,_0x3960bc['clien'+'tX']));});spectrumSlider[_0x39cac7(0x1ee)+_0x39cac7(0x1f1)+_0x39cac7(0x1d4)+'r'](_0x39cac7(0x23f)+_0x39cac7(0x1de),_0x469d6d=>{const _0x22349b=_0x39cac7;dragging=!![];_0x469d6d['stopP'+_0x22349b(0x1db)+_0x22349b(0x1c1)]();});document['addEv'+'entLi'+_0x39cac7(0x1d4)+'r']('mouse'+_0x39cac7(0x1fc),_0x459e3b=>{if(dragging){updateDisplay(getLambdaFromClientX(_0x459e3b['clien'+'tX']));}});document['addEv'+_0x39cac7(0x1f1)+_0x39cac7(0x1d4)+'r'](_0x39cac7(0x23f)+'up',()=>{dragging=![];});spectrumBand[_0x39cac7(0x1ee)+'entLi'+'stene'+'r'](_0x39cac7(0x1e5)+'start',_0x4865ad=>{const _0x57d556=_0x39cac7;dragging=!![];updateDisplay(getLambdaFromClientX(_0x4865ad[_0x57d556(0x1e5)+'es'][0x1*0x337+-0x1236+0xeff*0x1][_0x57d556(0x1d6)+'tX']));},{'passive':![]});spectrumSlider[_0x39cac7(0x1ee)+_0x39cac7(0x1f1)+'stene'+'r'](_0x39cac7(0x1e5)+_0x39cac7(0x237),_0x1bb09b=>{const _0x426aa3=_0x39cac7;dragging=!![];_0x1bb09b['stopP'+_0x426aa3(0x1db)+_0x426aa3(0x1c1)]();});document[_0x39cac7(0x1ee)+_0x39cac7(0x1f1)+_0x39cac7(0x1d4)+'r'](_0x39cac7(0x1e5)+'move',_0x44a062=>{const _0xb98983=_0x39cac7;const _0x269f38={'EeNaA':function(_0x30b389,_0x5a96be){return _0x30b389(_0x5a96be);},'PAlOT':function(_0x1f6835,_0x4263a9){return _0x1f6835(_0x4263a9);}};if(dragging){_0x269f38['EeNaA'](updateDisplay,_0x269f38['PAlOT'](getLambdaFromClientX,_0x44a062[_0xb98983(0x1e5)+'es'][0x26ef*-0x1+0x9ec+0x1d03]['clien'+'tX']));}},{'passive':![]});document['addEv'+_0x39cac7(0x1f1)+_0x39cac7(0x1d4)+'r'](_0x39cac7(0x1e5)+_0x39cac7(0x217),()=>{dragging=![];});function answerQ(_0x18d99d,_0x57ba66,_0xe164c0){const _0x45f4d4=_0x39cac7;const _0x2b7c3f={'UxMVI':_0x45f4d4(0x230),'TnQWT':'.q-op'+'ts\x20bu'+_0x45f4d4(0x1ef),'iXYjc':function(_0x4ae0a9,_0x1c2b4b){return _0x4ae0a9+_0x1c2b4b;},'nYWTy':_0x45f4d4(0x23b)+'celle'+_0x45f4d4(0x1ed),'FoGmP':_0x45f4d4(0x1d5)+'24','RQKTO':function(_0xf55b3d,_0x416e1e,_0x54563e){return _0xf55b3d(_0x416e1e,_0x54563e);}};const _0x1ca218=document[_0x45f4d4(0x208)+_0x45f4d4(0x1d7)+'ById'](_0x18d99d);const _0x3647cc=document[_0x45f4d4(0x208)+_0x45f4d4(0x1d7)+_0x45f4d4(0x221)](_0x2b7c3f['iXYjc']('fb',_0x18d99d[_0x45f4d4(0x1b7)](-0x610+0x15ca+-0x23*0x73)));_0x1ca218['query'+_0x45f4d4(0x1e6)+_0x45f4d4(0x222)+'l'](_0x45f4d4(0x245)+_0x45f4d4(0x233)+'tton')[_0x45f4d4(0x21f)+'ch'](_0x47f94a=>{const _0x2c83a5=_0x45f4d4;_0x47f94a[_0x2c83a5(0x207)+_0x2c83a5(0x232)]['remov'+'e']('corre'+'ct',_0x2b7c3f[_0x2c83a5(0x1bc)]);_0x47f94a[_0x2c83a5(0x225)+'led']=!![];});if(_0xe164c0){_0x57ba66['class'+_0x45f4d4(0x232)][_0x45f4d4(0x1d3)](_0x45f4d4(0x211)+'ct');_0x3647cc['textC'+_0x45f4d4(0x209)+'t']=_0x2b7c3f[_0x45f4d4(0x21e)];_0x3647cc['style']['color']=_0x2b7c3f['FoGmP'];}else{_0x57ba66[_0x45f4d4(0x207)+'List'][_0x45f4d4(0x1d3)]('wrong');_0x3647cc[_0x45f4d4(0x20a)+_0x45f4d4(0x209)+'t']='再想想看，'+'可以调整光'+'谱试试哦～';_0x3647cc['style'][_0x45f4d4(0x219)]=_0x45f4d4(0x246)+'24';_0x1ca218[_0x45f4d4(0x202)+_0x45f4d4(0x1e6)+_0x45f4d4(0x222)+'l'](_0x2b7c3f[_0x45f4d4(0x1b6)])[_0x45f4d4(0x21f)+'ch'](_0x430cd9=>{const _0x58d0a4=_0x45f4d4;if(_0x430cd9[_0x58d0a4(0x20a)+_0x58d0a4(0x209)+'t']!==_0x57ba66[_0x58d0a4(0x20a)+_0x58d0a4(0x209)+'t']){}});}_0x2b7c3f[_0x45f4d4(0x214)](setTimeout,()=>{const _0x3a1c81=_0x45f4d4;const _0x511883={'XVnJL':_0x2b7c3f[_0x3a1c81(0x1bc)]};_0x1ca218[_0x3a1c81(0x202)+_0x3a1c81(0x1e6)+_0x3a1c81(0x222)+'l'](_0x2b7c3f[_0x3a1c81(0x1b6)])[_0x3a1c81(0x21f)+'ch'](_0x78d3b6=>{const _0x351488=_0x3a1c81;_0x78d3b6[_0x351488(0x225)+'led']=![];_0x78d3b6[_0x351488(0x207)+'List']['remov'+'e']('corre'+'ct',_0x511883[_0x351488(0x22a)]);});_0x3647cc['textC'+_0x3a1c81(0x209)+'t']='';},-0x1f30+-0x1492+0x609*0xa);}updateDisplay(-0x23aa+0x1*0x209+-0x81*-0x47);</script>
+
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 单项式侦探 - 神秘案件</title>
+    <style>
+        /* ===== 全局重置 & 基础 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            background: radial-gradient(ellipse at 20% 30%, #0c0e2b, #0a0b1a 70%, #02020a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* ===== 毛玻璃基类 ===== */
+        .glass {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(18px) saturate(1.2);
+            -webkit-backdrop-filter: blur(18px) saturate(1.2);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.13);
+            backdrop-filter: blur(28px) saturate(1.4);
+            -webkit-backdrop-filter: blur(28px) saturate(1.4);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 28px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        /* ===== 主容器 ===== */
+        .app-container {
+            width: 100%;
+            max-width: 820px;
+            min-height: 560px;
+            position: relative;
+            padding: 10px;
+        }
+
+        /* ===== 屏幕通用 ===== */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 36px 32px 40px;
+            width: 100%;
+            animation: fadeSlideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeSlideUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px) scale(0.97);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* ===== 开场屏幕 ===== */
+        #start-screen {
+            text-align: center;
+            gap: 12px;
+        }
+
+        .start-badge {
+            font-size: 4rem;
+            line-height: 1;
+            margin-bottom: 4px;
+            filter: drop-shadow(0 0 30px rgba(255, 200, 50, 0.25));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .start-title {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f6d365, #fda085, #f6d365);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .start-sub {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 6px;
+            margin-bottom: 8px;
+        }
+
+        .start-brief {
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 20px 28px;
+            margin: 8px 0 16px;
+            text-align: left;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 1.05rem;
+            line-height: 1.8;
+            border-left: 4px solid #f6d365;
+        }
+
+        .start-brief strong {
+            color: #f6d365;
+            font-weight: 700;
+        }
+
+        .start-brief em {
+            color: #ffb4a2;
+            font-style: normal;
+            font-weight: 600;
+        }
+
+        .btn-start {
+            padding: 16px 56px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 60px;
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(253, 160, 133, 0.35);
+            letter-spacing: 2px;
+            margin-top: 8px;
+        }
+
+        .btn-start:hover {
+            transform: scale(1.04);
+            box-shadow: 0 12px 48px rgba(253, 160, 133, 0.5);
+        }
+
+        .btn-start:active {
+            transform: scale(0.96);
+        }
+
+        /* ===== 游戏主屏幕 ===== */
+        #game-screen {
+            gap: 18px;
+            padding: 28px 28px 32px;
+        }
+
+        /* 顶部栏 */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 4px 6px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .game-progress {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .progress-bar-wrap {
+            width: 120px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f6d365, #fda085);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .game-score {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .score-num {
+            font-weight: 700;
+            font-size: 1.4rem;
+            color: #f6d365;
+        }
+
+        /* 案件展示区 */
+        .case-display {
+            text-align: center;
+            padding: 12px 0 6px;
+            width: 100%;
+        }
+
+        .case-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .case-expression {
+            font-size: 4.5rem;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.10);
+            line-height: 1.3;
+            letter-spacing: 4px;
+            word-break: break-all;
+        }
+
+        .case-expression .highlight-var {
+            color: #7ed6df;
+        }
+
+        .case-expression .highlight-num {
+            color: #f6d365;
+        }
+
+        .case-expression .highlight-pi {
+            color: #ffb4a2;
+        }
+
+        /* 选择区域 */
+        .selection-area {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+            margin: 4px 0 6px;
+        }
+
+        .selection-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .selection-label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            min-width: 80px;
+            letter-spacing: 1px;
+        }
+
+        .selection-label .icon {
+            font-size: 1.3rem;
+            margin-right: 6px;
+        }
+
+        .option-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .option-btn {
+            padding: 10px 22px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.06);
+            border: 2px solid rgba(255, 255, 255, 0.10);
+            border-radius: 16px;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            min-width: 48px;
+            text-align: center;
+            font-family: inherit;
+            user-select: none;
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .option-btn.selected {
+            background: rgba(246, 211, 101, 0.20);
+            border-color: #f6d365;
+            color: #f6d365;
+            box-shadow: 0 0 24px rgba(246, 211, 101, 0.15);
+            transform: scale(1.02);
+        }
+
+        .option-btn.selected-degree {
+            background: rgba(126, 214, 223, 0.20);
+            border-color: #7ed6df;
+            color: #7ed6df;
+            box-shadow: 0 0 24px rgba(126, 214, 223, 0.15);
+            transform: scale(1.02);
+        }
+
+        .option-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .option-btn.correct-reveal {
+            background: rgba(46, 213, 115, 0.25) !important;
+            border-color: #2ed573 !important;
+            color: #2ed573 !important;
+            box-shadow: 0 0 30px rgba(46, 213, 115, 0.20) !important;
+            transform: scale(1.04) !important;
+        }
+
+        .option-btn.wrong-reveal {
+            background: rgba(255, 71, 87, 0.20) !important;
+            border-color: #ff4757 !important;
+            color: #ff4757 !important;
+            box-shadow: 0 0 30px rgba(255, 71, 87, 0.15) !important;
+        }
+
+        /* 破案按钮 */
+        .btn-solve {
+            padding: 14px 44px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 60px;
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 28px rgba(253, 160, 133, 0.30);
+            letter-spacing: 2px;
+            margin-top: 4px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .btn-solve:hover:not(:disabled) {
+            transform: scale(1.03);
+            box-shadow: 0 10px 40px rgba(253, 160, 133, 0.45);
+        }
+
+        .btn-solve:active:not(:disabled) {
+            transform: scale(0.96);
+        }
+
+        .btn-solve:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-solve.solved {
+            background: linear-gradient(135deg, #2ed573, #26de81);
+            box-shadow: 0 6px 28px rgba(46, 213, 115, 0.30);
+            color: #fff;
+        }
+
+        /* 反馈区 */
+        .feedback-area {
+            width: 100%;
+            padding: 0 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-height: 80px;
+        }
+
+        .feedback-card {
+            padding: 16px 22px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid rgba(255, 255, 255, 0.15);
+            animation: fadeSlideUp 0.4s ease;
+        }
+
+        .feedback-card.correct {
+            border-left-color: #2ed573;
+            background: rgba(46, 213, 115, 0.06);
+        }
+
+        .feedback-card.wrong {
+            border-left-color: #ff4757;
+            background: rgba(255, 71, 87, 0.06);
+        }
+
+        .feedback-result {
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .feedback-result .icon {
+            font-size: 1.5rem;
+        }
+
+        .feedback-result.correct-text {
+            color: #2ed573;
+        }
+        .feedback-result.wrong-text {
+            color: #ff4757;
+        }
+
+        .feedback-detail {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+
+        .feedback-detail strong {
+            color: #f6d365;
+        }
+
+        .feedback-rhyme {
+            margin-top: 8px;
+            padding: 10px 16px;
+            background: rgba(246, 211, 101, 0.10);
+            border-radius: 14px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f6d365;
+            text-align: center;
+            border: 1px dashed rgba(246, 211, 101, 0.25);
+            letter-spacing: 1px;
+        }
+
+        .btn-next {
+            padding: 12px 36px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.10);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.85);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+            align-self: center;
+            letter-spacing: 1px;
+        }
+
+        .btn-next:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: scale(1.03);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* ===== 结束屏幕 ===== */
+        #end-screen {
+            text-align: center;
+            gap: 16px;
+            padding: 40px 32px 44px;
+        }
+
+        .end-badge {
+            font-size: 4rem;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .end-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 2px;
+        }
+
+        .end-rank {
+            font-size: 1.8rem;
+            font-weight: 700;
+            padding: 8px 32px;
+            border-radius: 60px;
+            background: rgba(246, 211, 101, 0.15);
+            color: #f6d365;
+            border: 1px solid rgba(246, 211, 101, 0.20);
+            margin: 4px 0;
+        }
+
+        .end-score {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .end-score strong {
+            color: #f6d365;
+            font-size: 1.6rem;
+        }
+
+        .end-summary {
+            max-width: 520px;
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.8;
+            font-size: 1rem;
+        }
+
+        .end-summary .rhyme-list {
+            list-style: none;
+            padding: 0;
+            margin: 6px 0 0;
+        }
+
+        .end-summary .rhyme-list li {
+            padding: 4px 0;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .end-summary .rhyme-list li::before {
+            content: '🔎 ';
+        }
+
+        .btn-restart {
+            padding: 14px 48px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 60px;
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(253, 160, 133, 0.30);
+            letter-spacing: 2px;
+            margin-top: 8px;
+        }
+
+        .btn-restart:hover {
+            transform: scale(1.04);
+            box-shadow: 0 12px 48px rgba(253, 160, 133, 0.45);
+        }
+
+        /* ===== 背景装饰 ===== */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.20;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .bg-orb.orb1 {
+            width: 400px;
+            height: 400px;
+            background: #f6d365;
+            top: -100px;
+            right: -100px;
+        }
+
+        .bg-orb.orb2 {
+            width: 350px;
+            height: 350px;
+            background: #7ed6df;
+            bottom: -80px;
+            left: -80px;
+        }
+
+        .bg-orb.orb3 {
+            width: 200px;
+            height: 200px;
+            background: #ffb4a2;
+            top: 40%;
+            left: 60%;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 640px) {
+            .app-container {
+                padding: 0;
+            }
+
+            .screen {
+                padding: 24px 16px 28px !important;
+            }
+
+            .start-title {
+                font-size: 2rem;
+            }
+
+            .start-badge {
+                font-size: 3rem;
+            }
+
+            .start-brief {
+                font-size: 0.95rem;
+                padding: 16px 18px;
+            }
+
+            .case-expression {
+                font-size: 2.8rem !important;
+                letter-spacing: 2px;
+            }
+
+            .selection-label {
+                min-width: 60px;
+                font-size: 0.95rem;
+            }
+
+            .option-btn {
+                padding: 8px 16px;
+                font-size: 1rem;
+                min-width: 40px;
+            }
+
+            .game-header {
+                font-size: 0.85rem;
+            }
+
+            .btn-solve {
+                font-size: 1.1rem;
+                padding: 12px 28px;
+            }
+
+            .end-title {
+                font-size: 1.8rem;
+            }
+
+            .end-rank {
+                font-size: 1.3rem;
+                padding: 6px 20px;
+            }
+
+            .feedback-result {
+                font-size: 1rem;
+            }
+
+            .feedback-rhyme {
+                font-size: 0.95rem;
+            }
+
+            .progress-bar-wrap {
+                width: 80px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .case-expression {
+                font-size: 2.2rem !important;
+            }
+
+            .option-btn {
+                padding: 6px 12px;
+                font-size: 0.9rem;
+                min-width: 34px;
+            }
+
+            .selection-row {
+                gap: 8px;
+            }
+
+            .option-group {
+                gap: 6px;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .mt-1 {
+            margin-top: 4px;
+        }
+        .mt-2 {
+            margin-top: 12px;
+        }
+        .mb-1 {
+            margin-bottom: 4px;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .w-full {
+            width: 100%;
+        }
+    </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=36&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIzNiIsImV4cCI6MTc5NDU1OTg1Nn0.1HdQdb5XCnPHlB3E1HcLTP-DLA8FGxxPRgA2yKd0-Uc",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+
+    <!-- 背景光晕 -->
+    <div class="bg-orb orb1"></div>
+    <div class="bg-orb orb2"></div>
+    <div class="bg-orb orb3"></div>
+
+    <div class="app-container glass-strong">
+
+        <!-- ====== 开场屏幕 ====== -->
+        <div id="start-screen" class="screen active">
+            <div class="start-badge">🔍</div>
+            <div class="start-title">单项式侦探</div>
+            <div class="start-sub">🕵️ 神秘案件 · 等你来破</div>
+            <div class="start-brief">
+                <strong>📋 案件简报</strong><br>
+                各位侦探，欢迎来到「单项式侦探」课堂！每个<strong>单项式</strong>都是一起神秘案件，你的任务是：
+                <br>🔎 找出 <strong>「系数嫌疑人」</strong>—— 数字因子（带上前面的符号！）
+                <br>📊 确定 <strong>「次数等级」</strong> —— 所有字母的指数之和
+                <br><br>
+                <em>⚠️ 特别提醒：</em> 调皮负号、伪装分数、卧底 π 特工…… 小心陷阱！
+                <br>💡 记住：<em>π 是数字不是字母</em>，<em>单独数字次数为 0</em>，<em>单独字母系数是 1</em>。
+            </div>
+            <button class="btn-start" onclick="startGame()">🔎 开始侦查</button>
+        </div>
+
+        <!-- ====== 游戏主屏幕 ====== -->
+        <div id="game-screen" class="screen">
+            <!-- 顶部进度 & 得分 -->
+            <div class="game-header">
+                <div class="game-progress">
+                    <span>📁 案件 <span id="case-current">1</span>/<span id="case-total">10</span></span>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill" id="progress-fill"></div>
+                    </div>
+                </div>
+                <div class="game-score">
+                    <span>🏆 破案</span>
+                    <span class="score-num" id="score-display">0</span>
+                </div>
+            </div>
+
+            <!-- 案件展示 -->
+            <div class="case-display">
+                <div class="case-label">🧾 当前案件</div>
+                <div class="case-expression" id="case-expression">3x²</div>
+            </div>
+
+            <!-- 选择区域 -->
+            <div class="selection-area">
+                <!-- 系数 -->
+                <div class="selection-row">
+                    <div class="selection-label"><span class="icon">🔢</span> 系数</div>
+                    <div class="option-group" id="coeff-options"></div>
+                </div>
+                <!-- 次数 -->
+                <div class="selection-row">
+                    <div class="selection-label"><span class="icon">📊</span> 次数</div>
+                    <div class="option-group" id="degree-options"></div>
+                </div>
+            </div>
+
+            <!-- 破案按钮 -->
+            <button class="btn-solve" id="btn-solve" onclick="solveCase()">🔎 破案！</button>
+
+            <!-- 反馈区 -->
+            <div class="feedback-area" id="feedback-area">
+                <div id="feedback-content"></div>
+                <button class="btn-next hidden" id="btn-next" onclick="nextCase()">➡️ 下一案</button>
+            </div>
+        </div>
+
+        <!-- ====== 结束屏幕 ====== -->
+        <div id="end-screen" class="screen">
+            <div class="end-badge">🏆</div>
+            <div class="end-title">结案报告</div>
+            <div class="end-rank" id="end-rank">🕵️ 见习侦探</div>
+            <div class="end-score">
+                成功破获 <strong id="end-score-num">0</strong> / <span id="end-total">10</span> 起案件
+            </div>
+            <div class="end-summary" id="end-summary">
+                <p>📌 <strong>破案口诀回顾</strong></p>
+                <ul class="rhyme-list" id="rhyme-list-end"></ul>
+            </div>
+            <button class="btn-restart" onclick="restartGame()">🔄 再来一轮</button>
+        </div>
+
+    </div>
+
+    <script>const _0x258b0e=_0x5d64;(function(_0x1deb50,_0x2b5e8f){const _0x190f7a=_0x5d64;const _0x1e176c=_0x1deb50();while(!![]){try{const _0x34358b=parseInt(_0x190f7a(0x1cf))/(-0xcce+0x938+0x397*0x1)+-parseInt(_0x190f7a(0x1cc))/(0xa1+0x108d*0x1+0x2*-0x896)+-parseInt(_0x190f7a(0x266))/(-0x2153*0x1+-0x26e*0xe+0x435a)*(parseInt(_0x190f7a(0x298))/(0xb70+0x1c68+-0x27d4*0x1))+-parseInt(_0x190f7a(0x258))/(0x14ec+-0x1e6a+0x983)+-parseInt(_0x190f7a(0x259))/(-0x23e*0x10+-0x245*-0x1+0x21a1*0x1)+parseInt(_0x190f7a(0x2b5))/(-0x1*0x9f2+0xa8a+-0x91)*(-parseInt(_0x190f7a(0x207))/(0x3*0x42d+-0x1fb6+0x1337*0x1))+parseInt(_0x190f7a(0x29e))/(-0x24ab+-0x37*-0x59+-0x283*-0x7);if(_0x34358b===_0x2b5e8f){break;}else{_0x1e176c['push'](_0x1e176c['shift']());}}catch(_0x4aa022){_0x1e176c['push'](_0x1e176c['shift']());}}}(_0x2e35,-0x3a6b0+-0x8aa59+0x19b04c*0x1));const _0xce9ce0=(function(){let _0x13d5c1=!![];return function(_0x5ac535,_0x3680ac){const _0x2212b0=_0x13d5c1?function(){const _0x402ddd=_0x5d64;if(_0x3680ac){const _0x41be77=_0x3680ac[_0x402ddd(0x23b)](_0x5ac535,arguments);_0x3680ac=null;return _0x41be77;}}:function(){};_0x13d5c1=![];return _0x2212b0;};}());const _0x215ce8=_0xce9ce0(this,function(){const _0x1c5814=_0x5d64;const _0x391c42={'VObKc':_0x1c5814(0x278)+_0x1c5814(0x27c)+'+$'};return _0x215ce8['toStr'+_0x1c5814(0x1cd)]()['searc'+'h'](_0x1c5814(0x278)+_0x1c5814(0x27c)+'+$')[_0x1c5814(0x2ad)+_0x1c5814(0x1cd)]()[_0x1c5814(0x1ec)+_0x1c5814(0x1fd)+'r'](_0x215ce8)['searc'+'h'](_0x391c42[_0x1c5814(0x281)]);});_0x215ce8();const CASES=[{'expression':_0x258b0e(0x208),'coeff':'3','degree':0x2,'coeffOptions':['3','3x','x²','2'],'degreeOptions':[0x614+0x2185+-0x2799,-0x1d73+-0xd*0x146+0x2e02,-0x1a67+-0x1de+0x1c47,-0x1322+0x22cc+0xfa7*-0x1],'rhyme':'🎯\x20系数就'+_0x258b0e(0x1d3)+'符号一定带'+_0x258b0e(0x2b4)+_0x258b0e(0x21a)+'，字母指数'+_0x258b0e(0x275)},{'expression':_0x258b0e(0x1d1),'coeff':'-5','degree':0x1,'coeffOptions':['5','-5','x',_0x258b0e(0x1d1)],'degreeOptions':[0xd3d*0x2+-0x4b+0x1*-0x1a2f,-0xc80+-0x1756+-0x23d7*-0x1,0x20*-0x11+-0x1*0x2658+-0x42*-0x9d,-0x209+0xcb5+-0xaa9*0x1],'rhyme':_0x258b0e(0x268)+_0x258b0e(0x265)+_0x258b0e(0x280)+'正道！次数'+'只看字母幂'+'，指数为一'+'要记牢。'},{'expression':'½x³','coeff':'½','degree':0x3,'coeffOptions':['½','x³','3','1'],'degreeOptions':[0xd3d+0x1*0x859+-0x2*0xacb,-0x1c73*-0x1+0x5c5+-0x2237,0xde3+0xe*0x110+-0x1cc1,-0x134c+-0x80e+-0x1*-0x1b5d],'rhyme':_0x258b0e(0x1f4)+_0x258b0e(0x1fe)+'分子分母看'+'清楚！次数'+_0x258b0e(0x293)+'，指数相加'+_0x258b0e(0x22e)},{'expression':_0x258b0e(0x20c),'coeff':'π','degree':0x2,'coeffOptions':['π','r²','2','1'],'degreeOptions':[-0x9f7*-0x1+0x1e2+-0xbd9,0x5*-0x743+-0x1*0x1b65+0x3fb5*0x1,-0x7e5+-0x1aa7+0x1*0x228e,0x44*-0xb+0x5e9+-0x3*0xfe],'rhyme':'🎯\x20π是数'+'字不是字母'+'，系数里面'+_0x258b0e(0x2a5)+_0x258b0e(0x23e)+_0x258b0e(0x1d2)+_0x258b0e(0x230)},{'expression':'7','coeff':'7','degree':0x0,'coeffOptions':['7','0','1','x'],'degreeOptions':[-0x1b0e*0x1+0x4*0x64b+0x2*0xf1,0x11b*-0x22+-0x11dd*0x2+0x89*0x89,0x61*0x39+0xaa*0x10+-0x2037,0x2*-0xa98+-0xb67+0x209a],'rhyme':_0x258b0e(0x282)+_0x258b0e(0x256)+_0x258b0e(0x263)+_0x258b0e(0x2b3)+_0x258b0e(0x2a0)+_0x258b0e(0x243)+'要记得。'},{'expression':'x','coeff':'1','degree':0x1,'coeffOptions':['1','0','x','-1'],'degreeOptions':[0x1f80+0x125b+-0x31db,-0x2529+0x1f08+0x622,-0x9*0xe+0x315*0x6+-0x11fe,0x84+0x2394+-0x3*0xc07],'rhyme':_0x258b0e(0x2a9)+_0x258b0e(0x250)+_0x258b0e(0x1f5)+_0x258b0e(0x27b)+_0x258b0e(0x245)+_0x258b0e(0x287)+'也是1。'},{'expression':'-¼x²y','coeff':'-¼','degree':0x3,'coeffOptions':['-¼','¼',_0x258b0e(0x1f9),'-4'],'degreeOptions':[-0x13f0+0xa93*0x1+-0x4af*-0x2,-0xf80*-0x2+-0x1b44+-0x3ba,0x1305+-0x2005+0xd03,-0x3*-0x163+0x204d+-0x6*0x613],'rhyme':_0x258b0e(0x255)+_0x258b0e(0x247)+'系数就是负'+'分数！次数'+'要把指数加'+_0x258b0e(0x226)+_0x258b0e(0x27d)},{'expression':_0x258b0e(0x29a),'coeff':'2π','degree':0x1,'coeffOptions':['2π','π','2','2x'],'degreeOptions':[0x1719+-0x4a*-0x4+-0x1841,-0x2bb*-0x1+-0x2046+0x1d8c,-0x4*-0x2ed+0x7e8+0x2*-0x9cd,-0x9d9*0x1+-0x1*-0x1697+-0xcbb*0x1],'rhyme':_0x258b0e(0x28c)+'字不是字母'+'，系数里面'+'它常住！次'+'数只看字母'+_0x258b0e(0x1dc)+'一别糊涂。'},{'expression':_0x258b0e(0x240),'coeff':'-1','degree':0x2,'coeffOptions':['-1','1','x²','0'],'degreeOptions':[0x2587+0x1*0x1e16+-0x439d,0xc7+0x1cd8+-0x1be*0x11,0x2*-0x5ea+0x1279*0x1+-0x6a3,-0xffb+0x12db+-0x2dd],'rhyme':_0x258b0e(0x238)+'负要记清，'+_0x258b0e(0x25c)+'分明！前面'+'没数系数1'+_0x258b0e(0x1de)+_0x258b0e(0x1f3)},{'expression':_0x258b0e(0x21c)+'²','coeff':_0x258b0e(0x235),'degree':0x3,'coeffOptions':['0.5',_0x258b0e(0x203),'2','5'],'degreeOptions':[0xa8+-0x2f6*0x4+0xb31,-0xc6+-0x32*-0x79+-0xd*0x1c2,0x5fe+0x29*-0x17+-0x24c,0x11a3+-0x5d4+-0x1*0xbcb],'rhyme':_0x258b0e(0x213)+'数也是数，'+'次数要把指'+'数数！x一'+_0x258b0e(0x1fc)+_0x258b0e(0x296)+'是三次。'}];let currentIndex=0x551+0x1409+0x1*-0x195a;let score=-0x26d5+-0x1ad6+-0x41ab*-0x1;let selectedCoeff=null;let selectedDegree=null;let isSolved=![];let totalCases=CASES['lengt'+'h'];let allRhymes=[];const startScreen=document[_0x258b0e(0x274)+_0x258b0e(0x242)+_0x258b0e(0x24d)](_0x258b0e(0x2aa)+_0x258b0e(0x233)+'en');function _0x5d64(_0x2878c1,_0x388436){_0x2878c1=_0x2878c1-(-0x2085+-0x106c+0x32bd);const _0x5ad459=_0x2e35();let _0x526b70=_0x5ad459[_0x2878c1];if(_0x5d64['vmKnav']===undefined){var _0x1d7838=function(_0x2652cb){const _0xc35f5d='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x2d8041='';let _0x1fd1f8='';let _0x3c638b=_0x2d8041+_0x1d7838;let _0x42d9d4=(''+function(){return-0x136+-0x224a+0x2380;})['indexOf']('\x0a')!==-(-0xc1*-0x3+-0x19*0x159+0x1f6f);for(let _0x59b817=0xa9*0x36+0x81b*0x2+-0x19ee*0x2,_0x35791d,_0xc5d4c2,_0x109be3=0x442+0x1c9e+-0x20e0;_0xc5d4c2=_0x2652cb['charAt'](_0x109be3++);~_0xc5d4c2&&(_0x35791d=_0x59b817%(0x19*0x11+-0x521+0x37c)?_0x35791d*(0x1c9b+-0x1*-0x2396+-0x3ff1)+_0xc5d4c2:_0xc5d4c2,_0x59b817++%(0x1cab+-0x1*0x24c6+0x2b5*0x3))?_0x2d8041+=_0x42d9d4||_0x3c638b['charCodeAt'](_0x109be3+(0xf2c+0x3f1*-0x3+-0x34f))-(-0x1*-0x1052+-0x22cb+0x1283)!==-0x144a+0x1*-0x653+0x9*0x2f5?String['fromCharCode'](0x180d+0x204e+-0x375c&_0x35791d>>(-(-0x8*-0x233+0x15ab+-0x2741)*_0x59b817&-0x2*0xbd3+0xe64*0x1+0x948)):_0x59b817:0x9c9+-0x1fc9+0x1600){_0xc5d4c2=_0xc35f5d['indexOf'](_0xc5d4c2);}for(let _0x1bbaf5=0x827*-0x4+0x1937+0x765,_0x305482=_0x2d8041['length'];_0x1bbaf5<_0x305482;_0x1bbaf5++){_0x1fd1f8+='%'+('00'+_0x2d8041['charCodeAt'](_0x1bbaf5)['toString'](0x2*-0x715+0x9*0x1c1+-0x18f))['slice'](-(0x13*0xd9+-0x8b*-0x29+0x7ac*-0x5));}return decodeURIComponent(_0x1fd1f8);};_0x5d64['bZiHAw']=_0x1d7838;_0x5d64['NzvZiv']={};_0x5d64['vmKnav']=!![];}const _0x219f6d=_0x5ad459[-0x8af*-0x1+-0x13e2+0xb33*0x1];const _0x546a36=_0x2878c1+_0x219f6d;const _0x2f6f1e=_0x5d64['NzvZiv'][_0x546a36];if(!_0x2f6f1e){const _0x42ba43=function(_0x356fba){this['UmlIde']=_0x356fba;this['piQVRa']=[0x220a+0x782+0x3*-0xdd9,0xe1b*-0x1+-0x2043+0x2e5e,0x1*-0x1cc9+-0x6ec+-0x23b5*-0x1];this['kEhNCK']=function(){return'newState';};this['ycGAqV']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['ktvWeH']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x42ba43['prototype']['DQbzar']=function(){const _0x1a1151=new RegExp(this['ycGAqV']+this['ktvWeH']);const _0x5621bd=_0x1a1151['test'](this['kEhNCK']['toString']())?--this['piQVRa'][0xeaa*-0x1+0x19*0x57+0x62c]:--this['piQVRa'][0x16ca*0x1+-0x1126*-0x1+-0x27f0];return this['ACcXmR'](_0x5621bd);};_0x42ba43['prototype']['ACcXmR']=function(_0x5f1ce1){if(!Boolean(~_0x5f1ce1)){return _0x5f1ce1;}return this['NnYnPf'](this['UmlIde']);};_0x42ba43['prototype']['NnYnPf']=function(_0x373eda){for(let _0x55b2e9=-0x1f7b+-0x185e+0x37d9,_0xaeb730=this['piQVRa']['length'];_0x55b2e9<_0xaeb730;_0x55b2e9++){this['piQVRa']['push'](Math['round'](Math['random']()));_0xaeb730=this['piQVRa']['length'];}return _0x373eda(this['piQVRa'][0x7cd*-0x3+0x3f*-0x59+0x2d4e]);};if((''+function(){return-0x18c9+-0x315+0x1bde;})['indexOf']('\x0a')===-(-0x1*-0x745+0x1*-0x14bc+0xd78*0x1)){new _0x42ba43(_0x5d64)['DQbzar']();}_0x526b70=_0x5d64['bZiHAw'](_0x526b70);_0x5d64['NzvZiv'][_0x546a36]=_0x526b70;}else{_0x526b70=_0x2f6f1e;}return _0x526b70;}const gameScreen=document[_0x258b0e(0x274)+_0x258b0e(0x242)+_0x258b0e(0x24d)](_0x258b0e(0x224)+_0x258b0e(0x210)+'n');const endScreen=document['getEl'+_0x258b0e(0x242)+'ById'](_0x258b0e(0x22b)+_0x258b0e(0x234));const caseCurrent=document[_0x258b0e(0x274)+_0x258b0e(0x242)+_0x258b0e(0x24d)](_0x258b0e(0x1f2)+_0x258b0e(0x220)+'nt');const caseTotal=document['getEl'+'ement'+'ById']('case-'+_0x258b0e(0x1da));const progressFill=document[_0x258b0e(0x274)+_0x258b0e(0x242)+_0x258b0e(0x24d)](_0x258b0e(0x248)+'ess-f'+_0x258b0e(0x1f0));const scoreDisplay=document[_0x258b0e(0x274)+'ement'+_0x258b0e(0x24d)](_0x258b0e(0x201)+'-disp'+_0x258b0e(0x1f7));const caseExpression=document[_0x258b0e(0x274)+_0x258b0e(0x242)+_0x258b0e(0x24d)](_0x258b0e(0x1f2)+_0x258b0e(0x285)+'ssion');const coeffOptions=document[_0x258b0e(0x274)+_0x258b0e(0x242)+_0x258b0e(0x24d)]('coeff'+'-opti'+'ons');const degreeOptions=document['getEl'+'ement'+'ById']('degre'+'e-opt'+_0x258b0e(0x2a2));const btnSolve=document['getEl'+'ement'+_0x258b0e(0x24d)]('btn-s'+'olve');const feedbackContent=document['getEl'+_0x258b0e(0x242)+_0x258b0e(0x24d)](_0x258b0e(0x1d4)+'ack-c'+'onten'+'t');const btnNext=document['getEl'+_0x258b0e(0x242)+'ById']('btn-n'+_0x258b0e(0x228));const endScoreNum=document['getEl'+_0x258b0e(0x242)+_0x258b0e(0x24d)](_0x258b0e(0x22b)+_0x258b0e(0x231)+'num');const endTotal=document['getEl'+'ement'+'ById'](_0x258b0e(0x225)+_0x258b0e(0x2b7));const endRank=document[_0x258b0e(0x274)+'ement'+'ById']('end-r'+_0x258b0e(0x1eb));const rhymeListEnd=document['getEl'+_0x258b0e(0x242)+'ById']('rhyme'+'-list'+'-end');function shuffleArray(_0x3e65cb){const _0x5d1e53=_0x258b0e;const _0x7cb78b={'cLOGo':function(_0x44b9cd,_0x3f63fc){return _0x44b9cd*_0x3f63fc;},'JAvNZ':function(_0x41a006,_0x5452d0){return _0x41a006+_0x5452d0;}};for(let _0xbc0433=_0x3e65cb['lengt'+'h']-(-0x3*-0x949+0x244a+-0xa*0x66a);_0xbc0433>-0x1bf7+0x11bb+0x4*0x28f;_0xbc0433--){const _0x44822a=Math[_0x5d1e53(0x288)](_0x7cb78b['cLOGo'](Math['rando'+'m'](),_0x7cb78b[_0x5d1e53(0x1d5)](_0xbc0433,-0x16f9*-0x1+0x5*-0x255+-0xb4f)));[_0x3e65cb[_0xbc0433],_0x3e65cb[_0x44822a]]=[_0x3e65cb[_0x44822a],_0x3e65cb[_0xbc0433]];}return _0x3e65cb;}function startGame(){const _0x2d792d=_0x258b0e;const _0x42c86f={'OTIFh':_0x2d792d(0x1e8)+'e'};currentIndex=0x308+-0xc78+0x10*0x97;score=0x19*0x64+-0xfcd+0x609;allRhymes=[];isSolved=![];selectedCoeff=null;selectedDegree=null;startScreen[_0x2d792d(0x1e1)+_0x2d792d(0x20e)][_0x2d792d(0x26f)+'e'](_0x2d792d(0x1e8)+'e');endScreen[_0x2d792d(0x1e1)+_0x2d792d(0x20e)][_0x2d792d(0x26f)+'e'](_0x2d792d(0x1e8)+'e');gameScreen['class'+'List']['add'](_0x42c86f[_0x2d792d(0x272)]);caseTotal[_0x2d792d(0x26d)+_0x2d792d(0x2a8)+'t']=totalCases;updateHeader();renderCase();}function renderCase(){const _0x190968=_0x258b0e;const _0x1ff4ea={'EqeTU':_0x190968(0x27a)+'n','gvBBm':'optio'+_0x190968(0x25b),'FFXBK':_0x190968(0x205),'xwuaE':'corre'+_0x190968(0x273)+_0x190968(0x267),'rVAHZ':_0x190968(0x262)+_0x190968(0x1e4)+'al','qsczu':function(_0x488f98,_0x59715f){return _0x488f98+_0x59715f;},'GKWDg':function(_0x43aa59){return _0x43aa59();},'xyNps':'.opti'+'on-bt'+'n'};const _0x2647ee=CASES[currentIndex];caseExpression['textC'+_0x190968(0x2a8)+'t']=_0x2647ee[_0x190968(0x285)+_0x190968(0x20b)];caseCurrent['textC'+_0x190968(0x2a8)+'t']=_0x1ff4ea['qsczu'](currentIndex,-0x4c0*-0x2+0x2*-0x100a+0x1695);_0x1ff4ea['GKWDg'](updateHeader);selectedCoeff=null;selectedDegree=null;isSolved=![];coeffOptions[_0x190968(0x26c)+'HTML']='';degreeOptions[_0x190968(0x26c)+_0x190968(0x25a)]='';const _0x4480bb=[..._0x2647ee['coeff'+_0x190968(0x23c)+'ns']];if(!_0x4480bb[_0x190968(0x283)+_0x190968(0x271)](_0x2647ee['coeff'])){_0x4480bb[0x7*0x427+-0x1c4a+0xc7*-0x1]=_0x2647ee[_0x190968(0x23f)];}shuffleArray(_0x4480bb);_0x4480bb['forEa'+'ch'](_0x24a77b=>{const _0x204c74=_0x190968;const _0x5040db=document[_0x204c74(0x1e7)+'eElem'+_0x204c74(0x1f8)](_0x1ff4ea['EqeTU']);_0x5040db['class'+_0x204c74(0x2ae)]=_0x1ff4ea['gvBBm'];_0x5040db[_0x204c74(0x26d)+'onten'+'t']=_0x24a77b;_0x5040db[_0x204c74(0x215)+'et']['value']=_0x24a77b;_0x5040db[_0x204c74(0x217)+_0x204c74(0x29c)+'stene'+'r'](_0x1ff4ea[_0x204c74(0x24e)],()=>selectCoeff(_0x24a77b,_0x5040db));coeffOptions[_0x204c74(0x214)+'dChil'+'d'](_0x5040db);});const _0x22ec26=[..._0x2647ee[_0x190968(0x28d)+_0x190968(0x222)+_0x190968(0x299)]];if(!_0x22ec26[_0x190968(0x283)+_0x190968(0x271)](_0x2647ee[_0x190968(0x28d)+'e'])){_0x22ec26[0x63*0x2b+0x1*-0x87f+-0x822]=_0x2647ee['degre'+'e'];}shuffleArray(_0x22ec26);_0x22ec26[_0x190968(0x2ac)+'ch'](_0x50bb29=>{const _0x565445=_0x190968;const _0x1878b6=document[_0x565445(0x1e7)+_0x565445(0x1dd)+'ent'](_0x565445(0x27a)+'n');_0x1878b6[_0x565445(0x1e1)+_0x565445(0x2ae)]=_0x1ff4ea[_0x565445(0x270)];_0x1878b6[_0x565445(0x26d)+_0x565445(0x2a8)+'t']=_0x50bb29;_0x1878b6[_0x565445(0x215)+'et']['value']=_0x50bb29;_0x1878b6[_0x565445(0x217)+'entLi'+_0x565445(0x260)+'r'](_0x1ff4ea[_0x565445(0x24e)],()=>selectDegree(_0x50bb29,_0x1878b6));degreeOptions[_0x565445(0x214)+_0x565445(0x25f)+'d'](_0x1878b6);});btnSolve[_0x190968(0x211)+'led']=!![];btnSolve[_0x190968(0x26d)+_0x190968(0x2a8)+'t']=_0x190968(0x2b0);btnSolve['class'+'Name']=_0x190968(0x22d)+'olve';feedbackContent[_0x190968(0x26c)+_0x190968(0x25a)]='';btnNext[_0x190968(0x1e1)+_0x190968(0x20e)]['add']('hidde'+'n');document[_0x190968(0x286)+'Selec'+_0x190968(0x1df)+'l'](_0x1ff4ea[_0x190968(0x216)])['forEa'+'ch'](_0x42ee3e=>{const _0x40e829=_0x190968;_0x42ee3e['class'+_0x40e829(0x20e)]['remov'+'e'](_0x40e829(0x212)+_0x40e829(0x251),'selec'+'ted-d'+_0x40e829(0x289),_0x1ff4ea[_0x40e829(0x249)],_0x1ff4ea['rVAHZ']);_0x42ee3e[_0x40e829(0x211)+_0x40e829(0x261)]=![];});}function selectCoeff(_0x2b0440,_0x5201c8){const _0x288f27=_0x258b0e;const _0x2a0eb2={'zmpcy':'selec'+'ted','DNLjk':_0x288f27(0x1fb)+'on-bt'+'n'};if(isSolved)return;selectedCoeff=_0x2b0440;coeffOptions['query'+'Selec'+'torAl'+'l'](_0x2a0eb2[_0x288f27(0x21d)])['forEa'+'ch'](_0x4c1db2=>{const _0x134ef3=_0x288f27;_0x4c1db2[_0x134ef3(0x1e1)+'List'][_0x134ef3(0x26f)+'e'](_0x2a0eb2[_0x134ef3(0x1ff)]);});_0x5201c8[_0x288f27(0x1e1)+_0x288f27(0x20e)][_0x288f27(0x24c)](_0x288f27(0x212)+_0x288f27(0x251));checkCanSolve();}function selectDegree(_0x833313,_0x52d3a6){const _0x4372dd=_0x258b0e;const _0x8a75ae={'rTlgJ':'selec'+_0x4372dd(0x2a6)+'egree'};if(isSolved)return;selectedDegree=_0x833313;degreeOptions[_0x4372dd(0x286)+'Selec'+_0x4372dd(0x1df)+'l']('.opti'+'on-bt'+'n')['forEa'+'ch'](_0x33e581=>{const _0x40af3a=_0x4372dd;_0x33e581[_0x40af3a(0x1e1)+_0x40af3a(0x20e)][_0x40af3a(0x26f)+'e'](_0x8a75ae['rTlgJ']);});_0x52d3a6[_0x4372dd(0x1e1)+_0x4372dd(0x20e)]['add'](_0x8a75ae[_0x4372dd(0x1db)]);checkCanSolve();}function checkCanSolve(){const _0x501556=_0x258b0e;btnSolve[_0x501556(0x211)+_0x501556(0x261)]=!(selectedCoeff!==null&&selectedDegree!==null);}function solveCase(){const _0x2ea248=_0x258b0e;const _0x3be2f0={'WHZSt':'corre'+_0x2ea248(0x273)+_0x2ea248(0x267),'utaOF':_0x2ea248(0x262)+'-reve'+'al','YJVmc':function(_0x30dcfe,_0x4b4b4a){return _0x30dcfe===_0x4b4b4a;},'Iboag':function(_0x1d577a,_0x5c1393){return _0x1d577a(_0x5c1393);},'vBeez':function(_0x531b77,_0x5be430){return _0x531b77===_0x5be430;},'eOhzj':function(_0x9b7bfa,_0x241208){return _0x9b7bfa(_0x241208);},'KijoP':function(_0xd7e387,_0x1e4dfd){return _0xd7e387===_0x1e4dfd;},'gpCyQ':function(_0x5ec57b,_0x4032b9){return _0x5ec57b===_0x4032b9;},'MxrAG':function(_0x153a80,_0x264460){return _0x153a80(_0x264460);},'SAWGC':function(_0x92cce5,_0x312f5b){return _0x92cce5(_0x312f5b);},'MYUOP':function(_0x314c69,_0x48efdf){return _0x314c69&&_0x48efdf;},'sTijV':function(_0x14435a,_0x34a906){return _0x14435a<=_0x34a906;},'RSBqS':_0x2ea248(0x1e3),'SpxdP':_0x2ea248(0x26a)+'n','henpE':'📊\x20查看结'+_0x2ea248(0x1ce)};if(isSolved)return;if(_0x3be2f0[_0x2ea248(0x23a)](selectedCoeff,null)||_0x3be2f0[_0x2ea248(0x2b8)](selectedDegree,null))return;const _0x424208=CASES[currentIndex];const _0x518636=_0x3be2f0[_0x2ea248(0x23a)](_0x3be2f0[_0x2ea248(0x28a)](String,selectedCoeff),_0x3be2f0['MxrAG'](String,_0x424208[_0x2ea248(0x23f)]));const _0x33cf82=_0x3be2f0[_0x2ea248(0x1d6)](_0x3be2f0['SAWGC'](Number,selectedDegree),Number(_0x424208[_0x2ea248(0x28d)+'e']));const _0x33e652=_0x3be2f0[_0x2ea248(0x29f)](_0x518636,_0x33cf82);isSolved=!![];document['query'+'Selec'+'torAl'+'l']('.opti'+_0x2ea248(0x223)+'n')[_0x2ea248(0x2ac)+'ch'](_0x4d0db0=>{const _0x147a47=_0x2ea248;_0x4d0db0['disab'+_0x147a47(0x261)]=!![];});const _0x4619f6=coeffOptions['query'+_0x2ea248(0x26e)+'torAl'+'l'](_0x2ea248(0x1fb)+_0x2ea248(0x223)+'n');const _0x47bf78=degreeOptions[_0x2ea248(0x286)+_0x2ea248(0x26e)+_0x2ea248(0x1df)+'l'](_0x2ea248(0x1fb)+'on-bt'+'n');_0x4619f6[_0x2ea248(0x2ac)+'ch'](_0x19e66d=>{const _0x3ecbf2=_0x2ea248;if(String(_0x19e66d[_0x3ecbf2(0x215)+'et'][_0x3ecbf2(0x1d0)])===String(_0x424208[_0x3ecbf2(0x23f)])){_0x19e66d[_0x3ecbf2(0x1e1)+_0x3ecbf2(0x20e)][_0x3ecbf2(0x24c)](_0x3be2f0['WHZSt']);}else if(_0x19e66d['datas'+'et'][_0x3ecbf2(0x1d0)]===selectedCoeff&&!_0x518636){_0x19e66d[_0x3ecbf2(0x1e1)+_0x3ecbf2(0x20e)][_0x3ecbf2(0x24c)](_0x3be2f0['utaOF']);}});_0x47bf78[_0x2ea248(0x2ac)+'ch'](_0x3eafd3=>{const _0x155d13=_0x2ea248;if(_0x3be2f0['YJVmc'](_0x3be2f0[_0x155d13(0x253)](Number,_0x3eafd3[_0x155d13(0x215)+'et'][_0x155d13(0x1d0)]),Number(_0x424208[_0x155d13(0x28d)+'e']))){_0x3eafd3[_0x155d13(0x1e1)+'List'][_0x155d13(0x24c)](_0x3be2f0[_0x155d13(0x1ee)]);}else if(_0x3be2f0['vBeez'](_0x3be2f0[_0x155d13(0x1d7)](Number,_0x3eafd3[_0x155d13(0x215)+'et']['value']),Number(selectedDegree))&&!_0x33cf82){_0x3eafd3[_0x155d13(0x1e1)+'List'][_0x155d13(0x24c)](_0x3be2f0[_0x155d13(0x264)]);}});if(_0x33e652){score++;scoreDisplay['textC'+_0x2ea248(0x2a8)+'t']=score;}let _0xfd8229='';if(_0x33e652){_0xfd8229='\x0a\x20\x20\x20\x20'+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+'\x20<div'+_0x2ea248(0x22c)+_0x2ea248(0x21f)+'edbac'+_0x2ea248(0x1f1)+_0x2ea248(0x254)+_0x2ea248(0x1ef)+'>\x0a\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x2b1)+_0x2ea248(0x22c)+'s=\x22fe'+_0x2ea248(0x290)+_0x2ea248(0x202)+_0x2ea248(0x2a1)+_0x2ea248(0x28e)+_0x2ea248(0x284)+'t\x22>\x0a\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+'\x20\x20\x20\x20\x20'+_0x2ea248(0x241)+'an\x20cl'+_0x2ea248(0x23d)+_0x2ea248(0x20d)+_0x2ea248(0x24a)+'pan>\x20'+_0x2ea248(0x25e)+'完全正确！'+_0x2ea248(0x2b2)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x294)+'>\x0a\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x2b1)+_0x2ea248(0x22c)+_0x2ea248(0x21f)+'edbac'+_0x2ea248(0x24b)+_0x2ea248(0x1fa)+'\x0a\x20\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x20a)+_0x2ea248(0x2a4)+'rong>'+_0x424208[_0x2ea248(0x23f)]+(_0x2ea248(0x1ea)+_0x2ea248(0x219)+_0x2ea248(0x2bb)+_0x2ea248(0x2bc)+'<stro'+'ng>')+_0x424208[_0x2ea248(0x28d)+'e']+(_0x2ea248(0x1ea)+_0x2ea248(0x219)+'确认无误！'+_0x2ea248(0x2b2)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+'\x20\x20\x20\x20\x20'+_0x2ea248(0x294)+'>\x0a\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x2b1)+_0x2ea248(0x22c)+_0x2ea248(0x21f)+_0x2ea248(0x290)+_0x2ea248(0x26b)+_0x2ea248(0x295))+_0x424208['rhyme']+(_0x2ea248(0x294)+_0x2ea248(0x252)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x236)+_0x2ea248(0x29d)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b));allRhymes['push'](_0x424208[_0x2ea248(0x24f)]);}else{let _0x3fa66d='';if(!_0x518636&&!_0x33cf82){_0x3fa66d=_0x2ea248(0x2ab)+'都侦探错了'+'🧐\x20系数应'+'该是\x20<s'+'trong'+'>'+_0x424208['coeff']+(_0x2ea248(0x1ea)+'ong>，'+'次数应该是'+'\x20<str'+_0x2ea248(0x269))+_0x424208[_0x2ea248(0x28d)+'e']+(_0x2ea248(0x1ea)+'ong>。');}else if(!_0x518636){_0x3fa66d='系数侦探错'+_0x2ea248(0x21e)+_0x2ea248(0x232)+_0x2ea248(0x276)+'g>'+_0x424208[_0x2ea248(0x23f)]+('</str'+'ong>，'+'次数你找对'+'了！（')+_0x424208[_0x2ea248(0x28d)+'e']+'）';}else{_0x3fa66d=_0x2ea248(0x1f6)+'了🧐\x20次数'+_0x2ea248(0x232)+_0x2ea248(0x276)+'g>'+_0x424208[_0x2ea248(0x28d)+'e']+(_0x2ea248(0x1ea)+_0x2ea248(0x1e5)+_0x2ea248(0x2ba)+_0x2ea248(0x2a3))+_0x424208['coeff']+'）';}_0xfd8229=_0x2ea248(0x2b2)+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x2b1)+_0x2ea248(0x22c)+'s=\x22fe'+_0x2ea248(0x290)+'k-car'+_0x2ea248(0x25d)+'ng\x22>\x0a'+'\x20\x20\x20\x20\x20'+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+'\x20\x20\x20\x20<'+_0x2ea248(0x22f)+_0x2ea248(0x2b9)+_0x2ea248(0x2b6)+'back-'+'resul'+'t\x20wro'+_0x2ea248(0x279)+'xt\x22>\x0a'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+'\x20\x20\x20<s'+'pan\x20c'+_0x2ea248(0x2b9)+_0x2ea248(0x20f)+_0x2ea248(0x244)+'span>'+'\x20有点偏差'+'，再记牢！'+_0x2ea248(0x2b2)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x294)+_0x2ea248(0x252)+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20'+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+'\x20<div'+'\x20clas'+_0x2ea248(0x21f)+'edbac'+'k-det'+_0x2ea248(0x1fa)+_0x3fa66d+('</div'+'>\x0a\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x2b1)+_0x2ea248(0x22c)+_0x2ea248(0x21f)+'edbac'+_0x2ea248(0x26b)+_0x2ea248(0x295))+_0x424208[_0x2ea248(0x24f)]+(_0x2ea248(0x294)+'>\x0a\x20\x20\x20'+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+_0x2ea248(0x29b)+_0x2ea248(0x236)+_0x2ea248(0x29d)+'\x20\x20\x20\x20\x20'+_0x2ea248(0x29b)+'\x20\x20\x20\x20\x20');if(_0x3be2f0[_0x2ea248(0x237)](allRhymes[_0x2ea248(0x204)+'h'],currentIndex)){allRhymes[_0x2ea248(0x291)](_0x424208[_0x2ea248(0x24f)]);}}feedbackContent[_0x2ea248(0x26c)+_0x2ea248(0x25a)]=_0xfd8229;btnSolve['textC'+'onten'+'t']='✅\x20已破案';btnSolve[_0x2ea248(0x1e1)+_0x2ea248(0x2ae)]=_0x2ea248(0x22d)+'olve\x20'+_0x2ea248(0x22a)+'d';btnSolve['disab'+_0x2ea248(0x261)]=!![];if(currentIndex<totalCases-(-0x1a*0x97+0xde8+0x16f)){btnNext[_0x2ea248(0x26d)+_0x2ea248(0x2a8)+'t']=_0x3be2f0['RSBqS'];btnNext[_0x2ea248(0x1e1)+_0x2ea248(0x20e)]['remov'+'e'](_0x3be2f0[_0x2ea248(0x1d9)]);}else{btnNext[_0x2ea248(0x26d)+_0x2ea248(0x2a8)+'t']=_0x3be2f0[_0x2ea248(0x21b)];btnNext[_0x2ea248(0x1e1)+'List'][_0x2ea248(0x26f)+'e'](_0x3be2f0[_0x2ea248(0x1d9)]);}updateHeader();}function nextCase(){const _0x351519=_0x258b0e;const _0x3998db={'AIQIF':function(_0x5685eb,_0x2ae683){return _0x5685eb<_0x2ae683;},'oRARR':function(_0x199e50){return _0x199e50();}};if(_0x3998db['AIQIF'](currentIndex,totalCases-(-0x1b24+0x608*-0x2+-0x2735*-0x1))){currentIndex++;_0x3998db[_0x351519(0x246)](renderCase);gameScreen[_0x351519(0x206)+'lInto'+_0x351519(0x1e2)]({'behavior':'smoot'+'h','block':'neare'+'st'});}else{_0x3998db['oRARR'](showEndScreen);}}function updateHeader(){const _0x37e6f9=_0x258b0e;const _0x19af7c={'cyTFT':function(_0xee00a5,_0x42b3a5){return _0xee00a5*_0x42b3a5;},'HuZzB':function(_0x373d3c,_0x1959f1){return _0x373d3c/_0x1959f1;},'iISPO':function(_0x2644c9,_0x457c46){return _0x2644c9+_0x457c46;}};const _0x4671d5=_0x19af7c[_0x37e6f9(0x1e0)](_0x19af7c['HuZzB'](currentIndex+(isSolved?0x2*-0xd69+-0x3*0x65e+0x1*0x2ded:0x17b*-0x1+0x6*-0x565+0x21d9),totalCases),0xa4c+-0xda6*0x2+0x1164);progressFill['style']['width']=Math[_0x37e6f9(0x227)](_0x4671d5,-0x1643+-0x2162+0x3809)+'%';scoreDisplay['textC'+'onten'+'t']=score;caseCurrent[_0x37e6f9(0x26d)+'onten'+'t']=_0x19af7c[_0x37e6f9(0x1e9)](currentIndex,0x24ca+0x5*-0x16d+0x3b5*-0x8);}function showEndScreen(){const _0x26bfaf=_0x258b0e;const _0x3800c6={'Vshjb':_0x26bfaf(0x1e8)+'e','WjGVw':function(_0x4ad466,_0x312d0b){return _0x4ad466/_0x312d0b;},'XOZHh':_0x26bfaf(0x1d8)+'侦探\x20🏅','EvjcK':function(_0x14b70e,_0x261f01){return _0x14b70e>=_0x261f01;},'IEofl':_0x26bfaf(0x27f)+'探','UYEEo':_0x26bfaf(0x218)+'探','NiOGQ':'📚\x20实习探'+_0x26bfaf(0x277)+_0x26bfaf(0x239),'DCiCi':_0x26bfaf(0x200)+_0x26bfaf(0x2af)+_0x26bfaf(0x28f)+'/li>'};gameScreen[_0x26bfaf(0x1e1)+_0x26bfaf(0x20e)][_0x26bfaf(0x26f)+'e']('activ'+'e');endScreen[_0x26bfaf(0x1e1)+_0x26bfaf(0x20e)]['add'](_0x3800c6['Vshjb']);endScoreNum[_0x26bfaf(0x26d)+_0x26bfaf(0x2a8)+'t']=score;endTotal[_0x26bfaf(0x26d)+'onten'+'t']=totalCases;let _0x485ca2='';const _0x1fffd9=_0x3800c6[_0x26bfaf(0x1e6)](score,totalCases);if(_0x1fffd9===-0x1426+-0x287+0x16ae)_0x485ca2=_0x3800c6['XOZHh'];else if(_0x3800c6[_0x26bfaf(0x2a7)](_0x1fffd9,0x6*0x193+-0x1396*0x1+-0x512*-0x2+0.8))_0x485ca2=_0x3800c6[_0x26bfaf(0x209)];else if(_0x3800c6['EvjcK'](_0x1fffd9,-0x1fa7*0x1+-0x180e*0x1+0x37b5+0.6))_0x485ca2=_0x3800c6['UYEEo'];else if(_0x3800c6[_0x26bfaf(0x2a7)](_0x1fffd9,0x217f+-0x1*0x23f9+-0x2*-0x13d+0.4))_0x485ca2=_0x26bfaf(0x28b)+'探';else _0x485ca2=_0x3800c6[_0x26bfaf(0x292)];endRank['textC'+'onten'+'t']=_0x485ca2;const _0x5ce4ce=[...new Set(allRhymes)];let _0x169f02='';_0x5ce4ce[_0x26bfaf(0x2ac)+'ch'](_0x4f32df=>{const _0x52e36d=_0x26bfaf;_0x169f02+=_0x52e36d(0x27e)+_0x4f32df+_0x52e36d(0x257);});if(_0x169f02===''){_0x169f02=_0x3800c6[_0x26bfaf(0x297)];}rhymeListEnd[_0x26bfaf(0x26c)+'HTML']=_0x169f02;}function restartGame(){const _0x522c45=_0x258b0e;allRhymes=[];endScreen[_0x522c45(0x1e1)+'List']['remov'+'e']('activ'+'e');startGame();}caseTotal['textC'+'onten'+'t']=totalCases;endTotal[_0x258b0e(0x26d)+'onten'+'t']=totalCases;console['log'](_0x258b0e(0x221)+_0x258b0e(0x229)+_0x258b0e(0x1ed)+'！');function _0x2e35(){const _0x453772=['5PcE6zsz77Yb57o75PwW','5yMn6z2I77Yb5QYH5PwW','mtmZrwLnCePg','iMzLzwq','B3rHBa','z3bdEve','BgfZCZ0','57o75PwW5l2G5OM+5A+5','5BEY6kkR57Yj5OU/77Ym','5QYH5PwW562j57QNia','mZq5mZK5nLHrqwfVrq','Aw5N','5Qgi5OQL5zgk','mtq0odCYohPIqNPzua','DMfSDwu','ltv4','6l+B77Ym5A2x5Q+n5OYh','5PIV5PwW5A2x5lMy77Ym','zMvLzgi','sKf2tLO','DKjLzxO','zu9OEMO','8j+pHsdKVkdLPyFLPkC','u3b4zfa','Dg90ywW','CLrSz0O','Eo+8JoAmH+AvSos4UG','zuvSzw0','77Ym6lsF5y+35yIR5lII','Dg9YqwW','y3LurLq','y2XHC3m','vMLLDW','4P6H77Ipios4I+s4GoAHIa','lxjLDMu','B25NpU+8Ja','v2PhvNC','y3jLyxq','ywn0Axy','AuLtue8','pc9ZDhi','yw5R','y29UC3q','77Ym5yEg5Ash56c05Qgi','v0HAu3q','CMvJDci','AwXS','AY1Jyxi','y2fZzs0','6kAb57Ug5B+d44cc','8j+oRYdLIiBMLBdKUz8','6zQq6lQR6AUy5OMl6kAb','5QYH5PwW5l6M5O6I6zsz','Bgf5','zw50','EmkYEq','ywLSiJ4','lM9WDgK','5QYHEEs4PoASOE+8Ja','CNvJDg8','5PIV57o75PwW5zcB77Ym','EM1Wy3K','pgXPpUE7PW','C2nVCMu','AY1Yzxm','EhNcSG','BgvUz3q','y2XPy2S','C2nYB2W','mZqYmtC2CgvPuvzA','m3JcSG','suvVzMW','icaGioEZUW','C3nPB24','Z4bYWRi','AwnVBIi','tgLZDa','iMLJB24','C2nYzwu','zgLZywi','C2vSzwm','8j+oRYdLSi/MLBdNS7S','yxbWzw4','zgf0yxm','EhLoChm','ywrKrxy','8j+tIYdOTytMT7hKVQy','B25NpIa','6kAb55Yl5OYh5PwW5zkm','AgvUCeu','mc41EhK','re5mAMS','5lQg8j+NKcdNS7VMLBa','CZ0IzMu','y3vYCMu','8j+uJsdLJzxPOBNLVi8','zu9WDgK','B24TyNq','z2fTzs0','zw5Klxq','77YmEow5S+AwUxK','BwLU','zxH0','5l6M5O6I5BEY5yQG6l29','C29SDMu','zw5Klxm','ignSyxm','yNrUlxm','5PIV562u5Qgi44cc','zgL2igm','5PwW5OMn5PIV55YF44cc','y29Yzs0','5BQu6k+L5PIVidW','lxnJCMu','y3jLzw4','mc41','ica8l2q','C1rPALy','8j+oRYdNS7VMLBdKUlO','5Rk577Yb77Yj','s2LQB1a','yxbWBhK','t3b0Aw8','yxnZpsi','5PwW5yIR5OQkZ4dNRPC','y29LzMy','lxJcSG','ica8C3a','zw1LBNq','77Ym5QYH5PwW5lI66zU2','iJ7WN5snpc8','5RkH5PwW5BcX5PIVmq','B1jbuLi','5PwW5zYO5lIa6lw377Ym','ChjVz3i','EhD1yuu','pUkCHtWVCW','AY1Kzxq','ywrK','qNLjza','rKzyqKS','CMH5Bwu','5Q+n57o75PwWmE+8Ja','DgvK','pGOGica','swjVywC','zcbJB3i','8j+oRYdOTj/LJ7FLIiy','5A2x5QYH5PwWmo+8Ja','pc9SAt4','nduWmdq3nwTOz3DetG','mZG1mdaYmfvYr2fZzG','sfrnta','BI1IDg4','6lsF5lIa5lMF6kAb5yAz','zcb3CM8','56c05Qgi5OIq5yQF77Yb','zenOAwW','C3rLBMu','BgvK','D3jVBMC','5ywj5P2g5y+45lUK5yIR','DxrHt0y','55QU5yIR5RYp5O6j77Ym','m09wzuDPqW','DMvHBa','8j+oRYdOTj/LJ7FOSim','B25NpG','AgLKzgu','AY1YAhK','Aw5Uzxi','Dgv4Dem','u2vSzwm','CMvTB3y','z3zcqM0','zgvZ','t1rjrMG','y3qTCMu','z2v0rwW','5yQG5lIa6lw344cc','C3rYB24','5zgy77Yi57UN57UT5yQG','kcGOlIS','BMCTDgu','yNv0Dg8','54MI6k6W77Yb5yMn6z2I','ksSPkYK','5lIa5QYH5B6x5lIj44cc','pgXPpG','8j+vTE+4JYdPH5hNIyZNPz4','57o75PwW5BIM5A6d5OMn','vK9Is2m','8j+oRYdLJzxNI6ZMLBa','Aw5JBhu','Dc10zxG','zxHWCMu','CxvLCNK','77Ym5QYH5PwW5B2t54s2','zMXVB3i','zwDYzwu','txHYquC','8j+uJsdOP4hKUAdKVQy','8j+oRYdpGoAyR+AvSa','zgvNCMu','B3jYzwm','5QYH56c05Qgi77Ybpa','zwrIywm','ChvZAa','tMLpr1e','5y+Q55Yl5A2x5Q+n5OYh','pc9KAxy','BwuIpG','5yQG6lw35P2L5lIa5ywX','renPq2K','mJe2ndKYnfjKv1bMyq','B25Z','mS+aEa','icaGica','zw50tgK','Axy+cIa','mZy2mZi2mdfxwurWy1O','tvLvt1a','5BcX5PIV5A6d6iEQ5BEX','DwX0igm','Aw9UCW','5lQg77Yb77Yi','5PwWidXZDa','5A6d5ygA5lI777Yb5QYH','DgvKlwq','rxzQy0S','B250zw4','8j+oRYdLJzxNI6ZLRzC','C3rHCNq','57o75PwW5zkm5QYH5PwW','zM9Yrwe','Dg9tDhi','tMfTzq','57UT5yQQ5yQB77Ym5lIl','8j+uJIdNOltMOyJVVie','idXKAxy','cIaGica'];_0x2e35=function(){return _0x453772;};return _0x2e35();}</script>
+
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

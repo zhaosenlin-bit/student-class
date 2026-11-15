@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小蝌蚪找妈妈 · 推理剧场</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, system-ui, sans-serif;
+            background: #eaf7e1;
+            /* 浅色明亮基底，自然绿意 */
+        }
+
+        /* ── 浅色明亮 + 自然绿色系 ── */
+        :root {
+            --bg-deep: #d9e9d0;
+            --bg-panel: #f2f9ee;
+            --bg-panel-alt: #e4f0dc;
+            --border: #b8d4a8;
+            --text: #1e3a2f;
+            --text-dim: #4d6b57;
+            --accent: #2b7a4b;
+            --accent2: #e68a2e;
+            --accent3: #4caf50;
+            --accent4: #f5c542;
+            --danger: #c44536;
+            --panel-width: 280px;
+            --header-h: 48px;
+            --transition: 0.3s cubic-bezier(.4, 0, .2, 1);
+            --radius: 14px;
+            --shadow: 0 4px 12px rgba(0, 20, 10, 0.08);
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: var(--bg-deep);
+        }
+
+        #mobile-header {
+            display: none;
+        }
+
+        #main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── 左栏 ── */
+        #left-panel {
+            width: var(--panel-width);
+            min-width: var(--panel-width);
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding-bottom: 12px;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .panel-section {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-section:last-child {
+            border-bottom: none;
+        }
+        .panel-section h3 {
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+        .panel-section h3::before {
+            content: "";
+            display: inline-block;
+            width: 4px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        /* 步骤条 */
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 6px 0 4px;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: transparent;
+            font-size: 13px;
+            color: var(--text-dim);
+            transition: 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .step-item .step-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--bg-panel-alt);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--text-dim);
+            flex-shrink: 0;
+        }
+        .step-item.active {
+            background: var(--bg-panel-alt);
+            border-left-color: var(--accent2);
+            color: var(--text);
+            font-weight: 500;
+        }
+        .step-item.active .step-num {
+            background: var(--accent2);
+            color: white;
+        }
+        .step-item.done .step-num {
+            background: var(--accent3);
+            color: white;
+        }
+
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-panel-alt);
+            color: var(--text);
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn:hover {
+            border-color: var(--accent);
+            background: #dcecd2;
+            color: var(--accent);
+        }
+        .btn.active {
+            border-color: var(--accent2);
+            color: var(--accent2);
+            background: rgba(230, 138, 46, 0.12);
+        }
+        .btn.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(43, 122, 75, 0.08);
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            filter: grayscale(0.6);
+        }
+
+        /* ── 中栏 ── */
+        #center-panel {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #dcecd2;
+            /* 池塘基底 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scene-canvas {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: radial-gradient(ellipse at 30% 40%, #c6dfb8, #b3cf9e);
+        }
+
+        /* 场景卡片：动物 + 对话 */
+        .scene-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(6px);
+            border-radius: 32px;
+            padding: 28px 36px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 12px 40px rgba(30, 50, 30, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .scene-emoji {
+            font-size: 72px;
+            line-height: 1.2;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.05));
+        }
+        .scene-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 4px 0 2px;
+        }
+        .scene-desc {
+            font-size: 16px;
+            color: var(--text-dim);
+            margin: 6px 0 10px;
+            line-height: 1.5;
+            padding: 0 8px;
+        }
+        .scene-bubble {
+            background: rgba(255, 255, 240, 0.7);
+            border-radius: 20px;
+            padding: 14px 18px;
+            font-size: 15px;
+            color: #1e3a2f;
+            border-left: 4px solid var(--accent2);
+            margin: 10px 0 4px;
+            text-align: left;
+            line-height: 1.6;
+            box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.02);
+        }
+
+        /* 浮层知识卡 (用于总结) */
+        .info-card {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(242, 249, 238, 0.94);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            padding: 16px 24px;
+            max-width: 480px;
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.6;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s;
+            z-index: 6;
+            text-align: center;
+            backdrop-filter: blur(6px);
+            box-shadow: var(--shadow);
+        }
+        .info-card.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ── 右栏 ── */
+        #right-panel {
+            width: var(--panel-width);
+            min-width: var(--panel-width);
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            padding-bottom: 12px;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 7px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(60, 90, 60, 0.08);
+        }
+        .data-row .label {
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+        .data-row .value {
+            color: var(--text);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .ctrl-group {
+            margin: 6px 0 2px;
+        }
+        .ctrl-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 6px 0;
+        }
+        .ctrl-group label input[type="checkbox"] {
+            accent-color: var(--accent);
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .quiz-area {
+            background: var(--bg-panel-alt);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-top: 8px;
+        }
+        .quiz-question {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .quiz-btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .quiz-btn {
+            padding: 6px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+            color: var(--text);
+        }
+        .quiz-btn.yes {
+            border-color: var(--accent3);
+            color: var(--accent3);
+        }
+        .quiz-btn.yes:hover {
+            background: var(--accent3);
+            color: white;
+        }
+        .quiz-btn.no {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+        .quiz-btn.no:hover {
+            background: var(--danger);
+            color: white;
+        }
+        .quiz-feedback {
+            margin-top: 10px;
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: rgba(255, 255, 200, 0.4);
+            min-height: 40px;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* ── 响应式 ── */
+        @media (max-width: 900px) {
+            #mobile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 14px;
+                height: var(--header-h);
+                background: var(--bg-panel);
+                border-bottom: 1px solid var(--border);
+            }
+            #mobile-header h1 {
+                font-size: 17px;
+                color: var(--text);
+                font-weight: 600;
+            }
+            #mobile-header .btn {
+                font-size: 13px;
+                padding: 6px 14px;
+            }
+            #left-panel {
+                position: fixed;
+                left: 0;
+                top: var(--header-h);
+                bottom: 0;
+                z-index: 50;
+                margin-left: calc(-1 * var(--panel-width));
+                transition: margin-left var(--transition);
+                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08);
+            }
+            #left-panel.open {
+                margin-left: 0;
+            }
+            #right-panel {
+                position: fixed;
+                right: 0;
+                top: var(--header-h);
+                bottom: 0;
+                z-index: 50;
+                margin-right: calc(-1 * var(--panel-width));
+                transition: margin-right var(--transition);
+                box-shadow: -4px 0 20px rgba(0, 0, 0, 0.08);
+            }
+            #right-panel.open {
+                margin-right: 0;
+            }
+            .scene-card {
+                padding: 20px 18px;
+            }
+            .scene-emoji {
+                font-size: 56px;
+            }
+        }
+
+        /* 小工具 */
+        .mt-1 {
+            margin-top: 6px;
+        }
+        .mb-1 {
+            margin-bottom: 6px;
+        }
+        .flex {
+            display: flex;
+        }
+        .gap-2 {
+            gap: 8px;
+        }
+        .text-sm {
+            font-size: 13px;
+        }
+        .rounded-full {
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=473&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI0NzMiLCJleHAiOjE3OTQ1NjA3MTd9.pGwpcnpg2kphkTsca38Rc5uRf7XQv1alS1429EBvteQ",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+    <div id="app">
+        <!-- 移动端头 -->
+        <header id="mobile-header">
+            <button class="btn" id="btn-toggle-left">☰ 步骤</button>
+            <h1>🐸 小蝌蚪找妈妈</h1>
+            <button class="btn" id="btn-toggle-right">📋 信息</button>
+        </header>
+
+        <div id="main-layout">
+            <!-- 左栏：剧情控制 -->
+            <aside id="left-panel">
+                <div class="panel-section">
+                    <h3>🗺️ 剧情步骤</h3>
+                    <div class="step-list" id="stepList">
+                        <div class="step-item active" data-step="0"><span class="step-num">1</span> 出发！小蝌蚪</div>
+                        <div class="step-item" data-step="1"><span class="step-num">2</span> 鸭妈妈</div>
+                        <div class="step-item" data-step="2"><span class="step-num">3</span> 大鱼</div>
+                        <div class="step-item" data-step="3"><span class="step-num">4</span> 乌龟</div>
+                        <div class="step-item" data-step="4"><span class="step-num">5</span> 大白鹅</div>
+                        <div class="step-item" data-step="5"><span class="step-num">6</span> 青蛙妈妈</div>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn" id="prevBtn" disabled>⬅ 上一步</button>
+                        <button class="btn accent" id="nextBtn">下一步 ➡</button>
+                    </div>
+                    <div style="margin-top:8px;font-size:12px;color:var(--text-dim);">
+                        <span id="stepIndicator">第 1 / 6 步</span>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <h3>⚙️ 显示选项</h3>
+                    <div class="ctrl-group">
+                        <label><input type="checkbox" id="chkContrast" checked> 显示特征对比</label>
+                        <label><input type="checkbox" id="chkQuiz" checked> 推理问答</label>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 中栏：场景视口 -->
+            <main id="center-panel">
+                <div class="scene-canvas" id="sceneCanvas">
+                    <!-- 浮层知识卡 (总结时出现) -->
+                    <div class="info-card" id="summaryCard">
+                        <strong>🎉 恭喜你！</strong><br>
+                        小蝌蚪通过对比特征：大眼睛、白肚皮、四条腿、绿衣裳，终于找到了妈妈！<br>
+                        <span style="display:inline-block;margin-top:6px;font-size:13px;color:var(--accent);">✅ 变态发育：蝌蚪 → 青蛙</span>
+                    </div>
+
+                    <!-- 主场景卡片 -->
+                    <div class="scene-card" id="sceneCard">
+                        <div class="scene-emoji" id="sceneEmoji">🐸</div>
+                        <div class="scene-title" id="sceneTitle">小蝌蚪出发了</div>
+                        <div class="scene-desc" id="sceneDesc">在池塘里，小蝌蚪开始寻找妈妈……</div>
+                        <div class="scene-bubble" id="sceneBubble">“我的妈妈长什么样呢？她有大眼睛、白肚皮、四条腿、绿衣裳！”</div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 右栏：信息面板 (特征对比 + 推理问答) -->
+            <aside id="right-panel">
+                <div class="panel-section" id="contrastSection">
+                    <h3>📊 特征对比</h3>
+                    <div id="contrastTable">
+                        <div class="data-row"><span class="label">👀 大眼睛</span><span class="value" id="cEye">✓</span></div>
+                        <div class="data-row"><span class="label">🟡 白肚皮</span><span class="value" id="cBelly">✓</span></div>
+                        <div class="data-row"><span class="label">🦵 四条腿</span><span class="value" id="cLeg">✓</span></div>
+                        <div class="data-row"><span class="label">🧤 绿衣裳</span><span class="value" id="cSkin">✓</span></div>
+                        <div class="data-row" style="border-bottom:none;font-weight:600;color:var(--accent);"><span class="label">🎯 匹配度</span><span class="value" id="cMatch">4/4</span></div>
+                    </div>
+                </div>
+                <div class="panel-section" id="quizSection">
+                    <h3>🧠 推理问答</h3>
+                    <div class="quiz-area">
+                        <div class="quiz-question" id="quizQuestion">它是青蛙妈妈吗？</div>
+                        <div class="quiz-btn-group">
+                            <button class="quiz-btn yes" id="quizYes">✅ 是妈妈</button>
+                            <button class="quiz-btn no" id="quizNo">❌ 不是</button>
+                        </div>
+                        <div class="quiz-feedback" id="quizFeedback">👆 点击按钮做出判断</div>
+                    </div>
+                </div>
+                <div class="panel-section" style="border-bottom:none;">
+                    <h3>📖 推理逻辑</h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.6;" id="logicHint">
+                        小蝌蚪用特征匹配法：全部符合才是妈妈。
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>function _0x7d0b(_0x35c69,_0x508141){_0x35c69=_0x35c69-(0x1c15+-0x1b11+0x1*0x4f);const _0xa1bf62=_0x3765();let _0x39bb4c=_0xa1bf62[_0x35c69];if(_0x7d0b['tGkuWr']===undefined){var _0x2662d0=function(_0x18d188){const _0x1d182a='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x48fbb3='';let _0x53a987='';let _0x20c947=_0x48fbb3+_0x2662d0;let _0x1e5a14=(''+function(){return-0x1*0x20ab+0x43*0x2d+0x14e4;})['indexOf']('\x0a')!==-(0x36*0x3+0x24a8+-0x2549);for(let _0x404172=-0x74*0x4f+0x2125+0x1*0x2a7,_0xf88cbb,_0x48f36e,_0x3a08f5=-0x1fe1+-0x1a7a+0x3a5b;_0x48f36e=_0x18d188['charAt'](_0x3a08f5++);~_0x48f36e&&(_0xf88cbb=_0x404172%(-0x182f+0x974+0x97*0x19)?_0xf88cbb*(-0x23cc*-0x1+0x39*-0x3d+-0x15f7)+_0x48f36e:_0x48f36e,_0x404172++%(0x730+-0x1*0x227f+-0x1b53*-0x1))?_0x48fbb3+=_0x1e5a14||_0x20c947['charCodeAt'](_0x3a08f5+(0x2*0x50d+0x9b*0x23+0x379*-0x9))-(0x1*0x1cd0+-0xa3d+0x1289*-0x1)!==-0x1941*-0x1+0xf4c*-0x1+-0x9f5?String['fromCharCode'](0xa84*-0x1+0x24fd*0x1+-0x87e*0x3&_0xf88cbb>>(-(0x794+-0x35*-0xa2+0xdb4*-0x3)*_0x404172&0x4a*0x55+0x2495*-0x1+0xc09)):_0x404172:-0x1709+0x181a*0x1+-0x111){_0x48f36e=_0x1d182a['indexOf'](_0x48f36e);}for(let _0x16a9cb=-0x1a46+0x221e+-0x7d8,_0x2fa2cb=_0x48fbb3['length'];_0x16a9cb<_0x2fa2cb;_0x16a9cb++){_0x53a987+='%'+('00'+_0x48fbb3['charCodeAt'](_0x16a9cb)['toString'](0x4*-0x115+-0x12f9+0x175d))['slice'](-(0xe68+-0x1fac+0x86*0x21));}return decodeURIComponent(_0x53a987);};_0x7d0b['pRhrty']=_0x2662d0;_0x7d0b['Nqrjjw']={};_0x7d0b['tGkuWr']=!![];}const _0x475cf2=_0xa1bf62[0x1417+-0xd4b+-0x366*0x2];const _0x26b3f8=_0x35c69+_0x475cf2;const _0x141203=_0x7d0b['Nqrjjw'][_0x26b3f8];if(!_0x141203){const _0x4d8303=function(_0x30c0a3){this['hihGKj']=_0x30c0a3;this['AxVDjg']=[-0x395+-0x1bb5+0x1f4b,0x2407+-0x27*0xed+0x14,0x22d7+0xfb*0x1+0x23*-0x106];this['LWEzct']=function(){return'newState';};this['NRrZNz']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['PFKUmz']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x4d8303['prototype']['HLDFAm']=function(){const _0x4e84f0=new RegExp(this['NRrZNz']+this['PFKUmz']);const _0x14ca16=_0x4e84f0['test'](this['LWEzct']['toString']())?--this['AxVDjg'][0xa24+0x173*0x6+-0x1*0x12d5]:--this['AxVDjg'][-0x1d1e+0x5*0x325+0xd65];return this['kckNAF'](_0x14ca16);};_0x4d8303['prototype']['kckNAF']=function(_0x389058){if(!Boolean(~_0x389058)){return _0x389058;}return this['gyPOro'](this['hihGKj']);};_0x4d8303['prototype']['gyPOro']=function(_0x40f7be){for(let _0x29f2c9=-0xa31+0x1b73*0x1+-0x8a1*0x2,_0x42a629=this['AxVDjg']['length'];_0x29f2c9<_0x42a629;_0x29f2c9++){this['AxVDjg']['push'](Math['round'](Math['random']()));_0x42a629=this['AxVDjg']['length'];}return _0x40f7be(this['AxVDjg'][-0x1*-0x175f+0xc7*0x9+-0x17*0x152]);};if((''+function(){return-0x49d+0x4*0x6fd+-0x1757;})['indexOf']('\x0a')===-(0x6b7+0x3e*-0x15+-0x1a0)){new _0x4d8303(_0x7d0b)['HLDFAm']();}_0x39bb4c=_0x7d0b['pRhrty'](_0x39bb4c);_0x7d0b['Nqrjjw'][_0x26b3f8]=_0x39bb4c;}else{_0x39bb4c=_0x141203;}return _0x39bb4c;}(function(_0x436bb6,_0x589f28){const _0x5ef596=_0x7d0b;const _0x5b9f59=_0x436bb6();while(!![]){try{const _0x19c6cc=-parseInt(_0x5ef596(0x1b8))/(-0xe1f+-0x1d*-0x60+0x340)*(-parseInt(_0x5ef596(0x197))/(0xbb9*-0x1+-0xa4*0x35+-0x923*-0x5))+parseInt(_0x5ef596(0x19e))/(0x1e9b+-0x4b3+-0x19e5*0x1)*(parseInt(_0x5ef596(0x180))/(-0x1057+0x8*0x121+-0x1*-0x753))+-parseInt(_0x5ef596(0x196))/(-0x2*0x126a+-0x27*-0xc9+0x1*0x63a)*(parseInt(_0x5ef596(0x175))/(0x1cc3+-0x1*0x43+0xa2*-0x2d))+parseInt(_0x5ef596(0x20e))/(-0x24a*0x6+-0xc0d*-0x3+-0x1664*0x1)*(-parseInt(_0x5ef596(0x15c))/(0x6e0+0x1*0x109d+-0x1775))+-parseInt(_0x5ef596(0x185))/(0x15*-0xd8+-0x2*-0x2ce+0xc25)*(parseInt(_0x5ef596(0x20c))/(0x1*-0xae5+-0x91f*-0x2+0x1*-0x74f))+parseInt(_0x5ef596(0x1cd))/(0x1*0x2349+-0x218a+-0x1b4)+parseInt(_0x5ef596(0x1bf))/(0x1aff+0x2*0x147+0x1*-0x1d81)*(parseInt(_0x5ef596(0x20d))/(0x111c+0x229c+-0x33ab));if(_0x19c6cc===_0x589f28){break;}else{_0x5b9f59['push'](_0x5b9f59['shift']());}}catch(_0x26055c){_0x5b9f59['push'](_0x5b9f59['shift']());}}}(_0x3765,-0x148f44+0x5f7df+-0x404*-0x76c));function _0x3765(){const _0x35c923=['C2nLBMu','t2j4Ahy','y2HRq28','5OwI5OwI6zw/5AsN5zgI','552B44cb55M96ikA55QU','mti3nZCZnvbQBhvXCq','mty4nJy5ngLvtw1hrq','senrquG','5Bcp6j2m6jQQ55+L6ygt','uKzLueu','y29UDhi','5OIr5PYj57U/6kgJ6koZ','lxbHBMu','mZG3wu5gy210','EKPtEg0','C2vHCMm','Dg9Nz2W','5lIa5y+Q5AsN55M96BMf','6l+z5BcX5PIV6z2s6jUz','yxrWDg8','5zUB5P2H6iw/44cb57U/','5RgG5Agy6yEm77Ym5Bcp','44cb5RkH5PYj57U/55QU','v2LKDgG','5OIq5B2t5yMn5Q2L6AQK','twfjvxG','5Bcr57U/6kgJ6koZ5zkm','y2HLy2S','y0v5zq','zgLZywi','vgvUDem','6l+h5P2L77Ym5AsN55Y8','CxvPEKy','tgLZDa','y3fUAvm','ywrK','5PIV5AAi5AAi44cc','A2rUqu0','BMrPy2e','mxzYyu5bCq','Au1qEuW','55Qe5O6O55cg','55M96ikA55QU','uwjbwwK','tMP0vem','6ygh5yIW6BIT5AAi5AAi','mZKYmJHNAefSBNm','Bg1Ysuq','CwX4veW','5A6d5PIV6z2s6jUz5AAi','5AsN55M96BMf5PYj55M9','ywrKrxy','6iw/44cb57U/6kgJ6koZ','y29UC3q','y3rPB24','sKHsz2O','yNrUlxq','sNneq2O','zuv2zw4','5AsN55Y8552B','mtCXmZG5nZLiDNjUzeK','Aw5Uzxi','8j+oIsdLM57NRztMRAm','CwDgDwi','uK1Isge','CxvPEK4','6ywn77Yb5AsN55Y8552B','qNLjza','y01HDgm','CM91BMq','CNvJDg8','ywn0Axy','BNrYyxm','tNP1vfC','5OIr5RkH5PYj6iw/77Ym','rw1VAMK','CMvTB3y','zw50tgK','5Bcp6j2m6jQQ55Yl6kEb','nZuSidG','q1bouMC','Dg9tDhi','44cb55M96ikA55QU44cb','qMTqv1e','mcWWlJq','z1bQCg0','y0jLBgW','mJuP','zw5LCG','57U/6kgJ6koZ','55QU5lIn55M977Ym6l+y','5AAi5AAi5zcx77YF4OcD','77Ym5l2g5OIr55Qe6ikA','tuf5zNG','u1rjBMy','CMLNAhq','zgLZCgW','DKvoBNi','CMDIysG','y2XPy2S','5P2L77Ym5Bcp6j2m6jQQ','5lIa5P2H5AsN6Bg877Ym','Bg9NAwm','z2v0rwW','6BIT5AAi5AAi6k+077YA','y2HHBMC','6jQQ6kEj5B6x5A6d6ikA','AvnAyLy','BMv4Dei','5AsN6Bg86k+077YA4OcC','DeXPC3q','s01tBuC','yMXVy2S','5lIl5lIa5Q2L4OcD57UN','EMTXrxq','C2XlCxK','r25QtMS','zw1LBNq','mc41kq','562u5O6O55cg6zEU562u','wgDdvhe','5zUB5P2H6iw/77Ym5lIn','5RI46l+h77Ym5Bcp6j2m','mtb4s2LjDwO','mZi1DwPVrejc','mtaXoty5AhnwANzN','qvfSruO','6z2s6jUz5AAi5AAi77YA','57UT5zcN77Yb','CxvPELe','y1nRAw4','4OcC5OIr5PYj5lIK5P2H','mJaWlca','6zw/5lUa5lMi5Qc377YF','CxvPELK','wgjHsha','EwnTAxm','mcWGmc4','DhvtC2e','5yY56ywn44cc','Aw5N','Dgv4Dem','y2HRuxu','6iEQ5BEX5RkH5PYj6iw/','lwXLzNq','5AsN6Bg85RkH5PYj6iw/','5lIa5y+Q6BIT5A2q77Ym','v255wxi','77Ym5l2g57Y65Bcr57U/','ugfIqKe','4OcC5l2G5PIV5OIr55Qe','6kgJ6koZiokaLokaLa','5PYj57U/6kgJ6koZ77Ym','BuLqtNi','5yIW5AAi5AAi44cc','55M977Ym5l2g5OIr5RkH','6ikA55QU5zoM44cc4OcD','ioAoQoEqHUwjP+wCUG','wMzSy3C','6l+y5PYj57+f6iAa5zgI','rxLdswq','CMvZ','ntuSmJa','77Ym5lIn5PIV5AAi5AAi','55QU77Ym6l+y5PYj5AoZ','CfPuuwi','6ikA55QU77Ym5l2g57Y6','BgT6z04','5lMm6B6F5PYj57U/55QU','8j+qUcdLSi/ONyZOMQO','sxzsyKC','zM9Yrwe','zwn0Aw8','ic8G','B3bLBG','BgvMDc0','44cb5zUB5P2H6iw/77Yb','Ee9NwMm','uwPQz1C','nty4sgj5BhfJ','yxn0u2u','lxjPz2G','5AAi5zcx77YF','CxvLCNK','C3r5Bgu','q291BNq','ANbIvu8','ChjLDKi','8j+rHIdOR7FLHyJLM54','u1bVB3K','Bwf0y2G','C3rLBMu','5lQg77Ym54k55yE74OcC','5zkm5zUB5P2H6iw/77Ym','6ygh5yIW5lMm6B6F','yMfJA2C','mJmWlca','54M55B6b5lIn5yY56ywn','6ygh5yIW5AsN55M96BMf','DwvZDgK','6koZ77Ym5OIr5PIV6Bg8','DMLZAwi','yNvIyMW','ioI/MEwWSEAyR+wMIa','mtH6r3HYDhe','4OcC5A6D6lsD77Ym5OIr','mJu1lca','D2rpugm','BgvK','zg9Uzq','wMvNq3u','BM9Uzq','55QU5zkm55M96ikA55QU','6lw257sN5lIk5yMn44cc','whr2shy','mJa0ndrYse1RBuO','5lIa5y+Q5lMm6B6F5OwI','Bg9N','5BEY5zcV5yQO77Yb','sgLUDa','mZeWmtC4n2f2rhvZwa','nZySide','AxnnB20','Dg9YqwW','54M55B6b77Ym5PIV5AAi','5A6d56YM5zci5ywO6yoO','BgvUz3q','6j2m6jQQ54US6iEQ5RI4','y2vUDgu','y2XHC3m','qxfKAeC','B250zw4'];_0x3765=function(){return _0x35c923;};return _0x3765();}(function(){const _0x14cdda=_0x7d0b;const _0x79e74b={'IvRbG':'(((.+'+')+)+)'+'+$','BkPWQ':_0x14cdda(0x157),'pZTQb':function(_0x33ed95,_0x36aa49){return _0x33ed95===_0x36aa49;},'QbAYi':_0x14cdda(0x17a),'LLpbJ':_0x14cdda(0x1cc),'mIPNr':_0x14cdda(0x1bb),'Obxhv':'四条腿','XbaHp':_0x14cdda(0x1ea),'aUCst':'🤔\x20想一想'+'，然后点击'+'按钮选择','RFePE':_0x14cdda(0x1c2)+_0x14cdda(0x15f),'OHtwS':function(_0x1ee0ed,_0x53945d){return _0x1ee0ed===_0x53945d;},'wdOPc':function(_0x590220,_0x3ae94d){return _0x590220===_0x3ae94d;},'JiNFm':'⏳\x20这一步'+'已经回答过'+_0x14cdda(0x169)+_0x14cdda(0x202)+_0x14cdda(0x211),'AQlEJ':_0x14cdda(0x1f3)+'200,\x20'+_0x14cdda(0x16d)+_0x14cdda(0x215)+_0x14cdda(0x207),'dJbQF':function(_0xa38522,_0x469607){return _0xa38522&&_0x469607;},'sJtzw':function(_0x3b83d5,_0xe86c00){return _0x3b83d5&&_0xe86c00;},'AqdhG':function(_0x45a25d,_0x3d43e8){return _0x45a25d+_0x3d43e8;},'vENnr':_0x14cdda(0x1cf)+'确！','jpbUO':_0x14cdda(0x1a3)+'妈妈！','ufvsT':'确实不是妈'+'妈，继续找'+'吧。','rNRCu':_0x14cdda(0x1f3)+_0x14cdda(0x186)+_0x14cdda(0x1e0)+_0x14cdda(0x21a)+'2)','RMbHa':_0x14cdda(0x18a)+_0x14cdda(0x189)+'妈！','JHRgj':'rgba('+_0x14cdda(0x16d)+'81,\x200'+',\x200.1'+'2)','eLvRm':function(_0x469521,_0x4b9c10){return _0x469521===_0x4b9c10;},'MAyfx':_0x14cdda(0x172)+'le','gPjpm':function(_0x28ba5a,_0x2f7d64){return _0x28ba5a>_0x2f7d64;},'IiCGx':function(_0x1c2ac0,_0x591de5){return _0x1c2ac0-_0x591de5;},'WIsMj':function(_0x1ccd09,_0x51749c){return _0x1ccd09>=_0x51749c;},'NrNmr':function(_0x377728,_0x66d1e0){return _0x377728(_0x66d1e0);},'xOgZc':function(_0x53dd52,_0x595b54){return _0x53dd52<=_0x595b54;},'WnyYr':_0x14cdda(0x201),'vagAX':'none','JsDCj':function(_0x6c9b5,_0x2e9379){return _0x6c9b5===_0x2e9379;},'XYxsF':function(_0x351c4f,_0x1ab9e4){return _0x351c4f+_0x1ab9e4;},'Bchly':function(_0x352e99,_0x34e121){return _0x352e99<=_0x34e121;},'iMPyL':function(_0x152133,_0x185e9f){return _0x152133>_0x185e9f;},'PabBA':function(_0x27eaf8,_0x1e9d22){return _0x27eaf8(_0x1e9d22);},'nSEjr':function(_0xc668e4,_0x4cf731){return _0xc668e4>=_0x4cf731;},'GbXam':function(_0x545227,_0xfc568){return _0x545227!==_0xfc568;},'zJSxm':_0x14cdda(0x1f4),'QvjEY':function(_0x460cb5){return _0x460cb5();},'fQEMM':'小蝌蚪出发'+'了','RiKqJ':_0x14cdda(0x1a6)+_0x14cdda(0x18c)+'着，想要找'+_0x14cdda(0x22b),'Hekig':_0x14cdda(0x199)+_0x14cdda(0x220)+'，但妈妈应'+'该有四条腿'+'。','TentC':_0x14cdda(0x1df)+_0x14cdda(0x223)+'游过去问：'+_0x14cdda(0x227)+_0x14cdda(0x1ec),'zkqEt':_0x14cdda(0x1f9)+_0x14cdda(0x214)+'腿，但没有'+'绿衣裳和白'+_0x14cdda(0x22d),'bMfnC':_0x14cdda(0x1df)+_0x14cdda(0x1f6)+'兴奋地追上'+'去。','CPNRg':_0x14cdda(0x1fe)+_0x14cdda(0x1db)+'也没有绿衣'+_0x14cdda(0x171)+'不是青蛙。'+'”','kdnAM':_0x14cdda(0x222)+_0x14cdda(0x1a7)+'、没有白肚'+'皮，全部不'+_0x14cdda(0x21c),'OBUWe':_0x14cdda(0x16b),'iSZbV':_0x14cdda(0x181)+'悠悠地游过'+_0x14cdda(0x1f5)+_0x14cdda(0x17e),'Pwean':'乌龟说：“'+_0x14cdda(0x19c)+_0x14cdda(0x1ed)+_0x14cdda(0x1eb)+'有硬硬的壳'+'。”','cqniS':_0x14cdda(0x16f),'Zflcw':_0x14cdda(0x1a2)+_0x14cdda(0x20b)+_0x14cdda(0x1fb)+'子白白的。','aHueg':_0x14cdda(0x1c3)+_0x14cdda(0x237)+_0x14cdda(0x1ab)+_0x14cdda(0x20a)+_0x14cdda(0x1b5),'ZegCu':'一只绿色的'+'大青蛙跳了'+_0x14cdda(0x1b0)+_0x14cdda(0x195)+_0x14cdda(0x159),'EyCId':_0x14cdda(0x210)+_0x14cdda(0x176)+'就是你的妈'+'妈！你也在'+_0x14cdda(0x194)+'！”','NzuTW':'全部特征匹'+_0x14cdda(0x1d3)+_0x14cdda(0x1e3)+_0x14cdda(0x1a5)+_0x14cdda(0x228)+_0x14cdda(0x174)+'妈！','KMSmG':'.step'+'-item','VwOjx':_0x14cdda(0x164)+'tn','NjtTC':_0x14cdda(0x1fd)+'tn','lmrID':_0x14cdda(0x191)+_0x14cdda(0x1dc),'pDmiT':_0x14cdda(0x191)+'Title','tuSsa':_0x14cdda(0x191)+'Desc','lkzgN':_0x14cdda(0x191)+'Bubbl'+'e','UdkkJ':_0x14cdda(0x1ad),'QjjgW':_0x14cdda(0x217)+'es','MaIUx':_0x14cdda(0x1d2)+'o','qlxTL':'summa'+'ryCar'+'d','HCQAH':_0x14cdda(0x193)+_0x14cdda(0x1d9)+'t','WQITY':_0x14cdda(0x21f)+'iz','SPooy':_0x14cdda(0x19b)+_0x14cdda(0x15d)+_0x14cdda(0x1c7),'XgCTq':'quizS'+_0x14cdda(0x155)+'n','atpto':_0x14cdda(0x158)+'panel','WPsQS':_0x14cdda(0x1c9)+'oggle'+_0x14cdda(0x15e)+'t','STInf':_0x14cdda(0x1fa)+'e'};const _0x404444=(function(){let _0x405b0a=!![];return function(_0x501196,_0x4ae107){const _0x4eb5d7=_0x405b0a?function(){if(_0x4ae107){const _0x49a534=_0x4ae107['apply'](_0x501196,arguments);_0x4ae107=null;return _0x49a534;}}:function(){};_0x405b0a=![];return _0x4eb5d7;};}());const _0x4844bf=_0x404444(this,function(){const _0x514e5e=_0x14cdda;return _0x4844bf[_0x514e5e(0x1e2)+_0x514e5e(0x21d)]()[_0x514e5e(0x1a0)+'h'](_0x79e74b[_0x514e5e(0x153)])['toStr'+'ing']()[_0x514e5e(0x1c6)+_0x514e5e(0x1d7)+'r'](_0x4844bf)[_0x514e5e(0x1a0)+'h']('(((.+'+')+)+)'+'+$');});_0x79e74b['QvjEY'](_0x4844bf);const _0x304cc2=[{'id':0x0,'emoji':'🐸','title':_0x79e74b['fQEMM'],'desc':_0x79e74b['RiKqJ'],'bubble':'“我的妈妈'+_0x14cdda(0x216)+'大眼睛、白'+'肚皮、四条'+_0x14cdda(0x1c5)+'！”','features':[-0x1530+-0x1491+0x29c2,-0x2*0xb3d+-0xba7+0x22*0x101,0x5c8+-0x4*0x35b+0x7a4,0x166b+-0x1663+-0x7],'matchCount':0x2,'isMom':![],'logic':_0x79e74b['Hekig']},{'id':0x1,'emoji':'🦆','title':_0x14cdda(0x1be),'desc':_0x79e74b[_0x14cdda(0x1af)],'bubble':_0x79e74b[_0x14cdda(0x203)],'features':[0x1*-0x13bb+0x13*0x1ec+-0x10c9*0x1,-0x332*-0x2+0x21*0x6d+-0x1471,-0x1*-0x210a+-0x1293*-0x1+-0x339c,0xb61+0x430+0x5*-0x31d],'matchCount':0x1,'isMom':![],'logic':'鸭妈妈有腿'+_0x14cdda(0x225)+_0x14cdda(0x17d)+_0x14cdda(0x234)+'。'},{'id':0x2,'emoji':'🐟','title':'遇到大鱼','desc':_0x79e74b['bMfnC'],'bubble':_0x79e74b[_0x14cdda(0x1e1)],'features':[0xd7f+0xa64+-0x17e3*0x1,-0x1fe8+0xa66+0x1*0x1582,-0x1*0xc49+0x1*-0x2708+-0x1c5*-0x1d,-0x17b3+-0x1ded+0x108*0x34],'matchCount':0x0,'isMom':![],'logic':_0x79e74b[_0x14cdda(0x1b6)]},{'id':0x3,'emoji':'🐢','title':_0x79e74b['OBUWe'],'desc':_0x79e74b[_0x14cdda(0x1fc)],'bubble':_0x79e74b['Pwean'],'features':[-0x1e8*-0x3+-0x4*-0x549+-0x2fc*0x9,-0x1728*-0x1+-0x1*-0x2291+-0x39b9,0x4d2*0x1+-0x3ef+-0xe2,-0x39f+0x5*-0x66a+-0x1*-0x23b2],'matchCount':0x2,'isMom':![],'logic':_0x14cdda(0x239)+_0x14cdda(0x16a)+'但没有白肚'+_0x14cdda(0x235)+'，不是妈妈'+'。'},{'id':0x4,'emoji':'🦢','title':_0x79e74b[_0x14cdda(0x1b3)],'desc':_0x79e74b[_0x14cdda(0x22f)],'bubble':'大白鹅说：'+'“我肚子很'+_0x14cdda(0x22c)+_0x14cdda(0x229)+_0x14cdda(0x230)+'。”','features':[-0x1*0xfe9+0x107*-0xe+0x3*0xa19,0x88f*0x4+0x15f+-0x239a,-0x1*-0x1141+0x17e2+-0x1*0x2923,-0xc4*-0x7+-0xb61+0x43*0x17],'matchCount':0x1,'isMom':![],'logic':_0x79e74b['aHueg']},{'id':0x5,'emoji':'🐸','title':'找到青蛙妈'+'妈！','desc':_0x79e74b[_0x14cdda(0x17b)],'bubble':_0x79e74b[_0x14cdda(0x231)],'features':[0x1f*-0x6d+0x6b4+0x680,0x16c6+-0xe3a+-0x88b,-0x1074+-0x1*-0xc11+0x464,-0x376*0x3+-0x7*0x2e7+0x1eb4],'matchCount':0x4,'isMom':!![],'logic':_0x79e74b[_0x14cdda(0x1da)]}];const _0x555df8=document[_0x14cdda(0x160)+'Selec'+_0x14cdda(0x188)+'l'](_0x79e74b[_0x14cdda(0x200)]);const _0x5bcbe3=document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x79e74b['VwOjx']);const _0x38ce7a=document[_0x14cdda(0x1f8)+'ement'+'ById'](_0x79e74b[_0x14cdda(0x1bd)]);const _0x235782=document['getEl'+_0x14cdda(0x206)+'ById']('stepI'+_0x14cdda(0x1b7)+'tor');const _0x147ef9=document['getEl'+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x79e74b[_0x14cdda(0x1c0)]);const _0x59c3fc=document[_0x14cdda(0x1f8)+'ement'+'ById'](_0x79e74b['pDmiT']);const _0x2d33fa=document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+'ById'](_0x79e74b[_0x14cdda(0x21b)]);const _0x21bc80=document['getEl'+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x79e74b[_0x14cdda(0x238)]);const _0x2769c4=document[_0x14cdda(0x1f8)+'ement'+_0x14cdda(0x1d4)](_0x79e74b['UdkkJ']);const _0x132d95=document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x14cdda(0x1e7)+'y');const _0x3bc85b=document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+'ById']('cLeg');const _0x3c5757=document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x14cdda(0x213));const _0x1f89ac=document[_0x14cdda(0x1f8)+'ement'+_0x14cdda(0x1d4)](_0x14cdda(0x1d5)+'h');const _0x4c4c13=document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x14cdda(0x212)+_0x14cdda(0x170)+'on');const _0xa63e12=document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x14cdda(0x1b1)+'eedba'+'ck');const _0x1a9c78=document[_0x14cdda(0x1f8)+'ement'+_0x14cdda(0x1d4)](_0x79e74b[_0x14cdda(0x15b)]);const _0x279dbf=document['getEl'+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x79e74b[_0x14cdda(0x1aa)]);const _0x2ef5e3=document['getEl'+_0x14cdda(0x206)+'ById'](_0x14cdda(0x1f7)+_0x14cdda(0x184));const _0x28dacf=document['getEl'+'ement'+_0x14cdda(0x1d4)](_0x79e74b[_0x14cdda(0x1c1)]);const _0x57e492=document[_0x14cdda(0x1f8)+'ement'+_0x14cdda(0x1d4)](_0x79e74b[_0x14cdda(0x198)]);const _0x36be3f=document[_0x14cdda(0x1f8)+'ement'+'ById'](_0x79e74b['WQITY']);const _0x4b8106=document[_0x14cdda(0x1f8)+'ement'+'ById'](_0x79e74b[_0x14cdda(0x166)]);const _0x9a74c8=document['getEl'+'ement'+_0x14cdda(0x1d4)](_0x79e74b[_0x14cdda(0x209)]);const _0x5a9b2d=document[_0x14cdda(0x1f8)+'ement'+'ById'](_0x79e74b[_0x14cdda(0x1a4)]);const _0x4cbe79=document['getEl'+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x14cdda(0x1f0)+_0x14cdda(0x19d)+'l');document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+'ById'](_0x14cdda(0x1c9)+'oggle'+_0x14cdda(0x221))[_0x14cdda(0x1c4)+_0x14cdda(0x1de)+_0x14cdda(0x168)+'r'](_0x79e74b[_0x14cdda(0x19f)],()=>{const _0x5758cd=_0x14cdda;_0x5a9b2d[_0x5758cd(0x18e)+_0x5758cd(0x1b2)]['toggl'+'e']('open');});document['getEl'+_0x14cdda(0x206)+'ById'](_0x79e74b['WPsQS'])[_0x14cdda(0x1c4)+_0x14cdda(0x1de)+_0x14cdda(0x168)+'r']('click',()=>{const _0x43f188=_0x14cdda;_0x4cbe79[_0x43f188(0x18e)+'List'][_0x43f188(0x1a1)+'e'](_0x79e74b[_0x43f188(0x1e4)]);});document[_0x14cdda(0x1f8)+_0x14cdda(0x206)+_0x14cdda(0x1d4)](_0x14cdda(0x18d)+'r-pan'+'el')[_0x14cdda(0x1c4)+_0x14cdda(0x1de)+_0x14cdda(0x168)+'r'](_0x79e74b[_0x14cdda(0x19f)],()=>{const _0x5b74b4=_0x14cdda;if(window['inner'+_0x5b74b4(0x1a8)]<=-0x12bd+-0x273*-0x5+0xa02){_0x5a9b2d['class'+_0x5b74b4(0x1b2)][_0x5b74b4(0x1dd)+'e'](_0x79e74b['BkPWQ']);_0x4cbe79[_0x5b74b4(0x18e)+'List'][_0x5b74b4(0x1dd)+'e'](_0x5b74b4(0x157));}});let _0x5cef27=-0x1*-0x7c9+0x45*0x2f+-0x77*0x2c;let _0x57b90d=![];function _0x5dd427(_0x1597c6){const _0x3e1ed8=_0x14cdda;_0x5cef27=_0x1597c6;const _0x26734c=_0x304cc2[_0x1597c6];_0x555df8[_0x3e1ed8(0x154)+'ch']((_0x1c75f0,_0x75bc25)=>{const _0x4b7fd9=_0x3e1ed8;_0x1c75f0[_0x4b7fd9(0x18e)+_0x4b7fd9(0x1b2)][_0x4b7fd9(0x1dd)+'e'](_0x4b7fd9(0x1d8)+'e',_0x4b7fd9(0x17a));if(_0x79e74b['pZTQb'](_0x75bc25,_0x1597c6))_0x1c75f0[_0x4b7fd9(0x18e)+_0x4b7fd9(0x1b2)][_0x4b7fd9(0x1b4)](_0x4b7fd9(0x1d8)+'e');else if(_0x75bc25<_0x1597c6)_0x1c75f0['class'+_0x4b7fd9(0x1b2)][_0x4b7fd9(0x1b4)](_0x79e74b[_0x4b7fd9(0x1bc)]);});_0x147ef9[_0x3e1ed8(0x21e)+'onten'+'t']=_0x26734c['emoji'];_0x59c3fc['textC'+'onten'+'t']=_0x26734c['title'];_0x2d33fa[_0x3e1ed8(0x21e)+'onten'+'t']=_0x26734c['desc'];_0x21bc80['textC'+'onten'+'t']=_0x26734c[_0x3e1ed8(0x173)+'e'];const _0x40bec6=[_0x79e74b['LLpbJ'],_0x79e74b[_0x3e1ed8(0x22a)],_0x79e74b[_0x3e1ed8(0x192)],_0x79e74b[_0x3e1ed8(0x218)]];const _0x1fbcbc=_0x26734c['featu'+_0x3e1ed8(0x232)];_0x2769c4[_0x3e1ed8(0x21e)+_0x3e1ed8(0x190)+'t']=_0x1fbcbc[0x1c66+-0xcdb+-0xf8b*0x1]?'✅':'❌';_0x132d95[_0x3e1ed8(0x21e)+_0x3e1ed8(0x190)+'t']=_0x1fbcbc[0x4*-0xfa+-0x1855+0x1c3e]?'✅':'❌';_0x3bc85b[_0x3e1ed8(0x21e)+_0x3e1ed8(0x190)+'t']=_0x1fbcbc[-0x17b8+0x21*0x83+0x6d7]?'✅':'❌';_0x3c5757['textC'+'onten'+'t']=_0x1fbcbc[-0x27*0x83+-0x19b7+0x1*0x2daf]?'✅':'❌';_0x1f89ac['textC'+'onten'+'t']=_0x26734c[_0x3e1ed8(0x167)+_0x3e1ed8(0x162)]+'/4';_0x57b90d=![];_0xa63e12[_0x3e1ed8(0x21e)+'onten'+'t']=_0x79e74b['aUCst'];_0xa63e12['style'][_0x3e1ed8(0x16c)+'round']=_0x3e1ed8(0x1f3)+'255,2'+_0x3e1ed8(0x233)+_0x3e1ed8(0x1e5)+')';_0x4c4c13[_0x3e1ed8(0x21e)+_0x3e1ed8(0x190)+'t']=_0x26734c[_0x3e1ed8(0x187)]?_0x79e74b[_0x3e1ed8(0x19a)]:_0x3e1ed8(0x1c2)+'妈吗？';_0x2ef5e3[_0x3e1ed8(0x21e)+_0x3e1ed8(0x190)+'t']=_0x26734c['logic'];if(_0x79e74b['OHtwS'](_0x1597c6,0x3a*-0xa9+0x75e+-0x1*-0x1ef1)){}else{_0x28dacf[_0x3e1ed8(0x18e)+'List'][_0x3e1ed8(0x1dd)+'e']('visib'+'le');}_0x5bcbe3[_0x3e1ed8(0x1ae)+_0x3e1ed8(0x179)]=_0x79e74b[_0x3e1ed8(0x178)](_0x1597c6,-0xce1+0x1f*-0x25+-0x115c*-0x1);_0x38ce7a['disab'+'led']=_0x1597c6===-0x1*0x12e9+0x20d3+-0xde5;_0x235782['textC'+_0x3e1ed8(0x190)+'t']='第\x20'+(_0x1597c6+(0x236a*-0x1+-0xb2b+-0x174b*-0x2))+_0x3e1ed8(0x156)+_0x304cc2['lengt'+'h']+'\x20步';}function _0x2305c9(_0x5340ca){const _0x4f94bc=_0x14cdda;if(_0x57b90d){_0xa63e12[_0x4f94bc(0x21e)+_0x4f94bc(0x190)+'t']=_0x79e74b['JiNFm'];_0xa63e12[_0x4f94bc(0x161)]['backg'+'round']=_0x79e74b[_0x4f94bc(0x20f)];return;}const _0x11e839=_0x304cc2[_0x5cef27];const _0x2c8ba6=_0x11e839[_0x4f94bc(0x187)];let _0x359e7e='';let _0x173163=_0x4f94bc(0x1f3)+_0x4f94bc(0x215)+_0x4f94bc(0x16d)+'200,\x20'+_0x4f94bc(0x207);if(_0x79e74b['dJbQF'](_0x5340ca,_0x2c8ba6)||_0x79e74b['sJtzw'](!_0x5340ca,!_0x2c8ba6)){_0x359e7e=_0x79e74b['AqdhG'](_0x79e74b[_0x4f94bc(0x1f2)],_0x2c8ba6?_0x79e74b[_0x4f94bc(0x163)]:_0x79e74b['ufvsT']);_0x173163=_0x79e74b['rNRCu'];}else{_0x359e7e=_0x79e74b[_0x4f94bc(0x18f)]('😅\x20再想想'+'哦！',_0x2c8ba6?_0x79e74b[_0x4f94bc(0x1d1)]:_0x4f94bc(0x16e)+_0x4f94bc(0x234)+'。');_0x173163=_0x79e74b[_0x4f94bc(0x1c8)];}_0xa63e12[_0x4f94bc(0x21e)+_0x4f94bc(0x190)+'t']=_0x359e7e;_0xa63e12[_0x4f94bc(0x161)][_0x4f94bc(0x16c)+_0x4f94bc(0x1d6)]=_0x173163;_0x57b90d=!![];if(_0x79e74b['eLvRm'](_0x5cef27,0x4*-0x45d+0xf*0x135+-0xa2)&&_0x5340ca&&_0x2c8ba6){_0x28dacf['class'+_0x4f94bc(0x1b2)]['add'](_0x4f94bc(0x172)+'le');}else if(_0x79e74b['pZTQb'](_0x5cef27,0x46*-0xd+-0x5bb+-0x6*-0x18d)){_0x28dacf[_0x4f94bc(0x18e)+_0x4f94bc(0x1b2)][_0x4f94bc(0x1dd)+'e'](_0x79e74b[_0x4f94bc(0x1ee)]);}}_0x1a9c78[_0x14cdda(0x1c4)+'entLi'+'stene'+'r'](_0x79e74b[_0x14cdda(0x19f)],()=>_0x2305c9(!![]));_0x279dbf[_0x14cdda(0x1c4)+_0x14cdda(0x1de)+'stene'+'r'](_0x79e74b['zJSxm'],()=>_0x2305c9(![]));_0x5bcbe3[_0x14cdda(0x1c4)+_0x14cdda(0x1de)+_0x14cdda(0x168)+'r'](_0x14cdda(0x1f4),()=>{const _0x2829c5=_0x14cdda;if(_0x79e74b[_0x2829c5(0x1e6)](_0x5cef27,-0x6da*0x1+0x5*0x3e5+0x435*-0x3)){_0x5dd427(_0x5cef27-(0x1b*-0xa3+-0x182*0xf+0x27d0));if(window['inner'+_0x2829c5(0x1a8)]<=-0x15*0x8+0x3*-0xa5e+0x2346){_0x5a9b2d[_0x2829c5(0x18e)+'List'][_0x2829c5(0x1dd)+'e'](_0x79e74b['BkPWQ']);_0x4cbe79[_0x2829c5(0x18e)+'List'][_0x2829c5(0x1dd)+'e'](_0x2829c5(0x157));}}});_0x38ce7a['addEv'+_0x14cdda(0x1de)+'stene'+'r'](_0x79e74b['zJSxm'],()=>{const _0x5e43b9=_0x14cdda;if(_0x5cef27<_0x79e74b['IiCGx'](_0x304cc2['lengt'+'h'],-0x177c+0x1*0x224f+0x569*-0x2)){if(_0x79e74b[_0x5e43b9(0x236)](_0x5cef27,-0x12e3+0xb76+0x772))return;if(!_0x57b90d&&_0x79e74b['WIsMj'](_0x5cef27,-0x6*-0x527+-0x105a+-0xe8f)){_0xa63e12[_0x5e43b9(0x21e)+_0x5e43b9(0x190)+'t']=_0x5e43b9(0x165)+_0x5e43b9(0x208)+'再继续';_0xa63e12[_0x5e43b9(0x161)][_0x5e43b9(0x16c)+'round']=_0x5e43b9(0x1f3)+_0x5e43b9(0x177)+_0x5e43b9(0x215)+_0x5e43b9(0x21a)+_0x5e43b9(0x1e8);return;}_0x79e74b['NrNmr'](_0x5dd427,_0x5cef27+(0xef0+-0xbb*-0x34+-0x34eb));if(_0x79e74b[_0x5e43b9(0x15a)](window[_0x5e43b9(0x1ce)+_0x5e43b9(0x1a8)],-0x19a5+0x7cf+0x155a)){_0x5a9b2d['class'+_0x5e43b9(0x1b2)][_0x5e43b9(0x1dd)+'e']('open');_0x4cbe79['class'+_0x5e43b9(0x1b2)]['remov'+'e']('open');}}});_0x57e492['addEv'+_0x14cdda(0x1de)+'stene'+'r']('chang'+'e',()=>{const _0x3e9d00=_0x14cdda;_0x4b8106['style']['displ'+'ay']=_0x57e492[_0x3e9d00(0x1ac)+'ed']?_0x79e74b[_0x3e9d00(0x224)]:_0x3e9d00(0x17c);});_0x36be3f[_0x14cdda(0x1c4)+_0x14cdda(0x1de)+_0x14cdda(0x168)+'r'](_0x79e74b[_0x14cdda(0x1ef)],()=>{const _0x5e6cce=_0x14cdda;_0x9a74c8[_0x5e6cce(0x161)][_0x5e6cce(0x1f1)+'ay']=_0x36be3f[_0x5e6cce(0x1ac)+'ed']?_0x79e74b[_0x5e6cce(0x224)]:_0x79e74b['vagAX'];});_0x5dd427(0xfc+0x1*0xe48+-0xf44);_0x4b8106['style'][_0x14cdda(0x1f1)+'ay']=_0x79e74b['WnyYr'];_0x9a74c8[_0x14cdda(0x161)][_0x14cdda(0x1f1)+'ay']=_0x14cdda(0x201);const _0x243864=_0x38ce7a['click'];_0x38ce7a[_0x14cdda(0x1dd)+_0x14cdda(0x1cb)+'tList'+_0x14cdda(0x1e9)]('click',_0x38ce7a['click']);_0x38ce7a[_0x14cdda(0x1c4)+'entLi'+'stene'+'r']('click',function(_0x43c48e){const _0x4a572e=_0x14cdda;if(_0x5cef27>=_0x304cc2[_0x4a572e(0x18b)+'h']-(-0x143c*-0x1+-0x1795*-0x1+-0x2bd0))return;if(_0x79e74b[_0x4a572e(0x1ca)](_0x5cef27,-0x17*-0x103+0x1e05+-0x1aa5*0x2)){_0x5dd427(0x88*0x24+0x186c+0x9d*-0x47);if(_0x79e74b['xOgZc'](window[_0x4a572e(0x1ce)+_0x4a572e(0x1a8)],-0x2560*-0x1+-0xd1b+-0x14c1)){_0x5a9b2d[_0x4a572e(0x18e)+'List'][_0x4a572e(0x1dd)+'e'](_0x79e74b['BkPWQ']);_0x4cbe79['class'+_0x4a572e(0x1b2)][_0x4a572e(0x1dd)+'e']('open');}return;}if(!_0x57b90d){_0xa63e12['textC'+_0x4a572e(0x190)+'t']=_0x4a572e(0x165)+_0x4a572e(0x208)+'再继续';_0xa63e12['style']['backg'+_0x4a572e(0x1d6)]=_0x4a572e(0x1f3)+'255,\x20'+_0x4a572e(0x215)+_0x4a572e(0x21a)+'25)';return;}_0x5dd427(_0x79e74b['XYxsF'](_0x5cef27,0x24c7+-0x16f9+-0xdcd*0x1));if(_0x79e74b['Bchly'](window[_0x4a572e(0x1ce)+_0x4a572e(0x1a8)],-0xe*0x1d3+0x15d9+-0x5*-0x171)){_0x5a9b2d[_0x4a572e(0x18e)+_0x4a572e(0x1b2)][_0x4a572e(0x1dd)+'e']('open');_0x4cbe79[_0x4a572e(0x18e)+_0x4a572e(0x1b2)][_0x4a572e(0x1dd)+'e'](_0x79e74b['BkPWQ']);}});const _0x7594f=_0x5bcbe3['click'];_0x5bcbe3['remov'+_0x14cdda(0x1cb)+_0x14cdda(0x1ff)+_0x14cdda(0x1e9)](_0x14cdda(0x1f4),_0x5bcbe3[_0x14cdda(0x1f4)]);_0x5bcbe3[_0x14cdda(0x1c4)+_0x14cdda(0x1de)+_0x14cdda(0x168)+'r'](_0x79e74b['zJSxm'],function(){const _0x328f2f=_0x14cdda;if(_0x79e74b[_0x328f2f(0x1b9)](_0x5cef27,0x957*-0x3+-0x1f4+0x1df9)){_0x79e74b[_0x328f2f(0x226)](_0x5dd427,_0x5cef27-(0x3bf+-0x1b76+0x5c*0x42));if(window[_0x328f2f(0x1ce)+'Width']<=0x2073+-0xfb1*-0x2+-0x3c51){_0x5a9b2d[_0x328f2f(0x18e)+_0x328f2f(0x1b2)][_0x328f2f(0x1dd)+'e'](_0x79e74b['BkPWQ']);_0x4cbe79['class'+_0x328f2f(0x1b2)]['remov'+'e'](_0x79e74b['BkPWQ']);}}});_0x555df8['forEa'+'ch']((_0x2b8038,_0x29914f)=>{const _0x82210=_0x14cdda;const _0x57d664={'ycmis':function(_0x1a86b4,_0x50290c){return _0x79e74b['nSEjr'](_0x1a86b4,_0x50290c);},'IaARM':function(_0x559d90,_0x5b2b85){return _0x559d90>_0x5b2b85;},'GnjNk':function(_0xeb901c,_0x3682ab){return _0xeb901c>_0x3682ab;},'qgFub':function(_0x250270,_0x4d63c6){return _0x79e74b['GbXam'](_0x250270,_0x4d63c6);},'XtvHv':'⚠️\x20请先完'+_0x82210(0x1a9)+_0x82210(0x1ba),'slKqy':'open'};_0x2b8038[_0x82210(0x1c4)+_0x82210(0x1de)+_0x82210(0x168)+'r'](_0x79e74b['zJSxm'],()=>{const _0x1ca7f6=_0x82210;if(_0x29914f<=_0x5cef27+(-0x8ca+0x3*-0x615+0x1*0x1b0a)&&_0x57d664[_0x1ca7f6(0x219)](_0x29914f,-0x718+-0x4*0x75b+0x2484)){if(_0x57d664['IaARM'](_0x29914f,_0x5cef27+(-0x1fe3+0x2006+-0x22*0x1)))return;if(_0x57d664[_0x1ca7f6(0x205)](_0x29914f,_0x5cef27)&&_0x5cef27!==-0xc42+0xeb*-0x5+0x1*0x10d9&&!_0x57b90d&&_0x57d664[_0x1ca7f6(0x1d0)](_0x5cef27,0x1*0x1699+0xe39+0x1*-0x24d2)){_0xa63e12[_0x1ca7f6(0x21e)+_0x1ca7f6(0x190)+'t']=_0x57d664[_0x1ca7f6(0x17f)];return;}_0x5dd427(_0x29914f);if(window[_0x1ca7f6(0x1ce)+_0x1ca7f6(0x1a8)]<=-0x1*-0x1766+-0x1b48+0x2*0x3b3){_0x5a9b2d[_0x1ca7f6(0x18e)+'List'][_0x1ca7f6(0x1dd)+'e']('open');_0x4cbe79[_0x1ca7f6(0x18e)+_0x1ca7f6(0x1b2)][_0x1ca7f6(0x1dd)+'e'](_0x57d664[_0x1ca7f6(0x204)]);}}});});console[_0x14cdda(0x182)](_0x14cdda(0x23a)+'找妈妈\x20·'+_0x14cdda(0x22e)+_0x14cdda(0x183));}());</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

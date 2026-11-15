@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>命运之轮 - 星空塔罗 (学号版)</title>
+    
+    <!-- 1. 样式库 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. 核心引擎 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+    
+    <!-- 3. JSX 解析器 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js" crossorigin="anonymous"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #02020a; color: white; font-family: 'Times New Roman', serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        #loading-fallback {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #d4af37; font-size: 20px; font-family: sans-serif; pointer-events: none;
+            text-align: center;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=11&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIxMSIsImV4cCI6MTc5NDU1OTg1NH0.Lvty6j3eJtd008kskqoBZIJzgJtacW_1H6kBQiE7Qeg",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+    <div id="root">
+        <div id="loading-fallback">
+            <div>正在连接星空...</div>
+            <div style="font-size:12px; color:#666; margin-top:10px;">(加载中...)</div>
+        </div>
+    </div>
+
+    <!-- 4. 游戏逻辑代码 -->
+    <script type="text/babel" data-presets="react">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 图标组件 ---
+        const IconSparkles = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 5H3"/><path d="M19 16v4"/><path d="M23 18h-6"/></svg>;
+        const IconUsers = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+        const IconRotate = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/><path d="M3 3v9h9"/></svg>;
+        const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
+        const IconMouse = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 6 6 6-2.29 2.29 5.25 5.25-1.41 1.41-5.25-5.25-2.29 2.29V6z"/></svg>;
+        const IconHand = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>;
+        const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
+
+        // --- 数据生成逻辑 ---
+        const generateStudents = (count) => {
+            return Array.from({ length: count }, (_, i) => ({
+                id: String(i + 1).padStart(2, '0'), 
+                name: "" 
+            }));
+        };
+
+        // --- 塔罗数据 ---
+        const BASE_URL = "https://www.sacred-texts.com/tarot/pkt/img/";
+        const CORS_PROXY = "https://images.weserv.nl/?url=";
+
+        const generateTarotDeck = () => {
+            const deck = [];
+            const majorNames = ["愚者","魔术师","女祭司","女皇","皇帝","教皇","恋人","战车","力量","隐士","命运之轮","正义","倒吊人","死神","节制","恶魔","高塔","星星","月亮","太阳","审判","世界"];
+            majorNames.forEach((name, i) => deck.push({ type: 'major', number: i, name, suit: 'major', color: '#8e44ad' }));
+            const suits = [{ code: 'wa', name: '权杖', color: '#c0392b' }, { code: 'cu', name: '圣杯', color: '#2980b9' }, { code: 'sw', name: '宝剑', color: '#7f8c8d' }, { code: 'pe', name: '星币', color: '#f39c12' }];
+            const ranks = ["ac","02","03","04","05","06","07","08","09","10","pa","kn","qu","ki"];
+            let count = 0, suitIdx = 0, rankIdx = 0;
+            while(count < 30) {
+                const s = suits[suitIdx]; const r = ranks[rankIdx];
+                deck.push({ type: 'minor', suit: s.code, rank: r, name: `${s.name}${getRankName(r)}`, color: s.color });
+                count++; rankIdx++;
+                if (rankIdx >= ranks.length) { rankIdx = 0; suitIdx = (suitIdx + 1) % suits.length; } else { suitIdx = (suitIdx + 1) % suits.length; }
+            }
+            return deck;
+        };
+        const getRankName = (rank) => {
+            const map = { 'ac':'首牌', 'pa':'侍从', 'kn':'骑士', 'qu':'王后', 'ki':'国王' };
+            if (map[rank]) return map[rank];
+            return rank;
+        };
+        const TAROT_DECK = generateTarotDeck();
+        const cardToImgSrc = (card) => {
+            let path = card.type === "major" ? `${BASE_URL}ar${String(card.number).padStart(2,"0")}.jpg` : `${BASE_URL}${card.suit}${card.rank}.jpg`;
+            return `${CORS_PROXY}${path}&output=jpg`; 
+        };
+
+        function App() {
+            const mountRef = useRef(null);
+            const videoRef = useRef(null);
+            const fileInputRef = useRef(null);
+            
+            const [loading, setLoading] = useState(true);
+            const [loadingText, setLoadingText] = useState("加载星空引擎...");
+            
+            // 数量控制状态
+            const [studentCount, setStudentCount] = useState(50);
+            const [inputCount, setInputCount] = useState(50);
+            const [students, setStudents] = useState(generateStudents(50));
+            
+            const [mode, setMode] = useState('mouse'); 
+            const [statusMsg, setStatusMsg] = useState("命运之轮准备就绪");
+            const [result, setResult] = useState(null);
+            const [slots, setSlots] = useState([]); 
+            const [isFull, setIsFull] = useState(false);
+            
+            const gameRef = useRef({
+                scene: null, camera: null, renderer: null,
+                deckGroup: null, activeCard: null,
+                slotMeshes: [], slotCards: [], slotData: [], 
+                stars: null, cursorMesh: null, dummyCards: [],
+                backMaterial: null, raycaster: null, mouse: null,
+                particles: [], 
+                nebulaAura: [], // Greenish Aura
+                state: 'IDLE',
+                handLandmarker: null,
+                cleanup: null,
+                scrollVelocity: 0,
+                lastHandX: 0,
+                isHandTracking: false,
+                deckLocked: false,
+                cooldown: false
+            });
+
+            useEffect(() => {
+                let isMounted = true;
+                const init = async () => {
+                    setTimeout(() => {
+                        if(isMounted) {
+                            try {
+                                initGame();
+                                setLoading(false);
+                            } catch(e) {
+                                console.error(e);
+                                setLoadingText("启动失败: " + e.message);
+                            }
+                        }
+                    }, 500);
+                };
+                init();
+                return () => { isMounted = false; if (gameRef.current.cleanup) gameRef.current.cleanup(); };
+            }, []);
+
+            const handleSetCount = () => {
+                let count = parseInt(inputCount);
+                if (isNaN(count) || count < 1) count = 1;
+                if (count > 200) count = 200; 
+                
+                resetGame();
+                setStudentCount(count);
+                setInputCount(count);
+                const newStudents = generateStudents(count);
+                setStudents(newStudents);
+            };
+
+            const createDefaultBackTexture = () => {
+                const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 200;
+                const ctx = cvs.getContext('2d');
+                const grd = ctx.createLinearGradient(0,0,128,200);
+                grd.addColorStop(0, '#1a1a2e'); grd.addColorStop(1, '#0f0f15');
+                ctx.fillStyle = grd; ctx.fillRect(0,0,128,200);
+                ctx.strokeStyle='#d4af37'; ctx.lineWidth=2;
+                ctx.beginPath(); ctx.arc(64,100,30,0,Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(64,10); ctx.lineTo(64,190); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(10,100); ctx.lineTo(118,100); ctx.stroke();
+                ctx.strokeRect(10,10,108,180);
+                return new THREE.CanvasTexture(cvs);
+            };
+
+            const createParticleTexture = () => {
+                const cvs = document.createElement('canvas'); cvs.width = 64; cvs.height = 64;
+                const ctx = cvs.getContext('2d');
+                const cx = 32, cy = 32, r = 28;
+                const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+                grd.addColorStop(0, 'rgba(255,255,255,1)');
+                grd.addColorStop(0.2, 'rgba(255,255,220,0.8)');
+                grd.addColorStop(0.5, 'rgba(255,215,0,0.2)');
+                grd.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grd; ctx.fillRect(0,0,64,64);
+                return new THREE.CanvasTexture(cvs);
+            };
+
+            const initGame = () => {
+                if (!mountRef.current) return;
+                const width = window.innerWidth; const height = window.innerHeight;
+                const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x02020a, 0.02);
+                const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
+                camera.position.set(0, 0, 7);
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(width, height); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                mountRef.current.innerHTML = ''; mountRef.current.appendChild(renderer.domElement);
+
+                const ambient = new THREE.AmbientLight(0x666688, 1.5); scene.add(ambient);
+                const point = new THREE.PointLight(0xffd700, 1.2, 20); point.position.set(0, 3, 5); scene.add(point);
+
+                const starCount = 1500; 
+                const starGeo = new THREE.BufferGeometry();
+                const starPos = new Float32Array(starCount * 3);
+                const starSizes = new Float32Array(starCount);
+                for(let i=0; i<starCount; i++) {
+                    starPos[i*3] = (Math.random()-0.5)*50; 
+                    starPos[i*3+1] = (Math.random()-0.5)*30; 
+                    starPos[i*3+2] = (Math.random()-0.5)*20 - 10;
+                    starSizes[i] = Math.random() * 0.15 + 0.05;
+                }
+                starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+                starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+                
+                const starMat = new THREE.PointsMaterial({ 
+                    color: 0xffffff, 
+                    size: 0.15, 
+                    map: createParticleTexture(), 
+                    transparent: true, 
+                    opacity: 0.8, 
+                    blending: THREE.AdditiveBlending, 
+                    depthWrite:false 
+                });
+                const starSystem = new THREE.Points(starGeo, starMat);
+                scene.add(starSystem);
+
+                // 卡槽
+                const slotGroup = new THREE.Group();
+                const slotMeshes = [];
+                for(let i=0; i<3; i++) {
+                    const borderGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.2, 2.0));
+                    const borderMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+                    const border = new THREE.LineSegments(borderGeo, borderMat);
+                    border.position.set((i-1)*2.0, 2.2, 0);
+                    slotGroup.add(border);
+                    slotMeshes.push({ position: border.position.clone() });
+                }
+                scene.add(slotGroup);
+
+                // 牌堆
+                const deckGroup = new THREE.Group();
+                const dummyCards = [];
+                const cardGeo = new THREE.BoxGeometry(1.2, 2.0, 0.05);
+                const backMaterial = new THREE.MeshStandardMaterial({ map: createDefaultBackTexture() });
+                gameRef.current.backMaterial = backMaterial;
+                const sideMat = new THREE.MeshStandardMaterial({color:0x111111});
+                const deckMat = [sideMat, sideMat, sideMat, sideMat, backMaterial, backMaterial];
+                
+                for(let i=0; i<7; i++) {
+                    const mesh = new THREE.Mesh(cardGeo, deckMat);
+                    mesh.position.set((i - 3) * 3.0, -1.2, 0); 
+                    mesh.scale.set(1.2, 1.2, 1.2);
+                    mesh.castShadow = true;
+                    mesh.userData = { isDummy: true };
+                    deckGroup.add(mesh); dummyCards.push(mesh);
+                }
+                scene.add(deckGroup);
+
+                const cursorMesh = new THREE.Mesh(new THREE.RingGeometry(0.12, 0.15, 32), new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.6 }));
+                cursorMesh.visible = false; scene.add(cursorMesh);
+
+                const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(-999,-999);
+
+                Object.assign(gameRef.current, { 
+                    scene, camera, renderer, deckGroup, dummyCards, stars: starSystem, 
+                    slotMeshes, slotCards: [], slotData: [], raycaster, mouse, cursorMesh 
+                });
+
+                const clock = new THREE.Clock();
+                let reqId;
+
+                const animate = () => {
+                    reqId = requestAnimationFrame(animate);
+                    try {
+                        const time = clock.getElapsedTime();
+                        const delta = clock.getDelta();
+                        starSystem.rotation.y = time * 0.02;
+
+                        if (gameRef.current.state === 'IDLE' && !gameRef.current.deckLocked) {
+                            let moveSpeed = 0.002 + gameRef.current.scrollVelocity;
+                            gameRef.current.scrollVelocity *= 0.98; // Inertia
+                            
+                            const MAX_V = 0.12;
+                            if(gameRef.current.scrollVelocity > MAX_V) gameRef.current.scrollVelocity = MAX_V;
+                            if(gameRef.current.scrollVelocity < -MAX_V) gameRef.current.scrollVelocity = -MAX_V;
+
+                            dummyCards.forEach((card, idx) => {
+                                card.position.x += moveSpeed;
+                                if (card.position.x > 10.5) card.position.x -= 21.0; 
+                                else if (card.position.x < -10.5) card.position.x += 21.0;
+                                card.position.y = -1.2 + Math.sin(time * 2 + idx) * 0.05;
+                                card.rotation.z = Math.sin(time + idx) * 0.02 + (gameRef.current.scrollVelocity * 0.2);
+                            });
+                        }
+
+                        const active = gameRef.current.activeCard;
+                        if (active) {
+                            if (gameRef.current.state === 'GRABBED') {
+                                const target = new THREE.Vector3(); raycaster.ray.at(5, target);
+                                active.position.lerp(target, 0.15);
+                                active.rotation.x = THREE.MathUtils.lerp(active.rotation.x, 0.2, 0.1);
+                                active.scale.lerp(new THREE.Vector3(1.2, 1.2, 1.2), 0.1);
+                            } 
+                            else if (gameRef.current.state === 'REVEALED') {
+                                active.position.lerp(new THREE.Vector3(0, 0, 4), 0.1);
+                                active.rotation.y = THREE.MathUtils.lerp(active.rotation.y, 0, 0.1); 
+                                // Zoom to 1.1x
+                                active.scale.lerp(new THREE.Vector3(1.1, 1.1, 1.1), 0.1);
+                            }
+                            else if (gameRef.current.state === 'DISSOLVING') {
+                                if(active.userData.finalized) return;
+                                const targetSlot = gameRef.current.slotMeshes[active.userData.slotIndex].position;
+                                active.position.lerp(targetSlot, 0.08);
+                                active.scale.lerp(new THREE.Vector3(1.0, 1.0, 1.0), 0.05);
+                                
+                                if (active.position.distanceTo(targetSlot) < 0.2) finalizeSlotCard(active);
+                            }
+                        }
+
+                        updateNebulaAura(delta);
+                        
+                        // Dissolve Particles Update (Dust)
+                        const particles = gameRef.current.particles;
+                        for (let i = particles.length - 1; i >= 0; i--) {
+                            const p = particles[i];
+                            // Stardust float (Micro gravity)
+                            const pos = p.geometry.attributes.position.array;
+                            for(let j=0; j<pos.length; j+=3) {
+                                pos[j] += (Math.random()-0.5)*0.01;
+                                pos[j+1] += (Math.random()-0.5)*0.01; 
+                                pos[j+2] += (Math.random()-0.5)*0.01;
+                            }
+                            p.geometry.attributes.position.needsUpdate = true;
+                            
+                            p.material.opacity -= 0.01; // Slow fade
+                            if (p.material.opacity <= 0) { scene.remove(p); particles.splice(i, 1); }
+                        }
+
+                        renderer.render(scene, camera);
+                        if (gameRef.current.handLandmarker && videoRef.current && !videoRef.current.paused) updateHandGesture();
+                    } catch(e) { console.error(e); gameRef.current.state = 'IDLE'; if(gameRef.current.activeCard) { scene.remove(gameRef.current.activeCard); gameRef.current.activeCard=null;} }
+                };
+                animate();
+
+                const onResize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); };
+                const onMouseMove = (e) => {
+                    if (mode === 'mouse') {
+                        mouse.x = (e.clientX/window.innerWidth)*2-1; mouse.y = -(e.clientY/window.innerHeight)*2+1;
+                        raycaster.setFromCamera(mouse, camera);
+                        document.body.style.cursor = (!gameRef.current.deckLocked && raycaster.intersectObjects(dummyCards).length>0) ? 'pointer' : 'default';
+                    }
+                };
+                const onMouseDown = () => { if (mode === 'mouse') handleTrigger(); };
+
+                window.addEventListener('resize', onResize); window.addEventListener('mousemove', onMouseMove); window.addEventListener('mousedown', onMouseDown);
+                gameRef.current.cleanup = () => { cancelAnimationFrame(reqId); window.removeEventListener('resize', onResize); window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mousedown', onMouseDown); };
+            };
+
+            // --- 星云光环特效 (Nebula Aura - Green/Cyan) ---
+            const spawnNebulaAura = (cardMesh) => {
+                const { scene, nebulaAura } = gameRef.current;
+                const count = 600; // Dense aura
+                const geo = new THREE.BufferGeometry();
+                const pos = new Float32Array(count * 3);
+                const colors = new Float32Array(count * 3);
+                const sizes = new Float32Array(count);
+                
+                // Color Palette: Cyan and Green
+                const c1 = new THREE.Color(0x00ffff);
+                const c2 = new THREE.Color(0x00ffaa); // Mint Green
+                
+                for(let i=0; i<count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const rX = 0.8 + Math.random() * 0.4;
+                    const rY = 1.3 + Math.random() * 0.4;
+                    
+                    pos[i*3] = Math.cos(angle) * rX; 
+                    pos[i*3+1] = (Math.random() - 0.5) * 2.5; 
+                    pos[i*3+2] = Math.sin(angle) * 0.5 + (Math.random()-0.5)*0.2; 
+                    
+                    const c = Math.random() > 0.5 ? c1 : c2;
+                    colors[i*3] = c.r; colors[i*3+1] = c.g; colors[i*3+2] = c.b;
+
+                    sizes[i] = Math.random() * 0.15 + 0.08; 
+                }
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                const mat = new THREE.PointsMaterial({
+                    vertexColors: true,
+                    map: createParticleTexture(),
+                    transparent: true,
+                    opacity: 0, 
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const points = new THREE.Points(geo, mat);
+                cardMesh.add(points); 
+                
+                const meta = [];
+                for(let i=0; i<count; i++) {
+                    meta.push({
+                        speedY: -0.005 - Math.random() * 0.01, 
+                        wobble: Math.random() * Math.PI * 2,
+                        wobbleSpeed: 0.5 + Math.random()
+                    });
+                }
+                
+                gameRef.current.nebulaAura.push({ mesh: points, age: 0, meta });
+            };
+
+            const updateNebulaAura = (delta) => {
+                const { nebulaAura } = gameRef.current;
+                for (let i = nebulaAura.length - 1; i >= 0; i--) {
+                    const sys = nebulaAura[i];
+                    if (!sys.mesh.parent) { nebulaAura.splice(i, 1); continue; } 
+                    
+                    sys.age += delta;
+                    if (sys.age < 0.5) sys.mesh.material.opacity = sys.age * 2;
+                    else sys.mesh.material.opacity = 0.8 + Math.sin(sys.age)*0.2; 
+                    
+                    const positions = sys.mesh.geometry.attributes.position.array;
+                    const meta = sys.meta;
+                    
+                    for(let j=0; j<meta.length; j++) {
+                        const p = meta[j];
+                        positions[j*3+1] += p.speedY; 
+                        positions[j*3] += Math.cos(sys.age * p.wobbleSpeed + p.wobble) * 0.002;
+                        if(positions[j*3+1] < -1.5) positions[j*3+1] = 1.5;
+                    }
+                    sys.mesh.geometry.attributes.position.needsUpdate = true;
+                }
+            };
+
+            // --- 星尘消散特效 (Stardust Dissolve) ---
+            const spawnDissolveParticles = (pos) => {
+                const { scene, particles } = gameRef.current;
+                const count = 3000; 
+                const geo = new THREE.BufferGeometry(); 
+                const pPos = new Float32Array(count*3);
+                for(let i=0; i<count*3; i+=3) { 
+                    pPos[i] = pos.x+(Math.random()-0.5)*1.5; 
+                    pPos[i+1] = pos.y+(Math.random()-0.5)*2.5; 
+                    pPos[i+2] = pos.z + (Math.random()-0.5)*0.5; 
+                }
+                geo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+                
+                const mat = new THREE.PointsMaterial({
+                    color: 0xffd700, 
+                    size: 0.06, 
+                    map: createParticleTexture(), 
+                    transparent:true, 
+                    opacity: 1,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                const pts = new THREE.Points(geo, mat); 
+                scene.add(pts); 
+                particles.push(pts);
+            };
+
+            const handleTrigger = () => {
+                const { state, deckLocked, dummyCards, raycaster, cooldown } = gameRef.current;
+                if (cooldown) return;
+                if (state === 'IDLE' && !deckLocked) {
+                    const intersects = raycaster.intersectObjects(dummyCards);
+                    if (intersects.length > 0) spawnCardFrom(intersects[0].object);
+                } else if (state === 'GRABBED') {
+                    revealCard();
+                } else if (state === 'REVEALED') {
+                    dissolveToSlot();
+                }
+            };
+
+            // 使用 ref 追踪最新的学生数据
+            const studentsRef = useRef(students);
+            useEffect(() => { studentsRef.current = students; }, [students]);
+
+            const spawnCardFrom = (dummyCard) => {
+                const currentStudents = studentsRef.current;
+                if (currentStudents.length === 0 || gameRef.current.slotData.length >= 3) return;
+                gameRef.current.state = 'GRABBED';
+                setStatusMsg(mode === 'hand' ? "握拳确认命运" : "点击翻开牌面");
+                
+                const newStudents = [...currentStudents];
+                const sIdx = Math.floor(Math.random() * newStudents.length);
+                const student = newStudents.splice(sIdx, 1)[0];
+                setStudents(newStudents);
+
+                const tIdx = Math.floor(Math.random() * TAROT_DECK.length);
+                const tarot = TAROT_DECK[tIdx];
+                const slotIndex = gameRef.current.slotData.length;
+                const imgUrl = cardToImgSrc(tarot);
+                
+                const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 400;
+                const ctx = cvs.getContext('2d'); ctx.fillStyle = '#111'; ctx.fillRect(0,0,256,400); ctx.fillStyle = '#d4af37'; ctx.font='20px serif'; ctx.textAlign='center'; ctx.fillText("命运...", 128, 200);
+                const placeholderTex = new THREE.CanvasTexture(cvs);
+                const faceMat = new THREE.MeshStandardMaterial({ map: placeholderTex, transparent: true });
+                const backMat = gameRef.current.backMaterial.clone(); backMat.transparent = true;
+                const sideMat = new THREE.MeshStandardMaterial({color:0x888888, transparent: true});
+
+                const loader = new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
+                loader.load(imgUrl, (tex) => {
+                    const fCtx = cvs.getContext('2d'); fCtx.drawImage(tex.image, 0, 0, 256, 400);
+                    // 覆盖黑色遮罩
+                    fCtx.fillStyle = 'rgba(0,0,0,0.8)'; fCtx.fillRect(10, 320, 236, 70);
+                    // 只显示大号数字 ID
+                    fCtx.fillStyle = '#fff'; 
+                    fCtx.font='bold 60px "Times New Roman"'; 
+                    fCtx.textAlign='center'; 
+                    fCtx.fillText(student.id, 128, 375);
+                    faceMat.map = new THREE.CanvasTexture(cvs); faceMat.needsUpdate = true;
+                }, undefined, () => {
+                    // Fallback
+                    const fCtx = cvs.getContext('2d');
+                    fCtx.fillStyle = tarot.color; fCtx.fillRect(0,0,256,400);
+                    fCtx.strokeStyle='#fff'; fCtx.strokeRect(10,10,236,380);
+                    fCtx.fillStyle='#fff'; fCtx.font='bold 30px serif'; fCtx.textAlign='center'; fCtx.fillText(tarot.name, 128, 200);
+                    
+                    fCtx.fillStyle = 'rgba(0,0,0,0.8)'; fCtx.fillRect(10, 320, 236, 70);
+                    fCtx.fillStyle = '#fff'; fCtx.font='bold 60px "Times New Roman"'; 
+                    fCtx.fillText(student.id, 128, 375);
+                    faceMat.map = new THREE.CanvasTexture(cvs); faceMat.needsUpdate = true;
+                });
+
+                const geo = new THREE.BoxGeometry(1.2, 2.0, 0.05);
+                const card = new THREE.Mesh(geo, [sideMat, sideMat, sideMat, sideMat, faceMat, backMat]);
+                card.position.copy(dummyCard.position); card.rotation.copy(dummyCard.rotation); card.rotation.y = Math.PI; card.castShadow = true;
+                card.scale.set(1.2, 1.2, 1.2);
+                card.userData = { student, tarot, slotIndex, finalized: false };
+                gameRef.current.scene.add(card); gameRef.current.activeCard = card;
+            };
+
+            const revealCard = () => {
+                const card = gameRef.current.activeCard; if (!card) return;
+                gameRef.current.state = 'REVEALED'; setStatusMsg("点击归位");
+                setResult({ name: "", id: card.userData.student.id, tarot: card.userData.tarot.name });
+                spawnNebulaAura(card);
+            };
+
+            const dissolveToSlot = () => {
+                const card = gameRef.current.activeCard; if (!card) return;
+                gameRef.current.state = 'DISSOLVING'; setStatusMsg(""); setResult(null);
+                
+                const { scene, nebulaAura } = gameRef.current;
+                nebulaAura.forEach(s => {
+                     if(s.mesh.parent === card) scene.remove(s.mesh); 
+                });
+                gameRef.current.nebulaAura = [];
+
+                spawnDissolveParticles(card.position);
+            };
+
+            const finalizeSlotCard = (card) => {
+                if(card.userData.finalized) return; card.userData.finalized = true;
+                const { scene, slotCards, slotMeshes, slotData } = gameRef.current;
+                const idx = card.userData.slotIndex;
+                if(card.parent) scene.remove(card); gameRef.current.activeCard = null;
+                
+                if(idx >= 0 && idx < slotMeshes.length) {
+                    const finalPos = slotMeshes[idx].position;
+                    const staticCard = card.clone(); staticCard.position.copy(finalPos); staticCard.rotation.set(0,0,0); 
+                    staticCard.scale.set(1.0, 1.0, 1.0);
+                    staticCard.clear(); 
+                    if(Array.isArray(staticCard.material)) staticCard.material = staticCard.material.map(m=>{const c=m.clone(); c.transparent=false; c.opacity=1; return c;});
+                    scene.add(staticCard); slotCards.push(staticCard); slotData.push(card.userData);
+                    setSlots([...slotData]);
+                    if(slotData.length >= 3) { gameRef.current.deckLocked=true; setStatusMsg("抽牌完成！"); setIsFull(true); } else { setStatusMsg("继续抽取"); }
+                }
+                gameRef.current.state = 'IDLE'; 
+            };
+
+            const resetGame = () => {
+                gameRef.current.slotCards.forEach(c => gameRef.current.scene.remove(c));
+                gameRef.current.slotCards = []; gameRef.current.slotData = [];
+                setSlots([]); setIsFull(false); gameRef.current.deckLocked = false; gameRef.current.state = 'IDLE'; setStatusMsg("重置完成"); setResult(null);
+            };
+
+            const initMediaPipe = async () => {
+                try {
+                    const { FilesetResolver, HandLandmarker } = await new Function('return import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/+esm")')();
+                    const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm");
+                    gameRef.current.handLandmarker = await HandLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" }, runningMode: "VIDEO", numHands: 1 });
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.onloadeddata = () => { videoRef.current.play(); }; }
+                    if(gameRef.current.cursorMesh) gameRef.current.cursorMesh.visible = true;
+                } catch(e) { console.error(e); setMode('mouse'); }
+            };
+
+            const updateHandGesture = () => {
+                const { handLandmarker, raycaster, camera, mouse, cursorMesh, state } = gameRef.current;
+                const video = videoRef.current; if (!handLandmarker || !video || video.paused) return;
+                const results = handLandmarker.detectForVideo(video, performance.now());
+                if (results.landmarks.length > 0) {
+                    const lm = results.landmarks[0];
+                    const index = lm[8]; const thumb = lm[4]; const wrist = lm[0];
+                    const x = (1-index.x)*2-1; const y = -(index.y)*2+1;
+                    mouse.set(x, y); raycaster.setFromCamera(mouse, camera);
+                    if(cursorMesh) { const t=new THREE.Vector3(); raycaster.ray.at(5, t); cursorMesh.position.copy(t); cursorMesh.visible=true; }
+
+                    if(state === 'IDLE') {
+                        if (!gameRef.current.isHandTracking) { gameRef.current.isHandTracking = true; gameRef.current.lastHandX = x; }
+                        const dx = x - gameRef.current.lastHandX;
+                        if(Math.abs(dx) > 0.005) gameRef.current.scrollVelocity += dx * 0.5;
+                        gameRef.current.lastHandX = x;
+                    }
+
+                    const pinchDist = Math.hypot(index.x-thumb.x, index.y-thumb.y);
+                    const isPinch = pinchDist < 0.15;
+                    const isFist = Math.hypot(lm[12].y-wrist.y)<0.25 && Math.hypot(lm[16].y-wrist.y)<0.25;
+                    
+                    if(state === 'IDLE' && isPinch && !gameRef.current.cooldown) { handleTrigger(); gameRef.current.cooldown=true; setTimeout(()=>gameRef.current.cooldown=false,1500); }
+                    if(state === 'GRABBED' && isFist && !gameRef.current.cooldown) { handleTrigger(); gameRef.current.cooldown=true; setTimeout(()=>gameRef.current.cooldown=false,1500); }
+                    if(state === 'REVEALED' && !isFist && !isPinch && !gameRef.current.cooldown) { handleTrigger(); gameRef.current.cooldown=true; setTimeout(()=>gameRef.current.cooldown=false,1500); }
+                } else { gameRef.current.isHandTracking = false; if(cursorMesh) cursorMesh.visible=false; }
+            };
+
+            const toggleMode = (m) => { setMode(m); if(m==='hand' && !gameRef.current.handLandmarker) initMediaPipe(); };
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0]; if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => { new THREE.TextureLoader().load(evt.target.result, (tex)=>{ if(gameRef.current.backMaterial) { gameRef.current.backMaterial.map=tex; gameRef.current.backMaterial.needsUpdate=true; }}); };
+                reader.readAsDataURL(file);
+            };
+
+            return (
+                <div className="relative w-full h-screen bg-[#02020a] overflow-hidden select-none text-white">
+                    <div ref={mountRef} className="absolute inset-0 z-0" />
+                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                    <video ref={videoRef} className={`fixed bottom-4 left-4 w-40 h-32 rounded border border-amber-500/30 object-cover z-50 transform -scale-x-100 ${mode === 'hand' ? 'opacity-80' : 'opacity-0 pointer-events-none'}`} playsInline muted autoPlay />
+                    
+                    {loading && <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black text-amber-500">{loadingText}</div>}
+
+                    <div className="absolute inset-0 z-10 pointer-events-none p-6 flex flex-col justify-between">
+                        <div className="flex justify-between items-start pointer-events-auto relative z-50">
+                            <div className="bg-gray-900/40 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-xl">
+                                <h1 className="text-xl font-bold text-amber-500 flex items-center tracking-widest"><span className="mr-2"><IconSparkles /></span> 星空塔罗</h1>
+                                <div className="text-xs text-gray-400 mt-1 flex items-center"><span className="mr-1"><IconUsers /></span> 剩余卡牌: {students.length}</div>
+                            </div>
+                            <div className="flex gap-2 items-center">
+                                {/* 数字输入区域 */}
+                                <div className="flex items-center bg-gray-900/60 backdrop-blur-md rounded-lg border border-white/10 p-1 mr-2">
+                                    <span className="text-gray-400 text-sm ml-2 mr-2">数量:</span>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        max="100" 
+                                        value={inputCount} 
+                                        onChange={(e) => setInputCount(Number(e.target.value))}
+                                        className="bg-black/50 text-white border border-gray-600 rounded px-2 py-1 w-16 text-center text-sm focus:outline-none focus:border-amber-500"
+                                    />
+                                    <button 
+                                        onClick={handleSetCount}
+                                        className="ml-2 bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded transition"
+                                    >
+                                        生成
+                                    </button>
+                                </div>
+
+                                {isFull && <button onClick={resetGame} className="bg-red-900/60 backdrop-blur-md px-4 py-2 rounded-lg border border-red-500/50 hover:bg-red-800 transition flex items-center"><span className="mr-2"><IconRotate /></span> 重置</button>}
+                                <button onClick={() => fileInputRef.current.click()} className="bg-indigo-900/60 backdrop-blur-md px-4 py-2 rounded-lg border border-indigo-500/50 hover:bg-indigo-800 transition flex items-center text-sm"><span className="mr-2"><IconUpload /></span> 背面</button>
+                                <div className="flex bg-gray-900/40 backdrop-blur-md rounded-lg border border-white/10 p-1">
+                                    <button onClick={() => toggleMode('mouse')} className={`p-2 rounded ${mode==='mouse' ? 'bg-amber-600' : 'text-gray-400'}`}><IconMouse /></button>
+                                    <button onClick={() => toggleMode('hand')} className={`p-2 rounded ${mode==='hand' ? 'bg-amber-600' : 'text-gray-400'}`}><IconHand /></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="absolute top-8 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+                            <div className="text-xs text-amber-500/60 tracking-widest mb-1">已抽取 {slots.length} / 3</div>
+                            {isFull && <div className="pointer-events-auto mt-4"><button onClick={() => alert("点名完成！")} className="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-8 rounded-full shadow-[0_0_20px_rgba(255,165,0,0.5)] transition animate-pulse">完成</button></div>}
+                        </div>
+
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center w-full z-20">
+                            {!result && <div className="text-lg text-amber-100/80 font-serif tracking-[0.2em] bg-black/30 px-8 py-3 rounded-full backdrop-blur-sm border border-white/5 inline-block">{statusMsg}</div>}
+                            {result && (
+                                <div className="flex flex-col items-center animate-in fade-in zoom-in duration-500">
+                                    <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-amber-600 mb-6 drop-shadow-[0_0_15px_rgba(212,175,55,0.6)] font-serif font-mono">
+                                        {result.id}
+                                    </div>
+                                    <div className="bg-black/60 backdrop-blur-md border border-amber-500/30 px-10 py-4 rounded-2xl flex flex-col gap-1 items-center">
+                                        <div className="text-2xl font-serif text-green-400 flex items-center gap-2">{result.tarot}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="text-center pointer-events-auto mb-4">
+                            <div className="bg-black/40 backdrop-blur px-6 py-2 rounded-full inline-flex items-center text-xs text-gray-400 border border-white/5">
+                                <span className="mr-2"><IconAlert /></span>
+                                {mode === 'mouse' ? "点击抽牌 -> 再次点击归位" : "捏合抓取 -> 握拳确认 -> 张手归位"}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

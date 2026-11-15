@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><base href="/api/program-assets/833/t/eyJwcml2YXRlUmV2aXNpb24iOiIwZjAyY2ZlYTUzZWQyNmZiMTFhNGNjZDMyOTcxOWE2MyIsIm8iOiJvSHNWcjJ6N0VYZURDS1RlMkNXYXJleVU2QjdnIiwicCI6IjgzMyIsImV4cCI6MTc5NDU1OTY3MSwicHVycG9zZSI6InByb3RlY3RlZF9wcm9ncmFtX2Fzc2V0In0.A9aMfZNDe0jxUWFG72Y8pbUGBBDS1QlTFO5gcpdyK9s/package/"><script>
+(function(){var prefixes=["/api/program-assets/833/"];function needsCors(v){if(!v||typeof v!=="string")return false;try{var href=new URL(v,document.baseURI).href;for(var i=0;i<prefixes.length;i++){var p=new URL(prefixes[i],location.origin).href;if(href.indexOf(p)===0)return true;}return false;}catch(e){return false;}}function mark(img,v){if(needsCors(v)){try{img.crossOrigin="anonymous";}catch(e){}}}var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(d&&d.set&&d.get){try{Object.defineProperty(HTMLImageElement.prototype,"src",{get:d.get,set:function(v){mark(this,v);return d.set.call(this,v);},configurable:true,enumerable:d.enumerable});}catch(e){}}var set=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(this instanceof HTMLImageElement&&String(n).toLowerCase()==="src")mark(this,String(v||""));return set.apply(this,arguments);};})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230f1117'/%3E%3Cpath d='M20 22 L32 16 L44 22 L44 42 L32 48 L20 42 Z' fill='%234FC3F7' stroke='%23ffffff' stroke-width='1.5'/%3E%3Cpath d='M32 16 L44 22 L32 28 L20 22 Z' fill='%23E57373' stroke='%23ffffff' stroke-width='1.5'/%3E%3Cpath d='M44 22 L44 42 L32 48 L32 28 Z' fill='%23BA68C8' stroke='%23ffffff' stroke-width='1.5'/%3E%3C/svg%3E">
+<title>长方体纸盒剪开</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 45%,#181b24 0,#13161f 60%,#0f1117);color:#e8eaf0;font-family:"Microsoft YaHei",system-ui,sans-serif}
+body{display:grid;place-items:center;padding:16px}
+.wrap{position:relative;width:min(1400px,100%);height:calc(100vh - 32px);min-height:520px}
+header{position:absolute;z-index:5;top:22px;left:28px;right:28px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;pointer-events:none}
+header>div,.pill{pointer-events:auto}
+h1{margin:0;font-size:34px}
+header p{margin:7px 0 0;color:#9aa0b0}
+.pill{background:rgba(24,27,36,.88);color:#4FC3F7;font-weight:bold;border-radius:99px;padding:9px 14px;white-space:nowrap;border:1px solid rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.3)}
+.stage{position:absolute;inset:0;overflow:hidden;border-radius:24px;background:transparent}
+#canvas{width:100%;height:100%;display:block;cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M6 27l8-8 3 3-8 8z' fill='%238b5a2b' stroke='%23333'/%3E%3Cpath d='M14 19L27 3c1 7-2 14-10 19z' fill='%23eaf4f8' stroke='%23344956' stroke-width='1.4'/%3E%3C/svg%3E") 7 27,crosshair}
+.cut-slash{position:absolute;z-index:12;width:64px;height:4px;pointer-events:none;border-radius:99px;background:linear-gradient(90deg,transparent,#fff 18%,#ff8b37 50%,#fff 82%,transparent);box-shadow:0 0 8px #ff7b24,0 0 16px #fff;transform:translate(-50%,-50%) rotate(-38deg) scaleX(0);animation:knifeSlash .42s cubic-bezier(.2,.8,.2,1) forwards}
+.cut-slash:after{content:"";position:absolute;inset:-8px 12px;border-top:2px dotted #ffb15e;opacity:.9}
+@keyframes knifeSlash{0%{transform:translate(-50%,-50%) rotate(-38deg) scaleX(0);opacity:0}25%{opacity:1}70%{transform:translate(-50%,-50%) rotate(-38deg) scaleX(1);opacity:1}100%{transform:translate(-50%,-50%) rotate(-38deg) scaleX(1.15);opacity:0}}
+.legend{position:absolute;z-index:3;right:28px;top:82px;display:flex;gap:10px;font-size:13px;background:rgba(24,27,36,.88);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:9px 11px;color:#9aa0b0}
+.key{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:4px}
+.blue{background:#4FC3F7}
+.orange{background:#FFB74D}
+.toolbar{position:absolute;z-index:5;left:50%;bottom:22px;transform:translateX(-50%);width:min(1120px,calc(100% - 44px));display:grid;grid-template-columns:1fr auto;align-items:center;gap:18px;padding:15px 360px 15px 18px;background:rgba(24,27,36,.88);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:17px;box-shadow:0 8px 32px rgba(0,0,0,.35)}
+.fields,.buttons{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.field{display:grid;grid-template-columns:auto 115px 25px;align-items:center;gap:7px;color:#9aa0b0;font-size:14px}
+.field input[type=range]{width:115px;accent-color:#4FC3F7;cursor:grab}
+.field input[type=range]:active{cursor:grabbing}
+.field output{font-weight:bold;color:#4FC3F7;text-align:right}
+.btn{border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 14px;font:inherit;font-weight:bold;cursor:pointer;background:rgba(255,255,255,.05);color:#e8eaf0;transition:all .2s}
+.btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15)}
+.btn:active{transform:scale(.97)}
+.btn.primary{color:#0a0c12;background:#4FC3F7;border-color:#4FC3F7}
+.btn.primary:hover{background:#6acff9}
+.status{position:absolute;z-index:6;left:50%;bottom:105px;transform:translateX(-50%);margin:0;background:rgba(15,17,23,.8);color:#e8eaf0;padding:10px 15px;border-radius:10px;font-size:14px;border:1px solid rgba(255,255,255,.08);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.status:empty{display:none}
+@media(max-width:760px){
+body{padding:8px}
+.wrap{width:100%;height:calc(100vh - 16px);min-height:460px}
+header{left:16px;right:16px;top:15px}
+header p{font-size:12px;max-width:220px}
+h1{font-size:25px}
+.legend{right:16px;top:84px}
+.toolbar{bottom:12px;grid-template-columns:1fr}
+.fields{justify-content:center}
+.buttons{justify-content:center}
+.field{grid-template-columns:auto 78px 20px}
+.field input[type=range]{width:78px}
+.status{bottom:145px;width:calc(100% - 32px);text-align:center}
+}
+</style>
+<style>
+#canvas{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='52' viewBox='0 0 48 48'%3E%3Cpath d='M2 19l14-5 3 10-15 6z' fill='%23e8f0f3' stroke='%234c5e68' stroke-width='1.7'/%3E%3Cpath d='M7 19l3 8M11 17l3 8' stroke='%23a7b5bc' stroke-width='1'/%3E%3Cpath d='M14 12l31 8-4 18-32-9z' fill='%23ff9f1c' stroke='%233e3424' stroke-width='2'/%3E%3Cpath d='M36 18l9 2-4 18-9-3z' fill='%23e67e0c'/%3E%3Cpath d='M17 20l18 5' stroke='%236d562e' stroke-width='2.6' stroke-linecap='round'/%3E%3Crect x='24' y='18' width='8' height='6' rx='2' fill='%234b5560' stroke='%232b3238' transform='rotate(14 28 21)'/%3E%3Ccircle cx='38' cy='30' r='3' fill='%233c3428' stroke='%23ffc35a'/%3E%3C/svg%3E") 3 21,crosshair}
+.stage.plane-mode #canvas{cursor:default}
+.stage.plane-mode.counting #canvas{cursor:pointer}
+.stage.plane-mode .preset-panel{display:none}
+.preset-panel{position:absolute;z-index:7;left:20px;top:100px;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(24,27,36,.88);box-shadow:0 9px 26px rgba(0,0,0,.35);color:#9aa0b0}
+.preset-panel strong{margin:0 4px;font-size:13px;white-space:nowrap}
+.preset-btn{display:flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:7px 9px;background:rgba(255,255,255,.05);color:#e8eaf0;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:.18s ease}
+.preset-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);transform:translateY(-1px)}
+.preset-btn:disabled{opacity:.5;cursor:wait;transform:none}
+.net-icon{position:relative;display:block;flex:0 0 76px;width:76px;height:52px}
+.net-shape{position:absolute;left:50%;top:50%;width:var(--net-width);height:var(--net-height);transform:translate(-50%,-50%)}
+.net-face{position:absolute;display:block;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.net-face.blue{background:#00B0FF}
+.net-face.orange{background:#FF9100}
+.net-face.green{background:#00E676}
+.net-face.purple{background:#D500F9}
+.net-face.top{background:#FF1744}
+.net-face.bottom{background:#FFEA00}
+.net-face.side{top:var(--w);height:var(--h)}
+.net-icon .side-a{left:0;width:var(--l)}
+.net-icon .side-b{left:var(--l);width:var(--w)}
+.net-icon .side-c{left:calc(var(--l) + var(--w));width:var(--l)}
+.net-icon .side-d{left:calc(var(--l) + var(--l) + var(--w));width:var(--w)}
+.net-icon .top-face{left:calc(var(--l) + var(--w));top:0;width:var(--l);height:var(--w)}
+.net-icon .bottom-face{top:calc(var(--w) + var(--h));width:var(--l);height:var(--w)}
+.net-one .bottom-face{left:calc(var(--l) + var(--w))}
+.net-two .bottom-face{left:0}
+.edge-cut-trail{position:absolute;z-index:12;height:3px;pointer-events:none;transform:rotate(var(--angle));transform-origin:left center;border-top:3px dashed #ff8f26;filter:drop-shadow(0 0 4px #fff);animation:cutTrail .42s linear forwards}
+.edge-scissor{position:absolute;z-index:15;width:48px;height:34px;pointer-events:none;transform-origin:center;filter:drop-shadow(0 2px 3px #17384e88);animation:scissorTravel .42s linear forwards}
+.edge-scissor svg{display:block;width:100%;height:100%;overflow:visible}
+.edge-scissor .blade-top{transform-origin:23px 19px;animation:bladeTop .11s ease-in-out infinite alternate}
+.edge-scissor .blade-bottom{transform-origin:23px 19px;animation:bladeBottom .11s ease-in-out infinite alternate}
+@keyframes cutTrail{from{clip-path:inset(-6px 100% -6px 0)}to{clip-path:inset(-6px 0 -6px 0)}}
+@keyframes scissorTravel{from{transform:translate(-15px,-17px) rotate(var(--angle))}to{transform:translate(calc(var(--dx) - 15px),calc(var(--dy) - 17px)) rotate(var(--angle))}}
+@keyframes bladeTop{to{transform:rotate(7deg)}}
+@keyframes bladeBottom{to{transform:rotate(-7deg)}}
+.blocked-hint{position:absolute;z-index:14;pointer-events:none;transform:translate(-50%,-120%);padding:8px 12px;border-radius:9px;background:#d9363e;color:#fff;font-size:14px;font-weight:700;white-space:nowrap;box-shadow:0 7px 20px #93242a48;animation:blockedPop .85s ease-out forwards}
+.blocked-hint:after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:#d9363e;transform:translateX(-50%) rotate(45deg)}
+@keyframes blockedPop{0%{opacity:0;transform:translate(-50%,-90%) scale(.8)}18%{opacity:1;transform:translate(-50%,-120%) scale(1.06)}72%{opacity:1;transform:translate(-50%,-120%) scale(1)}100%{opacity:0;transform:translate(-50%,-145%) scale(.96)}}
+.success-hint{position:absolute;z-index:14;pointer-events:none;transform:translate(-50%,-120%);padding:8px 12px;border-radius:9px;background:#12a66a;color:#fff;font-size:14px;font-weight:700;white-space:nowrap;box-shadow:0 7px 20px #08794b48;animation:blockedPop .85s ease-out forwards}
+.success-hint:after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:#12a66a;transform:translateX(-50%) rotate(45deg)}
+.toolbar{left:28px;right:28px;width:auto;transform:none;grid-template-columns:minmax(0,1fr) auto}
+.toolbar .fields{display:grid;grid-template-columns:repeat(3,minmax(145px,180px));justify-content:start;gap:9px}
+.toolbar .field{grid-template-columns:20px minmax(72px,1fr) 24px;width:100%;padding:7px 8px;border-radius:10px;background:rgba(255,255,255,.05)}
+.toolbar .field input[type=range]{width:100%}
+.toolbar .buttons{align-self:stretch;gap:8px;padding-left:12px;border-left:1px solid rgba(255,255,255,.08);flex-wrap:nowrap}
+.toolbar .buttons .btn{min-width:78px;white-space:nowrap}
+.view-controls{position:absolute;z-index:7;right:28px;bottom:22px;left:auto;transform:none;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(24,27,36,.88);backdrop-filter:blur(10px);box-shadow:0 9px 26px rgba(0,0,0,.35);color:#9aa0b0;font-size:13px}
+.view-controls label{display:flex;align-items:center;gap:7px}
+.view-controls input{width:112px;accent-color:#4FC3F7;cursor:pointer}
+.view-controls output{width:40px;color:#4FC3F7;font-weight:700}
+.view-controls .btn{padding:8px 11px}
+@media(max-width:900px){
+.toolbar{grid-template-columns:1fr;padding:15px 18px}
+.toolbar .buttons{justify-content:center;padding:10px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.08)}
+}
+@media(max-width:760px){
+.toolbar{left:16px;right:16px}
+.toolbar .fields{grid-template-columns:1fr;gap:6px}
+.toolbar .field{grid-template-columns:22px minmax(90px,1fr) 28px;padding:5px 9px}
+.view-controls{right:14px;bottom:250px;left:auto;transform:none}
+.view-controls input{width:76px}
+.status{bottom:308px}
+}
+.status{pointer-events:none;transition:opacity .28s ease,transform .28s ease}
+.status.fading{opacity:0;transform:translate(-50%,-8px)}
+.view-controls .icon-btn{min-width:40px;padding:7px 10px;font-size:23px;line-height:1}
+.pill b{display:inline-block;margin:0 3px;font-size:24px;line-height:1;color:#4FC3F7;vertical-align:-2px}
+@media(max-width:900px) and (min-width:761px){
+.view-controls{right:28px;bottom:118px;left:auto;transform:none}
+.status{bottom:225px}
+}
+.btn[hidden]{display:none}
+.btn.active{color:#0a0c12;background:#4FC3F7;box-shadow:0 4px 12px rgba(79,195,247,.4)}
+@media(max-width:760px){
+.preset-panel{left:16px;top:91px;padding:7px}
+.preset-panel strong{display:none}
+.preset-btn{padding:5px}
+.preset-btn>span:last-child{display:none}
+.net-icon{flex-basis:66px;width:66px;height:46px}
+.toolbar .buttons{flex-wrap:wrap}
+.toolbar .buttons .btn{min-width:70px}
+}
+/* 滑块样式：与第一个网页（888）一致 */
+.field input[type=range],.view-controls input{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;cursor:pointer}
+.field input[type=range]::-webkit-slider-thumb,.view-controls input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#4FC3F7;border:2px solid #0f1117;cursor:pointer;box-shadow:0 0 8px rgba(79,195,247,.4)}
+.field input[type=range]::-moz-range-thumb,.view-controls input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#4FC3F7;border:2px solid #0f1117;cursor:pointer}
+/* 标题强调色 */
+header h1 span{color:#4FC3F7}
+/* 尺寸参数面板（同第一个网页左上角样式） */
+.dim-panel{position:absolute;z-index:7;left:20px;top:195px;background:rgba(24,27,36,.88);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px 18px;width:220px;backdrop-filter:blur(12px);box-shadow:0 9px 26px rgba(0,0,0,.35)}
+.dim-panel h3{font-size:13px;font-weight:600;color:#9aa0b0;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px}
+.dim-row{margin-bottom:12px}
+.dim-row:last-child{margin-bottom:0}
+.dim-row label{display:flex;justify-content:space-between;font-size:12px;color:#9aa0b0;margin-bottom:5px}
+.dim-row label .val{color:#4FC3F7;font-weight:600;font-variant-numeric:tabular-nums}
+.dim-row input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;cursor:pointer}
+.dim-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#4FC3F7;border:2px solid #0f1117;cursor:pointer;box-shadow:0 0 8px rgba(79,195,247,.4)}
+.dim-row input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#4FC3F7;border:2px solid #0f1117;cursor:pointer}
+/* 面标识面板（同第一个网页右上角，置于"已剪开"下方） */
+.face-legend{position:absolute;z-index:7;right:28px;top:80px;background:rgba(24,27,36,.88);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px;backdrop-filter:blur(12px);box-shadow:0 9px 26px rgba(0,0,0,.35)}
+.face-legend h3{font-size:12px;font-weight:600;color:#9aa0b0;margin:0 0 10px;text-transform:uppercase;letter-spacing:1px}
+.face-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#e8eaf0;margin-bottom:6px}
+.face-item:last-child{margin-bottom:0}
+.face-swatch{width:14px;height:14px;border-radius:3px;border:1px solid rgba(255,255,255,.2);flex-shrink:0}
+/* 底部工具条：只剩按钮，居中紧凑排列 */
+.toolbar{left:50%;right:auto;width:auto;transform:translateX(-50%);display:flex;justify-content:center;align-items:center;padding:12px 18px}
+.toolbar .buttons{padding-left:0;border-left:0;gap:10px;flex-wrap:wrap;justify-content:center}
+@media(max-width:900px){.toolbar .buttons{border-top:0;padding-top:0}}
+@media(max-width:760px){
+.dim-panel{left:16px;top:180px;width:176px;padding:12px 14px}
+.face-legend{display:none}
+.toolbar{left:16px;right:16px;width:auto}
+}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=833&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI4MzMiLCJleHAiOjE3OTQ1NTk2Njl9.1QI0rRSQzF-6UwfQU3IVJWXUbbJ5lKuW_n0NWP4Swl4",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+<main class="wrap">
+  <header>
+    <div>
+      <h1>长方体 <span>纸盒剪开</span> 3D 演示</h1>
+      <p>鼠标拖动旋转 · 滚轮缩放 · 点击黑色棱线剪开</p>
+    </div>
+    <div class="pill" id="progress">已剪开 <b>0</b> 条</div>
+  </header>
+  <section class="stage">
+    <canvas id="canvas"></canvas>
+    <aside class="preset-panel" aria-label="预设展开方案">
+      <strong>预设展开</strong>
+      <button class="preset-btn" data-preset="1">
+        <span class="net-icon net-one" aria-hidden="true"></span>
+        <span>方案一</span>
+      </button>
+      <button class="preset-btn" data-preset="2">
+        <span class="net-icon net-two" aria-hidden="true"></span>
+        <span>方案二</span>
+      </button>
+    </aside>
+    <aside class="dim-panel" aria-label="尺寸参数">
+      <h3>尺寸参数</h3>
+      <div class="dim-row">
+        <label>长 (Length) <output class="val" id="lengthValue">4</output></label>
+        <input type="range" id="length" min="1" max="10" step="1" value="4">
+      </div>
+      <div class="dim-row">
+        <label>宽 (Width) <output class="val" id="widthValue">3</output></label>
+        <input type="range" id="width" min="1" max="10" step="1" value="3">
+      </div>
+      <div class="dim-row">
+        <label>高 (Height) <output class="val" id="heightValue">7</output></label>
+        <input type="range" id="height" min="1" max="10" step="1" value="7">
+      </div>
+    </aside>
+    <aside class="face-legend" aria-label="面标识">
+      <h3>面标识</h3>
+      <div class="face-item"><i class="face-swatch" style="background:#00B0FF"></i>前面 Front</div>
+      <div class="face-item"><i class="face-swatch" style="background:#00E676"></i>后面 Back</div>
+      <div class="face-item"><i class="face-swatch" style="background:#FF9100"></i>左面 Left</div>
+      <div class="face-item"><i class="face-swatch" style="background:#D500F9"></i>右面 Right</div>
+      <div class="face-item"><i class="face-swatch" style="background:#FF1744"></i>顶面 Top</div>
+      <div class="face-item"><i class="face-swatch" style="background:#FFEA00"></i>底面 Bottom</div>
+    </aside>
+    <section class="toolbar">
+      <div class="buttons">
+        <button class="btn" id="edgeCount" hidden aria-pressed="false">数棱</button>
+        <button class="btn" id="labelsToggle" aria-pressed="false">显示面名</button>
+        <button class="btn" id="undo">撤销一步</button>
+        <button class="btn" id="reset" hidden>复原</button>
+        <button class="btn primary" id="planeView" hidden>查看平面图</button>
+      </div>
+    </section>
+    <div class="view-controls">
+      <label>缩放
+        <input id="zoom" type="range" min="50" max="160" step="5" value="100">
+        <output id="zoomValue">100%</output>
+      </label>
+      <button class="btn icon-btn" id="viewReset" aria-label="刷新视角" title="刷新视角">↻</button>
+      <button class="btn" id="appReset">重置</button>
+      <button class="btn" id="fullscreenBtn">全屏</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </section>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const FACES=['前','后','左','右','上','下'];
+const EDGES=[['前','上'],['前','下'],['前','左'],['前','右'],['后','上'],['后','下'],['后','左'],['后','右'],['上','左'],['上','右'],['下','左'],['下','右']];
+const canvas=document.querySelector('#canvas'),stage=document.querySelector('.stage'),progressEl=document.querySelector('#progress');
+const lengthInput=document.querySelector('#length'),widthInput=document.querySelector('#width'),heightInput=document.querySelector('#height');
+const lengthValue=document.querySelector('#lengthValue'),widthValue=document.querySelector('#widthValue'),heightValue=document.querySelector('#heightValue');
+const labelsToggleBtn=document.querySelector('#labelsToggle'),edgeCountBtn=document.querySelector('#edgeCount'),undoBtn=document.querySelector('#undo'),resetBtn=document.querySelector('#reset'),planeBtn=document.querySelector('#planeView'),viewResetBtn=document.querySelector('#viewReset'),appResetBtn=document.querySelector('#appReset'),fullscreenBtn=document.querySelector('#fullscreenBtn'),zoomInput=document.querySelector('#zoom'),zoomValue=document.querySelector('#zoomValue'),statusEl=document.querySelector('#status'),presetButtons=[...document.querySelectorAll('.preset-btn')];
+
+const scene=new THREE.Scene();
+const DEFAULT_CAMERA_POSITION=new THREE.Vector3(340,255,420),DEFAULT_CAMERA_TARGET=new THREE.Vector3(0,0,0),DEFAULT_CAMERA_DISTANCE=DEFAULT_CAMERA_POSITION.distanceTo(DEFAULT_CAMERA_TARGET);
+const camera=new THREE.PerspectiveCamera(42,1,.1,3000);camera.position.copy(DEFAULT_CAMERA_POSITION);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.target.set(0,0,0);controls.minDistance=190;controls.maxDistance=750;controls.maxPolarAngle=Math.PI*.85;
+scene.add(new THREE.HemisphereLight(0xffffff,0x1e212b,2.0));
+const sun=new THREE.DirectionalLight(0xffffff,2.3);sun.position.set(180,280,240);
+sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.near=10;sun.shadow.camera.far=1200;sun.shadow.camera.left=-600;sun.shadow.camera.right=600;sun.shadow.camera.top=600;sun.shadow.camera.bottom=-600;sun.shadow.bias=-0.0005;
+scene.add(sun);
+// 补光 + 轮廓光，增强立体感
+const fill=new THREE.DirectionalLight(0x88bbff,0.55);fill.position.set(-260,160,220);scene.add(fill);
+const rim=new THREE.DirectionalLight(0xff99bb,0.75);rim.position.set(-180,120,-320);scene.add(rim);
+const model=new THREE.Group();scene.add(model);
+// 底座（颜色取参考图2 #2E374D，再加 20% 透明度）
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshStandardMaterial({color:0x2E374D,roughness:.9,metalness:0,transparent:true,opacity:.8}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const grid=new THREE.GridHelper(1600,32,0x46506e,0x3a4258);scene.add(grid);
+
+let meshes={},lines=[],edgeOutlines=[],faceLabels=[],baseMatrices={},localEdgePoints={},hinges={},edgeNumberLabels=new Map();
+let cut=[],history=[],unfolded=new Set(),amount={},targets={},tree=null,animating=false,cuttingAnimation=false,pendingUndo=null,pendingRestore=false,planeMode=false,planeAngle=0,planeRotateTarget=null,savedView=null,viewTransition=null,showFaceLabels=false,edgeCounting=false,statusTimer=null;
+const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();raycaster.params.Line.threshold=9;
+
+// 六个面的颜色：高饱和鲜亮色板，增强立体感与辨识度
+const colors=[0x00B0FF,0x00E676,0xFF9100,0xD500F9,0xFF1744,0xFFEA00];
+const PRESETS={
+  1:{name:'方案一',cut:[0,1,3,8,9,10,11]},
+  2:{name:'方案二',cut:[1,4,6,8,9,10,11]}
+};
+
+function initPresetPreviews(){
+  const faces='<span class="net-shape"><i class="net-face side side-a blue"></i><i class="net-face side side-b orange"></i><i class="net-face side side-c green"></i><i class="net-face side side-d purple"></i><i class="net-face top top-face"></i><i class="net-face bottom bottom-face"></i></span>';
+  for(const icon of document.querySelectorAll('.net-icon'))icon.innerHTML=faces;
+  updatePresetPreviews();
+}
+function updatePresetPreviews(){
+  const l=+lengthInput.value,w=+widthInput.value,h=+heightInput.value,scale=Math.min(72/(2*l+2*w),48/(h+2*w));
+  for(const icon of document.querySelectorAll('.net-icon')){
+    icon.style.setProperty('--l',`${l*scale}px`);
+    icon.style.setProperty('--w',`${w*scale}px`);
+    icon.style.setProperty('--h',`${h*scale}px`);
+    icon.style.setProperty('--net-width',`${(2*l+2*w)*scale}px`);
+    icon.style.setProperty('--net-height',`${(h+2*w)*scale}px`);
+  }
+}
+initPresetPreviews();
+
+function dimensions(){const scale=22;return [+lengthInput.value*scale,+widthInput.value*scale,+heightInput.value*scale]}
+function graphFor(testCut=cut){
+  const graph=Object.fromEntries(FACES.map(f=>[f,[]]));
+  EDGES.forEach((e,i)=>{if(!testCut.includes(i)){graph[e[0]].push({face:e[1],edge:i});graph[e[1]].push({face:e[0],edge:i})}});
+  return graph;
+}
+function connected(testCut){
+  const g=graphFor(testCut),seen=new Set(['前']),q=['前'];
+  while(q.length){for(const n of g[q.pop()])if(!seen.has(n.face)){seen.add(n.face);q.push(n.face)}}
+  return seen.size===6;
+}
+function degree(face){return graphFor()[face].length}
+function bridgeEdges(testCut=cut){
+  const bridges=new Set();
+  EDGES.forEach((_,i)=>{if(!testCut.includes(i)&&!connected([...testCut,i]))bridges.add(i)});
+  return bridges;
+}
+function matrixAt(position,euler){
+  return new THREE.Matrix4().compose(new THREE.Vector3(...position),new THREE.Quaternion().setFromEuler(new THREE.Euler(...euler)),new THREE.Vector3(1,1,1));
+}
+function disposeModel(){
+  for(const child of [...model.children]){
+    child.traverse(obj=>{obj.geometry?.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>m.dispose());else obj.material?.dispose()});
+    model.remove(child);
+  }
+}
+function addBottomLabel(l,w){
+  const canvas2d=document.createElement('canvas');canvas2d.width=512;canvas2d.height=512;
+  const ctx=canvas2d.getContext('2d');ctx.clearRect(0,0,512,512);
+  ctx.beginPath();ctx.arc(256,256,190,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.96)';ctx.fill();
+  ctx.lineWidth=22;ctx.strokeStyle='rgba(10,92,63,.88)';ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 270px Microsoft YaHei, sans-serif';ctx.fillStyle='#075b40';ctx.fillText('底',256,270);
+  const texture=new THREE.CanvasTexture(canvas2d);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  const labelSize=Math.min(l,w)*.45,geometry=new THREE.PlaneGeometry(labelSize,labelSize),material=new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.FrontSide,depthWrite:false,toneMapped:false});
+  const front=new THREE.Mesh(geometry,material),back=new THREE.Mesh(geometry.clone(),material.clone());
+  front.position.z=1;front.rotation.z=Math.PI;back.position.z=-1;back.rotation.set(0,Math.PI,Math.PI);
+  front.renderOrder=8;back.renderOrder=8;meshes['下'].add(front,back);
+}
+function addFaceLabel(face,width,height){
+  const canvas2d=document.createElement('canvas');canvas2d.width=512;canvas2d.height=512;
+  const ctx=canvas2d.getContext('2d');
+  ctx.beginPath();ctx.arc(256,256,188,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.95)';ctx.fill();
+  ctx.lineWidth=20;ctx.strokeStyle='rgba(20,66,88,.86)';ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 265px Microsoft YaHei, sans-serif';ctx.fillStyle='#123f58';ctx.fillText(face,256,270);
+  const texture=new THREE.CanvasTexture(canvas2d);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  const labelSize=Math.min(width,height)*.42,geometry=new THREE.PlaneGeometry(labelSize,labelSize),material=new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.FrontSide,depthWrite:false,toneMapped:false}),front=new THREE.Mesh(geometry,material),back=new THREE.Mesh(geometry.clone(),material.clone());
+  front.position.z=1;back.position.z=-1;back.rotation.y=Math.PI;front.renderOrder=8;back.renderOrder=8;
+  meshes[face].add(front,back);faceLabels.push(front,back);
+}
+function updateFaceLabelVisibility(){
+  for(const label of faceLabels)label.visible=showFaceLabels;
+  labelsToggleBtn.textContent=showFaceLabels?'隐藏面名':'显示面名';
+  labelsToggleBtn.setAttribute('aria-pressed',String(showFaceLabels));
+}
+function clearEdgeNumbers(){
+  for(const sprite of edgeNumberLabels.values()){sprite.material.map?.dispose();sprite.material.dispose();model.remove(sprite)}
+  edgeNumberLabels.clear();
+}
+function makeEdgeNumber(number){
+  const c=document.createElement('canvas');c.width=128;c.height=128;
+  const ctx=c.getContext('2d');
+  ctx.beginPath();ctx.arc(64,64,49,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.lineWidth=10;ctx.strokeStyle='#e67820';ctx.stroke();
+  ctx.font='900 68px Microsoft YaHei, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#b95108';ctx.fillText(String(number),64,69);
+  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;
+  const material=new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false,toneMapped:false}),sprite=new THREE.Sprite(material),size=Math.max(22,Math.min(...dimensions())*.28);
+  sprite.scale.set(size,size,1);sprite.renderOrder=30;return sprite;
+}
+function numberEdge(i,point){
+  if(cut.includes(i)){showBlockedHint(point,'已剪开的棱不能计数');return}
+  if(edgeNumberLabels.has(i)){showBlockedHint(point,`这条棱已经是第 ${[...edgeNumberLabels.keys()].indexOf(i)+1} 条`);return}
+  const sprite=makeEdgeNumber(edgeNumberLabels.size+1);edgeNumberLabels.set(i,sprite);model.add(sprite);
+  updateEdgeNumberPositions();edgeCountBtn.textContent=`结束数棱 (${edgeNumberLabels.size})`;
+  setStatus(`已标记第 ${edgeNumberLabels.size} 条未剪开的棱。`);
+}
+function updateEdgeNumberPositions(){
+  for(const [i,sprite] of edgeNumberLabels){
+    const faces=EDGES[i],owner=faces[0];
+    const pts=localEdgePoints[i][owner]?.map(p=>p.clone().applyMatrix4(meshes[owner].matrix));
+    if(!pts)continue;
+    const mid=pts[0].clone().add(pts[1]).multiplyScalar(.5);
+    // 棱线方向与垂直方向（均在 XZ 平面内）
+    const edgeDir=pts[1].clone().sub(pts[0]);edgeDir.y=0;edgeDir.normalize();
+    const perp=new THREE.Vector3(-edgeDir.z,0,edgeDir.x);
+    // 在两个相邻面中，选面中心离棱线更远的一侧（可用空间更大）
+    let bestDir=perp.clone(),bestDist=0;
+    for(const face of faces){
+      const toCenter=meshes[face].position.clone().sub(mid);toCenter.y=0;
+      const proj=toCenter.dot(perp);
+      if(Math.abs(proj)>bestDist){bestDist=Math.abs(proj);bestDir=perp.clone().multiplyScalar(Math.sign(proj)||1);}
+    }
+    // 偏移距离不超过到面中心距离的 45%，且最多 14，确保数字在棱线与面中心之间
+    const offsetDist=Math.min(14,bestDist*.45);
+    // 沿棱线小幅错位（奇偶交替），避免平行棱上的数字重叠
+    const alongShift=(i%2===0?1:-1)*5;
+    sprite.position.copy(mid).add(bestDir.multiplyScalar(offsetDist)).add(edgeDir.multiplyScalar(alongShift));
+    sprite.position.y+=10;sprite.visible=planeMode;
+  }
+}
+
+function build(){
+  updatePresetPreviews();disposeModel();
+  meshes={};lines=[];edgeOutlines=[];faceLabels=[];baseMatrices={};localEdgePoints={};hinges={};edgeNumberLabels=new Map();
+  edgeCounting=false;stage.classList.remove('counting');
+  const [l,w,h]=dimensions(),L=l/2,W=w/2,H=h/2;
+  // 底座随长方体高度贴合
+  ground.position.y=-(H+40);grid.position.y=ground.position.y+.5;
+  const spec={'前':[l,h,[0,0,W],[0,0,0]],'后':[l,h,[0,0,-W],[0,Math.PI,0]],'左':[w,h,[-L,0,0],[0,-Math.PI/2,0]],'右':[w,h,[L,0,0],[0,Math.PI/2,0]],'上':[l,w,[0,H,0],[-Math.PI/2,0,0]],'下':[l,w,[0,-H,0],[Math.PI/2,0,0]]};
+  FACES.forEach((name,i)=>{
+    const s=spec[name],mesh=new THREE.Mesh(new THREE.PlaneGeometry(s[0],s[1]),new THREE.MeshStandardMaterial({color:colors[i],emissive:colors[i],emissiveIntensity:.2,roughness:.32,metalness:.08,side:THREE.DoubleSide}));
+    mesh.castShadow=true;mesh.receiveShadow=true;
+    mesh.userData.name=name;model.add(mesh);meshes[name]=mesh;baseMatrices[name]=matrixAt(s[2],s[3]);
+  });
+  addBottomLabel(l,w);addFaceLabel('前',l,h);addFaceLabel('后',l,h);addFaceLabel('左',w,h);addFaceLabel('右',w,h);addFaceLabel('上',l,w);
+  updateFaceLabelVisibility();
+  const v={a:[-L,H,W],b:[L,H,W],c:[-L,-H,W],d:[L,-H,W],e:[-L,H,-W],f:[L,H,-W],g:[-L,-H,-W],hh:[L,-H,-W]};
+  const pairs=[['a','b'],['c','d'],['a','c'],['b','d'],['e','f'],['g','hh'],['e','g'],['f','hh'],['a','e'],['b','f'],['c','g'],['d','hh']];
+  pairs.forEach((pair,i)=>{
+    const world=pair.map(k=>new THREE.Vector3(...v[k]));
+    localEdgePoints[i]={};
+    for(const face of EDGES[i]){const inv=baseMatrices[face].clone().invert();localEdgePoints[i][face]=world.map(p=>p.clone().applyMatrix4(inv))}
+    const geometry=new THREE.BufferGeometry().setFromPoints(world);
+    const line=new THREE.Line(geometry,new THREE.LineDashedMaterial({color:0x000000,dashSize:7,gapSize:5}));
+    line.userData.edge=i;model.add(line);lines.push(line);
+    const outline=new THREE.Mesh(new THREE.CylinderGeometry(2.8,2.8,1,8),new THREE.MeshBasicMaterial({color:0x000000}));
+    outline.userData.edge=i;model.add(outline);edgeOutlines.push(outline);
+  });
+  buildHinges();rebuildState(false);renderButtons();
+}
+
+function buildHinges(){
+  EDGES.forEach((pair,edgeIndex)=>{
+    for(const parent of pair){
+      const child=pair[0]===parent?pair[1]:pair[0],key=`${parent}>${child}`,parentInv=baseMatrices[parent].clone().invert(),folded=parentInv.clone().multiply(baseMatrices[child]);
+      const worldPts=localEdgePoints[edgeIndex][parent].map(p=>p.clone().applyMatrix4(baseMatrices[parent])),pivot=worldPts[0].clone().applyMatrix4(parentInv),axis=worldPts[1].clone().sub(worldPts[0]).normalize().transformDirection(parentInv);
+      const parentQ=new THREE.Quaternion(),childQ=new THREE.Quaternion(),dummyP=new THREE.Vector3(),dummyS=new THREE.Vector3();
+      baseMatrices[parent].decompose(dummyP,parentQ,dummyS);baseMatrices[child].decompose(dummyP,childQ,dummyS);
+      const parentNormal=new THREE.Vector3(0,0,1).applyQuaternion(parentQ),childNormal=new THREE.Vector3(0,0,1).applyQuaternion(childQ),worldAxis=worldPts[1].clone().sub(worldPts[0]).normalize();
+      const plus=childNormal.clone().applyAxisAngle(worldAxis,Math.PI/2).dot(parentNormal),minus=childNormal.clone().applyAxisAngle(worldAxis,-Math.PI/2).dot(parentNormal);
+      hinges[key]={folded,pivot,axis,angle:plus>=minus?Math.PI/2:-Math.PI/2,edge:edgeIndex};
+    }
+  });
+}
+
+function chooseRoot(){return '下'}
+function buildTree(){
+  const graph=graphFor(),root=chooseRoot(graph),parent={},parentEdge={},order=[root],q=[root],seen=new Set([root]);
+  while(q.length){const f=q.shift();for(const n of graph[f])if(!seen.has(n.face)){seen.add(n.face);parent[n.face]=f;parentEdge[n.face]=n.edge;order.push(n.face);q.push(n.face)}}
+  return {root,parent,parentEdge,order};
+}
+function rebuildState(animate=true){
+  tree=buildTree();const bridges=bridgeEdges();
+  for(const face of FACES){
+    if(face===tree.root){targets[face]=0;continue}
+    targets[face]=bridges.has(tree.parentEdge[face])?1:0;
+    if(amount[face]==null)amount[face]=0;
+    if(!animate)amount[face]=targets[face];
+  }
+  animating=FACES.some(f=>Math.abs((targets[f]||0)-(amount[f]||0))>.001);updateGeometry();
+}
+function relativeMatrix(parent,child,t){
+  const h=hinges[`${parent}>${child}`],toPivot=new THREE.Matrix4().makeTranslation(h.pivot.x,h.pivot.y,h.pivot.z),fromPivot=new THREE.Matrix4().makeTranslation(-h.pivot.x,-h.pivot.y,-h.pivot.z),rotation=new THREE.Matrix4().makeRotationAxis(h.axis,h.angle*t);
+  return toPivot.multiply(rotation).multiply(fromPivot).multiply(h.folded);
+}
+function updateGeometry(){
+  if(!tree)return;
+  const world={[tree.root]:baseMatrices[tree.root].clone()};
+  for(const face of tree.order.slice(1)){const parent=tree.parent[face],rel=relativeMatrix(parent,face,amount[face]||0);world[face]=world[parent].clone().multiply(rel)}
+  for(const face of FACES){
+    const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();
+    world[face].decompose(p,q,s);meshes[face].position.copy(p);meshes[face].quaternion.copy(q);meshes[face].scale.copy(s);
+    meshes[face].updateMatrix();meshes[face].updateMatrixWorld(true);
+  }
+  lines.forEach((line,i)=>{
+    const owner=EDGES[i][0],pts=localEdgePoints[i][owner].map(p=>p.clone().applyMatrix4(meshes[owner].matrix));
+    const attr=line.geometry.attributes.position;
+    attr.setXYZ(0,...pts[0].toArray());attr.setXYZ(1,...pts[1].toArray());attr.needsUpdate=true;line.computeLineDistances();
+    const isCut=cut.includes(i);
+    if(isCut)line.userData.fade=Math.max(0,(line.userData.fade??1)-.075);else line.userData.fade=1;
+    line.material.color.set(isCut?0xFFB74D:0x000000);line.material.opacity=isCut?line.userData.fade:1;line.material.transparent=true;line.visible=!isCut||line.userData.fade>0;
+    const outline=edgeOutlines[i],delta=pts[1].clone().sub(pts[0]),distance=delta.length();
+    outline.material.transparent=true;outline.material.opacity=isCut?line.userData.fade:1;outline.visible=!isCut||line.userData.fade>0;
+    outline.position.copy(pts[0]).add(pts[1]).multiplyScalar(.5);outline.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());outline.scale.set(1,distance,1);
+  });
+  updateEdgeNumberPositions();
+}
+function markNewLeaves(){const root=chooseRoot(graphFor());for(const face of FACES)if(face!==root&&degree(face)===1)unfolded.add(face)}
+function renderButtons(){progressEl.innerHTML=`已剪开 <b>${cut.length}</b> 条`}
+function isFullyUnfolded(){return Boolean(tree)&&FACES.filter(face=>face!==tree.root).every(face=>(targets[face]||0)===1&&(amount[face]||0)>.999)}
+function updateControlVisibility(){
+  const complete=isFullyUnfolded();
+  resetBtn.hidden=!complete||planeMode;planeBtn.hidden=!complete&&!planeMode;
+  edgeCountBtn.hidden=!planeMode||Boolean(viewTransition);
+  undoBtn.textContent=planeMode?'旋转 90°':'撤销一步';
+  undoBtn.disabled=(planeMode&&Boolean(viewTransition||planeRotateTarget!=null))||cuttingAnimation;
+  for(const btn of presetButtons)btn.disabled=animating||cuttingAnimation||planeMode||Boolean(viewTransition);
+}
+function planeViewPose(){
+  model.updateMatrixWorld(true);
+  const box=new THREE.Box3();for(const face of FACES)box.expandByObject(meshes[face],true);
+  const center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3()),canvasRect=canvas.getBoundingClientRect(),toolbarRect=document.querySelector('.toolbar').getBoundingClientRect(),headerRect=document.querySelector('header').getBoundingClientRect();
+  const top=Math.max(22,Math.min(canvasRect.height*.2,headerRect.bottom-canvasRect.top+16)),bottom=Math.max(top+140,Math.min(canvasRect.height-22,toolbarRect.top-canvasRect.top-18)),safeHeight=Math.max(140,bottom-top),safeWidth=Math.max(180,canvasRect.width-48);
+  const verticalFov=THREE.MathUtils.degToRad(camera.fov),horizontalFov=2*Math.atan(Math.tan(verticalFov/2)*camera.aspect);
+  const verticalDistance=size.z*.5/Math.tan(verticalFov*.5)*canvasRect.height/safeHeight,horizontalDistance=size.x*.5/Math.tan(horizontalFov*.5)*canvasRect.width/safeWidth,distance=Math.max(verticalDistance,horizontalDistance,100)*1.08;
+  const safeCenter=(top+bottom)*.5,screenOffset=safeCenter-canvasRect.height*.5,worldPerPixel=2*distance*Math.tan(verticalFov*.5)/canvasRect.height,target=center.clone();
+  target.z-=screenOffset*worldPerPixel;
+  return {position:new THREE.Vector3(target.x,target.y+distance,target.z+.001),target,up:new THREE.Vector3(0,0,-1)};
+}
+function startViewTransition(end,onComplete){
+  viewTransition={startPosition:camera.position.clone(),startTarget:controls.target.clone(),startUp:camera.up.clone(),endPosition:end.position.clone(),endTarget:end.target.clone(),endUp:end.up.clone(),t:0,onComplete};
+  controls.enabled=false;planeBtn.disabled=true;
+}
+function updateViewTransition(){
+  if(!viewTransition)return;
+  const v=viewTransition;v.t=Math.min(1,v.t+.032);
+  const eased=v.t<.5?4*v.t*v.t*v.t:1-Math.pow(-2*v.t+2,3)/2;
+  camera.position.lerpVectors(v.startPosition,v.endPosition,eased);controls.target.lerpVectors(v.startTarget,v.endTarget,eased);camera.up.lerpVectors(v.startUp,v.endUp,eased).normalize();camera.lookAt(controls.target);
+  if(v.t===1){const done=v.onComplete;viewTransition=null;done?.();controls.enabled=true;planeBtn.disabled=false;controls.update()}
+}
+function fitPlaneView(){const pose=planeViewPose();camera.position.copy(pose.position);controls.target.copy(pose.target);camera.up.copy(pose.up);camera.lookAt(pose.target);controls.update()}
+function enterPlaneView(){
+  if(!isFullyUnfolded()||viewTransition)return;
+  savedView={position:camera.position.clone(),up:camera.up.clone(),target:controls.target.clone(),minDistance:controls.minDistance,maxDistance:controls.maxDistance};
+  planeMode=true;planeAngle=0;planeRotateTarget=null;stage.classList.add('plane-mode');controls.minDistance=20;controls.maxDistance=5000;
+  planeBtn.textContent='进入平面图…';
+  startViewTransition(planeViewPose(),()=>{controls.enableRotate=false;controls.enablePan=false;planeBtn.textContent='退出平面图';setStatus('平面图模式：点击"数棱"，再依次点击未剪开的棱。')});
+}
+function exitPlaneView(){
+  if(!planeMode||viewTransition||!savedView)return;
+  planeRotateTarget=null;edgeCounting=false;stage.classList.remove('counting');edgeCountBtn.classList.remove('active');edgeCountBtn.setAttribute('aria-pressed','false');edgeCountBtn.textContent='数棱';clearEdgeNumbers();
+  planeBtn.textContent='退出平面图…';
+  startViewTransition(savedView,()=>{planeMode=false;stage.classList.remove('plane-mode');controls.enableRotate=true;controls.enablePan=true;controls.minDistance=savedView.minDistance;controls.maxDistance=savedView.maxDistance;savedView=null;planeBtn.textContent='查看平面图';setStatus('已退出平面图，恢复原来的 3D 视角。')});
+}
+function setStatus(msg){
+  if(!msg){statusEl.textContent='';return}
+  statusEl.innerHTML=msg;statusEl.classList.remove('fading');
+  clearTimeout(statusTimer);statusTimer=setTimeout(()=>statusEl.classList.add('fading'),3200);
+}
+function showBlockedHint(point,message='这条棱不能剪'){
+  if(!point)return;
+  const hint=document.createElement('span');hint.className='blocked-hint';hint.textContent=message;
+  hint.style.left=`${point.x}px`;hint.style.top=`${point.y}px`;stage.append(hint);
+  hint.addEventListener('animationend',()=>hint.remove(),{once:true});
+}
+function showSuccessHint(point){
+  if(!point)return;
+  const hint=document.createElement('span');hint.className='success-hint';hint.textContent='剪开成功';
+  hint.style.left=`${point.x}px`;hint.style.top=`${point.y}px`;stage.append(hint);
+  hint.addEventListener('animationend',()=>hint.remove(),{once:true});
+}
+function edgeScreenPoints(i){
+  const owner=EDGES[i][0],points=localEdgePoints[i][owner].map(p=>p.clone().applyMatrix4(meshes[owner].matrix).applyMatrix4(model.matrixWorld)),rect=canvas.getBoundingClientRect();
+  return points.map(p=>{p.project(camera);return{x:(p.x+1)*rect.width/2,y:(1-p.y)*rect.height/2}});
+}
+function animateEdgeCut(i,onDone,duration=420){
+  const [a,b]=edgeScreenPoints(i),dx=b.x-a.x,dy=b.y-a.y,distance=Math.hypot(dx,dy),angle=`${Math.atan2(dy,dx)}rad`;
+  const trail=document.createElement('i'),scissor=document.createElement('i');
+  trail.className='edge-cut-trail';trail.style.left=`${a.x}px`;trail.style.top=`${a.y}px`;trail.style.width=`${distance}px`;trail.style.setProperty('--angle',angle);trail.style.animationDuration=`${duration}ms`;
+  scissor.className='edge-scissor';scissor.style.left=`${a.x}px`;scissor.style.top=`${a.y}px`;scissor.style.setProperty('--dx',`${dx}px`);scissor.style.setProperty('--dy',`${dy}px`);scissor.style.setProperty('--angle',angle);scissor.style.animationDuration=`${duration}ms`;
+  scissor.innerHTML='<svg viewBox="0 0 64 40" aria-hidden="true"><circle cx="12" cy="10" r="7" fill="#fff" stroke="#f07d19" stroke-width="5"/><circle cx="12" cy="30" r="7" fill="#fff" stroke="#f07d19" stroke-width="5"/><path d="M17 14L27 20M17 26L27 20" fill="none" stroke="#3a4b55" stroke-width="5" stroke-linecap="round"/><g class="blade-top"><path d="M24 19L60 3L33 23Z" fill="#eef5f7" stroke="#344b58" stroke-width="2" stroke-linejoin="round"/></g><g class="blade-bottom"><path d="M24 21L60 37L33 17Z" fill="#d9e5ea" stroke="#344b58" stroke-width="2" stroke-linejoin="round"/></g><circle cx="25" cy="20" r="3.5" fill="#ffd166" stroke="#344b58" stroke-width="2"/></svg>';
+  stage.append(trail,scissor);
+  const finish=e=>{if(e.target!==scissor)return;scissor.removeEventListener('animationend',finish);trail.remove();scissor.remove();onDone?.()};
+  scissor.addEventListener('animationend',finish);
+}
+function commitCut(i,point){
+  history.push({kind:'cut',cut:[...cut],unfolded:new Set(unfolded)});
+  showSuccessHint(point);lines[i].userData.fade=1;cut.push(i);markNewLeaves();rebuildState(true);renderButtons();
+  const movable=FACES.filter(f=>f!==tree.root&&targets[f]===1);
+  setStatus(cut.length===7?'剪切完成：所有只通过一条铰链连接的分支正在完整展开。':movable.length?`可展开分支：<b>${movable.join('、')}</b>。相连的面会作为整体一起运动。`:'剪开成功，继续选择棱线。');
+}
+function cutEdge(i,point){
+  if(animating||cuttingAnimation){setStatus('正在剪开或展开，请等待动画结束。');return}
+  if(cut.includes(i)){setStatus('这条棱已经剪开并锁定。需要回退请使用"撤销一步"。');return}
+  if(!connected([...cut,i])){showBlockedHint(point);setStatus('不能剪开这条棱：它是保持六个面连通的最后连接之一。');return}
+  cuttingAnimation=true;controls.enabled=false;setStatus('剪刀正沿着整条棱剪开…');
+  animateEdgeCut(i,()=>{cuttingAnimation=false;controls.enabled=true;commitCut(i,point)});
+}
+
+function applyPreset(id){
+  const preset=PRESETS[id];
+  if(!preset||animating||cuttingAnimation||viewTransition||planeMode)return;
+  cut=[];history=[];unfolded.clear();amount={};targets={};pendingUndo=null;pendingRestore=false;clearEdgeNumbers();build();
+  cuttingAnimation=true;controls.enabled=false;setStatus(`${preset.name}：正在依次剪开 7 条棱…`);
+  let step=0;
+  const next=()=>{
+    if(step<preset.cut.length){animateEdgeCut(preset.cut[step++],next,320);return}
+    cut=[...preset.cut];for(const i of cut)lines[i].userData.fade=1;markNewLeaves();
+    cuttingAnimation=false;controls.enabled=true;rebuildState(true);renderButtons();
+    setStatus(`${preset.name}已剪好，正在展开；完成后可点击"查看平面图"。`);
+  };
+  next();
+}
+
+let pointerStart=null;
+canvas.addEventListener('pointerdown',e=>{if(e.button!==0||viewTransition||planeRotateTarget!=null||cuttingAnimation||(planeMode&&!edgeCounting))return;pointerStart=[e.clientX,e.clientY]});
+canvas.addEventListener('pointerup',e=>{
+  if(!pointerStart||Math.hypot(e.clientX-pointerStart[0],e.clientY-pointerStart[1])>5){pointerStart=null;return}
+  pointerStart=null;
+  const rect=canvas.getBoundingClientRect();
+  mouse.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
+  raycaster.setFromCamera(mouse,camera);
+  const hit=raycaster.intersectObjects([...edgeOutlines,...lines],false).find(item=>item.object.visible&&!cut.includes(item.object.userData.edge));
+  if(!hit)return;
+  const point={x:e.clientX-rect.left,y:e.clientY-rect.top};
+  if(planeMode&&edgeCounting)numberEdge(hit.object.userData.edge,point);
+  else if(!planeMode)cutEdge(hit.object.userData.edge,point);
+});
+canvas.addEventListener('pointerleave',()=>{pointerStart=null});
+function resize(){const r=canvas.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+function finishUndo(){const prev=pendingUndo;pendingUndo=null;cut=prev.cut;unfolded=prev.unfolded;rebuildState(false);renderButtons();setStatus('已通过折叠动画恢复到上一步状态。')}
+function finishRestore(){pendingRestore=false;cut=[];unfolded.clear();rebuildState(false);renderButtons();setStatus('已沿原展开路径复原成长方体；可撤销本次复原。')}
+function tick(){
+  requestAnimationFrame(tick);
+  let moving=false;
+  for(const face of FACES){
+    const current=amount[face]||0,target=targets[face]||0;
+    if(Math.abs(target-current)>.001){amount[face]=THREE.MathUtils.lerp(current,target,.09);moving=true}
+    else amount[face]=target;
+  }
+  animating=moving;updateGeometry();
+  if(!moving&&pendingUndo)finishUndo();else if(!moving&&pendingRestore)finishRestore();
+  if(planeMode&&planeRotateTarget!=null&&!viewTransition){
+    const delta=planeRotateTarget-planeAngle;
+    if(Math.abs(delta)<.002){planeAngle=planeRotateTarget;planeRotateTarget=null}
+    else planeAngle+=delta*.13;
+    camera.up.set(Math.sin(planeAngle),0,-Math.cos(planeAngle));camera.lookAt(controls.target);
+  }
+  updateControlVisibility();
+  if(viewTransition)updateViewTransition();else controls.update();
+  if(document.activeElement!==zoomInput){
+    const percent=THREE.MathUtils.clamp(Math.round(DEFAULT_CAMERA_DISTANCE/camera.position.distanceTo(controls.target)*100/5)*5,50,160);
+    zoomInput.value=percent;zoomValue.value=`${percent}%`;
+  }
+  renderer.render(scene,camera);
+}
+
+undoBtn.onclick=()=>{
+  if(planeMode){if(viewTransition||planeRotateTarget!=null)return;planeRotateTarget=planeAngle-Math.PI/2;return}
+  if(animating||cuttingAnimation||pendingUndo||pendingRestore){setStatus('请等待当前动画结束后再撤销。');return}
+  const prev=history.pop();
+  if(!prev){setStatus('没有可以撤销的操作。');return}
+  if(prev.kind==='restore'){cut=prev.cut;unfolded=prev.unfolded;rebuildState(true);renderButtons();setStatus('正在撤销复原操作。');return}
+  pendingUndo=prev;
+  const previousBridges=bridgeEdges(prev.cut);
+  for(const face of FACES)targets[face]=face===tree.root?0:(previousBridges.has(tree.parentEdge[face])?1:0);
+  animating=FACES.some(face=>Math.abs((targets[face]||0)-(amount[face]||0))>.001);
+  if(!animating)finishUndo();else setStatus('正在沿原铰链撤销上一步。');
+};
+resetBtn.onclick=()=>{
+  if(animating||cuttingAnimation||pendingUndo||pendingRestore){setStatus('请等待当前动画结束后再复原。');return}
+  if(!cut.length){setStatus('当前已经是完整长方体。');return}
+  history.push({kind:'restore',cut:[...cut],unfolded:new Set(unfolded)});
+  pendingRestore=true;
+  for(const face of FACES)targets[face]=0;
+  animating=FACES.some(face=>Math.abs(amount[face]||0)>.001);
+  if(!animating)finishRestore();else setStatus('正在沿当前展开图的原铰链逐层复原。');
+};
+zoomInput.oninput=()=>{
+  if(viewTransition)return;
+  const percent=+zoomInput.value,direction=camera.position.clone().sub(controls.target).normalize(),distance=DEFAULT_CAMERA_DISTANCE*100/percent;
+  camera.position.copy(controls.target).addScaledVector(direction,distance);zoomValue.value=`${percent}%`;controls.update();
+};
+planeBtn.onclick=()=>planeMode?exitPlaneView():enterPlaneView();
+viewResetBtn.onclick=()=>{
+  if(viewTransition)return;
+  if(planeMode){planeRotateTarget=null;planeAngle=0;startViewTransition(planeViewPose(),()=>{controls.enableRotate=false;controls.enablePan=false;setStatus('平面图方向与缩放已重置。')});return}
+  startViewTransition({position:DEFAULT_CAMERA_POSITION,target:DEFAULT_CAMERA_TARGET,up:new THREE.Vector3(0,1,0)},()=>{zoomInput.value=100;zoomValue.value='100%';setStatus('观察视角已重置。')});
+};
+appResetBtn.onclick=()=>{
+  if(cuttingAnimation){setStatus('请等待剪刀动画结束后再重置。');return}
+  viewTransition=null;planeMode=false;planeAngle=0;planeRotateTarget=null;savedView=null;pendingUndo=null;pendingRestore=false;animating=false;edgeCounting=false;showFaceLabels=false;
+  stage.classList.remove('plane-mode','counting');controls.enabled=true;controls.enableRotate=true;controls.enablePan=true;controls.minDistance=190;controls.maxDistance=750;
+  cut=[];history=[];unfolded.clear();amount={};targets={};tree=null;
+  lengthInput.value=4;widthInput.value=3;heightInput.value=7;lengthValue.value=4;widthValue.value=3;heightValue.value=7;
+  camera.position.copy(DEFAULT_CAMERA_POSITION);camera.up.set(0,1,0);controls.target.copy(DEFAULT_CAMERA_TARGET);
+  zoomInput.value=100;zoomValue.value='100%';planeBtn.textContent='查看平面图';
+  build();controls.update();setStatus('已恢复默认尺寸、完整长方体和初始视角。');
+};
+fullscreenBtn.onclick=()=>{
+  if(document.fullscreenElement){document.exitFullscreen();return}
+  document.documentElement.requestFullscreen().catch(()=>setStatus('当前浏览器不支持全屏或请求被拒绝。'));
+};
+document.addEventListener('fullscreenchange',()=>{fullscreenBtn.textContent=document.fullscreenElement?'退出全屏':'全屏'});
+edgeCountBtn.onclick=()=>{
+  if(!planeMode||viewTransition)return;
+  if(!edgeCounting){clearEdgeNumbers();edgeCounting=true;stage.classList.add('counting');edgeCountBtn.classList.add('active');edgeCountBtn.setAttribute('aria-pressed','true');edgeCountBtn.textContent='结束数棱';setStatus('数棱已开始：请依次点击蓝色、未剪开的棱。');return}
+  edgeCounting=false;stage.classList.remove('counting');edgeCountBtn.classList.remove('active');edgeCountBtn.setAttribute('aria-pressed','false');edgeCountBtn.textContent='重新数棱';setStatus(`数棱结束，共标记 ${edgeNumberLabels.size} 条。`);
+};
+for(const btn of presetButtons)btn.onclick=()=>applyPreset(btn.dataset.preset);
+labelsToggleBtn.onclick=()=>{showFaceLabels=!showFaceLabels;updateFaceLabelVisibility()};
+[[lengthInput,lengthValue],[widthInput,widthValue],[heightInput,heightValue]].forEach(([input,output])=>input.oninput=()=>{
+  output.value=input.value;
+  if(animating||cuttingAnimation){setStatus('请等待动画结束后再修改尺寸。');return}
+  build();
+});
+build();tick();
+</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/api/program-assets/1266/t/eyJhdWQiOiJwbGF5LmFpZnVuZW5namlhb3l1LmNvbSIsInByaXZhdGVSZXZpc2lvbiI6IjRlZWViMjlmMzA2ZDU4ZWQxOGNiZjExMTEwYzQ4ZWMzIiwibyI6Im9Ic1ZyMno3RVhlRENLVGUyQ1dhcmV5VTZCN2ciLCJwIjoiMTI2NiIsImV4cCI6MTc5NDU2MTMwNCwicHVycG9zZSI6InByb3RlY3RlZF9jYW1lcmFfYXNzZXQifQ.CWa9o5cKDdOIL75DUwUQqBNuVEM_ZaF8I-eGZ30nUUA/package/"><script>
+(function(){var prefixes=["/api/program-assets/1266/"];function needsCors(v){if(!v||typeof v!=="string")return false;try{var href=new URL(v,document.baseURI).href;for(var i=0;i<prefixes.length;i++){var p=new URL(prefixes[i],location.origin).href;if(href.indexOf(p)===0)return true;}return false;}catch(e){return false;}}function mark(img,v){if(needsCors(v)){try{img.crossOrigin="anonymous";}catch(e){}}}var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(d&&d.set&&d.get){try{Object.defineProperty(HTMLImageElement.prototype,"src",{get:d.get,set:function(v){mark(this,v);return d.set.call(this,v);},configurable:true,enumerable:d.enumerable});}catch(e){}}var set=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(this instanceof HTMLImageElement&&String(n).toLowerCase()==="src")mark(this,String(v||""));return set.apply(this,arguments);};})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>滑动摩擦力 · 冰壶实验室（课堂大屏增强版）</title>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+<style>
+  :root {
+    --ink: #eaf4fb;
+    --ink-dim: rgba(214, 232, 245, 0.78);
+    --panel: rgba(8, 16, 30, 0.78);
+    --panel-edge: rgba(160, 220, 255, 0.2);
+    --accent: #ff5a3c;
+    --blue: #3f8efc;
+    --red: #ff4d4d;
+    --cyan: #1fe0c0;
+    --gold: #ffc94d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  body {
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--ink);
+    background: #081020;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #bg-grad {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(1200px 600px at 30% 18%, rgba(70, 140, 200, 0.32), transparent 60%),
+      radial-gradient(1000px 700px at 78% 82%, rgba(40, 90, 150, 0.26), transparent 60%),
+      linear-gradient(180deg, #0b1626 0%, #081020 100%);
+  }
+  #cam {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 0; display: none;
+    transform: scaleX(-1);
+  }
+  body.ar #cam { display: block; }
+  body.ar #bg-grad { display: none; }
+  #scene { position: fixed; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; }
+
+  .panel {
+    position: fixed; z-index: 3;
+    background: var(--panel);
+    border: 2px solid var(--panel-edge);
+    border-radius: 16px;
+    padding: 14px 18px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  }
+  .panel h2 {
+    margin: 0 0 10px 0; font-size: 17px; font-weight: 700;
+    letter-spacing: 0.06em; color: rgba(214, 238, 252, 0.92);
+  }
+
+  /* ===== 顶部标题（大屏加大） ===== */
+  #header {
+    position: fixed; top: 14px; left: 18px; z-index: 4; pointer-events: none;
+  }
+  #header h1 {
+    margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 0.04em;
+    text-shadow: 0 3px 14px rgba(0, 0, 0, 0.7);
+  }
+  #header h1 .hl { color: var(--accent); }
+  #header p {
+    margin: 6px 0 0 0; font-size: 16px; font-weight: 300;
+    color: var(--ink-dim);
+  }
+
+  /* ===== 手势状态条 ===== */
+  #gesture-chip {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 4; display: flex; align-items: center; gap: 10px;
+    background: var(--panel); border: 2px solid var(--panel-edge);
+    border-radius: 999px; padding: 9px 20px; font-size: 16px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    white-space: nowrap;
+  }
+  #gesture-chip .dot { width: 10px; height: 10px; border-radius: 50%; background: #5a7a99; flex: none; }
+  #gesture-chip .dot.live { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+  #gesture-chip .dot.push { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  #handState { font-weight: 700; color: var(--cyan); }
+  #handState.warn { color: var(--gold); }
+
+  /* ===== 左侧读数面板（大屏加大） ===== */
+  #left-panel { left: 18px; top: 128px; width: 300px; }
+  .read { display: flex; justify-content: space-between; align-items: baseline; margin: 9px 0; font-size: 17px; }
+  .read .k { color: var(--ink-dim); font-weight: 400; }
+  .read .v { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 21px; }
+  .read .v .unit { font-weight: 400; font-size: 13px; color: var(--ink-dim); margin-left: 3px; }
+  .read .v.blue { color: var(--blue); }
+  .read .v.red { color: var(--red); }
+  .read .v.cyan { color: var(--cyan); }
+  .read .v.gold { color: var(--gold); }
+  #st_state { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+  #st_state.idle { background: rgba(120, 150, 175, 0.22); color: #b6cddd; }
+  #st_state.slide { background: rgba(255, 77, 77, 0.2); color: var(--red); }
+  #st_state.push { background: rgba(31, 224, 192, 0.2); color: var(--cyan); }
+  #row_push { display: none; }
+  #row_push.show { display: flex; }
+
+  /* ===== 右侧控制面板（大屏加大） ===== */
+  #right-panel { right: 18px; top: 16px; width: 320px; }
+  .ctl { margin: 11px 0; }
+  .ctl label { display: flex; justify-content: space-between; font-size: 15.5px; color: var(--ink-dim); margin-bottom: 5px; }
+  .ctl label .val { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+  input[type="range"] {
+    width: 100%; height: 6px; margin: 8px 0; appearance: none; -webkit-appearance: none;
+    background: rgba(140, 175, 205, 0.3); border-radius: 99px; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); border: 3px solid #fff; cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--accent);
+    border: 3px solid #fff; cursor: pointer;
+  }
+  .seg { display: flex; gap: 8px; }
+  .seg button {
+    flex: 1; padding: 10px 0; font-size: 14.5px; font-family: inherit; font-weight: 500;
+    color: var(--ink-dim); background: rgba(30, 48, 70, 0.6);
+    border: 1px solid rgba(160, 220, 255, 0.18); border-radius: 10px; cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .seg button:hover { color: var(--ink); border-color: rgba(160, 220, 255, 0.4); }
+  .seg button.on { color: #fff; background: rgba(255, 90, 60, 0.32); border-color: var(--accent); }
+  .row2 { display: flex; gap: 10px; margin-top: 12px; }
+  .btn {
+    flex: 1; padding: 13px 0; font-size: 17px; font-weight: 700; font-family: inherit;
+    color: #fff; border: none; border-radius: 11px; cursor: pointer;
+    transition: transform 0.08s ease, filter 0.15s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.push { background: linear-gradient(135deg, #ff5a3c, #ff8a3c); }
+  .btn.reset { background: rgba(55, 82, 110, 0.92); }
+  .btn.ghost {
+    background: rgba(40, 62, 88, 0.8); border: 1px solid rgba(160, 220, 255, 0.26);
+    font-weight: 500; font-size: 14px; padding: 9px 0;
+  }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: var(--ink-dim); margin: 10px 0; }
+  .toggle-row .sw { width: 52px; height: 26px; border-radius: 99px; background: rgba(90, 120, 150, 0.55); position: relative; cursor: pointer; transition: background 0.18s ease; }
+  .toggle-row .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.18s ease; }
+  .toggle-row .sw.on { background: var(--accent); }
+  .toggle-row .sw.on::after { left: 29px; }
+  #camStatus { font-size: 14.5px; color: var(--ink-dim); line-height: 1.6; margin-top: 8px; }
+  #camStatus .ok { color: var(--cyan); }
+  #camStatus .bad { color: var(--gold); }
+
+  /* ===== 底部图表 + 公式（大屏加大） ===== */
+  #graph-panel { left: 18px; bottom: 16px; width: 600px; }
+  .graph-wrap { display: flex; align-items: center; gap: 16px; }
+  canvas#graphCanvas { width: 380px; height: 150px; border-radius: 10px; background: rgba(4, 12, 24, 0.6); }
+  .legend { font-size: 14.5px; line-height: 1.9; color: var(--ink-dim); }
+  .legend b { color: var(--ink); font-weight: 500; }
+  .legend .sw { display: inline-block; width: 20px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .formula-strip {
+    margin-top: 10px; padding-top: 9px; border-top: 1px dashed rgba(160, 220, 255, 0.22);
+    font-size: 15.5px; color: var(--ink-dim); display: flex; flex-wrap: wrap; gap: 6px 18px;
+  }
+  .formula-strip b { color: var(--gold); font-weight: 700; }
+
+  /* ===== 提示条 & toast ===== */
+  #hint-bar {
+    position: fixed; right: 18px; bottom: 16px; z-index: 4; max-width: 330px;
+    background: rgba(255, 201, 77, 0.14); border: 1px solid rgba(255, 201, 77, 0.4);
+    color: var(--gold); border-radius: 13px; padding: 11px 15px; font-size: 14.5px; line-height: 1.65;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  #hint-bar .x { float: right; margin-left: 8px; cursor: pointer; color: var(--gold); font-weight: 700; }
+  #toast {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(20px);
+    z-index: 6; background: rgba(8, 16, 30, 0.94); border: 1px solid var(--panel-edge);
+    border-radius: 12px; padding: 12px 22px; font-size: 16px; opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 920px) {
+    #gesture-chip { top: auto; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 13px; padding: 7px 14px; }
+    #left-panel { left: 10px; top: 104px; width: 230px; padding: 10px 13px; }
+    #left-panel .read { font-size: 14px; }
+    #left-panel .read .v { font-size: 16px; }
+    #right-panel { top: auto; bottom: 74px; left: 10px; right: 10px; width: auto; max-height: 36vh; overflow-y: auto; }
+    #graph-panel { display: none; }
+    #hint-bar { right: 10px; bottom: 12px; max-width: 200px; }
+    #header h1 { font-size: 20px; }
+    #header p { display: none; }
+  }
+</style>
+</head>
+<body class="ar"><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=1266&token=eyJhdWQiOiJwbGF5LmFpZnVuZW5namlhb3l1LmNvbSIsInByaXZhdGVSZXZpc2lvbiI6IjRlZWViMjlmMzA2ZDU4ZWQxOGNiZjExMTEwYzQ4ZWMzIiwibyI6Im9Ic1ZyMno3RVhlRENLVGUyQ1dhcmV5VTZCN2ciLCJwIjoiMTI2NiIsImV4cCI6MTc5NDU2MTMwNCwicHVycG9zZSI6InByb3RlY3RlZF9jYW1lcmFfYXNzZXQifQ.CWa9o5cKDdOIL75DUwUQqBNuVEM_ZaF8I-eGZ30nUUA",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+  <video id="cam" autoplay muted playsinline></video>
+  <div id="bg-grad"></div>
+  <canvas id="scene"></canvas>
+
+  <div id="header">
+    <h1>滑动摩擦力 · <span class="hl">冰壶</span>实验室</h1>
+    <p>制作者：唐苓鑫 · 滑动摩擦力物理演示 · 摄像头手势 AR · 建议全屏 F11</p>
+  </div>
+
+  <div id="gesture-chip">
+    <span class="dot" id="gdot"></span>
+    <span>张开手掌=推动 · 握拳=松手滑行</span>
+    <span id="handState">摄像头未开启</span>
+  </div>
+
+  <div class="panel" id="left-panel">
+    <h2>实时物理量</h2>
+    <div class="read"><span class="k">运动状态</span><span id="st_state" class="idle">静止</span></div>
+    <div class="read"><span class="k">速度 v</span><span class="v blue" id="st_v">0.00<span class="unit">m/s</span></span></div>
+    <div class="read"><span class="k">本段初速度 v₀</span><span class="v gold" id="st_v0">0.00<span class="unit">m/s</span></span></div>
+    <div class="read"><span class="k">滑动摩擦力 f</span><span class="v red" id="st_f">0.00<span class="unit">N</span></span></div>
+    <div class="read"><span class="k">滑动减速度 a</span><span class="v gold" id="st_a">0.00<span class="unit">m/s²</span></span></div>
+    <div class="read" id="row_push"><span class="k">手推力 F</span><span class="v cyan" id="st_push">0.00<span class="unit">N</span></span></div>
+    <div class="read"><span class="k">滑行路程 s</span><span class="v" id="st_s">0.00<span class="unit">m</span></span></div>
+  </div>
+
+  <div class="panel" id="right-panel">
+    <h2>实验控制</h2>
+    <div class="ctl">
+      <label>表面材质 <span class="val" id="muVal">μ = 0.15</span></label>
+      <div class="seg">
+        <button id="presetIce">冰面 0.02</button>
+        <button id="presetWood" class="on">木地板 0.15</button>
+        <button id="presetCement">水泥地 0.60</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label>滑动摩擦因数 μ <span class="val" id="muNum">0.150</span></label>
+      <input type="range" id="muSlider" min="0.01" max="0.80" step="0.01" value="0.15">
+    </div>
+    <div class="ctl">
+      <label>冰壶质量 m <span class="val" id="massVal">19.1 kg</span></label>
+      <input type="range" id="massSlider" min="1" max="40" step="0.5" value="19.1">
+    </div>
+    <div class="ctl">
+      <label>点击推壶的初速度 v₀ <span class="val" id="v0Val">2.5 m/s</span></label>
+      <input type="range" id="v0Slider" min="0.5" max="5" step="0.1" value="2.5">
+    </div>
+    <div class="row2">
+      <button class="btn push" id="btnPush">推一下</button>
+      <button class="btn reset" id="btnReset">重置</button>
+    </div>
+    <div class="toggle-row">
+      <span>AR 摄像头模式</span>
+      <div class="sw on" id="swAr"></div>
+    </div>
+    <div class="toggle-row">
+      <span>手势识别</span>
+      <div class="sw on" id="swGesture"></div>
+    </div>
+    <button class="btn ghost" id="btnCam">重新开启摄像头</button>
+    <div id="camStatus">摄像头：<span class="bad">未连接</span> · 首次使用请允许权限</div>
+  </div>
+
+  <div class="panel" id="graph-panel">
+    <h2>v–t 图像（滑行段实测 · 金色虚线为理论预测）</h2>
+    <div class="graph-wrap">
+      <canvas id="graphCanvas" width="380" height="150"></canvas>
+      <div class="legend">
+        <span><span class="sw" style="background:#3f8efc"></span><b>实测速度</b>：斜率恒定 = 匀减速</span><br>
+        <span><span class="sw" style="background:#ffc94d"></span><b>理论</b> v = v₀ − μg·t（起点=本段初速度）</span><br>
+        <span><span class="sw" style="background:#ff4d4d"></span>红色箭头 = 滑动摩擦力方向</span>
+      </div>
+    </div>
+    <div class="formula-strip">
+      <span>f = μN = <b>μmg</b></span>
+      <span>a = f/m = <b>μg</b>（恒值）</span>
+      <span>s = <b>v₀²/2μg</b></span>
+    </div>
+  </div>
+
+  <div id="hint-bar">首次使用请允许摄像头权限；若被浏览器拦截，仍可用 <b>空格</b> 推壶、<b>R</b> 重置、←/→ 推动、按钮与滑块操作。<span class="x" id="hintClose">×</span></div>
+  <div id="toast"></div>
+
+  <!-- ============ 三方依赖（jsDelivr 锁定版本 + SRI） ============ -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" integrity="sha384-vV17nr/rMaJqmeZkFUzXLpHdQ+ME5QHKdydaqqN+3Ga39RJlNrTatJxHwGV4ml2C" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js" integrity="sha384-I0DMsfimAPIqWT8lF+oA997gRgdUi3jhidoTq3fN0zmn35smXZukD01FLnsPRU9i" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" integrity="sha384-oHwoZ9HyKv5ark5VOH+XWdbNfmhYtptAOBuV8plz6mAfXvTA6d8fULuYllWouEK2" crossorigin="anonymous"></script>
+
+  <script>
+  "use strict";
+  /* =========================================================
+     1. 应用状态与物理模型（一维滑行，仅受滑动摩擦力减速）
+     ========================================================= */
+  const S = {
+    mu: 0.15, m: 19.1, g: 9.81, v0: 2.5,
+    x: -5.5, v: 0, s: 0,
+    state: 'idle',          // idle | push | slide
+    pushTarget: null,       // 手/键盘给出的目标 X
+    pushSource: null,       // 'hand' | 'key'
+    prevV: 0,               // 用于计算推力
+    tSlide: 0,              // 当前滑行段计时
+    epStart: null,          // {v0} 滑行段起点初速度
+    graph: [],              // [{t, v}] 滑行段实测点
+    hand: { present: false, open: false, x: 0 },
+    bounds: { min: -6, max: 6 },
+    arMode: true, gestureOn: true, camOk: false
+  };
+  const g = () => S.g;
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+  function step(dt) {
+    S.prevV = S.v;
+    if (S.state === 'slide') {
+      const a = S.mu * g();
+      if (S.v > 0) {
+        S.v -= a * dt;
+        if (S.v <= 0) { S.v = 0; S.state = 'idle'; }
+      }
+      S.x += S.v * dt;
+      S.s += Math.abs(S.v) * dt;
+      S.tSlide += dt;
+      S.graph.push({ t: S.tSlide, v: S.v });
+      if (S.x > S.bounds.max) { S.x = S.bounds.max; S.v = 0; S.state = 'idle'; }
+      if (S.x < S.bounds.min) { S.x = S.bounds.min; S.v = 0; S.state = 'idle'; }
+    } else if (S.state === 'push') {
+      const target = clamp(S.pushTarget, S.bounds.min, S.bounds.max);
+      const vTarget = clamp((target - S.x) / dt, -4, 4);
+      S.v += (vTarget - S.v) * Math.min(1, dt * 12);
+      S.x += S.v * dt;
+      S.s += Math.abs(S.v) * dt;
+    } else {
+      S.v = 0;
+    }
+  }
+
+  function startPush(src, target) {
+    S.state = 'push';
+    S.pushSource = src;
+    S.pushTarget = target;
+    S.tSlide = 0; S.epStart = null; S.graph = [];
+    refreshUI(); drawGraph();
+  }
+  function releaseStone() {
+    if (S.state !== 'push') return;
+    S.pushSource = null; S.pushTarget = null;
+    if (Math.abs(S.v) > 0.02) {
+      S.state = 'slide';
+      S.tSlide = 0;
+      S.epStart = { v0: S.v };
+      S.graph = [{ t: 0, v: S.v }];
+    } else {
+      S.state = 'idle'; S.v = 0;
+      S.tSlide = 0; S.epStart = null; S.graph = [];
+    }
+    refreshUI(); drawGraph();
+  }
+  function impulse(v) {
+    if (S.state === 'push') releaseStone();
+    S.v = v;
+    S.state = 'slide';
+    S.tSlide = 0;
+    S.epStart = { v0: v };
+    S.graph = [{ t: 0, v: v }];
+    refreshUI(); drawGraph();
+  }
+  function resetAll() {
+    S.x = -5.5; S.v = 0; S.s = 0;
+    S.state = 'idle'; S.pushTarget = null; S.pushSource = null;
+    S.tSlide = 0; S.epStart = null; S.graph = [];
+  }
+
+  /* =========================================================
+     2. Three.js 场景（透明画布叠加在摄像头之上）
+     ========================================================= */
+  const canvas = document.getElementById('scene');
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setClearColor(0x000000, 0);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 4.4, 8.6);
+  camera.lookAt(0, 0, 0);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.maxPolarAngle = 1.45;
+  controls.minDistance = 2.5;
+  controls.maxDistance = 20;
+  controls.enablePan = false;
+
+  /* ---------- 灯光（大屏更亮） ---------- */
+  scene.add(new THREE.HemisphereLight(0xdff0ff, 0x2a3f55, 1.4));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.55);
+  dirLight.position.set(6, 10, 4);
+  scene.add(dirLight);
+  const fillLight = new THREE.DirectionalLight(0xbfe0ff, 0.55);
+  fillLight.position.set(-5, 6, -4);
+  scene.add(fillLight);
+
+  /* ---------- 冰面：亮白底色 + 画在纹理里的粗深蓝网格 + 粗线大本营 ---------- */
+  const floorTex = (function () {
+    const c = document.createElement('canvas');
+    c.width = 1000; c.height = 700;            // 世界 20m × 14m，50px/m
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 700);
+    grad.addColorStop(0, '#f6fbfe');
+    grad.addColorStop(1, '#e8f3fa');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 1000, 700);
+    // 粗网格：每 1m 一条深蓝粗线
+    ctx.strokeStyle = '#2f6fc4';
+    ctx.lineWidth = 9;
+    for (let x = 0; x <= 1000; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 700); ctx.stroke(); }
+    for (let y = 0; y <= 700; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1000, y); ctx.stroke(); }
+    // 中轴线（滑行线）更粗
+    ctx.strokeStyle = '#b23a3a';
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(0, 350); ctx.lineTo(1000, 350); ctx.stroke();
+    // 大本营：中心 (5.5, 0) → 像素 (775, 350)；半径 1.8/1.06/0.62/0.18m
+    const hx = 775, hy = 350;
+    const rings = [[90, '#2f6fd4'], [53, '#e3ebf2'], [31, '#e0303a'], [9, '#1a5cb8']];
+    for (const [r, color] of rings) {
+      ctx.beginPath(); ctx.arc(hx, hy, r, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.lineWidth = 8; ctx.strokeStyle = '#0d2f66'; ctx.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    tex.anisotropy = 8;
+    return tex;
+  })();
+
+  const floorMat = new THREE.MeshStandardMaterial({
+    map: floorTex, roughness: 0.3, metalness: 0.0,
+    transparent: true, opacity: 0.38, depthWrite: false
+  });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  /* ---------- 冰壶（放大版：白色主体 + 自发光红色粗环，大屏清晰） ---------- */
+  const stone = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.50, 0.50, 0.30, 48),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.22, metalness: 0.08, emissive: 0xdfe9f2, emissiveIntensity: 0.35 })
+  );
+  body.position.y = 0.15;
+  const band = new THREE.Mesh(
+    new THREE.TorusGeometry(0.52, 0.13, 16, 48),
+    new THREE.MeshStandardMaterial({ color: 0xff1f1f, roughness: 0.3, metalness: 0.05, emissive: 0xff2020, emissiveIntensity: 0.55 })
+  );
+  band.rotation.x = Math.PI / 2;
+  band.position.y = 0.15;
+  const cap = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.34, 0.34, 0.04, 48),
+    new THREE.MeshStandardMaterial({ color: 0xf2f4f8, roughness: 0.3, metalness: 0.05, emissive: 0xdde8f0, emissiveIntensity: 0.25 })
+  );
+  cap.position.y = 0.33;
+  const handle = new THREE.Mesh(
+    new THREE.TorusGeometry(0.24, 0.045, 14, 40),
+    new THREE.MeshStandardMaterial({ color: 0xff5a3c, roughness: 0.35, metalness: 0.1, emissive: 0xff5a3c, emissiveIntensity: 0.35 })
+  );
+  handle.rotation.x = Math.PI / 2;
+  handle.position.y = 0.50;
+  stone.add(body, band, cap, handle);
+  stone.position.set(S.x, 0, 0);
+  scene.add(stone);
+
+  /* ---------- 影子（放大） ---------- */
+  const shadowTex = (function () {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const rg = ctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+    rg.addColorStop(0, 'rgba(0,0,0,0.5)');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = rg; ctx.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    return tex;
+  })();
+  const blob = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.05, 1.05),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })
+  );
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.02;
+  scene.add(blob);
+
+  /* ---------- 三色力箭头（实体加粗版，大屏可见） ---------- */
+  function makeChunkyArrow(color) {
+    const grp = new THREE.Group();
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.055, 1, 12),
+      new THREE.MeshBasicMaterial({ color: color })
+    );
+    shaft.rotation.z = Math.PI / 2;              // 沿 X 轴
+    const head = new THREE.Mesh(
+      new THREE.ConeGeometry(0.17, 0.36, 12),
+      new THREE.MeshBasicMaterial({ color: color })
+    );
+    head.rotation.z = -Math.PI / 2;              // 尖朝 +X
+    head.position.x = 0.5 + 0.18;
+    grp.add(shaft, head);
+    grp.visible = false;
+    return grp;
+  }
+  const velArrow = makeChunkyArrow(0x3f8efc);
+  const frArrow = makeChunkyArrow(0xff4d4d);
+  const puArrow = makeChunkyArrow(0x1fe0c0);
+  scene.add(velArrow); scene.add(frArrow); scene.add(puArrow);
+
+  /* ---------- 手势光标环（放大） ---------- */
+  const handRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.55, 0.7, 40),
+    new THREE.MeshBasicMaterial({ color: 0x1fe0c0, transparent: true, opacity: 0.6, depthWrite: false })
+  );
+  handRing.rotation.x = -Math.PI / 2;
+  handRing.position.y = 0.02;
+  handRing.visible = false;
+  scene.add(handRing);
+
+  /* ---------- 滑行轨迹（加亮） ---------- */
+  const TRAIL_N = 320;
+  const trailPos = new Float32Array(TRAIL_N * 3);
+  const trailGeo = new THREE.BufferGeometry();
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+  trailGeo.setDrawRange(0, 0);
+  let trailIdx = 0, trailLen = 0;
+  const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 }));
+  scene.add(trailLine);
+  function pushTrail(x) {
+    trailPos[trailIdx * 3] = x; trailPos[trailIdx * 3 + 1] = 0.025; trailPos[trailIdx * 3 + 2] = 0;
+    trailIdx = (trailIdx + 1) % TRAIL_N;
+    trailLen = Math.min(trailLen + 1, TRAIL_N);
+    trailGeo.setDrawRange(0, trailLen);
+    trailGeo.attributes.position.needsUpdate = true;
+  }
+
+  /* ---------- 每帧更新 3D 视觉 ---------- */
+  function updateVisuals(dt) {
+    stone.position.x = S.x;
+    blob.position.x = S.x;
+
+    // 速度箭头（蓝色）
+    velArrow.position.set(S.x, 0.85, 0);
+    if (Math.abs(S.v) > 0.02) {
+      velArrow.visible = true;
+      const dir = S.v > 0 ? 1 : -1;
+      velArrow.scale.x = dir * clamp(Math.abs(S.v) * 0.55, 0.6, 2.8);
+    } else {
+      velArrow.visible = false;
+    }
+
+    // 摩擦力箭头（红色）：方向与速度（或推力方向）相反，长度随 μ 增大
+    frArrow.position.set(S.x, 0.85, 0);
+    const moving = S.state === 'slide' || S.state === 'push';
+    if (moving && (Math.abs(S.v) > 0.02 || S.state === 'push')) {
+      frArrow.visible = true;
+      let dir = S.v > 0.02 ? -1 : (S.v < -0.02 ? 1 : (S.pushTarget && S.pushTarget > S.x ? -1 : 1));
+      frArrow.scale.x = dir * (0.6 + (S.mu / 0.8) * 2.2);
+    } else {
+      frArrow.visible = false;
+    }
+
+    // 推力箭头（青色，仅手推/键推阶段）
+    puArrow.position.set(S.x, 0.85, 0);
+    if (S.state === 'push' && Math.abs(S.v) > 0.02) {
+      puArrow.visible = true;
+      const dir = S.v > 0 ? 1 : -1;
+      const acc = (S.v - S.prevV) / Math.max(dt, 0.001);
+      const F = S.mu * S.m * g() + S.m * acc;
+      puArrow.scale.x = dir * clamp(0.5 + (F / (S.m * g())) * 1.2, 0.7, 3);
+      document.getElementById('st_push').textContent = Math.max(0, F).toFixed(1);
+    } else {
+      puArrow.visible = false;
+    }
+
+    // 手掌落点环
+    handRing.visible = (S.state === 'push' && S.pushSource === 'hand');
+    if (handRing.visible) handRing.position.x = clamp(S.pushTarget, S.bounds.min, S.bounds.max);
+
+    // 轨迹
+    if (S.state !== 'idle') pushTrail(S.x);
+  }
+
+  /* =========================================================
+     3. 摄像头 + MediaPipe 手势
+     ========================================================= */
+  const video = document.getElementById('cam');
+  let hands = null;
+
+  function handDist(a, b) {
+    const dx = a.x - b.x, dy = a.y - b.y, dz = (a.z || 0) - (b.z || 0);
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  function countExtended(lm) {
+    const wrist = lm[0];
+    const fIdx = [[4, 3], [8, 6], [12, 10], [16, 14], [20, 18]];
+    let n = 0;
+    for (const [tip, pip] of fIdx) {
+      if (handDist(lm[tip], wrist) > handDist(lm[pip], wrist) * 1.03) n++;
+    }
+    return n;
+  }
+
+  function onHandResults(results) {
+    const list = results.multiHandLandmarks;
+    if (!S.gestureOn || !S.camOk || !S.arMode) { S.hand.present = false; return; }
+    if (!list || list.length === 0) {
+      if (S.hand.present) releaseStone();
+      S.hand.present = false;
+      return;
+    }
+    const lm = list[0];
+    S.hand.present = true;
+    S.hand.x = (0.5 - lm[9].x) * 14;
+    const n = countExtended(lm);
+    const open = n >= 3;
+    const fist = n <= 1;
+    if (open && !S.hand.open) {
+      if (S.state === 'slide' || S.state === 'idle') startPush('hand', S.hand.x);
+      else if (S.state === 'push') S.pushTarget = S.hand.x;
+      S.hand.open = true;
+    } else if (open) {
+      if (S.state === 'push') S.pushTarget = S.hand.x;
+    } else if (fist) {
+      if (S.hand.open) releaseStone();
+      S.hand.open = false;
+    }
+  }
+
+  function initCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCamStatus('bad', '当前环境不支持摄像头（file:// 一般可用；仍被拦请用本地服务器打开）');
+      return;
+    }
+    setCamStatus('', '正在请求摄像头权限…');
+    navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' }, audio: false })
+      .then(stream => {
+        video.srcObject = stream;
+        return video.play();
+      })
+      .then(() => {
+        S.camOk = true;
+        setCamStatus('ok', '摄像头已连接 · 手势识别运行中');
+        if (!hands) {
+          hands = new Hands({
+            locateFile: (file) => 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/' + file
+          });
+          hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 0,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.5
+          });
+          hands.onResults(onHandResults);
+        }
+        trackLoop();
+      })
+      .catch(err => {
+        S.camOk = false;
+        setCamStatus('bad', '摄像头被拒绝或不可用（' + (err && err.name ? err.name : '未知错误') + '）。可用按钮/键盘继续实验。');
+      });
+  }
+
+  let tracking = false;
+  async function trackLoop() {
+    if (tracking) return;
+    tracking = true;
+    const loop = async () => {
+      if (S.camOk && video.readyState >= 2) {
+        try { await hands.send({ image: video }); } catch (e) { }
+      }
+      if (S.camOk) requestAnimationFrame(loop);
+      else tracking = false;
+    };
+    loop();
+  }
+
+  function setCamStatus(kind, text) {
+    const el = document.getElementById('camStatus');
+    if (kind === 'ok') el.innerHTML = '摄像头：<span class="ok">已连接</span> · 手势识别运行中';
+    else if (kind === 'bad') el.innerHTML = '摄像头：<span class="bad">' + text + '</span>';
+    else el.innerHTML = '摄像头：' + text;
+  }
+
+  /* =========================================================
+     4. UI 绑定
+     ========================================================= */
+  const $ = id => document.getElementById(id);
+
+  function refreshUI() {
+    $('st_v').textContent = S.v.toFixed(2);
+    $('st_f').textContent = (S.mu * S.m * g()).toFixed(2);
+    $('st_a').textContent = (S.mu * g()).toFixed(2);
+    $('st_s').textContent = S.s.toFixed(2);
+    $('st_v0').textContent = (S.epStart ? S.epStart.v0 : 0).toFixed(2);
+    const st = $('st_state');
+    if (S.state === 'slide') { st.textContent = '滑行中（摩擦减速）'; st.className = 'slide'; }
+    else if (S.state === 'push') { st.textContent = '手推中（推力做功）'; st.className = 'push'; }
+    else { st.textContent = '静止（摩擦力为零）'; st.className = 'idle'; }
+    $('row_push').className = S.state === 'push' ? 'read show' : 'read';
+    const hs = $('handState');
+    if (!S.arMode) { hs.textContent = '已关闭'; hs.className = 'warn'; $('gdot').className = 'dot'; }
+    else if (!S.camOk) { hs.textContent = '摄像头未开启'; hs.className = 'warn'; $('gdot').className = 'dot'; }
+    else if (!S.hand.present) { hs.textContent = '未检测到手掌'; hs.className = 'warn'; $('gdot').className = 'dot'; }
+    else if (S.hand.open) { hs.textContent = '张开 · 推动中'; hs.className = ''; $('gdot').className = 'dot push'; }
+    else { hs.textContent = '握拳 · 已松手'; hs.className = ''; $('gdot').className = 'dot live'; }
+  }
+
+  function syncMu() {
+    $('muNum').textContent = S.mu.toFixed(3);
+    $('muVal').textContent = 'μ = ' + S.mu.toFixed(2);
+    $('muSlider').value = S.mu;
+    $('presetIce').className = S.mu === 0.02 ? 'on' : '';
+    $('presetWood').className = Math.abs(S.mu - 0.15) < 0.005 ? 'on' : '';
+    $('presetCement').className = S.mu === 0.60 ? 'on' : '';
+  }
+  $('muSlider').addEventListener('input', e => { S.mu = parseFloat(e.target.value); syncMu(); });
+  $('presetIce').addEventListener('click', () => { S.mu = 0.02; syncMu(); toast('冰面 μ=0.02：摩擦力小，冰壶滑得远'); });
+  $('presetWood').addEventListener('click', () => { S.mu = 0.15; syncMu(); toast('木地板 μ=0.15'); });
+  $('presetCement').addEventListener('click', () => { S.mu = 0.60; syncMu(); toast('水泥地 μ=0.60：摩擦力大，很快停下'); });
+  $('massSlider').addEventListener('input', e => { S.m = parseFloat(e.target.value); $('massVal').textContent = S.m.toFixed(1) + ' kg'; toast('质量增大→f=μmg 增大，但 a=μg 不变'); });
+  $('v0Slider').addEventListener('input', e => { S.v0 = parseFloat(e.target.value); $('v0Val').textContent = S.v0.toFixed(1) + ' m/s'; });
+  $('btnPush').addEventListener('click', () => { impulse(S.v0); toast('已给初速度 ' + S.v0.toFixed(1) + ' m/s，冰壶仅受滑动摩擦力减速'); });
+  $('btnReset').addEventListener('click', () => { resetAll(); toast('已重置到起点'); });
+
+  $('swAr').addEventListener('click', () => {
+    S.arMode = !S.arMode;
+    document.body.classList.toggle('ar', S.arMode);
+    $('swAr').className = 'sw' + (S.arMode ? ' on' : '');
+    floorMat.opacity = S.arMode ? 0.38 : 0.88;
+    if (S.arMode && !S.camOk) initCamera();
+    toast(S.arMode ? 'AR 模式：你与冰壶同屏' : '桌面模式：隐藏摄像头画面');
+  });
+  $('swGesture').addEventListener('click', () => {
+    S.gestureOn = !S.gestureOn;
+    $('swGesture').className = 'sw' + (S.gestureOn ? ' on' : '');
+    if (!S.gestureOn && S.state === 'push') releaseStone();
+    S.hand.open = false; S.hand.present = false;
+    toast(S.gestureOn ? '手势识别已开启' : '手势识别已关闭，可用按钮/键盘操作');
+  });
+  $('btnCam').addEventListener('click', initCamera);
+
+  $('hintClose').addEventListener('click', () => { $('hint-bar').style.display = 'none'; });
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    if (e.key === ' ') { e.preventDefault(); impulse(S.v0); }
+    if (e.key === 'r' || e.key === 'R') { resetAll(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      keys[e.key] = true;
+      if (S.state !== 'push' || S.pushSource !== 'key') startPush('key', S.x);
+    }
+  });
+  window.addEventListener('keyup', e => {
+    keys[e.key] = false;
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && S.pushSource === 'key' && !keys.ArrowLeft && !keys.ArrowRight) {
+      releaseStone();
+    }
+  });
+
+  /* =========================================================
+     5. v–t 图绘制
+     ========================================================= */
+  const gcanvas = $('graphCanvas');
+  const gctx = gcanvas.getContext('2d');
+  function drawGraph() {
+    const W = gcanvas.width, H = gcanvas.height;
+    const ml = 40, mr = 14, mt = 12, mb = 26;
+    const pw = W - ml - mr, ph = H - mt - mb;
+    gctx.clearRect(0, 0, W, H);
+    const tMax = 8;
+    let peak = S.v0;
+    for (const p of S.graph) if (p.v > peak) peak = p.v;
+    let maxV = Math.max(2, Math.ceil(peak * 1.15));
+    maxV = Math.min(maxV, 9);
+    gctx.strokeStyle = 'rgba(190,215,235,0.55)';
+    gctx.fillStyle = 'rgba(190,215,235,0.85)';
+    gctx.font = '13px sans-serif';
+    gctx.lineWidth = 1.2;
+    gctx.beginPath(); gctx.moveTo(ml, mt - 4); gctx.lineTo(ml, H - mb); gctx.lineTo(W - mr, H - mb); gctx.stroke();
+    for (let i = 0; i <= 4; i++) {
+      const vv = maxV * i / 4;
+      const y = H - mb - (vv / maxV) * ph;
+      gctx.fillText(vv.toFixed(1), 2, y + 4);
+    }
+    for (let i = 0; i <= 4; i++) {
+      const tt = tMax * i / 4;
+      const x = ml + (tt / tMax) * pw;
+      gctx.fillText(tt.toFixed(0), x - 5, H - mb + 17);
+    }
+    gctx.fillText('t / s', W - mr - 30, H - 4);
+    // 本段初速度参考线 + 数值标注（与推壶设置一致）
+    if (S.epStart) {
+      const y0 = H - mb - (S.epStart.v0 / maxV) * ph;
+      gctx.setLineDash([4, 6]);
+      gctx.strokeStyle = 'rgba(255,201,77,0.5)';
+      gctx.lineWidth = 1;
+      gctx.beginPath(); gctx.moveTo(ml, y0); gctx.lineTo(W - mr, y0); gctx.stroke();
+      gctx.setLineDash([]);
+      gctx.fillStyle = 'rgba(255,201,77,0.95)';
+      gctx.fillText('v₀=' + S.epStart.v0.toFixed(2) + ' m/s', ml + 4, y0 - 6);
+    }
+    if (S.state === 'slide' && S.epStart) {
+      const a = S.mu * g();
+      const tStop = Math.min(S.epStart.v0 / Math.max(a, 1e-9), tMax);
+      gctx.setLineDash([5, 5]);
+      gctx.strokeStyle = 'rgba(255,201,77,0.8)';
+      gctx.lineWidth = 1.6;
+      gctx.beginPath();
+      gctx.moveTo(ml, H - mb - (S.epStart.v0 / maxV) * ph);
+      gctx.lineTo(ml + (tStop / tMax) * pw, H - mb);
+      gctx.stroke();
+      gctx.setLineDash([]);
+    }
+    if (S.graph.length > 1) {
+      gctx.strokeStyle = '#3f8efc';
+      gctx.lineWidth = 2.2;
+      gctx.beginPath();
+      S.graph.forEach((p, i) => {
+        const x = ml + (p.t / tMax) * pw;
+        const y = H - mb - (p.v / maxV) * ph;
+        if (i === 0) gctx.moveTo(x, y); else gctx.lineTo(x, y);
+      });
+      gctx.stroke();
+    }
+    if (S.graph.length > 0) {
+      const last = S.graph[S.graph.length - 1];
+      const x = ml + (last.t / tMax) * pw;
+      const y = H - mb - (last.v / maxV) * ph;
+      gctx.fillStyle = '#3f8efc';
+      gctx.beginPath(); gctx.arc(x, y, 4, 0, Math.PI * 2); gctx.fill();
+    }
+  }
+
+  /* =========================================================
+     6. 主循环
+     ========================================================= */
+  const clock = new THREE.Clock();
+  let accUI = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.05);
+
+    if (S.state === 'push' && S.pushSource === 'key') {
+      const dir = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+      if (dir !== 0) {
+        S.pushTarget = clamp((S.pushTarget == null ? S.x : S.pushTarget) + dir * dt * 3, S.bounds.min, S.bounds.max);
+      } else {
+        releaseStone();
+      }
+    }
+
+    step(dt);
+    updateVisuals(dt);
+    controls.update();
+    renderer.render(scene, camera);
+
+    accUI += dt;
+    if (accUI >= 0.1) { refreshUI(); drawGraph(); accUI = 0; }
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  refreshUI(); syncMu(); drawGraph();
+  initCamera();
+  animate();
+  </script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

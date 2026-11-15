@@ -1,0 +1,31 @@
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const errors={duplicate_upload_use_existing:'这份课件已接收，请从下方作品列表关联原课件，避免重复上传。',upload_in_progress:'相同课件正在上传，请稍后查看记录。',upload_needs_review:'上次上传结果需要核查，请保留本条记录，暂勿重新上传。',protected_upload_failed:'上传未完成，已保留记录。请先核查结果，再决定重试或修正文件。',sample_scope_exceeds_policy:'ZIP课件的整课样例范围需要单独核验，请先按套餐课件上传。',point_outside_package:'请先为该套餐添加板块和知识点。',revision_conflict:'目录刚被其他操作更新。课件已保留，重试只会补充关联。'};
+export function mountUploads(root,{token,packageId,points,onComplete}){
+ let busy=false;
+ root.innerHTML=`<details class="pc-management"><summary>直接上传精品课（单个 / 批量）</summary><p class="pc-note">每个HTML或ZIP是一份课件。精品专属不会出现在课件广场；广场共享需要填写单购价，保存后仍需在广场审核。上传后先保存草稿，检查后发布精品目录。</p><form id="pu-form"><label>课件文件<input id="pu-files" type="file" accept=".html,.htm,.zip" multiple required></label><label>封面图片（可选；多份时使用与课件同名的图片）<input id="pu-covers" type="file" accept=".png,.jpg,.jpeg,.webp" multiple></label><label>归属<select id="pu-distribution"><option value="premium_exclusive">精品专属</option><option value="marketplace_shared">广场共享（保留原广场权益）</option></select></label><label id="pu-price-label" hidden>广场单购价格（元，0表示免费）<input id="pu-price" type="number" min="0" max="100000" step="0.01" placeholder="请明确填写"></label><label>知识点<select id="pu-point" required>${points.map(p=>`<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('')}</select></label><label class="pc-check"><input id="pu-sample" type="checkbox">指定免费样例（仅整课HTML；登录后每账号累计10次）</label><label>起始排序<input id="pu-order" type="number" min="0" max="999900" value="100" required></label><div id="pu-queue"></div><button class="pc-primary" ${points.length?'':'disabled'}>保存到精品草稿</button></form><p role="status" id="pu-feedback"></p><details><summary>最近上传记录</summary><div id="pu-history">正在载入…</div></details></details>`;
+ const form=root.querySelector('#pu-form'),fileInput=root.querySelector('#pu-files');let queue=[];
+ root.querySelector('#pu-distribution').onchange=e=>{root.querySelector('#pu-price-label').hidden=e.target.value!=='marketplace_shared';};
+ const stem=name=>name.replace(/\.[^.]+$/,'').normalize('NFC');
+ fileInput.onchange=()=>{queue=[...fileInput.files].map(file=>({file,title:stem(file.name),state:'待上传'}));drawQueue();};
+ function drawQueue(){root.querySelector('#pu-queue').innerHTML=queue.map((item,i)=>`<label>${esc(item.file.name)}<input data-pu-title="${i}" maxlength="80" value="${esc(item.title)}" ${busy?'disabled':''}><small data-pu-state="${i}">${esc(item.state)}</small></label>`).join('');root.querySelectorAll('[data-pu-title]').forEach(input=>input.onchange=()=>{queue[Number(input.dataset.puTitle)].title=input.value.trim();});}
+ async function history(){try{const r=await fetch('/api/premium/admin/uploads',{headers:{Authorization:'Bearer '+token},cache:'no-store'});if(!r.ok)throw Error();const data=await r.json();root.querySelector('#pu-history').innerHTML=data.uploads.length?data.uploads.map(u=>{const item=JSON.parse(u.requestJson);return `<p>${esc(item.title)} · ${esc(({complete:'已保存草稿',registered:'课件已保存，待关联',failed:'校验失败，可重试',sending:'上传处理中；中断时请先核查',uncertain:'结果待核查，禁止重复上传',queued:'等待处理'})[u.state]||u.state)}${u.programId?' · #'+u.programId:''}${['uncertain','sending'].includes(u.state)?` <button type="button" data-reconcile="${esc(u.id)}">核查已保存结果</button>`:''}</p>`;}).join(''):'暂无上传记录。';root.querySelectorAll('[data-reconcile]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{const r=await fetch('/api/premium/admin/uploads/reconcile',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','X-Premium-Catalogue-Intent':'cataloguing'},body:JSON.stringify({id:button.dataset.reconcile})});const result=await r.json();root.querySelector('#pu-feedback').textContent=r.ok?'已找到安全保存的课件 #'+result.programId+'，可重试原批次以补充目录关联。':(errors[result.error]||'仍需人工核查，未重新上传。');await history();}catch{root.querySelector('#pu-feedback').textContent='核查未完成，请稍后再试。';button.disabled=false;}});}catch{root.querySelector('#pu-history').textContent='上传记录暂时不可用。';}}
+ form.onsubmit=async e=>{e.preventDefault();if(busy)return;const feedback=root.querySelector('#pu-feedback');if(!queue.length)return;
+  const pointId=root.querySelector('#pu-point').value,distribution=root.querySelector('#pu-distribution').value,freeSample=String(root.querySelector('#pu-sample').checked),order=Number(root.querySelector('#pu-order').value),covers=[...root.querySelector('#pu-covers').files];
+  const priceValue=root.querySelector('#pu-price').value;const marketplacePriceCents=distribution==='premium_exclusive'?'0':String(Math.round(Number(priceValue)*100));
+  if(distribution==='marketplace_shared'&&priceValue===''){feedback.textContent='请明确填写广场单购价格，免费请填0。';return;}
+  if(queue.length>50){feedback.textContent='每批最多50份课件，可分批导入。';return;}
+  if(queue.some(q=>!q.title)){feedback.textContent='请填写每份课件的名称。';return;}
+  const pairs=queue.map(q=>covers.filter(c=>stem(c.name)===stem(q.file.name)));
+  if(pairs.some(p=>p.length>1)||covers.some(c=>!queue.some(q=>stem(q.file.name)===stem(c.name)))){feedback.textContent='请让封面与课件使用相同文件名（扩展名可不同），每份课件仅一张封面。';return;}
+  busy=true;form.querySelectorAll('input,select,button').forEach(x=>x.disabled=true);let completed=0,failed=0;
+  try{for(let i=0;i<queue.length;i++){
+    const item=queue[i];if(item.done){completed++;continue;}
+    item.state='正在上传…';drawQueue();
+    const data=new FormData();Object.entries({title:item.title,packageId,pointId,distribution,freeSample,marketplacePriceCents,sortOrder:String(order+i)}).forEach(([k,v])=>data.append(k,v));data.append('file',item.file);if(pairs[i][0])data.append('cover',pairs[i][0]);
+    try{const r=await fetch('/api/premium/admin/uploads',{method:'POST',headers:{Authorization:'Bearer '+token,'X-Premium-Catalogue-Intent':'cataloguing'},body:data});const result=await r.json();if(!r.ok)throw Error(errors[result.error]||'未完成：'+(result.error||r.status));item.done=true;item.state='已保存草稿 · #'+result.programId;completed++;}catch(error){item.state=error.message;failed++;}drawQueue();
+   }
+   feedback.textContent=`已保存 ${completed} 项${failed?'，未完成 '+failed+' 项，请查看各项说明。':'。可重新载入编目，检查后发布目录。'}`;
+  }finally{busy=false;form.querySelectorAll('input,select,button').forEach(x=>x.disabled=false);drawQueue();await history();onComplete?.();}
+ };
+ history();
+}

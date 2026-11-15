@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/api/program-assets/26/t/eyJwcml2YXRlUmV2aXNpb24iOiIwZWRmNjIwODIwYTQ2N2FkMGE1YWViMzBkOWQyOTI0NyIsIm8iOiJvSHNWcjJ6N0VYZURDS1RlMkNXYXJleVU2QjdnIiwicCI6IjI2IiwiZXhwIjoxNzk0NTU5ODY2LCJwdXJwb3NlIjoicHJvdGVjdGVkX3Byb2dyYW1fYXNzZXQifQ.XJZ-mDfvLpjzzVzsiFaZkUJwAAsTJaWeB6eNkJvJ7OU/"><script>
+(function(){var prefixes=["/api/program-assets/26/"];function needsCors(v){if(!v||typeof v!=="string")return false;try{var href=new URL(v,document.baseURI).href;for(var i=0;i<prefixes.length;i++){var p=new URL(prefixes[i],location.origin).href;if(href.indexOf(p)===0)return true;}return false;}catch(e){return false;}}function mark(img,v){if(needsCors(v)){try{img.crossOrigin="anonymous";}catch(e){}}}var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(d&&d.set&&d.get){try{Object.defineProperty(HTMLImageElement.prototype,"src",{get:d.get,set:function(v){mark(this,v);return d.set.call(this,v);},configurable:true,enumerable:d.enumerable});}catch(e){}}var set=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(this instanceof HTMLImageElement&&String(n).toLowerCase()==="src")mark(this,String(v||""));return set.apply(this,arguments);};})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>细胞膜跨膜运输 - 3D 互动教学</title>
+<!-- STYLES_PLACEHOLDER -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: #0a0e1a;
+  color: #e0e6f0;
+  overflow: hidden;
+  width: 100vw; height: 100vh;
+}
+#canvas-container {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  z-index: 1;
+}
+canvas { display: block; }
+
+/* Loading screen */
+#loading-screen {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  background: #0a0e1a;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.8s ease;
+}
+#loading-screen.hidden { opacity:0; pointer-events:none; }
+#loading-screen .spinner {
+  width:60px; height:60px;
+  border: 3px solid rgba(100,180,255,0.15);
+  border-top: 3px solid #64b4ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-screen p { margin-top: 20px; color: #8899bb; font-size: 14px; letter-spacing: 1px; }
+
+/* Top info bar */
+#top-bar {
+  position: fixed; top: 0; left: 0; width: 100%;
+  padding: 16px 28px;
+  background: linear-gradient(180deg, rgba(10,14,26,0.92) 0%, rgba(10,14,26,0) 100%);
+  z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  pointer-events: none;
+}
+#top-bar h1 {
+  font-size: 20px; font-weight: 500; letter-spacing: 2px;
+  color: #c8daf4;
+  text-shadow: 0 0 20px rgba(100,180,255,0.3);
+}
+#view-indicator {
+  font-size: 13px; color: #6a8cbf;
+  background: rgba(100,160,255,0.08);
+  border: 1px solid rgba(100,160,255,0.15);
+  border-radius: 20px;
+  padding: 6px 18px;
+}
+
+/* Bottom control panel */
+#control-panel {
+  position: fixed; bottom: 0; left: 0; width: 100%;
+  z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  padding-bottom: 20px;
+  background: linear-gradient(0deg, rgba(10,14,26,0.95) 0%, rgba(10,14,26,0) 100%);
+  pointer-events: none;
+}
+.btn-row {
+  display: flex; gap: 10px; margin-bottom: 10px;
+  flex-wrap: wrap; justify-content: center;
+  pointer-events: auto;
+}
+.ctrl-btn {
+  background: rgba(40,60,100,0.5);
+  border: 1px solid rgba(100,170,255,0.2);
+  color: #b0ccf0;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.5px;
+}
+.ctrl-btn:hover {
+  background: rgba(60,100,180,0.5);
+  border-color: rgba(100,170,255,0.5);
+  color: #e0f0ff;
+  box-shadow: 0 0 20px rgba(80,150,255,0.15);
+}
+.ctrl-btn.active {
+  background: rgba(60,120,220,0.4);
+  border-color: rgba(100,180,255,0.6);
+  color: #fff;
+  box-shadow: 0 0 25px rgba(80,150,255,0.2);
+}
+.ctrl-btn.primary {
+  background: linear-gradient(135deg, rgba(60,120,200,0.6), rgba(80,60,180,0.6));
+  border-color: rgba(120,160,255,0.4);
+  color: #e8f0ff;
+}
+
+/* Slider */
+.slider-container {
+  display: flex; align-items: center; gap: 10px;
+  pointer-events: auto;
+  margin-bottom: 10px;
+}
+.slider-container label {
+  font-size: 12px; color: #7a9cc8;
+  white-space: nowrap;
+}
+.slider-container input[type=range] {
+  width: 150px; accent-color: #5599ee;
+}
+
+/* Knowledge panel */
+#knowledge-panel {
+  position: fixed; right: -420px; top: 60px;
+  width: 400px;
+  max-height: calc(100vh - 120px);
+  background: rgba(12,18,35,0.95);
+  border: 1px solid rgba(100,160,255,0.12);
+  border-radius: 14px;
+  z-index: 20;
+  padding: 24px;
+  overflow-y: auto;
+  transition: right 0.5s cubic-bezier(0.4,0,0.2,1);
+  backdrop-filter: blur(16px);
+  pointer-events: auto;
+}
+#knowledge-panel.open { right: 20px; }
+#knowledge-panel h2 {
+  font-size: 16px; font-weight: 500; color: #a0c4f0;
+  margin-bottom: 14px; border-bottom: 1px solid rgba(100,160,255,0.1);
+  padding-bottom: 10px;
+}
+#knowledge-panel p, #knowledge-panel li {
+  font-size: 13px; line-height: 1.8; color: #8eaad0;
+}
+#knowledge-panel .kp-section {
+  margin-bottom: 18px;
+}
+#knowledge-panel .kp-section h3 {
+  font-size: 14px; color: #90baee; margin-bottom: 6px; font-weight: 500;
+}
+#knowledge-panel .close-btn {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none; color: #6a8cbf;
+  font-size: 20px; cursor: pointer;
+}
+#knowledge-panel .close-btn:hover { color: #a0c4f0; }
+
+/* CSS2D labels */
+.label-2d {
+  color: #d0e4ff;
+  font-size: 11px;
+  font-family: 'Noto Sans SC', sans-serif;
+  background: rgba(10,20,50,0.75);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(100,170,255,0.2);
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  text-shadow: 0 0 6px rgba(80,140,255,0.3);
+}
+
+/* Legend */
+#legend {
+  position: fixed; left: 20px; bottom: 120px;
+  z-index: 10;
+  background: rgba(12,18,35,0.85);
+  border: 1px solid rgba(100,160,255,0.1);
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  backdrop-filter: blur(8px);
+}
+#legend.visible { opacity: 1; }
+#legend h4 { font-size: 12px; color: #8aacda; margin-bottom: 8px; font-weight: 500; }
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: #7a9cc8; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* Scrollbar for knowledge panel */
+#knowledge-panel::-webkit-scrollbar { width: 4px; }
+#knowledge-panel::-webkit-scrollbar-track { background: transparent; }
+#knowledge-panel::-webkit-scrollbar-thumb { background: rgba(100,160,255,0.2); border-radius: 2px; }
+
+/* Annotation tooltip on click */
+#click-tooltip {
+  position: fixed;
+  background: rgba(15,25,50,0.9);
+  border: 1px solid rgba(100,170,255,0.3);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: #a0ccf0;
+  z-index: 30;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+#click-tooltip.show { opacity: 1; }
+</style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=26&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIyNiIsImV4cCI6MTc5NDU1OTg2NX0.gpgR09B-C507EkIwQHu57yh7vQJhrRsJwRvScXYY3x0",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <p>正在初始化...</p>
+  <div style="width:200px;height:4px;background:rgba(100,180,255,0.1);border-radius:2px;margin-top:16px;overflow:hidden">
+    <div id="loading-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#64b4ff,#a78bfa);border-radius:2px;transition:width 0.3s ease"></div>
+  </div>
+</div>
+
+<div id="top-bar">
+  <h1>细胞膜跨膜运输 -- 3D 互动教学</h1>
+  <span id="view-indicator">整体细胞视角</span>
+</div>
+
+<div id="canvas-container"></div>
+
+<div id="click-tooltip"></div>
+
+<div id="legend">
+  <h4>图例</h4>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff6644"></div>O&#8322; 氧分子 (自由扩散)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#44aaff"></div>Na&#8314; 钠离子 (协助扩散)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#aa66ff"></div>K&#8314; 钾离子 (协助扩散)</div>
+</div>
+
+<!-- Knowledge panel -->
+<div id="knowledge-panel">
+  <button class="close-btn" onclick="toggleKnowledge()">&times;</button>
+  <div id="kp-content"></div>
+</div>
+
+<div id="control-panel">
+  <!-- Slider row (membrane view only) -->
+  <div class="slider-container" id="fluidity-slider" style="display:none;">
+    <label>膜流动性:</label>
+    <input type="range" id="wave-speed" min="0.2" max="3.0" step="0.1" value="1.0">
+    <span id="speed-label" style="font-size:12px;color:#7a9cc8;min-width:50px;">正常</span>
+  </div>
+  <!-- Main buttons row -->
+  <div class="btn-row" id="main-buttons">
+    <button class="ctrl-btn primary" id="btn-switch" onclick="switchView()">切换到细胞膜视角</button>
+  </div>
+  <!-- Membrane-only buttons -->
+  <div class="btn-row" id="membrane-buttons" style="display:none;">
+    <button class="ctrl-btn" onclick="playFreeDiffusion()">自由扩散</button>
+    <button class="ctrl-btn" onclick="playFacilitatedDiffusion()">协助扩散</button>
+    <button class="ctrl-btn" onclick="showKnowledge('phase')">膜相分离</button>
+    <button class="ctrl-btn" onclick="showKnowledge('asymmetry')">膜不对称性</button>
+    <button class="ctrl-btn" onclick="showKnowledge('fluidity')">膜流动性与疾病</button>
+    <button class="ctrl-btn" onclick="playApoptosis()">凋亡演示</button>
+  </div>
+</div>
+
+<!-- GSAP CDN (must load before module) -->
+<script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+
+<!-- Three.js and dependencies -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+// === MODULE IMPORTS ===
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// === GLOBAL STATE ===
+let scene, camera, renderer, labelRenderer, controls;
+let cellModel, membraneModel;
+let currentView = 'cell'; // 'cell' or 'membrane'
+let waveSpeed = 1.0;
+let clock = new THREE.Clock();
+let animationSpheres = [];
+let labels2D = [];
+let psMeshes = []; // for apoptosis demo
+let lipidRaftGroup; // for phase separation demo
+let isAnimating = false;
+
+// Expose to global for onclick handlers and debugging
+window.switchView = switchView;
+window.playFreeDiffusion = playFreeDiffusion;
+window.playFacilitatedDiffusion = playFacilitatedDiffusion;
+window.showKnowledge = showKnowledge;
+window.toggleKnowledge = toggleKnowledge;
+window.playApoptosis = playApoptosis;
+window.getModels = () => ({ cellModel, membraneModel });
+
+// === SCENE SETUP ===
+function initScene() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 1000);
+  camera.position.set(0, 2, 5);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  // CSS2D
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0';
+  labelRenderer.domElement.style.pointerEvents = 'none';
+  document.getElementById('canvas-container').appendChild(labelRenderer.domElement);
+
+  // Lights - bright enough to preserve PBR
+  const ambient = new THREE.AmbientLight(0xffffff, 2.5);
+  scene.add(ambient);
+  const dir1 = new THREE.DirectionalLight(0xffffff, 3.0);
+  dir1.position.set(5, 8, 5);
+  scene.add(dir1);
+  const dir2 = new THREE.DirectionalLight(0xaaccff, 1.5);
+  dir2.position.set(-5, 3, -5);
+  scene.add(dir2);
+
+  // Subtle background
+  scene.background = new THREE.Color(0x0a0e1a);
+  scene.fog = new THREE.FogExp2(0x0a0e1a, 0.05);
+
+  // Controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 0.5;
+  controls.maxDistance = 30;
+
+  window.addEventListener('resize', onResize);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// === LOAD MODELS ===
+async function loadModels() {
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
+  const loader = new GLTFLoader();
+  loader.setDRACOLoader(dracoLoader);
+
+  const loadingText = document.querySelector('#loading-screen p');
+  const loadingBar = document.getElementById('loading-bar');
+
+  function loadWithProgress(url, label, barStart, barEnd) {
+    return new Promise((resolve, reject) => {
+      loader.load(url, resolve, (event) => {
+        if (event.lengthComputable) {
+          const pct = Math.round(event.loaded / event.total * 100);
+          loadingText.textContent = `正在加载${label}... ${pct}%`;
+          const barPct = barStart + (barEnd - barStart) * (event.loaded / event.total);
+          loadingBar.style.width = barPct + '%';
+        }
+      }, reject);
+    });
+  }
+
+  loadingText.textContent = '正在加载细胞模型...';
+  const cellGltf = await loadWithProgress('cell.glb', '细胞模型', 0, 60);
+  loadingText.textContent = '正在加载细胞膜模型...';
+  const memGltf = await loadWithProgress('membrane.glb', '细胞膜模型', 60, 95);
+  loadingBar.style.width = '100%';
+  loadingText.textContent = '渲染中...';
+
+  cellModel = cellGltf.scene;
+  membraneModel = memGltf.scene;
+
+  // Center and scale cell model
+  const cellBox = new THREE.Box3().setFromObject(cellModel);
+  const cellSize = cellBox.getSize(new THREE.Vector3());
+  const cellScale = 3.0 / Math.max(cellSize.x, cellSize.y, cellSize.z);
+  cellModel.scale.setScalar(cellScale);
+  const cellBox2 = new THREE.Box3().setFromObject(cellModel);
+  const cellCenter2 = cellBox2.getCenter(new THREE.Vector3());
+  cellModel.position.set(-cellCenter2.x, -cellCenter2.y, -cellCenter2.z);
+
+  // Center and scale membrane
+  const memBox = new THREE.Box3().setFromObject(membraneModel);
+  const memCenter = memBox.getCenter(new THREE.Vector3());
+  const memSize = memBox.getSize(new THREE.Vector3());
+  const memScale = 4.0 / Math.max(memSize.x, memSize.y, memSize.z);
+  membraneModel.scale.setScalar(memScale);
+  // Recompute center after scaling
+  const memBox2 = new THREE.Box3().setFromObject(membraneModel);
+  const memCenter2 = memBox2.getCenter(new THREE.Vector3());
+  membraneModel.position.set(-memCenter2.x, -memCenter2.y, -memCenter2.z);
+
+  // Inject wave shader on membrane materials
+  injectWaveShader(membraneModel);
+
+  scene.add(cellModel);
+  scene.add(membraneModel);
+  // Temporarily show both for label positioning
+  membraneModel.visible = true;
+
+  // Force compute all world matrices before label positioning
+  scene.updateMatrixWorld(true);
+
+  // Add labels
+  addCellLabels();
+  addMembraneLabels();
+
+  // Now hide membrane
+  membraneModel.visible = false;
+  updateLabelVisibility();
+
+  // Hide loading
+  document.getElementById('loading-screen').classList.add('hidden');
+}
+
+// === WAVE SHADER INJECTION ===
+const waveUniforms = {
+  uTime: { value: 0 },
+  uSpeed: { value: 1.0 },
+  uAmplitude: { value: 0.06 }
+};
+
+function injectWaveShader(model) {
+  model.traverse((child) => {
+    if (child.isMesh && child.material) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach(mat => {
+        mat.onBeforeCompile = (shader) => {
+          shader.uniforms.uTime = waveUniforms.uTime;
+          shader.uniforms.uSpeed = waveUniforms.uSpeed;
+          shader.uniforms.uAmplitude = waveUniforms.uAmplitude;
+
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            `#include <common>
+            uniform float uTime;
+            uniform float uSpeed;
+            uniform float uAmplitude;
+            `
+          );
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            `#include <begin_vertex>
+            float wave = sin(position.x * 8.0 + uTime * uSpeed * 2.0) *
+                         cos(position.z * 6.0 + uTime * uSpeed * 1.5) *
+                         uAmplitude;
+            float wave2 = sin(position.x * 12.0 - uTime * uSpeed * 1.2 + 1.5) *
+                          sin(position.z * 10.0 + uTime * uSpeed * 0.8) *
+                          uAmplitude * 0.5;
+            transformed.y += wave + wave2;
+            `
+          );
+        };
+        mat.needsUpdate = true;
+      });
+    }
+  });
+}
+
+// === LABELS ===
+// Cell model label mapping — by material name (v2.0 model uses Object_N mesh names)
+// Material colors verified by isolating each material group visually
+const cellMaterialLabelMap = {
+  'Material.010': '细胞核',           // large pink semi-transparent dome (#4)
+  'Material.008': '粗糙内质网',       // blue coiled structure around nucleus (#3)
+  'Material.007': '线粒体',           // orange cristae → anchors label at mitochondria (#2)
+  'Material.006': '高尔基体',         // red folded layered structure (#1)
+  'Material.018': '核糖体',           // small red balls on rough ER
+  'Material.026': '光滑内质网',       // dark purple trumpet protrusions (#5)
+  'Material.025': '中心粒',           // yellow star-shaped structures
+};
+// Normalized lookup (dots removed) for Three.js compatibility
+const cellMatLookup = {};
+for (const [key, val] of Object.entries(cellMaterialLabelMap)) {
+  cellMatLookup[key] = val;
+  cellMatLookup[key.replace(/\./g, '')] = val;
+}
+
+// Membrane model label mapping — only 磷脂双分子层
+const membraneLabelMap = {
+  'base001_Material001_0': '磷脂双分子层',      // light blue balls with two tails
+};
+
+function createLabel(text, position) {
+  const div = document.createElement('div');
+  div.className = 'label-2d';
+  div.textContent = text;
+  const label = new CSS2DObject(div);
+  label.position.copy(position);
+  return label;
+}
+
+function updateLabelVisibility() {
+  labels2D.forEach(label => {
+    if (label.userData.group === 'cell') {
+      label.visible = (currentView === 'cell');
+    } else if (label.userData.group === 'membrane') {
+      label.visible = (currentView === 'membrane');
+    }
+  });
+}
+
+function addCellLabels() {
+  // Group all meshes by their label text
+  const groups = {};
+  cellModel.traverse((child) => {
+    if (child.isMesh && child.material) {
+      const matName = child.material.name;
+      let labelText = cellMatLookup[matName] || cellMatLookup[matName.replace(/\./g, '')];
+      if (!labelText) return;
+      if (!groups[labelText]) groups[labelText] = [];
+      groups[labelText].push(child);
+    }
+  });
+  // Compute world-space center for each label group
+  const labelWorldPos = {};
+  for (const [labelText, meshes] of Object.entries(groups)) {
+    let bestMesh = meshes[0];
+    let bestVolume = 0;
+    meshes.forEach(m => {
+      m.geometry.computeBoundingBox();
+      const size = m.geometry.boundingBox.getSize(new THREE.Vector3());
+      const vol = size.x * size.y * size.z;
+      if (vol > bestVolume) { bestVolume = vol; bestMesh = m; }
+    });
+    bestMesh.geometry.computeBoundingBox();
+    const geoCenter = bestMesh.geometry.boundingBox.getCenter(new THREE.Vector3());
+    bestMesh.updateWorldMatrix(true, false);
+    geoCenter.applyMatrix4(bestMesh.matrixWorld);
+    labelWorldPos[labelText] = geoCenter;
+  }
+  // Special fix: position 中心粒 between 光滑内质网 and 线粒体
+  if (labelWorldPos['中心粒'] && labelWorldPos['光滑内质网'] && labelWorldPos['线粒体']) {
+    labelWorldPos['中心粒'].copy(labelWorldPos['光滑内质网']).add(labelWorldPos['线粒体']).multiplyScalar(0.5);
+  }
+  // Create labels
+  for (const [labelText, worldPos] of Object.entries(labelWorldPos)) {
+    const localPos = cellModel.worldToLocal(worldPos.clone());
+    const label = createLabel(labelText, localPos);
+    label.userData.group = 'cell';
+    cellModel.add(label);
+    labels2D.push(label);
+  }
+}
+
+function addMembraneLabels() {
+  // Group meshes by label text
+  const groups = {};
+  membraneModel.traverse((child) => {
+    if (child.isMesh && membraneLabelMap[child.name]) {
+      const labelText = membraneLabelMap[child.name];
+      if (!groups[labelText]) groups[labelText] = [];
+      groups[labelText].push(child);
+    }
+  });
+  for (const [labelText, meshes] of Object.entries(groups)) {
+    // Compute average geometry center across all meshes for this label
+    const avgWorld = new THREE.Vector3();
+    meshes.forEach(m => {
+      m.geometry.computeBoundingBox();
+      const geoCenter = m.geometry.boundingBox.getCenter(new THREE.Vector3());
+      m.updateWorldMatrix(true, false);
+      geoCenter.applyMatrix4(m.matrixWorld);
+      avgWorld.add(geoCenter);
+    });
+    avgWorld.divideScalar(meshes.length);
+    membraneModel.worldToLocal(avgWorld);
+    const label = createLabel(labelText, avgWorld);
+    label.userData.group = 'membrane';
+    membraneModel.add(label);
+    labels2D.push(label);
+  }
+}
+
+// === RAYCASTER (click to log mesh name) ===
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function setupRaycaster() {
+  renderer.domElement.addEventListener('click', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const targets = currentView === 'cell' ? [cellModel] : [membraneModel];
+    const intersects = raycaster.intersectObjects(targets, true);
+    if (intersects.length > 0) {
+      const hit = intersects[0].object;
+      console.log('[Raycaster] name:', hit.name, '| parent:', hit.parent?.name, '| material:', hit.material?.name, '| type:', hit.type);
+
+      // Show tooltip — cell model uses material-based lookup, membrane uses mesh name
+      const tooltip = document.getElementById('click-tooltip');
+      let displayName;
+      if (currentView === 'cell') {
+        const matName = hit.material?.name || '';
+        displayName = cellMatLookup[matName] || cellMatLookup[matName.replace(/\./g, '')] || hit.parent?.name || hit.name;
+      } else {
+        displayName = membraneLabelMap[hit.name] || hit.name;
+      }
+      tooltip.textContent = displayName;
+      tooltip.style.left = event.clientX + 12 + 'px';
+      tooltip.style.top = event.clientY - 20 + 'px';
+      tooltip.classList.add('show');
+      setTimeout(() => tooltip.classList.remove('show'), 2000);
+    }
+  });
+}
+
+// === VIEW SWITCHING ===
+function switchView() {
+  if (isAnimating) return;
+  isAnimating = true;
+  clearAnimationSpheres();
+
+  const btn = document.getElementById('btn-switch');
+  const indicator = document.getElementById('view-indicator');
+  const memButtons = document.getElementById('membrane-buttons');
+  const fluidSlider = document.getElementById('fluidity-slider');
+  const legend = document.getElementById('legend');
+
+  if (currentView === 'cell') {
+    // Animate camera to membrane view (side view for flat bilayer)
+    gsap.to(camera.position, {
+      x: 0, y: 0.6, z: 3.5,
+      duration: 1.5,
+      ease: 'power2.inOut',
+      onUpdate: () => controls.update()
+    });
+    gsap.to(controls.target, {
+      x: 0, y: 0, z: 0,
+      duration: 1.5,
+      ease: 'power2.inOut'
+    });
+
+    // Switch models after brief delay
+    gsap.delayedCall(0.3, () => {
+      cellModel.visible = false;
+      membraneModel.visible = true;
+      // Hide cell labels, show membrane labels immediately
+      labels2D.forEach(label => {
+        label.visible = (label.userData.group === 'membrane');
+      });
+    });
+
+    setTimeout(() => {
+      currentView = 'membrane';
+      updateLabelVisibility();
+      btn.textContent = '返回细胞视角';
+      indicator.textContent = '细胞膜微观视角';
+      memButtons.style.display = 'flex';
+      fluidSlider.style.display = 'flex';
+      legend.classList.add('visible');
+      isAnimating = false;
+    }, 1600);
+
+  } else {
+    gsap.to(camera.position, {
+      x: 0, y: 2, z: 5,
+      duration: 1.5,
+      ease: 'power2.inOut',
+      onUpdate: () => controls.update()
+    });
+    gsap.to(controls.target, {
+      x: 0, y: 0, z: 0,
+      duration: 1.5,
+      ease: 'power2.inOut'
+    });
+
+    gsap.delayedCall(0.3, () => {
+      membraneModel.visible = false;
+      cellModel.visible = true;
+      // Hide membrane labels, show cell labels immediately
+      labels2D.forEach(label => {
+        label.visible = (label.userData.group === 'cell');
+      });
+    });
+
+    // Close knowledge panel
+    document.getElementById('knowledge-panel').classList.remove('open');
+
+    setTimeout(() => {
+      currentView = 'cell';
+      updateLabelVisibility();
+      btn.textContent = '切换到细胞膜视角';
+      indicator.textContent = '整体细胞视角';
+      memButtons.style.display = 'none';
+      fluidSlider.style.display = 'none';
+      legend.classList.remove('visible');
+      isAnimating = false;
+    }, 1600);
+  }
+}
+
+// === TRANSPORT ANIMATIONS ===
+function clearAnimationSpheres() {
+  animationSpheres.forEach(s => {
+    scene.remove(s);
+    s.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (child.material.map) child.material.map.dispose();
+        child.material.dispose();
+      }
+    });
+  });
+  animationSpheres = [];
+}
+
+function createMolecule(text, color, radius) {
+  const group = new THREE.Group();
+  const geo = new THREE.SphereGeometry(radius, 16, 16);
+  const mat = new THREE.MeshStandardMaterial({
+    color: color,
+    emissive: color,
+    emissiveIntensity: 0.3,
+    roughness: 0.3,
+    metalness: 0.1
+  });
+  const sphere = new THREE.Mesh(geo, mat);
+  group.add(sphere);
+
+  // Text label as a Sprite (pure Three.js, no CSS2D — auto-removed with parent)
+  const canvas = document.createElement('canvas');
+  canvas.width = 64; canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 20px serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Decode HTML entities for canvas rendering
+  const tmp = document.createElement('span');
+  tmp.innerHTML = text;
+  ctx.fillText(tmp.textContent, 32, 16);
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(0.15, 0.075, 1);
+  sprite.position.set(0, radius + 0.05, 0);
+  group.add(sprite);
+
+  return group;
+}
+
+function getMembraneYRange() {
+  // Find the bilayer base to determine Y crossing range
+  let yMin = -0.1, yMax = 0.1;
+  membraneModel.traverse(child => {
+    if (child.isMesh && child.name.includes('base001')) {
+      const box = new THREE.Box3().setFromObject(child);
+      yMin = box.min.y;
+      yMax = box.max.y;
+    }
+  });
+  return { yMin, yMax };
+}
+
+function playFreeDiffusion() {
+  if (isAnimating) return;
+  clearAnimationSpheres();
+
+  const { yMin, yMax } = getMembraneYRange();
+  const yTop = yMax + 0.4;
+  const yBottom = yMin - 0.4;
+  const midY = (yMin + yMax) / 2;
+
+  // Create O2 molecules at random x,z positions
+  for (let i = 0; i < 6; i++) {
+    const mol = createMolecule('O&#8322;', 0xff6644, 0.05);
+    const x = (Math.random() - 0.5) * 1.5;
+    const z = (Math.random() - 0.5) * 1.5;
+    const goDown = Math.random() > 0.5;
+    mol.position.set(x, goDown ? yTop : yBottom, z);
+    scene.add(mol);
+    animationSpheres.push(mol);
+
+    const delay = i * 0.3;
+    const targetY = goDown ? yBottom : yTop;
+
+    // Wiggling path through lipid bilayer
+    const tl = gsap.timeline({ delay });
+    tl.to(mol.position, {
+      y: midY,
+      duration: 1.2,
+      ease: 'power1.inOut'
+    });
+    tl.to(mol.position, {
+      x: x + (Math.random() - 0.5) * 0.3,
+      z: z + (Math.random() - 0.5) * 0.3,
+      duration: 0.4,
+      ease: 'sine.inOut'
+    }, '-=0.6');
+    tl.to(mol.position, {
+      y: targetY,
+      duration: 1.2,
+      ease: 'power1.inOut'
+    });
+    tl.to(mol.position, {
+      x: x + (Math.random() - 0.5) * 0.5,
+      duration: 0.5,
+      ease: 'sine.inOut'
+    }, '-=0.8');
+
+    // Fade out at end — sphere and sprite label disappear together
+    tl.to(mol.children[0].material, {
+      opacity: 0,
+      duration: 0.5,
+      onStart: () => { mol.children[0].material.transparent = true; },
+      onComplete: () => { mol.visible = false; }
+    });
+    // Also fade the sprite label
+    if (mol.children[1] && mol.children[1].material) {
+      tl.to(mol.children[1].material, { opacity: 0, duration: 0.5 }, '-=0.5');
+    }
+  }
+}
+
+function playFacilitatedDiffusion() {
+  if (isAnimating) return;
+  clearAnimationSpheres();
+
+  // Find large purple transport protein (Torus) positions
+  const proteinPositions = [];
+  membraneModel.traverse(child => {
+    if (child.isMesh && child.name.includes('Torus')) {
+      const box = new THREE.Box3().setFromObject(child);
+      const center = box.getCenter(new THREE.Vector3());
+      proteinPositions.push(center);
+    }
+  });
+
+  if (proteinPositions.length === 0) {
+    // fallback positions
+    proteinPositions.push(new THREE.Vector3(0, 0, 0));
+  }
+
+  const { yMin, yMax } = getMembraneYRange();
+  const yTop = yMax + 0.5;
+  const yBottom = yMin - 0.5;
+
+  // Create Na+ and K+ ions passing through transport proteins
+  const ions = [
+    { text: 'Na&#8314;', color: 0x44aaff },
+    { text: 'K&#8314;', color: 0xaa66ff }
+  ];
+
+  let idx = 0;
+  for (let i = 0; i < Math.min(proteinPositions.length, 5); i++) {
+    const pos = proteinPositions[i];
+    const ion = ions[idx % ions.length];
+    idx++;
+
+    const mol = createMolecule(ion.text, ion.color, 0.05);
+    const goDown = i % 2 === 0;
+    mol.position.set(pos.x, goDown ? yTop : yBottom, pos.z);
+    scene.add(mol);
+    animationSpheres.push(mol);
+
+    const delay = i * 0.4;
+    const tl = gsap.timeline({ delay });
+
+    // Move to protein channel entrance
+    tl.to(mol.position, {
+      x: pos.x,
+      z: pos.z,
+      y: goDown ? yMax + 0.05 : yMin - 0.05,
+      duration: 0.8,
+      ease: 'power2.inOut'
+    });
+
+    // Pass through channel
+    tl.to(mol.position, {
+      y: goDown ? yMin - 0.05 : yMax + 0.05,
+      duration: 1.0,
+      ease: 'power1.inOut'
+    });
+
+    // Exit and drift
+    tl.to(mol.position, {
+      y: goDown ? yBottom : yTop,
+      x: pos.x + (Math.random() - 0.5) * 0.5,
+      duration: 0.8,
+      ease: 'power2.out'
+    });
+
+    // Fade — sphere and sprite label disappear together
+    tl.to(mol.children[0].material, {
+      opacity: 0,
+      duration: 0.4,
+      onStart: () => { mol.children[0].material.transparent = true; },
+      onComplete: () => { mol.visible = false; }
+    });
+    if (mol.children[1] && mol.children[1].material) {
+      tl.to(mol.children[1].material, { opacity: 0, duration: 0.4 }, '-=0.4');
+    }
+  }
+}
+
+// === APOPTOSIS DEMO ===
+function playApoptosis() {
+  clearAnimationSpheres();
+
+  // Collect all membrane mesh materials for color transition
+  const meshMats = [];
+  membraneModel.traverse(child => {
+    if (child.isMesh && child.material) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach(mat => {
+        if (!mat._origColor) {
+          mat._origColor = mat.color.clone();
+        }
+        meshMats.push(mat);
+      });
+    }
+  });
+
+  // Phase 1: Membrane shrinks (deflates) over 2 seconds
+  const origScale = membraneModel.scale.clone();
+  gsap.to(membraneModel.scale, {
+    x: origScale.x * 0.85,
+    y: origScale.y * 0.7,
+    z: origScale.z * 0.85,
+    duration: 2.5,
+    ease: 'power2.inOut'
+  });
+
+  // Phase 2: All membrane colors darken significantly
+  meshMats.forEach(mat => {
+    gsap.to(mat.color, {
+      r: mat.color.r * 0.25,
+      g: mat.color.g * 0.2,
+      b: mat.color.b * 0.25,
+      duration: 2.5,
+      delay: 0.5,
+      ease: 'power2.inOut'
+    });
+  });
+
+  // Phase 3: Auto-reset after 6 seconds
+  gsap.delayedCall(6.0, () => {
+    // Restore scale
+    gsap.to(membraneModel.scale, {
+      x: origScale.x,
+      y: origScale.y,
+      z: origScale.z,
+      duration: 1.5,
+      ease: 'power2.inOut'
+    });
+    // Restore colors
+    meshMats.forEach(mat => {
+      if (mat._origColor) {
+        gsap.to(mat.color, {
+          r: mat._origColor.r,
+          g: mat._origColor.g,
+          b: mat._origColor.b,
+          duration: 1.5,
+          ease: 'power2.inOut'
+        });
+      }
+    });
+  });
+}
+
+// === KNOWLEDGE PANEL ===
+const knowledgeContent = {
+  phase: {
+    title: '膜相分离与动态异质性',
+    html: `
+      <div class="kp-section">
+        <h3>核心概念</h3>
+        <p>细胞膜并非均匀分布的流体，磷脂和蛋白质会自发聚集，形成功能不同的<strong>脂质筏 (Lipid Rafts)</strong> 和<strong>膜微域 (Membrane Microdomains)</strong>。</p>
+      </div>
+      <div class="kp-section">
+        <h3>功能意义</h3>
+        <p>这些微域就像细胞膜上的"功能工作站"，能够高效完成：</p>
+        <ul style="padding-left:18px;">
+          <li>物质运输 -- 集中转运蛋白</li>
+          <li>信号传递 -- 聚集受体与信号分子</li>
+          <li>免疫识别 -- 富集抗原呈递复合物</li>
+        </ul>
+      </div>
+      <div class="kp-section">
+        <h3>研究前沿</h3>
+        <p><strong>膜相分离 (Phase Separation)</strong> 是当前细胞生物学的核心研究热点。研究发现，膜上的蛋白质-脂质相互作用可以驱动液-液相分离，形成功能性凝聚体，与信号转导、内吞作用密切相关。</p>
+      </div>
+    `
+  },
+  asymmetry: {
+    title: '细胞膜的不对称性',
+    html: `
+      <div class="kp-section">
+        <h3>结构不对称</h3>
+        <p>磷脂双分子层的<strong>内外层</strong>脂质与蛋白质分布完全不同：</p>
+        <ul style="padding-left:18px;">
+          <li><strong>外层：</strong>磷脂酰胆碱 (PC)、鞘磷脂 (SM)、糖脂</li>
+          <li><strong>内层：</strong>磷脂酰丝氨酸 (PS)、磷脂酰乙醇胺 (PE)</li>
+        </ul>
+      </div>
+      <div class="kp-section">
+        <h3>PS 外翻与细胞凋亡</h3>
+        <p><strong>磷脂酰丝氨酸 (PS)</strong> 正常状态下仅分布在膜的内层。当细胞发生<strong>凋亡 (Apoptosis)</strong> 时，PS 会外翻至外层，成为"吃我"信号 (eat-me signal)，被巨噬细胞识别并清除。</p>
+        <p style="margin-top:8px;color:#66ccaa;">点击下方"凋亡演示"按钮，可观察 PS 从内层翻转到外层的过程。</p>
+      </div>
+      <div class="kp-section">
+        <h3>临床意义</h3>
+        <p>PS 外翻检测（Annexin V 染色）已成为临床检测细胞凋亡的标准方法，广泛应用于肿瘤诊断与药效评估。</p>
+      </div>
+    `
+  },
+  fluidity: {
+    title: '膜流动性与疾病关联',
+    html: `
+      <div class="kp-section">
+        <h3>流动镶嵌模型</h3>
+        <p>细胞膜的流动性是其功能的结构基础。磷脂分子在双分子层中进行侧向扩散、翻转运动，蛋白质也在膜中"漂浮"移动。</p>
+      </div>
+      <div class="kp-section">
+        <h3>影响因素</h3>
+        <ul style="padding-left:18px;">
+          <li><strong>温度：</strong>升高 → 流动性增大</li>
+          <li><strong>胆固醇：</strong>双向调节（高温降低、低温升高流动性）</li>
+          <li><strong>脂肪酸不饱和度：</strong>不饱和脂肪酸 → 流动性增大</li>
+        </ul>
+      </div>
+      <div class="kp-section">
+        <h3>癌细胞膜的异常流动性</h3>
+        <p><strong>癌细胞膜流动性远高于正常细胞</strong>，这是癌细胞易增殖、转移的重要原因：</p>
+        <ul style="padding-left:18px;">
+          <li>利于癌细胞变形、穿透基底膜</li>
+          <li>增强信号分子的横向扩散速率</li>
+          <li>影响膜受体的聚集与功能</li>
+        </ul>
+        <p style="margin-top:8px;color:#ff9966;">拖动下方"膜流动性"滑块至右侧可模拟癌细胞膜的高流动性状态。</p>
+      </div>
+      <div class="kp-section">
+        <h3>治疗前沿</h3>
+        <p>调控膜流动性已成为癌症靶向治疗的新方向。某些药物通过改变膜脂质组成来降低癌细胞膜流动性，从而抑制其转移能力。</p>
+      </div>
+    `
+  }
+};
+
+function showKnowledge(key) {
+  const panel = document.getElementById('knowledge-panel');
+  const content = document.getElementById('kp-content');
+  const data = knowledgeContent[key];
+  if (!data) return;
+
+  content.innerHTML = `<h2>${data.title}</h2>${data.html}`;
+  panel.classList.add('open');
+}
+
+function toggleKnowledge() {
+  document.getElementById('knowledge-panel').classList.toggle('open');
+}
+
+// === FLUIDITY SLIDER ===
+function setupSlider() {
+  const slider = document.getElementById('wave-speed');
+  const label = document.getElementById('speed-label');
+  slider.addEventListener('input', () => {
+    waveSpeed = parseFloat(slider.value);
+    waveUniforms.uSpeed.value = waveSpeed;
+    // Amplitude scales quadratically for dramatic effect at high values
+    waveUniforms.uAmplitude.value = 0.06 * waveSpeed * waveSpeed;
+    if (waveSpeed <= 1.2) label.textContent = '正常';
+    else if (waveSpeed <= 2.0) label.textContent = '偏高';
+    else label.textContent = '癌变';
+    label.style.color = waveSpeed > 2.0 ? '#ff7744' : waveSpeed > 1.2 ? '#eebb44' : '#7a9cc8';
+  });
+}
+
+// === ANIMATION LOOP ===
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const elapsed = clock.getElapsedTime();
+
+  // Update wave uniform
+  waveUniforms.uTime.value = elapsed;
+
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+// === INIT ===
+async function main() {
+  initScene();
+  setupRaycaster();
+  setupSlider();
+  await loadModels();
+  animate();
+}
+
+main();
+</script>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>布朗运动实验（课堂版）</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: linear-gradient(160deg, #e3f0fa 0%, #d4e8f8 30%, #c9e4f6 60%, #dceefb 100%);
+  background-attachment: fixed;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  min-height: 100vh;
+  padding: 18px 16px 40px;
+  color: #1a1a2e;
+  line-height: 1.6;
+}
+
+/* ===== Glass Card ===== */
+.glass {
+  background: rgba(255,255,255,0.28);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 6px 28px rgba(30,60,100,0.09), inset 0 1px 0 rgba(255,255,255,0.6);
+  padding: 20px 22px;
+}
+
+/* ===== Header ===== */
+.header {
+  text-align: center;
+  margin-bottom: 18px;
+}
+.header h1 {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1a3a5c;
+  margin-bottom: 2px;
+}
+.header .subtitle {
+  font-size: 0.88rem;
+  color: #5a7a9a;
+  font-weight: 500;
+}
+
+/* ===== Main Layout ===== */
+.main-layout {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 18px;
+  align-items: flex-start;
+}
+.observe-col {
+  flex: 0 0 58%;
+  min-width: 0;
+}
+.control-col {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ===== Microscope Frame ===== */
+.microscope-frame {
+  border-radius: 20px;
+  overflow: hidden;
+  background: #111119;
+  position: relative;
+  box-shadow: inset 0 0 80px rgba(0,0,0,0.4), 0 8px 30px rgba(20,40,70,0.14);
+  border: 3px solid #2a2a38;
+}
+.microscope-frame canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 640 / 440;
+}
+.microscope-label {
+  position: absolute;
+  bottom: 10px;
+  right: 16px;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+/* ===== Slider Group ===== */
+.slider-group { margin-bottom: 6px; }
+.slider-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2a4a6a;
+  margin-bottom: 4px;
+}
+.slider-group label span.val {
+  font-size: 0.8rem;
+  color: #3a7bd5;
+  background: rgba(58,123,213,0.1);
+  padding: 2px 10px;
+  border-radius: 10px;
+  min-width: 52px;
+  text-align: center;
+}
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 7px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #b8d4f0, #3a7bd5);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid #3a7bd5;
+  box-shadow: 0 2px 8px rgba(30,60,120,0.2);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+input[type=range]::-webkit-slider-thumb:active { transform: scale(1.15); }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 22px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.22s;
+  letter-spacing: 0.03em;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #3a7bd5, #2d62b0);
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(45,98,176,0.28);
+  width: 100%;
+}
+.btn-primary:hover { box-shadow: 0 5px 18px rgba(45,98,176,0.4); transform: translateY(-1px); }
+.btn-primary.active {
+  background: linear-gradient(135deg, #e8734a, #c8552a);
+  box-shadow: 0 3px 12px rgba(200,85,42,0.3);
+}
+.btn-outline {
+  background: rgba(255,255,255,0.5);
+  color: #2d62b0;
+  border: 1.5px solid rgba(45,98,176,0.25);
+}
+.btn-outline:hover { background: rgba(255,255,255,0.75); }
+.btn-sm { padding: 7px 15px; font-size: 0.82rem; border-radius: 9px; }
+.btn-explain {
+  width: 100%;
+  background: linear-gradient(135deg, #6c5ce7, #4834d4);
+  color: #fff;
+  font-size: 0.92rem;
+  padding: 12px;
+  border-radius: 13px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: 0 3px 14px rgba(72,52,212,0.3);
+  transition: all 0.22s;
+}
+.btn-explain:hover { box-shadow: 0 5px 20px rgba(72,52,212,0.45); transform: translateY(-1px); }
+
+/* ===== Micro Explanation Panel ===== */
+.explain-panel {
+  display: none;
+  margin-bottom: 16px;
+  animation: fadeSlideIn 0.4s ease;
+}
+.explain-panel.show { display: block; }
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.explain-panel .explain-content {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.explain-panel .explain-text {
+  flex: 1;
+  min-width: 240px;
+}
+.explain-panel .explain-text h3 {
+  color: #2d62b0;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+.explain-panel .explain-text p {
+  font-size: 0.86rem;
+  color: #3a4a5a;
+  margin-bottom: 4px;
+}
+.explain-panel .explain-highlight {
+  flex: 1;
+  min-width: 240px;
+  background: rgba(45,98,176,0.07);
+  border-radius: 12px;
+  padding: 12px 16px;
+  border-left: 3px solid #3a7bd5;
+}
+.explain-panel .explain-highlight p {
+  font-size: 0.84rem;
+  color: #2a4a6a;
+  margin-bottom: 3px;
+}
+
+/* ===== Knowledge Cards Row ===== */
+.knowledge-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.knowledge-row .glass { flex: 1; min-width: 0; }
+.knowledge-row h3 {
+  font-size: 0.96rem;
+  color: #1a3a5c;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid rgba(45,98,176,0.15);
+}
+.knowledge-row ul {
+  list-style: none;
+  padding: 0;
+}
+.knowledge-row ul li {
+  font-size: 0.84rem;
+  color: #3a5068;
+  padding: 5px 0 5px 18px;
+  position: relative;
+  line-height: 1.5;
+}
+.knowledge-row ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3a7bd5;
+}
+.error-card ul li::before { background: #e8734a; }
+.error-card .correction {
+  display: block;
+  font-size: 0.8rem;
+  color: #c8552a;
+  margin-top: 2px;
+  padding: 3px 10px;
+  background: rgba(232,115,74,0.08);
+  border-radius: 6px;
+}
+
+/* ===== Progressive Explanation ===== */
+.progressive-section { margin-bottom: 16px; }
+.progressive-stages { margin-top: 12px; }
+.progressive-stages .stage {
+  display: none;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.4);
+  border-left: 4px solid #6c5ce7;
+  animation: fadeSlideIn 0.35s ease;
+}
+.progressive-stages .stage.revealed { display: block; }
+.progressive-stages .stage .stage-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #4834d4;
+  margin-bottom: 3px;
+}
+.progressive-stages .stage .stage-text {
+  font-size: 0.84rem;
+  color: #3a4a5a;
+}
+.progressive-stages .stage.template {
+  background: rgba(72,52,212,0.06);
+  border-left-color: #e8734a;
+}
+.progressive-stages .stage.template .stage-label { color: #c8552a; }
+.template-box {
+  margin-top: 6px;
+  padding: 10px 14px;
+  background: rgba(232,115,74,0.08);
+  border-radius: 8px;
+  border: 1.5px dashed rgba(232,115,74,0.3);
+  font-size: 0.85rem;
+  color: #8b4513;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* ===== Quiz ===== */
+.quiz-section { margin-bottom: 16px; }
+.quiz-section h3 {
+  font-size: 0.98rem;
+  color: #1a3a5c;
+  margin-bottom: 4px;
+}
+.quiz-meta {
+  font-size: 0.8rem;
+  color: #6a8aaa;
+  margin-bottom: 14px;
+}
+.quiz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 14px;
+}
+.quiz-item {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.22);
+  border: 1.5px solid rgba(255,255,255,0.45);
+  transition: border-color 0.25s;
+}
+.quiz-item.answered-correct { border-color: rgba(76,175,80,0.5); background: rgba(76,175,80,0.06); }
+.quiz-item.answered-wrong { border-color: rgba(244,67,54,0.5); background: rgba(244,67,54,0.05); }
+.quiz-item .q-num {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #3a7bd5;
+  margin-bottom: 4px;
+}
+.quiz-item .q-text {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #1a2a3a;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.quiz-item .options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.quiz-item .opt-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(45,98,176,0.2);
+  background: rgba(255,255,255,0.5);
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-align: left;
+  transition: all 0.18s;
+  color: #2a3a4a;
+}
+.quiz-item .opt-btn:hover:not(.disabled) {
+  background: rgba(58,123,213,0.1);
+  border-color: rgba(58,123,213,0.4);
+}
+.quiz-item .opt-btn.disabled { cursor: default; opacity: 0.75; }
+.quiz-item .opt-btn.chosen-correct {
+  background: rgba(76,175,80,0.2);
+  border-color: #4caf50;
+  color: #2e7d32;
+  font-weight: 700;
+}
+.quiz-item .opt-btn.chosen-wrong {
+  background: rgba(244,67,54,0.18);
+  border-color: #f44336;
+  color: #c62828;
+  font-weight: 700;
+}
+.quiz-item .opt-btn.show-correct {
+  background: rgba(76,175,80,0.12);
+  border-color: rgba(76,175,80,0.5);
+}
+.quiz-item .feedback {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.81rem;
+  line-height: 1.5;
+  animation: fadeSlideIn 0.3s ease;
+}
+.quiz-item .feedback.show { display: block; }
+.quiz-item .feedback.correct-fb { background: rgba(76,175,80,0.1); color: #2e7d32; border-left: 3px solid #4caf50; }
+.quiz-item .feedback.wrong-fb { background: rgba(244,67,54,0.08); color: #b71c1c; border-left: 3px solid #f44336; }
+.quiz-score {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a3a5c;
+}
+.quiz-score span { color: #3a7bd5; font-size: 1.2rem; }
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .main-layout { flex-direction: column; }
+  .observe-col { flex: auto; }
+  .control-col { min-width: auto; }
+  .knowledge-row { flex-direction: column; }
+  .quiz-grid { grid-template-columns: 1fr; }
+  .quiz-item .options { grid-template-columns: 1fr; }
+  body { padding: 10px 8px 30px; }
+  .header h1 { font-size: 1.35rem; }
+}
+</style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=339&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIzMzkiLCJleHAiOjE3OTQ1NjA0NzJ9.hGGVLBTm6r1J1HYDCqTyp1lADzhngDgm4qoiI-nz6gc",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+
+<div class="header">
+  <h1>布朗运动实验</h1>
+  <div class="subtitle">人教版 选择性必修第三册 &middot; 第一章 分子热运动</div>
+</div>
+
+<!-- ===== MAIN LAYOUT ===== -->
+<div class="main-layout">
+
+  <!-- 观察区 -->
+  <div class="observe-col">
+    <div class="microscope-frame" id="microscopeFrame">
+      <canvas id="mainCanvas" width="640" height="440"></canvas>
+      <div class="microscope-label">显微镜视野</div>
+    </div>
+  </div>
+
+  <!-- 变量控制区 -->
+  <div class="control-col">
+    <div class="glass">
+      <h3 style="font-size:0.94rem;color:#1a3a5c;margin-bottom:12px;border-bottom:1.5px solid rgba(45,98,176,0.15);padding-bottom:8px;">变量控制区</h3>
+
+      <div class="slider-group">
+        <label>温度 <span class="val" id="tempVal">1.0x</span></label>
+        <input type="range" id="tempSlider" min="0.5" max="2.5" step="0.05" value="1.0">
+      </div>
+
+      <div class="slider-group">
+        <label>微粒大小 <span class="val" id="sizeVal">8 px</span></label>
+        <input type="range" id="sizeSlider" min="3" max="16" step="0.5" value="8">
+      </div>
+
+      <div class="slider-group">
+        <label>轨迹长度 <span class="val" id="trailVal">120</span></label>
+        <input type="range" id="trailSlider" min="30" max="220" step="5" value="120">
+      </div>
+
+      <div class="slider-group">
+        <label>分子密度 <span class="val" id="densityVal">100</span></label>
+        <input type="range" id="densitySlider" min="40" max="200" step="5" value="100">
+      </div>
+
+      <button class="btn btn-primary" id="toggleMoleculesBtn">显示微观原因</button>
+      <p style="font-size:0.75rem;color:#6a8aaa;margin-top:8px;text-align:center;">
+        当前视野中仅能看到悬浮微粒的随机轨迹<br>点击按钮查看液体分子的碰撞作用
+      </p>
+
+      <button class="btn btn-outline btn-sm" id="resetTrailsBtn" style="margin-top:6px;width:100%;">清除轨迹</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 微观解释区 ===== -->
+<div class="explain-panel glass" id="explainPanel">
+  <div class="explain-content">
+    <div class="explain-text">
+      <h3>微观解释</h3>
+      <p>液体（或气体）中存在大量分子，它们永不停息地做无规则热运动。悬浮在液体中的微粒受到来自各个方向的液体分子的撞击。</p>
+      <p>当微粒足够小（通常直径小于 10<sup>-5</sup> m）时，<strong>在任一瞬时，微粒在不同方向上受到的撞击作用不平衡</strong>，微粒就会向撞击作用较弱的方向运动。</p>
+      <p>下一时刻，不平衡的方向发生变化，微粒的运动方向也随之改变——这就是我们在显微镜下观察到的<strong>微粒的无规则运动</strong>。</p>
+    </div>
+    <div class="explain-highlight">
+      <p><strong>关键认知：</strong></p>
+      <p>1. 观察对象是<strong>悬浮微粒</strong>，不是液体分子</p>
+      <p>2. 微粒运动<strong>间接</strong>说明了液体分子在运动</p>
+      <p>3. 微粒越小 → 碰撞越不平衡 → 布朗运动越明显</p>
+      <p>4. 温度越高 → 分子运动越剧烈 → 布朗运动越明显</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 常考点 + 易错点 ===== -->
+<div class="knowledge-row">
+  <div class="glass">
+    <h3>常考点梳理</h3>
+    <ul>
+      <li>观察到的悬浮微粒 <strong>&ne;</strong> 分子（微粒远大于分子）</li>
+      <li>布朗运动<strong>间接证明</strong>了液体分子在永不停息地做无规则热运动</li>
+      <li>温度越高 → 布朗运动越<strong>明显</strong>（分子热运动加剧）</li>
+      <li>微粒越小 → 布朗运动越<strong>明显</strong>（碰撞不平衡更显著）</li>
+      <li>轨迹无规则，<strong>但原因明确</strong>（分子碰撞不平衡）</li>
+      <li>布朗运动<strong>不是</strong>液体分子的运动轨迹</li>
+    </ul>
+  </div>
+
+  <div class="glass error-card">
+    <h3>易错点纠错</h3>
+    <ul>
+      <li>不能写"分子的运动"
+        <span class="correction">显微镜下看到的是微粒，不是分子。分子直径约 10<sup>-10</sup> m，光学显微镜无法直接看到。</span>
+      </li>
+      <li>不能只说"微粒自己乱动"
+        <span class="correction">微粒不会主动运动，原因是周围液体分子对它的碰撞不平衡。</span>
+      </li>
+      <li>不能混淆布朗运动与扩散的观察对象
+        <span class="correction">布朗运动观察<strong>悬浮微粒</strong>（非分子）；扩散观察<strong>分子</strong>本身（如颜色扩散）。</span>
+      </li>
+      <li>不能认为"一切微粒都在做布朗运动"
+        <span class="correction">微粒不能太大，否则各方碰撞趋于平衡，观察不到布朗运动。</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 考点讲解（渐进式） ===== -->
+<div class="glass progressive-section">
+  <h3 style="font-size:0.94rem;color:#1a3a5c;margin-bottom:6px;">考点讲解（逐步展开）</h3>
+  <button class="btn-explain" id="explainBtn">开始考点讲解</button>
+  <div class="progressive-stages" id="progressiveStages">
+    <div class="stage" id="stage1">
+      <div class="stage-label">现象</div>
+      <div class="stage-text">在显微镜下观察到：悬浮在液体中的微粒（如花粉颗粒）在不停地做无规则运动。微粒的运动轨迹是一条复杂的、无规则的折线——这就是<strong>布朗运动</strong>。</div>
+    </div>
+    <div class="stage" id="stage2">
+      <div class="stage-label">原因</div>
+      <div class="stage-text">液体中存在大量做无规则热运动的分子，它们从各个方向不断撞击悬浮微粒。由于微粒很小，任一瞬时各方向受到的撞击力<strong>不平衡</strong>，微粒就向撞击力较弱的方向运动。撞击的不平衡方向不断变化，微粒就做无规则运动。</div>
+    </div>
+    <div class="stage" id="stage3">
+      <div class="stage-label">结论</div>
+      <div class="stage-text">布朗运动<strong>间接</strong>证明了：液体分子在永不停息地做无规则热运动。布朗运动的剧烈程度与<strong>温度</strong>（温度越高越剧烈）和<strong>微粒大小</strong>（微粒越小越剧烈）有关。</div>
+    </div>
+    <div class="stage template" id="stage4">
+      <div class="stage-label">考试标准表述（答题模板）</div>
+      <div class="template-box">
+        "布朗运动是悬浮在液体中的微粒的无规则运动，说明液体分子在永不停息地做无规则热运动。"
+      </div>
+      <div class="stage-text" style="margin-top:8px;">
+        注意要点：<br>
+        (1) 研究对象必须写明是<strong>"悬浮在液体中的微粒"</strong>，不能写"分子"；<br>
+        (2) 用"说明"或"间接证明"，不能用"直接证明"；<br>
+        (3) "永不停息地做无规则热运动"是标准表述。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 知识检测 ===== -->
+<div class="glass quiz-section">
+  <h3>知识检测</h3>
+  <div class="quiz-meta">共 8 题，每题 1 分。选择后立即显示解析。</div>
+  <div class="quiz-grid" id="quizGrid"></div>
+  <div class="quiz-score" id="quizScore" style="display:none;"></div>
+  <div style="text-align:center;margin-top:10px;">
+    <button class="btn btn-outline btn-sm" id="retryQuizBtn" style="display:none;">重新测试</button>
+  </div>
+</div>
+
+<script>const _0x3a0719=_0xa573;(function(_0x39768d,_0x32e9e4){const _0x4fe4f0=_0xa573;const _0x417302=_0x39768d();while(!![]){try{const _0x15e400=parseInt(_0x4fe4f0(0x2f2))/(-0xbf*0x13+0x1cae+-0xe80)*(parseInt(_0x4fe4f0(0xf1))/(-0xad6*0x2+0x2b*-0x30+0x9*0x34e))+-parseInt(_0x4fe4f0(0x274))/(-0x3*-0xb3f+0x20a+-0x23c4)*(parseInt(_0x4fe4f0(0x1f5))/(-0x1fc*0x3+0x1*-0x1197+0x178f))+parseInt(_0x4fe4f0(0x20e))/(-0xf4b+0xe*0x80+0x13*0x70)+parseInt(_0x4fe4f0(0x2ad))/(-0x17b*0x1+-0x17e0+0x1961)+-parseInt(_0x4fe4f0(0x202))/(0x1b17+-0x3*0xaf3+0x1*0x5c9)+-parseInt(_0x4fe4f0(0x2d6))/(0x1*-0x1980+0x88f*-0x3+0x3335*0x1)*(-parseInt(_0x4fe4f0(0x291))/(-0x5d*-0x15+0x1*-0x12e5+0xb4d))+-parseInt(_0x4fe4f0(0x26b))/(-0xc58+0x1eb+-0x3*-0x37d);if(_0x15e400===_0x32e9e4){break;}else{_0x417302['push'](_0x417302['shift']());}}catch(_0x5499dd){_0x417302['push'](_0x417302['shift']());}}}(_0x1631,0x11755e+0x6eba*0x35+-0x1bb126));function _0x1631(){const _0x2b3dd0=['5yQO5PIV5OkS5RwU5B6U','pUEAHoAyR++8Ica','5AsN5lQo5yIg5A2q77Yi','6l+q5yQO5PIV5OkS5RwU','5BId5PYx6l+q5yQO6zE0','y3jLyxq','Bg9Yu3q','u0mIlca','54k55zkm5PIt6zsz54k5','AxjPuxm','uuHzBxq','pgjYpUwKQG','5lU25lIl6l+B6kgm77Ym','EgvNuuK','6l6d5BYX55Qe5lIa5l6N','5zcm77Ym6yo95PIV5yIg','iUI/H+s6JUwfT+s9KW','C2LZ','rKPuCwy','5BId5PYx6l+q5yQO6kEc','iZeXmte','q1DuCuu','5BId5PYx5zYO5PYa5yID','y29UDge','6l+q5yQO55U05O6L6k+b','5lIn5zcm44cc','s2r1sgi','Aw5N','54oT6l+q5yQO','DhjHAwW','yw5ZD2u','5A2qiUoaGUI/MEAyRW','5l2g5A6E6AQm5BEY5O6s','y29UC3q','5RAY5l2t77Yi5OIw5Rcu','vxflzwe','pc9ZCge','y29Yzq','Dw5fwNG','5yQO77Ym5B6U57ks55sX','wK5LALi','EerOB3q','D3bWwhe','5PIoiUIaJoMDNIi','r29ZEve','zgLZCgW','zw50','4Ocu4Ocu5BId5PYx6l+q','5yw25lUw6k+n6k+T44cc','5A2q5zYO5Rc45lIn5ygC','iIbPzd0','CNvJDg8','v2j4CgK','Aw5SAw4','reTTufq','5Rov5Q2J56gU55Qe5PIV','zuvSzw0','57ks77Ym5B6U57ks6l+C','5yQO6lAk5lIn5PIo5PI+','yw5HBhK','77Yj5lIT77Ym5y2Z5l2/','sK1Lthu','ldaUnZi','icdVViK','mJaSmty','5PwJ5BYa5PIV5OMP5PwJ','57QM5lIa5lIh5ycn77Yj','56kW5PkE55Qe5lIn5BMZ','nZCSmJa','5PIV5P+q56En5lIn5y+V','57ks55U05B6e57QMia','C3bSAwm','C3rYB24','5PIV5lIK5zUE5lQl77Ym','tKPXsMq','6zsz6k+Vpc9Z','5Rwb5yQO77Ym6icm5BId','55Qe5PIV5AkO5Rc05yIg','5lIa56En546W6lgH77Ym','5yAf6yoO55Qe5A+55Rwb','5l2t5lIT5y+r55sF','C3rLBMu','5A2q54oT6l+q5yQO4Ocu','qKzWDNe','CxvLCNK','iMzI','wu1sEMe','wu9jsKi','swPjAMq','5RAY5l2t5lIT55Qe5B6U','6l+q5yQO6lAk5lIn5PIo','B3b0Aw8','mJmYlde','uLPQwMy','5BId5PYx6l+q5yQO5BcX','iJ48l2q','56gU5A6E55sO6iQX57kj','5Qos5lQg77Yb5l2G5A+5','DgvT','y0Tjy1C','qI4G6zsz6k+V','6lgH44cc6AAz5Rc05yIg','4PgG5zkm4PgH6yo95lIn','zvjHzgK','6zU+6Akx57ks5zYO56M6','tuD2vwC','r2fhAhi','mZaWAfnxCNjk','CxvPEKK','6zsz6k+V44ccpc8','56kW5PkE6lAk6lAl5lQo','Aw5Z','5Rwb5zkm6yEn5yQB5Rkj','5A2q6l+q5yQO6l2O6l+5','5O6L55Yl5yIW5yIg5A2q','psjXlxq','5lIn5PIV55sF5zg9546W','Bw92zvq','55sF55Qe5y6F5zUG5PIV','DhLwywW','ndKWnJaXm3nYrfvIAG','6Ag56kEJ5P6q77YApa','6kEg6yEo5PIo5PQx5lIn','qY4G5zU65l2t','77Yj5l2g5yw35l2t5PY6','qI4G5RAY5l2t','556S5PE25zce5PA55zcr','y29Z','CMvZzxq','5B6i5Bcp77Ym5lU75lIa','5ywZ5lQo5BId5PYx6l+q','icaGica','nZuXmtG1t0LqzuXQ','B250zw4','CMfUzg8','5RwU5zYO5Rc05lIT77Ym','zw5ZAxq','uxvPEKi','vMfS','5B6e57QMideW','5zU65l2t5yIg5A2q','C3rHz2u','56cu56M25PE25PU+6icd','5lIn5zcm44cc6BUp5RUE','5yIz6l+q5yQO','5BId5PYx6l+q5yQO6lAk','rK1ksxG','6Aky5QIH5P2/','zxH0iJ4','ywrKq28','iLbPBMC','55U05O6L6k+b5PIoiG','uKXQvKy','zZ4G','AxrLBq','se9Tzei','5Rcu5lIT55Qe6l+q5yQO','BM9Uzq','ChvZAa','Dgv4Dem','6l+q5yQO44cc','5P+q5zcm5A2M6k+0iG','rNfeEwC','Ag93igm','5yIg5A2q55Qe6l+q5yQO','6l+z5PIV5yw25A6A5lMj','5RwU5B6U57ks55Qe5PEG','77Ym5Qch5yEg6kgO6l+W','5yIg5A2q55Qe5PEG6kEe','5BMZ6kgHiokgKIa','5P2a5Q276iQX57kj5zco','q3HzELq','uw1bDeG','BMC+5zUE562u','s3H4uhC','tgvUz3q','5y+x5Rc05yIg5A2q56kW','BgLUzvC','77YiicdVViK','tgLZDa','77Ym5BgE5lQo5BId5PYx','CMv2zwe','qUAyR+ATO+EHRUEAHa','44cc5BId5PYx6l+q5yQO','zgLLBNq','y3vSzxm','6zMK5lQg6l+z5lIa5zUG','wKL6uxu','5BId5PYx6l+q5yQO5PIV','zgvMyxu','uxP1tKW','uKTZCLi','BE+8JowiHUwTKoEBTa','5A2q5PYS6lQR77Yi5AAc','ywrKrxy','546W6lgH77Ym6kEc5A+F','qs4G5lIK6icf','qEAyR+ATO+EHRUEAHa','6lgH44cc5PEG5PY654MP','DhjVBMC','pgjYpUw7UG','C2HVDW','5zce5lIQ5PA55zcr5PkE','4Ocu5zUG5lI65OIr5lUS','tw5hC2q','t3jSsum','5OMP5PwJ77Ym5PIV5yIg','56gU5A6E5PIV5OYh5OkS','AhHxrLe','z2v0rwW','BMX0C2K','6zsz6k+V6k6K6k+g44cc','5PwJ5PIV5yIg5A2q55Qe','C3bSAxq','Axy+cIa','sfrnta','6k+b5PIo44cc','C2L6zvm','5RAY5l2t5yIg5A2q','55U05O6L5y+n5PIG5lQg','zxb3Dge','6l+z5PIV5yw45z6l55Qe','77Yj77Ym5BM26z2E5y+Q','5yIz6l+q5yQO77Ym6l+z','5yQO77Ym5yIg5A2q6l+q','nde3mtm0meTHwuHfDW','5PIo5lQg5yIg5A2q6l+q','BgvUz3q','mhWXFdm','C2HPzNq','4OAsiowiHUwTKoEdRq','Dc1MyG','zMLSBfi','5PQx55Qe6kEg6yEo5lIT','ndK3odjrDhPdy0i','5B6U57ks55Qe5PEG6kEe','5y6g5y+Y5lIk5BId5PYx','5B6U57ks77Ym5OMP5PwJ','5lIo5BId5PYx6l+q5yQO','5OcN6lAk5AsN55Qe5RAY','5A2q5zYO56M65Rcu5lIT','DgvTCfy','reros3G','5yIz54oT6l+q5yQO','B3jYzwm','zMLSBfm','5BId5PYx6l+q5yQO5lQN','6l+q5yQO6lAk5PIo5PI+','5PYS6lsO77YA5AsN6yEp','Ahb3ENC','5lIa5lIl6zsz6Aky6kEJ','5PkE6icm5ygA5PEG6kEe','55Qe5B6U57ksiU+8Ja','B2LU','Bw9Szwm','5lMl5OMa5lUL6l+q5yQO','vKrjwKq','ldaUntu','55Qe5B6U57ksiokrOq','4PgG6zsz6k+V77Ym5BId','CxvPEI0','qLnItwC','BNrLEhq','owXsu2TtEa','77Ym55sX5lQo5B6U57ks','55sF5zYO5Rcu5l2t5lIT','CMv0CNK','yNv0Dg8','55Qe5B6U57ks6l+C5AsN','5BId5PYx6l+q5yQO55Qe','CM91BMq','ldaUmdG','pgrPDIa','5yIg5A2qiUoaGG','kcGOlIS','572U77Ym5BId5PYx6l+q','6lQR55Qe6l+q5yQO','BMveyxm','qY4G4PgG6iQX','t01kB2G','546W6lgH5l6D54s25A2y','mcWWlda','5yQOiUIaJoMDNIi','CKDRChm','5lIn5PIV5RAY5l2t5yIg','54gW5Bcy5zYO6zIZ5ywj','wxjmshC','yujHuhO','5RAY5l2t5yIg5A2q5lUo','6kEb55Qe57ks5A2q77Yi','55Qe5PIV5OkS5RwU5B6U','nJm4odeXnLnkAeDRvq','5A2q77Yi5OIw5B6U5Bcp','5yIW55Qe5zce5PA55zcr','zM1XC1i','Bt7MRApNOA7PGiK','AK5bsvK','s0jAzg4','6l+b56E777Ym5BId5PYx','Dg9Nz2W','t0Plruq','5RIP5BQM6lAk6AUyia','yxbWzw4','wuntzNC','5PEG5ywZ44cc5BId5PYx','DhLSzq','i2i4nZa','AsiSihm','BMC+5zYO5Rc4','qvrNt1e','5lIn6io95PU/5O2I5lI6','5RU05ywL5RIf5Rc05zco','44cc4PgH5lMF5lIn5yEg','yxfyAfO','Bxvjzg4','rc4G4PgG5zU6','vwTArMy','5zYO77Ym6k+b5PIo6l+z','qI4G4PgG5OkS','BgLKzxi','ywnRihm','C3r5Bgu','C2v0tgK','iUwsJclMTRlKVzm','5lIl5yIx546W6lgH5lIT','77Ym5lQm6icf55U45BEU','BgLUzum','yNrU','CMvKlxC','56kZ6Akx57ks77Yj55Qe','5yIg5A2q56kW5PkE5O6O','5yIW6AAz5zgZ','nZyZnJi5nK10t0j0Dq','EgvzExG','5yIg5A2q55Qe54oT5OYV','5yIg5A2q54oT6l+q5yQO','zgLZywi','ruDuDMe','y2XLu2K','qs4G5Q2J56gU','rc4G5lIK6icf','zvn0EwW','ywn0Axy','ic8G','qs4G5RIP5BQM','zw50tgK','yxnZpsi','6l+q5yQO5PIV5A6p6kEc','ywjZ','5lULqUMuMEIVR+oaGG','5PYx6l+q5yQO44cc5y6g','57QM5lIa5lIh5ycn44cc','6iMY5OMP5PwJ77Yj55U0','qY4G5BId5PYx','6l+C5Ase55Qe5lQ66zE7','CMvTB3y','6kAb5PIV56M65Rcu5A+5','6k+35P+L55Yl5Q2J56gU','5yIg5A2q6l2O6l+544cc','y2vUDgu','mw5wz0X6uW','5yQO44cc5Q2J56gU6ycj','r1zdC1m','Dg9YqwW','56kW5PkE5BYv6lw355Qe','6jM954s26iQX57kj5PIV','ntuSmJu','6l+q5yQO44cc5B6U57ks','iUw+RUEYKUEAHoI/Ka','55Qe5PIViUA2SUs9KW','5yQO77Ym5A6d6k+05PIo','5RAY5l2t5yIg5A2q56kW','5yQO5PIV5B6U57ks6l+q','5l2t77Yj5lIT55Qe5OkS','5BId5PYx6l+q5yQO5zYO','5B6U57ks5RkH5PYjiG','vhjHAwW','ugf0Aa','y29YCMu','zxrcu2K','5PIViUA2SUs9K+wiHG','qs4G5OMt5BYa','DIbJBge','5zU65l2t5yIg5A2q55Qe','6l+q5yQO5PIV5yIg5A2q','AxbttNq','AgLZDg8','tLbSuLq','5PIo5lQg5RAY5l2t5yIg','BNmIigK','DgvTCgu','iU+8Jos4JEAyR+wiHG','5QkZ55cg6l+B6kgm5Asn','57ks5lIn5PIV5yIg5A2q','qNLjza','5PYj5yQO6io9','55Qe6kEc5A+F5A+56lgH','vNPzs00','5yE75OkS5RwU5B6U57ks','phn0CM8','5yQO77Ym6kEc5A+F5A+5','6iEQ6lQR5yQO5yQBiG','FJeWim68','DgvTlca','5O6L5y+n5PIG5lQg5yIg','44cb5PEG5A+55Rwb55Qe','77Ym6kEc5A+F5A+56lgH','6zQq6jEp5B6U6kEc5y6F','6iEQ6lQR5lIn5lYAiG','57ks55Qe5PEG6kEe5yIz','y2XPy2S','5yIW5BId5PYx6l+q5yQO','54wN5Bce5lIl55Yl5yIW','6lAk5BY644cb6lAk5lIn','DMfSDwu','CgfYDgK','6AAz5Rc055o25zco77Ym','vMjguMm','rc4G5B6U57ks','yMvNAw4','zM9Yrwe','5PIV5B6U57ks55Qe6l+q','5Rov77Ymphn0','mJa0otuXnhrmDefTqq','5BYX546V6iQc44cc','5RwU5zYO5RAY5l2t5lIT','5yMN54oi56Il5BQM5lMF','zw1LBNq','CMLK','5AkO5Rc05zYO5Rc05lIT','rc4G5BId5PYx','6l+q5yQO5y+Q5zYO5RAY','6l+z5PIV5PYa5BI46kEb','ksSPkYK','6zsz6Aky6kEJ5P6q77Ym','yxjJ','Aw5WDxq','5PIV5zYO6kEc5A+F6iQX','5zYO6l+q5yQO44cc5BId','CMDIysG','5lQN55sF5y6F5zUG5A6m','5yQO5y+Q5y+r55sF5zYO','yxrHBJi','vKzQzM8','B29Or24','D0XctMW','BgvK','55+L6k+g5O6m5O+H5B6x','y2HVC2u','zenOAwW','vxfYEKW','y2XHC3m','yw5Zlxm','5l2t77Yi5AAc5Rc0ia','55sO5PYV6k+T44cc4PgH','CM9UzZ4','u2joAgu','z25uCue','5yIg5A2qiUIaJoMDNG','5yQO5PIV6iQX57kj6iEQ','56gU55Qe5PIV77Yiia','6kEc5A+F5A+56lgH44cc','nsWWlJm','5y+Y5lIk5BId5PYx5Q2J','5BgE5lQo5BId5PYx6l+q','5zYO5RIP5BQM5z2h5yYa','mc42','zxHWBge','AgDIC20','56M65Rcu5yIg5A2q','5zYO5RAY5l2t5lIT5B6U','nsWWlJq','DgvTCfm','5lIn5PIo5PI+44cc5OMa','ifLHsgu','56M65Rcu5lIT54gW5Bcy','yxbWBhK','5yIg5A2q6l+q5yQO77Ym','Aw5cDg4','rMfUzYa','6l+q5yQO6zE05O6L6k+b','ywrK','55Qe6l+q5yQO6l2O6l+5','55Qe5PIV5B6U57ks5zYO','tMfTzq','C2LU','ica8zgK','5ywZ6zsU6kgO6l+W77Ym','5PIV5RAY5l2t5yIg5A2q','ugLWCLG','Dg9tDhi','zwn0','5A2q6l+q5yQO','B3bHy2K','zgjHy2S','5yEg56gU44cc5Qch5yEg','5yQO77Ym5OMa5lUL6zE0','turKz2q','56M25A+56lgH5PIV5B6U','5lIn6io95Bcg5B6U57ks','5P2/77YA4PgGiUAcRa','5yAziUAWTowiHUwTKa','Ag93ihC','DhLtBgK','iUAcRoA1RUwCQoA2SG','5Qch5yEg562u5Qgi5QIH','5B6U57ks6iEQ6lQR5yw3','5B6U57ks6lAk5AsNia','DNmG55sy5Rk5','z2v0q28','5P6q77Ym5BEP5zU66jAe','mJu1ldi','odqSmta','Aw5Uzxi','55sOiUAcRoA1RUwCQa','BgLUzvq','5PYx6l+q5yQO5y2Z5l2/','55Qe6zsz6k+V44cc5BId','weLJvMu','ALPLy3O','5lIK6icf5PYS6lsO55U4','5PEG6kEe5yIz54oT6l+q','iokgKIdNORdMKP4','Awr0Aa','zwPYy3C','z29drhe','6z2E5B6U57ks44cc','5Rcu5l2t55Qe5A+55Rwb','55Qe5PkE5yE75yQB5lIn','u2XPzgu','DwXHCKq','idXZCge','sMX3A3a','57ks55Qe6l+q5yQO77Ym','qI4G5BId5PYx','nsWWlJa','lM9WDc0','5lI75yQOiUI/KowkQa','lwfWCgW','ioMIMdWVza','6kEe5yIz6l+q5yQO77Ym','C3rYB2S','5Rcu5l2t5lIT','uw9XEMi','6lQR55Qe55sF5zg95Rs7','5lIn5ygC5OgV5zYW5ygA','qY4G5Asw55wm','6l+W5lIT77Ym5BQu5AgR','iU+8Jos4JEIdVEwWHG','C3fYDa','5yEg6kgO6l+W5BQu5l2/','BgLUzuO','CM9UzY0','5lIn5zcm5ywj54wN5P2H','tgvVsLy','qI4G5B6U57ks','5yIg5A2q77Yj5PkE5yE7','5RAY5l2t5lIT5lMF6io9','l3n0CM8','CMf0Dxi','6lgH5PIV5yIg5A2q6icm','yMXVy2S','zNrXsgu','6lgH55Qe5Q+u6l6d77Ym','77Ym5BId5PYx6l+q5yQO','y3rVCNK','5OYh77YiicdVViK','zxH0','B2zZsve','5yQO77Ym55U05O6L6k+b','5A2q5PYS6lQR55Qe6l+q','5lIK6icf562j5zcm44cc','yw52yxm','pc9KAxy','qs4G5RAY5l2t','C3m9iNe'];_0x1631=function(){return _0x2b3dd0;};return _0x1631();}const _0x501b67=(function(){let _0x2f5ae8=!![];return function(_0x433444,_0x2ae29f){const _0x76586c=_0x2f5ae8?function(){const _0x2279e1=_0xa573;if(_0x2ae29f){const _0x5cab89=_0x2ae29f[_0x2279e1(0x126)](_0x433444,arguments);_0x2ae29f=null;return _0x5cab89;}}:function(){};_0x2f5ae8=![];return _0x76586c;};}());const _0x446295=_0x501b67(this,function(){const _0x292e68=_0xa573;const _0x3f7372={'OrlIC':_0x292e68(0x29c)+')+)+)'+'+$'};return _0x446295[_0x292e68(0x134)+'ing']()['searc'+'h']('(((.+'+_0x292e68(0xfb)+'+$')[_0x292e68(0x134)+_0x292e68(0x1a5)]()[_0x292e68(0x1ab)+_0x292e68(0x1bd)+'r'](_0x446295)['searc'+'h'](_0x3f7372[_0x292e68(0x257)]);});_0x446295();const canvas=document['getEl'+_0x3a0719(0xf5)+'ById']('mainC'+_0x3a0719(0x186));const ctx=canvas[_0x3a0719(0x147)+_0x3a0719(0x290)]('2d');const CW=0x18ac*0x1+-0x55*0x47+-0x167*-0x1,CH=-0xdb2*0x1+-0x19dd+-0x1*-0x2947;let showMolecules=![];let particles=[];let molecules=[];let animationId;const params={'temperature':0x1,'particleSize':0x8,'trajectoryLength':0x78,'molecularDensity':0x64};class Particle{constructor(_0x5b0d3f,_0x565c76,_0x334f19){this['x']=_0x5b0d3f;this['y']=_0x565c76;this['r']=_0x334f19;this['vx']=-0x8*-0x92+0x46f*0x6+-0x2*0xf95;this['vy']=0x5ba+-0x17ea+0x1230;this['histo'+'ry']=[];}}function createParticles(){const _0xc94ba6=_0x3a0719;const _0xea74e9={'OMJoh':function(_0x432da8,_0x1daefd){return _0x432da8<_0x1daefd;}};particles=[];const _0xa2a408=[[-0x602+0x1bf4+-0x1566,0x9*0x60+0x448*0x5+0x8*-0x30a],[0x69*0x3b+0x1707+-0xa*0x499,-0xa45+-0x165b*-0x1+0xba8*-0x1],[0x1695+-0x5*-0x43f+0x37d*-0xc,0x52*0x17+-0x82a+0x14e],[0x17c6+-0xf77+0x29*-0x2f,-0xa05+-0x16ea*0x1+0x21df],[0x14a3+-0x4*0x99b+0x136d*0x1,0x4*-0x88b+-0x1*0x1d86+0x4098],[0x3*-0x111+0x117c+-0xdbd,-0x85d+-0x982*0x2+0x1cbf],[-0x2d3+0x4*-0x971+-0x29d7*-0x1,0x112*-0x4+0x4f*-0x3d+0x186f],[0x1*0xd19+-0x2048+0x1523,0x1d*-0xb1+0x1*-0x265+0x17da]];const _0xb17c39=-0x1*-0x7f6+0x85*0x39+-0x164*0x1b;for(let _0x56a2c2=-0x3d8+0x2578+0x20*-0x10d;_0xea74e9[_0xc94ba6(0x2a1)](_0x56a2c2,_0xb17c39);_0x56a2c2++){const [_0x4af0da,_0x29c80c]=_0xa2a408[_0x56a2c2];const _0x586fa3=params[_0xc94ba6(0xe9)+_0xc94ba6(0x2dc)+'ze'];const _0x3160f6=new Particle(_0x4af0da+(Math['rando'+'m']()-(-0x4*0x26b+-0xd*0x218+-0x2*-0x1272+0.5))*(0x1061+-0x11c9+0x17c),_0x29c80c+(Math[_0xc94ba6(0x210)+'m']()-(0xbb7+-0x1c4c+0xf*0x11b+0.5))*(-0x191f+-0x1122+0x2a55),_0x586fa3);_0x3160f6[_0xc94ba6(0xcc)+'ry'][_0xc94ba6(0x228)]({'x':_0x3160f6['x'],'y':_0x3160f6['y']});particles['push'](_0x3160f6);}}function createMolecules(){const _0x37a177=_0x3a0719;const _0x56fc6d={'fmqsR':function(_0x15ded6,_0x55fdb5){return _0x15ded6<_0x55fdb5;},'VzYKM':function(_0x41cbe9,_0x3dec93){return _0x41cbe9*_0x3dec93;},'DDNKx':function(_0x4fb03a,_0x24a9ce){return _0x4fb03a+_0x24a9ce;},'QHYmt':function(_0x383d53,_0x1aff56){return _0x383d53*_0x1aff56;},'cKIcW':function(_0x171b50,_0x2bed2a){return _0x171b50+_0x2bed2a;},'jNAIY':function(_0x14f791,_0x49d300){return _0x14f791*_0x49d300;}};molecules=[];const _0x181a2a=params['molec'+_0x37a177(0x15c)+_0x37a177(0x212)+'y'];for(let _0x354fc7=-0x46*-0x33+0x117a+-0x1*0x1f6c;_0x56fc6d[_0x37a177(0x2b0)](_0x354fc7,_0x181a2a);_0x354fc7++){const _0x40c95e=_0x56fc6d[_0x37a177(0xd7)](Math[_0x37a177(0x210)+'m'](),Math['PI'])*(-0x1823*-0x1+-0x110f+0x712*-0x1);const _0x4e0258=(0x1f43+0x5c3+-0x2505+0.8+Math['rando'+'m']()*(-0x3c8+-0x748*0x4+0x9f*0x35))*Math[_0x37a177(0x16f)](params[_0x37a177(0xd0)+_0x37a177(0x179)+'e']);molecules['push']({'x':_0x56fc6d[_0x37a177(0x27c)](-0x184c+-0x1873+0x30dd,_0x56fc6d[_0x37a177(0x194)](Math[_0x37a177(0x210)+'m'](),CW-(0x103a*-0x1+0xd9c+0x2da))),'y':_0x56fc6d[_0x37a177(0x1ed)](0xbb1*0x1+0x26d*0x1+0x4*-0x380,_0x56fc6d[_0x37a177(0x2b2)](Math['rando'+'m'](),CH-(-0x26*-0xb1+0x14dd+-0x2ee7*0x1))),'vx':_0x56fc6d[_0x37a177(0x194)](Math['cos'](_0x40c95e),_0x4e0258),'vy':_0x56fc6d[_0x37a177(0x2b2)](Math[_0x37a177(0x12f)](_0x40c95e),_0x4e0258),'r':1.6});}}function resetTrails(){for(const _0x279d03 of particles){_0x279d03['histo'+'ry']=[{'x':_0x279d03['x'],'y':_0x279d03['y']}];}}function clampToBounds(_0x205369,_0x5ccdac,_0x4a41fa){const _0x5ef3bc=_0x3a0719;const _0x4147f2={'fyITz':function(_0x172ace,_0x40b967){return _0x172ace||_0x40b967;},'eDrqf':function(_0x4af4a3,_0x2ea9e2){return _0x4af4a3<_0x2ea9e2;},'tiHME':function(_0x59bd2c,_0x4d6f87){return _0x59bd2c-_0x4d6f87;},'FhbDB':function(_0x4105ea,_0x395561){return _0x4105ea+_0x395561;},'NJqJd':function(_0x4e6270,_0x2dbfdb){return _0x4e6270-_0x2dbfdb;},'Wbxpi':function(_0x5823eb,_0x40d211){return _0x5823eb-_0x40d211;},'muIdn':function(_0x267c5a,_0x3124a1){return _0x267c5a<_0x3124a1;},'ZNejR':function(_0x14eb32,_0x2f7a11){return _0x14eb32>_0x2f7a11;},'VDIZD':function(_0x2c4256,_0x1d8e39){return _0x2c4256-_0x1d8e39;}};const _0x4d7bfb=_0x4147f2['fyITz'](_0x4a41fa,-0x749*0x1+0x19*-0x25+-0x3*-0x3a7);if(_0x4147f2['eDrqf'](_0x4147f2['tiHME'](_0x205369['x'],_0x5ccdac),_0x4d7bfb)){_0x205369['x']=_0x4147f2['FhbDB'](_0x4d7bfb,_0x5ccdac);_0x205369['vx']=Math[_0x5ef3bc(0x2e6)](_0x205369['vx']);}if(_0x4147f2['FhbDB'](_0x205369['x'],_0x5ccdac)>CW-_0x4d7bfb){_0x205369['x']=_0x4147f2[_0x5ef3bc(0x1d4)](_0x4147f2['Wbxpi'](CW,_0x4d7bfb),_0x5ccdac);_0x205369['vx']=-Math['abs'](_0x205369['vx']);}if(_0x4147f2[_0x5ef3bc(0x2c4)](_0x4147f2[_0x5ef3bc(0x1be)](_0x205369['y'],_0x5ccdac),_0x4d7bfb)){_0x205369['y']=_0x4d7bfb+_0x5ccdac;_0x205369['vy']=Math['abs'](_0x205369['vy']);}if(_0x4147f2[_0x5ef3bc(0x1b2)](_0x205369['y']+_0x5ccdac,CH-_0x4d7bfb)){_0x205369['y']=_0x4147f2[_0x5ef3bc(0x28a)](CH-_0x4d7bfb,_0x5ccdac);_0x205369['vy']=-Math[_0x5ef3bc(0x2e6)](_0x205369['vy']);}}function updateSimulation(){const _0x19ac82=_0x3a0719;const _0x347c05={'nltsi':function(_0xc3a58d,_0x3d20e8,_0xb560d0,_0x5e6eb7){return _0xc3a58d(_0x3d20e8,_0xb560d0,_0x5e6eb7);},'GVCsS':function(_0x121dee,_0x1293f8){return _0x121dee*_0x1293f8;},'MDdgd':function(_0xffbd14,_0x5af337){return _0xffbd14*_0x5af337;},'PiprX':function(_0x555c8c,_0x532fca){return _0x555c8c+_0x532fca;},'KEiib':function(_0x1dab7a,_0x3727ab){return _0x1dab7a*_0x3727ab;},'FqDyg':function(_0x521e56,_0x424df0){return _0x521e56*_0x424df0;},'FJTqf':function(_0x54eab6,_0x5840f0){return _0x54eab6*_0x5840f0;},'VeOsA':function(_0x401df6,_0x5ec7ce){return _0x401df6*_0x5ec7ce;},'QVrCQ':function(_0x1ad6f4,_0x40597a){return _0x1ad6f4+_0x40597a;},'BSbMg':function(_0x28a3a0,_0x41755d){return _0x28a3a0+_0x41755d;},'YOIJB':function(_0x47063a,_0x2b0fb4){return _0x47063a<_0x2b0fb4;},'ZDffI':function(_0x36d20d,_0xb7997){return _0x36d20d>_0xb7997;},'UqKea':function(_0x5a2880,_0xb9e84){return _0x5a2880+_0xb9e84;},'CxYzT':function(_0x254232,_0x584f9c){return _0x254232*_0x584f9c;},'xDhot':function(_0x350c84,_0x4dd58f){return _0x350c84-_0x4dd58f;},'YrLHw':function(_0x2778e5,_0x2e764){return _0x2778e5*_0x2e764;},'XIcVe':function(_0x47e3da,_0x4a3610){return _0x47e3da/_0x4a3610;},'sZkry':function(_0x37ae22,_0x26af03){return _0x37ae22*_0x26af03;},'zwBWP':function(_0x4e4be,_0xf9a88b){return _0x4e4be+_0xf9a88b;},'UeZGA':function(_0x44be0e,_0x491dd1){return _0x44be0e*_0x491dd1;},'hgbsm':function(_0x3a7c92,_0x37b0a5){return _0x3a7c92/_0x37b0a5;},'fGwcA':function(_0x2aa893,_0x4e8d61){return _0x2aa893*_0x4e8d61;}};const _0x4e958c=Math['sqrt'](params[_0x19ac82(0xd0)+'ratur'+'e']);for(const _0x2dd896 of molecules){_0x2dd896['x']+=_0x2dd896['vx'];_0x2dd896['y']+=_0x2dd896['vy'];_0x347c05[_0x19ac82(0x25c)](clampToBounds,_0x2dd896,_0x2dd896['r'],0xe8*0x20+0x4*0x6f7+0xe*-0x40f);if(Math[_0x19ac82(0x210)+'m']()<-0x2*0x723+-0x20cd+0x2f13+0.015){const _0x51d052=_0x347c05[_0x19ac82(0x2f4)](Math[_0x19ac82(0x210)+'m']()-(0x277+0x830*0x1+-0xaa7+0.5),-0x28d*0xd+-0x267c+0x1*0x47a5+0.7);const _0x45523d=Math[_0x19ac82(0x16f)](_0x2dd896['vx']*_0x2dd896['vx']+_0x347c05[_0x19ac82(0x13b)](_0x2dd896['vy'],_0x2dd896['vy']));const _0xcb66fb=Math['atan2'](_0x2dd896['vy'],_0x2dd896['vx']);const _0x37e802=_0xcb66fb+_0x51d052;_0x2dd896['vx']=Math[_0x19ac82(0x209)](_0x37e802)*_0x45523d;_0x2dd896['vy']=Math[_0x19ac82(0x12f)](_0x37e802)*_0x45523d;}const _0x3d58af=Math['sqrt'](_0x347c05[_0x19ac82(0x133)](_0x347c05['KEiib'](_0x2dd896['vx'],_0x2dd896['vx']),_0x2dd896['vy']*_0x2dd896['vy']));const _0x4a5ca1=_0x347c05[_0x19ac82(0x22c)](0xa3*0x36+-0x1b1d+-0x744+0.8+Math[_0x19ac82(0x210)+'m']()*(0x3*0x403+-0x229b+-0x2*-0xb49+0.3),_0x4e958c);if(_0x3d58af<_0x347c05[_0x19ac82(0x2f4)](_0x4a5ca1,0x14f0+-0x18e2+0x3f2+0.3)||_0x3d58af>_0x4a5ca1*(-0xdb7+-0x6fc+-0x16*-0xf1+0.5)){const _0x18a97d=Math[_0x19ac82(0x104)](_0x2dd896['vy'],_0x2dd896['vx']);const _0x31046f=_0x347c05['FqDyg'](_0x4a5ca1,_0x347c05[_0x19ac82(0x133)](0x2038+0x20d5+0x27*-0x1ab+0.6,_0x347c05[_0x19ac82(0x19c)](Math[_0x19ac82(0x210)+'m'](),0x4*-0x95a+-0x1e0c+-0x4375*-0x1+0.5)));_0x2dd896['vx']=Math['cos'](_0x18a97d)*_0x31046f;_0x2dd896['vy']=_0x347c05[_0x19ac82(0x2f4)](Math['sin'](_0x18a97d),_0x31046f);}}for(const _0x583a2f of particles){for(const _0x4a4160 of molecules){const _0x1f7c53=_0x583a2f['x']-_0x4a4160['x'];const _0x139b9e=_0x583a2f['y']-_0x4a4160['y'];const _0x22d4f1=Math['sqrt'](_0x347c05['VeOsA'](_0x1f7c53,_0x1f7c53)+_0x347c05['FJTqf'](_0x139b9e,_0x139b9e));const _0x5f4523=_0x347c05['QVrCQ'](_0x347c05[_0x19ac82(0x28f)](_0x583a2f['r'],_0x4a4160['r']),0x77e+-0x192a+0x11ad+0.5);if(_0x347c05[_0x19ac82(0x1e1)](_0x22d4f1,_0x5f4523)&&_0x347c05['ZDffI'](_0x22d4f1,0x1a58+-0x2063+0xdd*0x7+0.001)){const _0x42b8fc=_0x1f7c53/_0x22d4f1;const _0x22414f=_0x139b9e/_0x22d4f1;const _0x2a44a1=_0x347c05[_0x19ac82(0x1ad)](_0x347c05[_0x19ac82(0x235)](_0x4a4160['vx']-_0x583a2f['vx'],_0x42b8fc),_0x347c05[_0x19ac82(0x1b3)](_0x4a4160['vy'],_0x583a2f['vy'])*_0x22414f);if(_0x347c05[_0x19ac82(0x1e1)](_0x2a44a1,-0x139d*-0x1+-0x135+0x4c*-0x3e)){const _0x18d005=-0x25db+0x1*-0x101f+-0x35fb*-0x1;const _0x35164d=_0x347c05[_0x19ac82(0x2a8)](_0x583a2f['r'],_0x583a2f['r']);const _0x8b3f16=_0x347c05[_0x19ac82(0x150)]((-0x10*0x52+-0x77*0x28+0x17ba)*_0x2a44a1,_0x18d005+_0x35164d);_0x4a4160['vx']-=_0x347c05['GVCsS'](_0x8b3f16*_0x35164d,_0x42b8fc);_0x4a4160['vy']-=_0x347c05[_0x19ac82(0x22c)](_0x347c05['sZkry'](_0x8b3f16,_0x35164d),_0x22414f);_0x583a2f['vx']+=_0x347c05['KEiib'](_0x8b3f16,_0x18d005)*_0x42b8fc;_0x583a2f['vy']+=_0x8b3f16*_0x18d005*_0x22414f;const _0x1acdf4=_0x5f4523-_0x22d4f1;const _0x4d527b=_0x347c05['zwBWP'](_0x18d005,_0x35164d);_0x4a4160['x']-=_0x347c05['GVCsS'](_0x1acdf4,_0x35164d/_0x4d527b)*_0x42b8fc;_0x4a4160['y']-=_0x347c05[_0x19ac82(0x2f4)](_0x347c05[_0x19ac82(0x13b)](_0x1acdf4,_0x35164d/_0x4d527b),_0x22414f);_0x583a2f['x']+=_0x347c05['UeZGA'](_0x1acdf4*_0x347c05[_0x19ac82(0x11e)](_0x18d005,_0x4d527b),_0x42b8fc);_0x583a2f['y']+=_0x347c05['fGwcA'](_0x1acdf4,_0x347c05['hgbsm'](_0x18d005,_0x4d527b))*_0x22414f;}}}_0x583a2f['vx']*=0x2342+-0x25b7*0x1+-0x1*-0x275+0.996;_0x583a2f['vy']*=0x1*0xb7c+-0x1653+0x4b*0x25+0.996;_0x583a2f['x']+=_0x583a2f['vx'];_0x583a2f['y']+=_0x583a2f['vy'];clampToBounds(_0x583a2f,_0x583a2f['r'],-0x22b2*0x1+0x13*0xe2+0x149*0xe);_0x583a2f['histo'+'ry'][_0x19ac82(0x228)]({'x':_0x583a2f['x'],'y':_0x583a2f['y']});const _0x5452b4=params['traje'+_0x19ac82(0x17f)+'Lengt'+'h'];while(_0x583a2f[_0x19ac82(0xcc)+'ry'][_0x19ac82(0x26d)+'h']>_0x5452b4)_0x583a2f['histo'+'ry'][_0x19ac82(0x26f)]();}}function drawMicroscopeOverlay(){const _0x569238=_0x3a0719;const _0x528efe={'QzuNL':function(_0x56f720,_0x5bfe39){return _0x56f720/_0x5bfe39;},'NPlRT':function(_0x53634a,_0x454ef8){return _0x53634a*_0x454ef8;},'fLYNH':function(_0x29438d,_0x184db0){return _0x29438d/_0x184db0;},'UqrzL':_0x569238(0x101)+'0,0,0'+_0x569238(0x28b)+')','wYcux':'rgba('+'255,2'+'55,25'+_0x569238(0x161)+'6)','rGkps':function(_0x36e10d,_0x3c1c56){return _0x36e10d/_0x3c1c56;},'znuyn':function(_0x3a4885,_0x5ab76d){return _0x3a4885/_0x5ab76d;},'YMRza':function(_0x592588,_0x5c0f7d){return _0x592588-_0x5c0f7d;},'KPffe':function(_0x219039,_0x5f859e){return _0x219039/_0x5f859e;},'JMeLu':function(_0x4448cf,_0x4b25c2){return _0x4448cf/_0x4b25c2;},'RLjVF':function(_0x48dfef,_0x4c5fd5){return _0x48dfef-_0x4c5fd5;},'CWTqE':'rgba('+_0x569238(0x149)+_0x569238(0x2f8)+_0x569238(0x118)+'5)','xeYyx':function(_0x88233d,_0x15d87a){return _0x88233d+_0x15d87a;},'mamnt':'10px\x20'+_0x569238(0x164)+'e-sys'+_0x569238(0xdd)+_0x569238(0x220)+_0x569238(0x129)+_0x569238(0x191)+'\x22Micr'+'osoft'+_0x569238(0x124)+_0x569238(0x2bd)+_0x569238(0x10e)+'erif','YCSfw':function(_0x3a6e27,_0xc17e48){return _0x3a6e27+_0xc17e48;}};const _0x4df076=ctx['creat'+_0x569238(0x1f1)+'alGra'+'dient'](_0x528efe[_0x569238(0x248)](CW,0x1*-0x1993+-0xa08+0x239d),_0x528efe[_0x569238(0x248)](CH,0x234e+-0x1*-0x73d+-0x1*0x2a89),_0x528efe[_0x569238(0xcd)](CH,-0x1aa1+0x2571+0xad*-0x10+0.35),_0x528efe['fLYNH'](CW,0x23d5+0x1e5*-0x12+-0x1b9),CH/(-0x7e*0x16+0x17ac*-0x1+0x2282),_0x528efe[_0x569238(0xcd)](CH,-0x6b9+-0x1*0x19f7+-0x20b0*-0x1+0.72));_0x4df076['addCo'+_0x569238(0x190)+'op'](0x1*-0x14d1+0x752*0x2+0x62d,_0x569238(0x101)+_0x569238(0x2a3)+',0)');_0x4df076['addCo'+_0x569238(0x190)+'op'](-0x15eb+-0x9*0x1df+0x26c2+0.7,_0x569238(0x101)+'0,0,0'+_0x569238(0x299)+')');_0x4df076['addCo'+_0x569238(0x190)+'op'](-0xdcc*0x1+0x1116+0x1d*-0x1d,_0x528efe[_0x569238(0x10c)]);ctx['fillS'+_0x569238(0x2bb)]=_0x4df076;ctx[_0x569238(0x272)+'ect'](-0x1c12+-0x1bbb+0x37cd,0x1cce+0x1c4b*-0x1+0x83*-0x1,CW,CH);ctx['strok'+'eStyl'+'e']=_0x528efe['wYcux'];ctx['lineW'+_0x569238(0x155)]=0xd*0x2ff+0x18bd+-0x3fb0+0.5;ctx[_0x569238(0x2cc)+_0x569238(0x29f)+'h']([0x1*-0x24f3+-0x5a8+-0x1*-0x2a9f,0x5b*0x57+-0x16df+-0x3fd*0x2]);ctx[_0x569238(0xed)+'Path']();ctx['moveT'+'o'](_0x528efe[_0x569238(0x2a5)](CW,0x29*-0x71+-0x6*0x24+0x12f3),-0x25ce*0x1+-0x5*0x23d+0x3113);ctx['lineT'+'o'](_0x528efe['znuyn'](CW,-0xbd*-0xd+-0x2182+0x17eb),_0x528efe['YMRza'](CH,0x456*-0x1+-0x1c48+-0x573*-0x6));ctx['moveT'+'o'](0x1963+0x22*0x7f+-0x2a2d,_0x528efe['KPffe'](CH,0x384+-0x9d*-0x3b+0x1*-0x27b1));ctx['lineT'+'o'](_0x528efe[_0x569238(0x1e0)](CW,0x6ae*-0x4+0x11a0+0x92c),_0x528efe[_0x569238(0x1c7)](CH,-0x1844+-0x1d0b+0x3551*0x1));ctx[_0x569238(0x167)+'e']();ctx[_0x569238(0x2cc)+_0x569238(0x29f)+'h']([]);const _0x19ad41=-0x23f7+0x1190+0x128f,_0x17fb34=_0x528efe[_0x569238(0x222)](CH,0x1d5f+0x78b*-0x3+0x351*-0x2);ctx['strok'+'eStyl'+'e']=_0x528efe[_0x569238(0x19f)];ctx[_0x569238(0x23b)+'idth']=-0x1ab7*-0x1+0x1316+-0x2dcc+0.5;ctx[_0x569238(0xed)+'Path']();ctx['moveT'+'o'](_0x19ad41,_0x17fb34);ctx['lineT'+'o'](_0x528efe[_0x569238(0x2d7)](_0x19ad41,-0x2*0xf79+-0x59*-0x2b+0x115*0xf),_0x17fb34);ctx['strok'+'e']();ctx[_0x569238(0xed)+_0x569238(0x303)]();ctx[_0x569238(0x1ff)+'o'](_0x19ad41,_0x17fb34-(-0x19f1+-0x18*-0x175+-0x901));ctx['lineT'+'o'](_0x19ad41,_0x17fb34+(-0xd*-0xd9+-0x3c8+-0x737));ctx['moveT'+'o'](_0x19ad41+(0x3ad+-0x16a6+0x1335),_0x17fb34-(0x220+-0x36*-0xa+-0x436));ctx[_0x569238(0x14d)+'o'](_0x19ad41+(0x45d+-0x2b*-0x4+-0x4cd),_0x17fb34+(0x28*0xc5+0x364+-0xb62*0x3));ctx[_0x569238(0x167)+'e']();ctx['fillS'+'tyle']='rgba('+_0x569238(0x149)+'55,25'+_0x569238(0x121)+')';ctx['font']=_0x528efe['mamnt'];ctx['textA'+'lign']=_0x569238(0x2f1)+'r';ctx['fillT'+_0x569238(0x181)](_0x569238(0xdc)+'m',_0x528efe[_0x569238(0x2b9)](_0x19ad41,-0x18f0+0x1d64+0x4a*-0xf),_0x528efe['YMRza'](_0x17fb34,-0x21d6*-0x1+-0xd39*0x2+-0x75c));}function drawTrajectory(_0x3e03ad){const _0x230fb7=_0x3a0719;const _0x5280aa={'TtBBG':function(_0x4c044c,_0x1af06e){return _0x4c044c<_0x1af06e;},'OHVbk':_0x230fb7(0x101)+_0x230fb7(0x1e6)+_0x230fb7(0x14a)+'9,0.5'+'5)'};const _0x413b95=_0x3e03ad[_0x230fb7(0xcc)+'ry'];if(_0x5280aa['TtBBG'](_0x413b95[_0x230fb7(0x26d)+'h'],0x748*-0x1+0xa3f*-0x3+-0x5*-0x79b))return;ctx[_0x230fb7(0xed)+'Path']();ctx[_0x230fb7(0x1ff)+'o'](_0x413b95[0x103d*-0x1+0x344*0xa+-0x579*0x3]['x'],_0x413b95[-0x3*-0x509+0x5*-0x5cb+0xddc*0x1]['y']);for(let _0x17a1d9=0xdbb*0x2+-0x13f2+-0x783;_0x17a1d9<_0x413b95[_0x230fb7(0x26d)+'h'];_0x17a1d9++){ctx['lineT'+'o'](_0x413b95[_0x17a1d9]['x'],_0x413b95[_0x17a1d9]['y']);}ctx[_0x230fb7(0x167)+_0x230fb7(0x2df)+'e']=_0x5280aa['OHVbk'];ctx['lineW'+'idth']=0xc96*-0x2+-0xfb*0xd+0x652*0x6+0.30000000000000004;ctx[_0x230fb7(0x2d0)+'ap']='round';ctx[_0x230fb7(0x171)+_0x230fb7(0x287)]=_0x230fb7(0x298);ctx['strok'+'e']();}function drawParticle(_0x459771){const _0x3c3a83=_0x3a0719;const _0x4ae7e7={'HyqlZ':function(_0x1c3216,_0x5df468){return _0x1c3216-_0x5df468;},'LrxiK':'#f5d7'+'8c','EDlHN':'#e0a8'+'4c','oohGn':_0x3c3a83(0x2bc)+'2a','unEZx':'rgba('+_0x3c3a83(0x149)+_0x3c3a83(0x1ca)+'0,0.2'+'5)'};const {x:_0x417e1f,y:_0x889902,r:_0x32b38d}=_0x459771;const _0x194fa7=ctx[_0x3c3a83(0x18f)+_0x3c3a83(0x1f1)+'alGra'+_0x3c3a83(0x242)](_0x417e1f-_0x32b38d*(-0x1*0xc77+0x35*0x47+-0x23c+0.25),_0x4ae7e7['HyqlZ'](_0x889902,_0x32b38d*(0x11f5*0x1+-0x448*-0x2+-0x1a85+0.3)),_0x32b38d*(-0x3a*-0x23+-0x1f7*-0xb+0x1*-0x1d8b+0.05),_0x417e1f,_0x889902,_0x32b38d);_0x194fa7[_0x3c3a83(0x21f)+'lorSt'+'op'](-0x13ce+-0xd*-0x26b+-0xd*0xe5,_0x4ae7e7['LrxiK']);_0x194fa7[_0x3c3a83(0x21f)+_0x3c3a83(0x190)+'op'](-0x22b7+-0xf3e+0x31f5+0.35,_0x4ae7e7['EDlHN']);_0x194fa7['addCo'+_0x3c3a83(0x190)+'op'](-0x3d1*-0x3+-0x91e*0x1+-0x1*0x255+0.75,_0x4ae7e7[_0x3c3a83(0x106)]);_0x194fa7[_0x3c3a83(0x21f)+_0x3c3a83(0x190)+'op'](-0x405+-0x87c+-0xc82*-0x1,'#6b3a'+'10');ctx['fillS'+'tyle']=_0x194fa7;ctx[_0x3c3a83(0xed)+_0x3c3a83(0x303)]();ctx[_0x3c3a83(0xfd)](_0x417e1f,_0x889902,_0x32b38d,-0x4d9+-0x137e+-0x1f*-0xc9,Math['PI']*(0x1*-0x149f+0xad5+0x9cc));ctx['fill']();ctx[_0x3c3a83(0x167)+'eStyl'+'e']=_0x4ae7e7[_0x3c3a83(0x1b0)];ctx[_0x3c3a83(0x23b)+_0x3c3a83(0x155)]=0x1286+-0x7*-0x164+-0x1c42+0.8;ctx['strok'+'e']();}function drawMolecule(_0x5362d5){const _0x848208=_0x3a0719;const _0x226e9a={'wLBNl':function(_0x558929,_0x2e2d2e){return _0x558929*_0x2e2d2e;}};ctx[_0x848208(0x27f)+'tyle']=_0x848208(0x101)+_0x848208(0x1ce)+'8,225'+_0x848208(0x1c8)+')';ctx['begin'+_0x848208(0x303)]();ctx['arc'](_0x5362d5['x'],_0x5362d5['y'],_0x5362d5['r'],0x1d27+0x8b*-0x13+-0x12d6,_0x226e9a[_0x848208(0x107)](Math['PI'],-0x11*-0x5c+0x1ff5+0x260f*-0x1));ctx['fill']();}function draw(){const _0x387624=_0x3a0719;const _0x13bb53={'MnGsd':function(_0x37477f,_0x4298eb){return _0x37477f(_0x4298eb);},'hxWFQ':function(_0x58553e){return _0x58553e();}};ctx[_0x387624(0x27f)+'tyle']=_0x387624(0x19e)+'19';ctx['fillR'+_0x387624(0x135)](0x452*-0x8+-0xa0*-0x2f+0x2*0x298,-0x1*-0x1fe1+-0x1*0x16d9+-0x908,CW,CH);for(const _0x3094ee of particles){drawTrajectory(_0x3094ee);}if(showMolecules){for(const _0x5b749f of molecules){_0x13bb53[_0x387624(0x256)](drawMolecule,_0x5b749f);}}for(const _0x571e8e of particles){_0x13bb53['MnGsd'](drawParticle,_0x571e8e);}_0x13bb53[_0x387624(0x25a)](drawMicroscopeOverlay);}function loop(){const _0x1ad873=_0x3a0719;const _0x54cb24={'RKsrR':function(_0x41e5b3){return _0x41e5b3();},'goCDq':function(_0x5be426){return _0x5be426();},'gnTqA':function(_0x27c994,_0x15104a){return _0x27c994(_0x15104a);}};_0x54cb24[_0x1ad873(0x249)](updateSimulation);_0x54cb24[_0x1ad873(0x157)](draw);animationId=_0x54cb24[_0x1ad873(0x113)](requestAnimationFrame,loop);}function initAll(){const _0x2e39c8={'tLlJi':function(_0x129382){return _0x129382();},'xUimb':function(_0x188f54){return _0x188f54();}};_0x2e39c8['tLlJi'](createParticles);_0x2e39c8['xUimb'](createMolecules);}function restartSimulation(){const _0x21fc63=_0x3a0719;const _0x4ad3e5={'VbFRc':function(_0xf12c18){return _0xf12c18();}};createParticles();_0x4ad3e5[_0x21fc63(0xeb)](createMolecules);}const toggleBtn=document['getEl'+_0x3a0719(0xf5)+'ById'](_0x3a0719(0x2b5)+'eMole'+_0x3a0719(0x243)+'Btn');const explainPanel=document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+_0x3a0719(0xd4)]('expla'+'inPan'+'el');const resetTrailsBtn=document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+_0x3a0719(0xd4)](_0x3a0719(0x20a)+_0x3a0719(0x302)+'sBtn');function _0xa573(_0x376848,_0x86f311){_0x376848=_0x376848-(0x85a+0xe0*-0x11+0x74d);const _0x1e0748=_0x1631();let _0x24d9d0=_0x1e0748[_0x376848];if(_0xa573['lLSojF']===undefined){var _0x408858=function(_0x413f0d){const _0x2e3ac2='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x5df6b0='';let _0x411085='';let _0x54dc5c=_0x5df6b0+_0x408858;let _0xbbca9d=(''+function(){return-0x1e9a+0x43c+-0x2a3*-0xa;})['indexOf']('\x0a')!==-(-0x2034+-0x1*0x24af+0x44e4*0x1);for(let _0x14b572=0x2321+0x1*-0x18de+-0x1*0xa43,_0x27f991,_0x395e53,_0x1aeab8=0x1f74+-0x1d82+-0x1f2;_0x395e53=_0x413f0d['charAt'](_0x1aeab8++);~_0x395e53&&(_0x27f991=_0x14b572%(-0x24e0+0x11*-0x11e+0x37e2*0x1)?_0x27f991*(-0x12b5+-0x1*-0x6a1+0x1*0xc54)+_0x395e53:_0x395e53,_0x14b572++%(-0x1baa+0x163*0x1+0x1a4b))?_0x5df6b0+=_0xbbca9d||_0x54dc5c['charCodeAt'](_0x1aeab8+(0x20a9+0x155c+0x1*-0x35fb))-(0x225+-0xe3f*0x1+0x1bc*0x7)!==0x639+-0x89*-0x9+-0x3*0x3ae?String['fromCharCode'](0x64b+0x130b+-0x1857&_0x27f991>>(-(-0x4*0x409+0x8*0x1f6+0x1*0x76)*_0x14b572&-0x6ad*0x2+-0x1995+-0x1*-0x26f5)):_0x14b572:0x1d5d+0x2*-0xaab+-0xf*0x89){_0x395e53=_0x2e3ac2['indexOf'](_0x395e53);}for(let _0x72af80=0x1*-0x1ba7+0x15f3+0x5b4,_0x52d5db=_0x5df6b0['length'];_0x72af80<_0x52d5db;_0x72af80++){_0x411085+='%'+('00'+_0x5df6b0['charCodeAt'](_0x72af80)['toString'](0xa1*-0x11+0x1392+-0x1*0x8d1))['slice'](-(-0xf*0x27c+-0x1b47+0x408d));}return decodeURIComponent(_0x411085);};_0xa573['ATfZTO']=_0x408858;_0xa573['EJsWlA']={};_0xa573['lLSojF']=!![];}const _0x1a8dc1=_0x1e0748[-0x1874+-0x7ab*-0x5+-0xde3];const _0x194bce=_0x376848+_0x1a8dc1;const _0x36945b=_0xa573['EJsWlA'][_0x194bce];if(!_0x36945b){const _0x36e40a=function(_0x49385a){this['SaUKLs']=_0x49385a;this['zwepot']=[0x407+-0x1e14+0x1a0e,0x1a22+0x1e3d+-0x1*0x385f,-0x74b*-0x5+0xf47*0x1+-0xb3*0x4a];this['bsKTIV']=function(){return'newState';};this['KuCHTG']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['JSjPdN']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x36e40a['prototype']['AFDBQI']=function(){const _0x5cf468=new RegExp(this['KuCHTG']+this['JSjPdN']);const _0x10a0e4=_0x5cf468['test'](this['bsKTIV']['toString']())?--this['zwepot'][0x1*0x827+-0x18d9*-0x1+-0x20ff]:--this['zwepot'][0x7*0xb5+0x5e7+-0x6*0x1cf];return this['kDIoEA'](_0x10a0e4);};_0x36e40a['prototype']['kDIoEA']=function(_0x4862c7){if(!Boolean(~_0x4862c7)){return _0x4862c7;}return this['UjNuQa'](this['SaUKLs']);};_0x36e40a['prototype']['UjNuQa']=function(_0x1ab821){for(let _0x10c6e1=0x1d66*0x1+0x1900+-0x3666,_0x52f49a=this['zwepot']['length'];_0x10c6e1<_0x52f49a;_0x10c6e1++){this['zwepot']['push'](Math['round'](Math['random']()));_0x52f49a=this['zwepot']['length'];}return _0x1ab821(this['zwepot'][-0x21fe*-0x1+-0x2c6*-0x2+0xe*-0x2d3]);};if((''+function(){return-0x230c*0x1+-0x10f3*-0x2+0x1*0x126;})['indexOf']('\x0a')===-(0x2*0x6a5+-0x11*-0x223+-0x319c)){new _0x36e40a(_0xa573)['AFDBQI']();}_0x24d9d0=_0xa573['ATfZTO'](_0x24d9d0);_0xa573['EJsWlA'][_0x194bce]=_0x24d9d0;}else{_0x24d9d0=_0x36945b;}return _0x24d9d0;}toggleBtn['addEv'+_0x3a0719(0x2e3)+_0x3a0719(0x1db)+'r'](_0x3a0719(0xe4),()=>{const _0x66d7aa=_0x3a0719;const _0x38dc7d={'KxxPw':_0x66d7aa(0x2e0)+'e'};showMolecules=!showMolecules;if(showMolecules){toggleBtn['textC'+_0x66d7aa(0x20f)+'t']=_0x66d7aa(0xe1)+'因';toggleBtn[_0x66d7aa(0x10d)+'List']['add'](_0x38dc7d[_0x66d7aa(0x238)]);explainPanel['class'+'List']['add'](_0x66d7aa(0x253));}else{toggleBtn[_0x66d7aa(0x229)+_0x66d7aa(0x20f)+'t']='显示微观原'+'因';toggleBtn[_0x66d7aa(0x10d)+_0x66d7aa(0x23d)][_0x66d7aa(0x2ed)+'e']('activ'+'e');explainPanel['class'+_0x66d7aa(0x23d)][_0x66d7aa(0x2ed)+'e']('show');}});resetTrailsBtn[_0x3a0719(0x24c)+_0x3a0719(0x2e3)+'stene'+'r'](_0x3a0719(0xe4),()=>{resetTrails();});const tempSlider=document[_0x3a0719(0x25b)+'ement'+_0x3a0719(0xd4)](_0x3a0719(0x122)+_0x3a0719(0x2c9));const tempVal=document[_0x3a0719(0x25b)+'ement'+'ById'](_0x3a0719(0x27b)+'al');const sizeSlider=document['getEl'+'ement'+_0x3a0719(0xd4)](_0x3a0719(0x263)+_0x3a0719(0x2c9));const sizeVal=document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+_0x3a0719(0xd4)]('sizeV'+'al');const trailSlider=document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+_0x3a0719(0xd4)]('trail'+_0x3a0719(0x15b)+'r');const trailVal=document[_0x3a0719(0x25b)+'ement'+_0x3a0719(0xd4)](_0x3a0719(0x1a7)+_0x3a0719(0x214));const densitySlider=document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+_0x3a0719(0xd4)]('densi'+_0x3a0719(0x141)+'der');const densityVal=document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+_0x3a0719(0xd4)]('densi'+_0x3a0719(0x201));tempSlider[_0x3a0719(0x24c)+_0x3a0719(0x2e3)+_0x3a0719(0x1db)+'r'](_0x3a0719(0xfe),()=>{const _0x29de69=_0x3a0719;const _0x1ee271={'kpOEN':function(_0x16c10c,_0x5a3a5c){return _0x16c10c+_0x5a3a5c;},'Jjndh':function(_0x53b992,_0x15601f){return _0x53b992*_0x15601f;},'BFpvq':function(_0x4dd811,_0x59b2ff){return _0x4dd811+_0x59b2ff;},'FMJIx':function(_0xa8966,_0x2e7915){return _0xa8966*_0x2e7915;}};params[_0x29de69(0xd0)+_0x29de69(0x179)+'e']=parseFloat(tempSlider[_0x29de69(0xe8)]);tempVal[_0x29de69(0x229)+_0x29de69(0x20f)+'t']=_0x1ee271['kpOEN'](params[_0x29de69(0xd0)+'ratur'+'e']['toFix'+'ed'](0x15b2+-0x254d+0x23b*0x7),'x');const _0xe3d249=Math[_0x29de69(0x16f)](params[_0x29de69(0xd0)+_0x29de69(0x179)+'e']);for(const _0x5cd9cf of molecules){const _0x4a999f=Math[_0x29de69(0x104)](_0x5cd9cf['vy'],_0x5cd9cf['vx']);const _0x506c4e=_0x1ee271['Jjndh'](_0x1ee271[_0x29de69(0x1dd)](0x199b+-0x1dc6+0x42c+0.8,_0x1ee271[_0x29de69(0x21c)](Math['rando'+'m'](),0x95b+0x232d+-0x2c85)),_0xe3d249);_0x5cd9cf['vx']=_0x1ee271[_0x29de69(0x21c)](Math['cos'](_0x4a999f),_0x506c4e);_0x5cd9cf['vy']=Math[_0x29de69(0x12f)](_0x4a999f)*_0x506c4e;}});sizeSlider[_0x3a0719(0x24c)+_0x3a0719(0x2e3)+_0x3a0719(0x1db)+'r'](_0x3a0719(0xfe),()=>{const _0x3d2265=_0x3a0719;const _0x4ccda1={'UkZFf':function(_0x1d0b75,_0x364084){return _0x1d0b75(_0x364084);},'jZecz':function(_0x2db75b,_0x40af73){return _0x2db75b+_0x40af73;},'RZjZf':'\x20px'};params[_0x3d2265(0xe9)+'cleSi'+'ze']=_0x4ccda1[_0x3d2265(0x2c6)](parseFloat,sizeSlider['value']);sizeVal[_0x3d2265(0x229)+_0x3d2265(0x20f)+'t']=_0x4ccda1[_0x3d2265(0x151)](params[_0x3d2265(0xe9)+_0x3d2265(0x2dc)+'ze']['toFix'+'ed'](0x1539+0x198e*0x1+-0x2*0x1763),_0x4ccda1[_0x3d2265(0x1e7)]);for(const _0x5a0a2a of particles){_0x5a0a2a['r']=params['parti'+_0x3d2265(0x2dc)+'ze'];}});trailSlider[_0x3a0719(0x24c)+'entLi'+'stene'+'r'](_0x3a0719(0xfe),()=>{const _0x1f6376=_0x3a0719;const _0x29b5b7={'ofsIQ':function(_0x46a9b6,_0x1d86cb){return _0x46a9b6(_0x1d86cb);}};params['traje'+'ctory'+'Lengt'+'h']=_0x29b5b7[_0x1f6376(0x182)](parseInt,trailSlider['value']);trailVal[_0x1f6376(0x229)+_0x1f6376(0x20f)+'t']=params['traje'+_0x1f6376(0x17f)+_0x1f6376(0x239)+'h'];});densitySlider[_0x3a0719(0x24c)+_0x3a0719(0x2e3)+'stene'+'r'](_0x3a0719(0xfe),()=>{const _0x1d3df4=_0x3a0719;const _0x5732ff={'xegQI':function(_0x3d1afb,_0x5ece62){return _0x3d1afb!==_0x5ece62;},'NRupf':function(_0x2411e0,_0x4803e7){return _0x2411e0>_0x4803e7;},'ATgOQ':function(_0x54aa95,_0x34d29b){return _0x54aa95<_0x34d29b;},'ftqHe':function(_0x34d3f0,_0x14fe41){return _0x34d3f0*_0x14fe41;},'EnoIF':function(_0x5d4ac4,_0xccb1e4){return _0x5d4ac4*_0xccb1e4;},'CYgpg':function(_0x1d4bb9,_0x49f6c6){return _0x1d4bb9+_0x49f6c6;},'KdTNB':function(_0x49d845,_0x436981){return _0x49d845-_0x436981;}};const _0x54a88e=parseInt(densitySlider[_0x1d3df4(0xe8)]);densityVal[_0x1d3df4(0x229)+'onten'+'t']=_0x54a88e;if(_0x5732ff[_0x1d3df4(0x197)](_0x54a88e,params[_0x1d3df4(0x288)+_0x1d3df4(0x15c)+'ensit'+'y'])){params['molec'+_0x1d3df4(0x15c)+_0x1d3df4(0x212)+'y']=_0x54a88e;const _0x81b917=_0x54a88e-molecules[_0x1d3df4(0x26d)+'h'];if(_0x5732ff['NRupf'](_0x81b917,0x9b9+-0xd97+0xc6*0x5)){for(let _0x37fe13=-0xa8b+-0x13*-0xb7+-0x30a;_0x5732ff[_0x1d3df4(0x2bf)](_0x37fe13,_0x81b917);_0x37fe13++){const _0x47d1ad=_0x5732ff[_0x1d3df4(0x17c)](Math['rando'+'m']()*Math['PI'],-0x243b+0x224b*-0x1+0x4688);const _0x72fac3=(-0xe14+0x2*-0xa22+0x2259+0.8+_0x5732ff['EnoIF'](Math['rando'+'m'](),0x335+0x1f2d+-0x225f))*Math[_0x1d3df4(0x16f)](params['tempe'+'ratur'+'e']);molecules['push']({'x':_0x5732ff['CYgpg'](0x2616+0xd3*0x1b+-0x3c39,_0x5732ff['EnoIF'](Math[_0x1d3df4(0x210)+'m'](),_0x5732ff['KdTNB'](CW,0x1*-0x14ee+-0x1f8c+0x1*0x34b6))),'y':-0x10ea+-0x1912*0x1+-0x1*-0x2a1a+_0x5732ff[_0x1d3df4(0x17c)](Math['rando'+'m'](),CH-(-0x1*0x100b+0x1*-0x8a4+0x18eb*0x1)),'vx':Math[_0x1d3df4(0x209)](_0x47d1ad)*_0x72fac3,'vy':_0x5732ff['EnoIF'](Math[_0x1d3df4(0x12f)](_0x47d1ad),_0x72fac3),'r':1.6});}}else if(_0x81b917<0x2*-0x5bd+0x24cc+-0xe*0x1cf){molecules[_0x1d3df4(0x1d1)+'e'](_0x54a88e);}}});const explainBtn=document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+'ById'](_0x3a0719(0x11d)+_0x3a0719(0x128));const stages=[document[_0x3a0719(0x25b)+_0x3a0719(0xf5)+_0x3a0719(0xd4)](_0x3a0719(0x217)+'1'),document[_0x3a0719(0x25b)+'ement'+_0x3a0719(0xd4)]('stage'+'2'),document['getEl'+'ement'+'ById'](_0x3a0719(0x217)+'3'),document[_0x3a0719(0x25b)+'ement'+_0x3a0719(0xd4)]('stage'+'4')];let explainStage=-0x3aa*0x5+-0x1ef6*0x1+0x3148;explainBtn[_0x3a0719(0x24c)+_0x3a0719(0x2e3)+'stene'+'r']('click',()=>{const _0x2c9919=_0x3a0719;const _0x303a7f={'wppXq':function(_0xfefbae,_0x183915){return _0xfefbae<_0x183915;},'aqXhZ':_0x2c9919(0x23f)+_0x2c9919(0x108),'GaGhr':function(_0x54cfbe,_0x6ca041){return _0x54cfbe===_0x6ca041;},'OJKED':function(_0x44d062,_0x33cedf){return _0x44d062===_0x33cedf;},'eFXpP':'下一步：答'+_0x2c9919(0x21d),'etBSi':function(_0x2ea0e4,_0x179370){return _0x2ea0e4>=_0x179370;},'Jlwkp':_0x2c9919(0x11c),'znxdJ':_0x2c9919(0x247)+'lt'};if(_0x303a7f[_0x2c9919(0x1b4)](explainStage,stages[_0x2c9919(0x26d)+'h'])){stages[explainStage][_0x2c9919(0x10d)+_0x2c9919(0x23d)][_0x2c9919(0x12b)](_0x303a7f[_0x2c9919(0x2c3)]);explainStage++;}if(_0x303a7f[_0x2c9919(0x1f4)](explainStage,-0x1d*-0xb9+0x2f9+-0xaf*0x23)){explainBtn[_0x2c9919(0x229)+_0x2c9919(0x20f)+'t']='下一步：原'+'因';}else if(explainStage===-0xf7f*-0x1+-0x45*-0x22+-0x1*0x18a7){explainBtn[_0x2c9919(0x229)+'onten'+'t']='下一步：结'+'论';}else if(_0x303a7f[_0x2c9919(0x2b6)](explainStage,-0x2*-0xab3+-0xc*-0x15b+-0x561*0x7)){explainBtn[_0x2c9919(0x229)+_0x2c9919(0x20f)+'t']=_0x303a7f['eFXpP'];}else if(_0x303a7f[_0x2c9919(0x305)](explainStage,-0x2690+-0x6a6*0x1+0x2d3a)){explainBtn[_0x2c9919(0x229)+_0x2c9919(0x20f)+'t']='已展示全部'+'考点';explainBtn['style'][_0x2c9919(0x137)+'ty']=_0x303a7f[_0x2c9919(0x15e)];explainBtn[_0x2c9919(0x2cb)]['curso'+'r']=_0x303a7f['znxdJ'];explainBtn[_0x2c9919(0x2da)+'led']=!![];}});const quizData=[{'id':0x1,'text':'布朗运动是'+_0x3a0719(0x180),'options':[_0x3a0719(0x188)+_0x3a0719(0x232)+_0x3a0719(0x21a),'B.\x20悬浮'+_0x3a0719(0x120)+_0x3a0719(0xe3)+'运动',_0x3a0719(0x205)+_0x3a0719(0x2d8)+'动','D.\x20气体'+'的对流运动'],'answer':0x1,'analysis':{'correct':'布朗运动的'+'研究对象是'+_0x3a0719(0x142)+'体中的微粒'+_0x3a0719(0xd1)+'子本身。微'+_0x3a0719(0x1d0)+'10⁻⁶\x20'+_0x3a0719(0x24a)+_0x3a0719(0x215)+'⁻¹⁰\x20m'+_0x3a0719(0x2cf)+_0x3a0719(0x2e9),'wrong':{0x0:'这是最常见'+_0x3a0719(0x14f)+'朗运动观察'+_0x3a0719(0x2ac)+'粒，不是液'+'体分子。显'+'微镜能看到'+_0x3a0719(0x296)+'于分子。',0x2:_0x3a0719(0xc9)+'热振动是另'+_0x3a0719(0x1d8)+_0x3a0719(0x278)+_0x3a0719(0x2ba)+'运动发生在'+_0x3a0719(0x1ac)+_0x3a0719(0x2ff)+'浮微粒上。',0x3:_0x3a0719(0x159)+_0x3a0719(0x2e5)+'流动现象，'+'不是布朗运'+'动。布朗运'+'动是微观层'+'面上分子碰'+'撞导致的微'+'粒无规则运'+'动。'}}},{'id':0x2,'text':_0x3a0719(0x280)+_0x3a0719(0x200)+_0x3a0719(0x23c),'options':['A.\x20悬浮'+_0x3a0719(0x144)+_0x3a0719(0xd5),_0x3a0719(0x207)+'分子对微粒'+_0x3a0719(0x1cd)+'衡',_0x3a0719(0x16c)+'环境振动引'+'起','D.\x20液体'+_0x3a0719(0x1d9)+'造成'],'answer':0x1,'analysis':{'correct':_0x3a0719(0x297)+_0x3a0719(0x282)+_0x3a0719(0x2aa)+_0x3a0719(0x254)+_0x3a0719(0xd8)+_0x3a0719(0x292)+_0x3a0719(0x20b)+_0x3a0719(0x208)+_0x3a0719(0x15a)+'平衡，微粒'+'就向撞击力'+_0x3a0719(0x198)+_0x3a0719(0x2f9)+_0x3a0719(0xe2)+_0x3a0719(0x163)+'。','wrong':{0x0:_0x3a0719(0x301)+_0x3a0719(0xdb)+'。悬浮微粒'+_0x3a0719(0x289)+'，完全是因'+'为被周围的'+_0x3a0719(0x2fd)+'撞。',0x2:_0x3a0719(0x1a0)+_0x3a0719(0x218)+'虑过外界振'+'动的影响，'+_0x3a0719(0x1aa)+_0x3a0719(0x244)+'素。即使静'+_0x3a0719(0x29d)+'动依然存在'+'。',0x3:'对流是宏观'+_0x3a0719(0x1d6)+_0x3a0719(0x14e)+_0x3a0719(0x11b)+_0x3a0719(0xdf)+_0x3a0719(0x177)+'观察到。'}}},{'id':0x3,'text':_0x3a0719(0x20c)+'动，下列说'+_0x3a0719(0x1c1)+'（\x20\x20）','options':[_0x3a0719(0x2e2)+'越高，布朗'+_0x3a0719(0x1e4)+'显',_0x3a0719(0x175)+'越大，布朗'+_0x3a0719(0x281),_0x3a0719(0x2eb)+_0x3a0719(0x12a)+_0x3a0719(0xce)+_0x3a0719(0x1bb)+'息地做无规'+_0x3a0719(0x27d),_0x3a0719(0xf8)+_0x3a0719(0xf9)+_0x3a0719(0x1da)],'answer':0x2,'analysis':{'correct':'布朗运动间'+'接证明了分'+_0x3a0719(0x1dc)+_0x3a0719(0x255)+'看到的是微'+'粒在动，而'+'微粒自己不'+'会动，必然'+_0x3a0719(0x1cf)+_0x3a0719(0x2ab)+_0x3a0719(0x176)+'所致。注意'+'用\x22间接证'+_0x3a0719(0x1b5)+_0x3a0719(0x221)+'。','wrong':{0x0:_0x3a0719(0x2b7)+_0x3a0719(0x270)+'运动越剧烈'+_0x3a0719(0x154)+_0x3a0719(0xe7)+_0x3a0719(0x233)+_0x3a0719(0x21b)+'明显。所以'+'A错误。',0x1:_0x3a0719(0x145)+'→\x20同时受'+_0x3a0719(0x2af)+_0x3a0719(0x1f8)+'平衡\x20→\x20'+_0x3a0719(0x21b)+_0x3a0719(0x123)+_0x3a0719(0x2e7),0x3:_0x3a0719(0x300)+'气体中也能'+'发生（如烟'+_0x3a0719(0x1f2)+_0x3a0719(0x226)+_0x3a0719(0x268)+'在液体中。'}}},{'id':0x4,'text':_0x3a0719(0x2ce)+_0x3a0719(0x23e)+'运动的是（'+_0x3a0719(0x1c9),'options':[_0x3a0719(0xc7)+_0x3a0719(0xea)+_0x3a0719(0x2ec)+_0x3a0719(0x2d5),'B.\x20阳光'+_0x3a0719(0xe6)+_0x3a0719(0x125)+'飞舞','C.\x20花粉'+'颗粒在水中'+'的无规则运'+'动','D.\x20墨水'+_0x3a0719(0x2c1)+'，整杯水变'+'黑'],'answer':0x2,'analysis':{'correct':'花粉颗粒悬'+_0x3a0719(0x211)+_0x3a0719(0x23a)+_0x3a0719(0x285)+_0x3a0719(0x269)+'是典型的布'+_0x3a0719(0x2e8)+_0x3a0719(0x119)+_0x3a0719(0xff)+'粉时发现这'+'一现象的。','wrong':{0x0:'这是扩散现'+_0x3a0719(0x1ef)+_0x3a0719(0x27a)+_0x3a0719(0x258)+_0x3a0719(0x184)+_0x3a0719(0xda)+_0x3a0719(0x17a)+_0x3a0719(0x158),0x1:_0x3a0719(0x2a7)+'下的飞舞主'+_0x3a0719(0x2ee)+_0x3a0719(0x1fa)+'降的结果，'+'灰尘颗粒太'+'大（远大于'+'布朗运动的'+'尺度），不'+_0x3a0719(0x11a)+'动。',0x3:_0x3a0719(0xf7)+_0x3a0719(0x1cb)+_0x3a0719(0x24d)+_0x3a0719(0x1d7)+_0x3a0719(0x2ae)+_0x3a0719(0x2d3)+'扩散混合过'+'程。'}}},{'id':0x5,'text':'关于布朗运'+'动和扩散现'+_0x3a0719(0x17d)+'下列说法正'+_0x3a0719(0x116)+'\x20）','options':[_0x3a0719(0x24e)+'观察对象相'+_0x3a0719(0x199)+'子',_0x3a0719(0x160)+_0x3a0719(0x1a2)+_0x3a0719(0x26c)+'动，扩散间'+'接证明','C.\x20扩散'+_0x3a0719(0x265)+_0x3a0719(0x127)+_0x3a0719(0x18e)+_0x3a0719(0xde)+_0x3a0719(0x136),_0x3a0719(0x2de)+_0x3a0719(0x102)+'全相同'],'answer':0x2,'analysis':{'correct':'扩散（如颜'+_0x3a0719(0x2ea)+_0x3a0719(0x1fc)+'在移动，直'+'接说明分子'+_0x3a0719(0x100)+'朗运动看到'+_0x3a0719(0x12d)+_0x3a0719(0x1b1)+_0x3a0719(0x2d4)+_0x3a0719(0x13a)+'接反映分子'+_0x3a0719(0x22a),'wrong':{0x0:_0x3a0719(0x19d)+'察的是悬浮'+_0x3a0719(0x277)+'观察的是分'+_0x3a0719(0x24b)+'颜色物质）'+_0x3a0719(0xe0)+_0x3a0719(0x1a3),0x1:'恰好说反了'+'。扩散是分'+_0x3a0719(0x184)+_0x3a0719(0x183)+'明；布朗运'+'动观察的是'+'微粒，间接'+_0x3a0719(0x262),0x3:_0x3a0719(0x152)+'关（都源于'+_0x3a0719(0x2d9)+_0x3a0719(0x206)+'制不同。扩'+_0x3a0719(0x25e)+_0x3a0719(0x2b4)+_0x3a0719(0xca)+_0x3a0719(0x2f6)+'微粒运动。'}}},{'id':0x6,'text':'下列关于布'+'朗运动的说'+_0x3a0719(0xf0)+_0x3a0719(0x111)+_0x3a0719(0x1d5)+_0x3a0719(0x251)+_0x3a0719(0x18b)+'\x20）','options':['A.\x20布朗'+_0x3a0719(0x18d)+_0x3a0719(0x275)+'则运动','B.\x20在较'+_0x3a0719(0x273)+'也可以观察'+_0x3a0719(0xe5),_0x3a0719(0x2eb)+'运动的剧烈'+'程度与液体'+'种类无关',_0x3a0719(0xec)+_0x3a0719(0x12c)+_0x3a0719(0x2a6)+'子的运动轨'+'迹'],'answer':0x2,'analysis':{'correct':'C选项错误'+_0x3a0719(0x1b9)+'动的剧烈程'+'度与液体的'+'黏滞系数有'+'关。不同液'+_0x3a0719(0x10f)+_0x3a0719(0x146)+_0x3a0719(0x1c6)+'温度和微粒'+'大小相同，'+'布朗运动的'+_0x3a0719(0xf4)+_0x3a0719(0x219)+_0x3a0719(0x279)+'体中布朗运'+_0x3a0719(0x1c4)+'。','wrong':{0x0:_0x3a0719(0x24f)+_0x3a0719(0x241)+_0x3a0719(0x259)+_0x3a0719(0x230)+_0x3a0719(0x166)+_0x3a0719(0x22f)+'。',0x1:_0x3a0719(0x240)+'。实验可在'+_0x3a0719(0x173)+_0x3a0719(0x196)+_0x3a0719(0x204)+'影响布朗运'+'动的存在。',0x3:'D是正确的'+'。微粒的运'+'动轨迹与分'+_0x3a0719(0x1fb)+_0x3a0719(0x1d3)+_0x3a0719(0x13d)+'轨迹等同于'+_0x3a0719(0x2f0)}}},{'id':0x7,'text':'考试标准表'+_0x3a0719(0x16d)+'写：布朗运'+'动是<st'+'rong>'+'①</st'+'rong>'+'的无规则运'+_0x3a0719(0x2fc)+'<stro'+'ng>②<'+_0x3a0719(0x178)+_0x3a0719(0x2be)+_0x3a0719(0x16b)+_0x3a0719(0x153)+_0x3a0719(0x2f3)+'项是（\x20\x20'+'）','options':['A.\x20①液'+'体分子\x20②'+_0x3a0719(0x216),_0x3a0719(0x2c8)+'浮在液体中'+_0x3a0719(0x28c)+_0x3a0719(0x264),_0x3a0719(0x2a0)+'粉颗粒\x20②'+'水分子',_0x3a0719(0x2c5)+'体微粒\x20②'+_0x3a0719(0x11f)],'answer':0x1,'analysis':{'correct':_0x3a0719(0x143)+_0x3a0719(0x13e)+_0x3a0719(0xf3)+_0x3a0719(0x286)+'②\x22液体分'+_0x3a0719(0x1a9)+'高考评分的'+_0x3a0719(0x131)+_0x3a0719(0x2c0)+_0x3a0719(0x1ba),'wrong':{0x0:_0x3a0719(0x28d)+'朗运动的研'+_0x3a0719(0x13c)+_0x3a0719(0xd3)+_0x3a0719(0x2c2)+'确——说明'+_0x3a0719(0x2fb)+_0x3a0719(0x114)+'泛指\x22固体'+'分子\x22。',0x2:_0x3a0719(0x2f7)+'历史上布朗'+_0x3a0719(0xd6)+'，但考试标'+_0x3a0719(0x170)+_0x3a0719(0x14c)+_0x3a0719(0x1e3)+'粒\x22这一通'+_0x3a0719(0x110)+_0x3a0719(0x13f)+_0x3a0719(0x19a)+_0x3a0719(0x231)+_0x3a0719(0x306)+'子\x22。',0x3:_0x3a0719(0x1f0)+_0x3a0719(0x139)+'表述必须用'+'\x22悬浮在液'+'体中的微粒'+_0x3a0719(0x2cd)+_0x3a0719(0x29b)}}},{'id':0x8,'text':_0x3a0719(0x22b)+_0x3a0719(0x1e8)+_0x3a0719(0x132)+'的运动\x22，'+'这个说法（'+_0x3a0719(0x1c9),'options':[_0x3a0719(0x2dd)+_0x3a0719(0x17e)+'就是分子的'+_0x3a0719(0x1a6),_0x3a0719(0x1ee)+_0x3a0719(0x1b9)+_0x3a0719(0x18a)+_0x3a0719(0x15f)+'不是分子本'+_0x3a0719(0x29e),'C.\x20错误'+_0x3a0719(0x1b9)+_0x3a0719(0x115)+_0x3a0719(0x16a)+'动','D.\x20错误'+_0x3a0719(0x1b9)+_0x3a0719(0x103)+_0x3a0719(0x168)],'answer':0x1,'analysis':{'correct':_0x3a0719(0xfa)+'的误区。显'+'微镜下看到'+'的是悬浮微'+_0x3a0719(0x1c3)+_0x3a0719(0x18c)+_0x3a0719(0x1cc)+'，二者不可'+'混淆。布朗'+'运动反映的'+_0x3a0719(0xef)+_0x3a0719(0x26a)+_0x3a0719(0x2fe)+'动的原因而'+'非运动本身'+'。','wrong':{0x0:_0x3a0719(0x267)+_0x3a0719(0x25d)+_0x3a0719(0x246)+_0x3a0719(0x2fa)+_0x3a0719(0x2a4)+_0x3a0719(0x22e)+_0x3a0719(0x16e)+_0x3a0719(0x185),0x2:_0x3a0719(0x276)+_0x3a0719(0x1ea)+'做过实验，'+'但他用酒精'+_0x3a0719(0x234)+_0x3a0719(0x2a2)+_0x3a0719(0x2c7)+_0x3a0719(0x1fe)+_0x3a0719(0x250)+'颗粒也有布'+'朗运动。',0x3:'布朗运动在'+'液体和气体'+'中都能发生'+'。说\x22只发'+_0x3a0719(0x293)+'\x22是错的；'+'并且该同学'+'的原话错误'+'在于混淆了'+_0x3a0719(0x117)}}}];let answeredCount=0xf10+0x1699+-0x25a9*0x1;let correctCount=-0x355+0x107d+-0x8*0x1a5;function buildQuiz(){const _0x37d639=_0x3a0719;const _0x3d7be1={'KduHb':_0x37d639(0x295)+'n','epwta':_0x37d639(0x28e)+_0x37d639(0x224),'LeoJV':function(_0xba96cb,_0xc7a47a){return _0xba96cb+_0xc7a47a;},'GosyQ':'opts','DKmPT':'quizG'+_0x37d639(0xf6)};const _0x5108bd=document['getEl'+'ement'+_0x37d639(0xd4)](_0x3d7be1[_0x37d639(0x1c0)]);_0x5108bd['inner'+_0x37d639(0x261)]='';quizData[_0x37d639(0xee)+'ch']((_0x132edb,_0xe3ca2d)=>{const _0x4eec79=_0x37d639;const _0x5c68ae=document['creat'+_0x4eec79(0x1c2)+_0x4eec79(0x1b8)]('div');_0x5c68ae['class'+_0x4eec79(0x12e)]=_0x3d7be1[_0x4eec79(0x266)];_0x5c68ae['id']='quizI'+'tem'+_0xe3ca2d;_0x5c68ae[_0x4eec79(0x14b)+_0x4eec79(0x261)]='\x0a\x20\x20\x20\x20'+_0x4eec79(0x130)+_0x4eec79(0xc8)+_0x4eec79(0x189)+'-num\x22'+'>第\x20'+_0x3d7be1[_0x4eec79(0x174)](_0xe3ca2d,0x5*0xeb+0x4a*0x5+-0x608)+(_0x4eec79(0x165)+_0x4eec79(0x260)+'\x20\x20\x20\x20\x20'+_0x4eec79(0x29a)+_0x4eec79(0x10d)+_0x4eec79(0x1fd)+_0x4eec79(0x21e))+_0x132edb['text']+(_0x4eec79(0x187)+'>\x0a\x20\x20\x20'+'\x20\x20\x20<d'+'iv\x20cl'+_0x4eec79(0x2e4)+_0x4eec79(0x1e5)+_0x4eec79(0xcf)+'d=\x22op'+'ts')+_0xe3ca2d+(_0x4eec79(0x1e9)+_0x4eec79(0x260)+_0x4eec79(0x20d)+'<div\x20'+'class'+'=\x22fee'+_0x4eec79(0x138)+_0x4eec79(0x1bc)+_0x4eec79(0x1df))+_0xe3ca2d+('\x22></d'+_0x4eec79(0x260)+'\x20\x20\x20');_0x5108bd['appen'+_0x4eec79(0x10b)+'d'](_0x5c68ae);const _0x9d940=document[_0x4eec79(0x25b)+'ement'+'ById'](_0x3d7be1[_0x4eec79(0x174)](_0x3d7be1[_0x4eec79(0x1b6)],_0xe3ca2d));_0x132edb[_0x4eec79(0x1e5)+'ns'][_0x4eec79(0xee)+'ch']((_0x20b27a,_0x296a1a)=>{const _0x3feaeb=_0x4eec79;const _0x27fe3c=document['creat'+'eElem'+_0x3feaeb(0x1b8)](_0x3d7be1[_0x3feaeb(0x1a4)]);_0x27fe3c[_0x3feaeb(0x10d)+'Name']='opt-b'+'tn';_0x27fe3c[_0x3feaeb(0x229)+_0x3feaeb(0x20f)+'t']=_0x20b27a;_0x27fe3c['addEv'+_0x3feaeb(0x2e3)+_0x3feaeb(0x1db)+'r']('click',()=>selectAnswer(_0xe3ca2d,_0x296a1a));_0x9d940[_0x3feaeb(0x2b8)+'dChil'+'d'](_0x27fe3c);});});}function selectAnswer(_0x16b524,_0x23ccb2){const _0x4587a2=_0x3a0719;const _0xa9a902={'ejrcw':function(_0x537e42,_0x40691d){return _0x537e42+_0x40691d;},'ypxLR':_0x4587a2(0x1f6)+_0x4587a2(0x1ec),'IjIjd':function(_0x36b06c,_0x10e773){return _0x36b06c+_0x10e773;},'VFjfo':_0x4587a2(0x162)+_0x4587a2(0x2d1),'QmAtH':_0x4587a2(0x10a)+'n-cor'+'rect','KBZdn':'show-'+_0x4587a2(0x304)+'ct','DrIrb':'feedb'+_0x4587a2(0x2ca)+_0x4587a2(0x140)+_0x4587a2(0x172)+'fb','Qoqzb':_0x4587a2(0x2ef)+'答案的解析'+'。','ZIzQu':function(_0x1cf213,_0x11a4ed){return _0x1cf213+_0x11a4ed;},'EGTva':function(_0x25b01c,_0x9e84b8){return _0x25b01c+_0x9e84b8;},'aBaPz':_0x4587a2(0xd9)+_0x4587a2(0x237)+_0x4587a2(0x1f7)+_0x4587a2(0x1d2)+_0x4587a2(0x223)};const _0x20ee3e=quizData[_0x16b524];const _0x921e67=document[_0x4587a2(0x25b)+_0x4587a2(0xf5)+_0x4587a2(0xd4)](_0xa9a902['ejrcw'](_0xa9a902['ypxLR'],_0x16b524));const _0x46ae12=document[_0x4587a2(0x25b)+_0x4587a2(0xf5)+_0x4587a2(0xd4)](_0xa9a902[_0x4587a2(0x156)]('opts',_0x16b524));const _0x4f2427=document['getEl'+'ement'+_0x4587a2(0xd4)](_0xa9a902[_0x4587a2(0x1e2)]('fb',_0x16b524));const _0xafae42=_0x46ae12[_0x4587a2(0x1de)+'Selec'+_0x4587a2(0x2f5)+'l'](_0xa9a902[_0x4587a2(0x105)]);if(_0xafae42[-0x11d6+0x244b+-0x1275][_0x4587a2(0x10d)+_0x4587a2(0x23d)][_0x4587a2(0x1a1)+_0x4587a2(0x1f9)](_0x4587a2(0x2da)+_0x4587a2(0x108)))return;_0xafae42['forEa'+'ch'](_0x994cd2=>_0x994cd2['class'+'List'][_0x4587a2(0x12b)](_0x4587a2(0x2da)+_0x4587a2(0x108)));const _0x2cea39=_0x23ccb2===_0x20ee3e['answe'+'r'];if(_0x2cea39){_0xafae42[_0x23ccb2]['class'+_0x4587a2(0x23d)]['add'](_0xa9a902[_0x4587a2(0x236)]);_0x4f2427['class'+_0x4587a2(0x12e)]='feedb'+_0x4587a2(0x2ca)+_0x4587a2(0x22d)+'orrec'+_0x4587a2(0x271);_0x4f2427[_0x4587a2(0x14b)+_0x4587a2(0x261)]=_0x4587a2(0xd9)+_0x4587a2(0x237)+'正确！</'+_0x4587a2(0x1d2)+_0x4587a2(0x223)+_0x20ee3e[_0x4587a2(0x1c5)+_0x4587a2(0x19b)]['corre'+'ct'];_0x921e67['class'+_0x4587a2(0x23d)][_0x4587a2(0x12b)](_0x4587a2(0x1a8)+'red-c'+_0x4587a2(0x27e)+'t');correctCount++;}else{_0xafae42[_0x23ccb2]['class'+'List']['add'](_0x4587a2(0x10a)+'n-wro'+'ng');_0xafae42[_0x20ee3e[_0x4587a2(0x1a8)+'r']]['class'+_0x4587a2(0x23d)][_0x4587a2(0x12b)](_0xa9a902[_0x4587a2(0x2b3)]);_0x4f2427[_0x4587a2(0x10d)+_0x4587a2(0x12e)]=_0xa9a902['DrIrb'];let _0x53b570=_0x20ee3e['analy'+'sis']['wrong'][_0x23ccb2]||_0xa9a902[_0x4587a2(0x169)];_0x4f2427[_0x4587a2(0x14b)+_0x4587a2(0x261)]=_0xa9a902[_0x4587a2(0x245)](_0xa9a902[_0x4587a2(0x2db)](_0xa9a902[_0x4587a2(0x2a9)],_0x53b570),'<br><'+'br><e'+_0x4587a2(0x2b1)+_0x4587a2(0x203)+'/em>')+_0x20ee3e['analy'+_0x4587a2(0x19b)][_0x4587a2(0x304)+'ct'];_0x921e67[_0x4587a2(0x10d)+_0x4587a2(0x23d)]['add'](_0x4587a2(0x1a8)+_0x4587a2(0x2d2)+'rong');}answeredCount++;updateScore();}function updateScore(){const _0x28e519=_0x3a0719;const _0xb2f87e={'iriQs':'quizS'+'core','gexeZ':'retry'+_0x28e519(0x213)+'tn','MGvUg':function(_0x9fea83,_0x1e1630){return _0x9fea83+_0x1e1630;},'hpwzw':function(_0x11e27e,_0x2b2ccf){return _0x11e27e===_0x2b2ccf;},'SbNhe':_0x28e519(0x195)+_0x28e519(0x1eb)+_0x28e519(0x297)+_0x28e519(0x109)+'非常扎实！','JbayA':function(_0x55b81c,_0x164329){return _0x55b81c*_0x164329;},'HOmdB':'<br>不'+'错！再回顾'+_0x28e519(0x284)+_0x28e519(0x148)+_0x28e519(0xf2),'ipLfF':_0x28e519(0x252)+'议仔细阅读'+_0x28e519(0xfc)+'并结合常考'+_0x28e519(0x192)+_0x28e519(0xd2)+'习。','DYnGO':_0x28e519(0x1bf)+'e-blo'+'ck'};const _0x2f505b=document[_0x28e519(0x25b)+_0x28e519(0xf5)+'ById'](_0xb2f87e[_0x28e519(0x193)]);const _0x4d5b04=document['getEl'+'ement'+_0x28e519(0xd4)](_0xb2f87e['gexeZ']);if(answeredCount>=quizData['lengt'+'h']){_0x2f505b[_0x28e519(0x2cb)][_0x28e519(0x1b7)+'ay']=_0x28e519(0x17b);_0x2f505b[_0x28e519(0x14b)+_0x28e519(0x261)]=_0xb2f87e[_0x28e519(0x1f3)]('检测完成：'+'你的得分是'+_0x28e519(0x15d)+'n>'+correctCount+_0x28e519(0x2e1)+quizData['lengt'+'h'],_0x28e519(0x1ae)+'n>');if(_0xb2f87e[_0x28e519(0x283)](correctCount,quizData[_0x28e519(0x26d)+'h'])){_0x2f505b[_0x28e519(0x14b)+_0x28e519(0x261)]+=_0xb2f87e[_0x28e519(0x112)];}else if(correctCount>=_0xb2f87e['JbayA'](quizData[_0x28e519(0x26d)+'h'],0xf95+-0x3*-0x989+0x7*-0x650+0.75)){_0x2f505b[_0x28e519(0x14b)+_0x28e519(0x261)]+=_0xb2f87e[_0x28e519(0x225)];}else{_0x2f505b[_0x28e519(0x14b)+'HTML']+=_0xb2f87e['ipLfF'];}_0x4d5b04[_0x28e519(0x2cb)][_0x28e519(0x1b7)+'ay']=_0xb2f87e['DYnGO'];}}function retryQuiz(){const _0x2380b1=_0x3a0719;const _0x407d23={'ilfWT':'quizS'+_0x2380b1(0x1af),'ipSNt':_0x2380b1(0x227)};const _0x46c633=(_0x2380b1(0x26e)+'|4|2')[_0x2380b1(0x25f)]('|');let _0x5af63d=0x255b+0x1*0x105b+-0x271*0x16;while(!![]){switch(_0x46c633[_0x5af63d++]){case'0':answeredCount=0xfa0+0x7ee+-0x178e;continue;case'1':correctCount=-0x15b*-0x5+-0xe0b+-0x1f*-0x3c;continue;case'2':buildQuiz();continue;case'3':document['getEl'+_0x2380b1(0xf5)+_0x2380b1(0xd4)](_0x407d23['ilfWT'])['style'][_0x2380b1(0x1b7)+'ay']=_0x407d23[_0x2380b1(0xcb)];continue;case'4':document[_0x2380b1(0x25b)+_0x2380b1(0xf5)+_0x2380b1(0xd4)](_0x2380b1(0x294)+'QuizB'+'tn')[_0x2380b1(0x2cb)][_0x2380b1(0x1b7)+'ay']=_0x2380b1(0x227);continue;}break;}}document['getEl'+_0x3a0719(0xf5)+_0x3a0719(0xd4)](_0x3a0719(0x294)+'QuizB'+'tn')[_0x3a0719(0x24c)+'entLi'+_0x3a0719(0x1db)+'r']('click',retryQuiz);initAll();buildQuiz();loop();</script>
+
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

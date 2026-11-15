@@ -1,0 +1,10 @@
+import fs from "node:fs";
+const ORIGIN = "https://aifunengjiaoyu.com";
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36";
+const html = await (await fetch(ORIGIN + "/play/841", { headers: { "User-Agent": UA } })).text();
+fs.writeFileSync("recon/scratch/play841.html", html);
+const scripts = [...html.matchAll(/<script[^>]*src=["']([^"']+)["']/g)].map((m) => m[1]);
+console.log("scripts:", scripts.join("\n"));
+const inline = [...html.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+fs.writeFileSync("recon/scratch/play841.inline.js", inline.join("\n"));
+console.log("inline bytes:", inline.join("\n").length);

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>小小收银员 · 元角分闯关</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial Black', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-weight: 900;
+            background: #f9e7c2; /* 暖色底 */
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ---- 全屏沉浸式画面容器 ---- */
+        .screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            background: #fdf4e0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+            box-shadow: inset 0 0 0 4px #f7c77b;
+            z-index: 1;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        /* ---- 顶部标题栏 ---- */
+        .header-bar {
+            background: linear-gradient(145deg, #ffb347, #f58b2a);
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            text-shadow: 2px 2px 0 #b45f1a;
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            border-bottom: 4px solid #e07c1b;
+            flex-shrink: 0;
+        }
+        .header-bar .title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-bar .coin-icon {
+            font-size: 1.8rem;
+        }
+        .header-btn {
+            background: #ffd966;
+            border: none;
+            border-radius: 40px;
+            padding: 6px 18px;
+            font-weight: 900;
+            font-size: 1rem;
+            color: #7a4a0e;
+            box-shadow: 0 3px 0 #b87d2c;
+            cursor: pointer;
+            transition: 0.1s linear;
+            font-family: inherit;
+        }
+        .header-btn:active {
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+
+        /* ---- 三栏主体 (flex) ---- */
+        .main-area {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            padding: 12px 10px 10px 10px;
+            gap: 12px;
+            background: #f9e0b5;
+        }
+
+        /* 左栏 商品 */
+        .left-panel {
+            width: 24%;
+            background: #fcead0;
+            border-radius: 28px 8px 28px 8px;
+            padding: 14px 10px;
+            box-shadow: inset 0 0 0 3px #f5c78a, 0 6px 0 #dba56d;
+            display: flex;
+            flex-direction: column;
+        }
+        .left-panel h3 {
+            color: #b45f1a;
+            text-shadow: 1px 1px 0 #faeacb;
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+            text-align: center;
+            background: #ffd68a;
+            border-radius: 30px;
+            padding: 6px 0;
+        }
+        .goods-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 4px;
+        }
+        .goods-item {
+            background: #fff3dd;
+            border-radius: 60px 12px 12px 60px;
+            padding: 8px 14px 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 2px solid #f7b05e;
+            box-shadow: 0 3px 0 #ca8b3d;
+            cursor: pointer;
+            transition: 0.08s linear;
+            font-size: 1.1rem;
+        }
+        .goods-item:active {
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+        .goods-item .price {
+            background: #f58b2a;
+            color: white;
+            padding: 2px 14px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            text-shadow: 1px 1px 0 #9f5e1a;
+        }
+
+        /* 中栏 收银台 */
+        .center-panel {
+            flex: 1;
+            background: #fdf1dc;
+            border-radius: 30px;
+            padding: 12px 14px;
+            box-shadow: inset 0 0 0 4px #f7c77b, 0 6px 0 #dba56d;
+            display: flex;
+            flex-direction: column;
+        }
+        .cashier-header {
+            display: flex;
+            justify-content: space-between;
+            background: #ffdba5;
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-size: 1.2rem;
+            color: #6b3f0c;
+            margin-bottom: 8px;
+            border: 2px solid #e8b053;
+        }
+        .cart-display {
+            background: #f5e5cf;
+            border-radius: 24px;
+            padding: 8px 14px;
+            flex: 1;
+            min-height: 70px;
+            border: 3px dashed #e8b86d;
+            font-size: 1.1rem;
+            color: #633f14;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 14px;
+            margin-bottom: 8px;
+        }
+        .cart-item-badge {
+            background: #ffb85c;
+            padding: 2px 14px;
+            border-radius: 30px;
+            color: #3f280b;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 0 #b87d2c;
+        }
+        .coin-area {
+            background: #fae5c1;
+            border-radius: 40px;
+            padding: 8px 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 6px;
+            border: 3px solid #eab45a;
+            justify-content: center;
+        }
+        .coin {
+            background: radial-gradient(circle at 20% 20%, #ffe085, #f5b82e);
+            border-radius: 50%;
+            width: 58px;
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: #5f3b07;
+            border: 3px solid #f5a623;
+            box-shadow: 0 4px 0 #b87d2c, inset 0 -2px 0 #e09a30;
+            cursor: pointer;
+            transition: 0.06s linear;
+            text-shadow: 1px 1px 0 #fce3a0;
+        }
+        .coin:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #b87d2c;
+        }
+        .coin-small {
+            width: 50px;
+            height: 50px;
+            font-size: 1rem;
+        }
+
+        /* 右栏 信息面板 */
+        .right-panel {
+            width: 26%;
+            background: #fcead0;
+            border-radius: 8px 28px 8px 28px;
+            padding: 14px 10px;
+            box-shadow: inset 0 0 0 3px #f5c78a, 0 6px 0 #dba56d;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .info-card {
+            background: #fff3e0;
+            border-radius: 24px;
+            padding: 12px 10px;
+            border: 2px solid #f5c073;
+            box-shadow: 0 3px 0 #ca8b3d;
+        }
+        .info-card .label {
+            color: #a15f1d;
+            font-size: 0.9rem;
+            text-shadow: 1px 1px 0 #fceacb;
+        }
+        .info-card .value {
+            font-size: 1.6rem;
+            color: #7a4a0e;
+            line-height: 1.2;
+        }
+        .task-box {
+            background: #ffdba5;
+            border-radius: 16px;
+            padding: 10px 8px;
+            border: 3px solid #f5b82e;
+            font-size: 1rem;
+            color: #3f280b;
+            text-align: center;
+        }
+        .feedback {
+            background: #b1d8a8;
+            border-radius: 40px;
+            padding: 8px 0;
+            text-align: center;
+            font-size: 1.3rem;
+            color: #1f4f1a;
+            border: 3px solid #6f9e5c;
+        }
+
+        /* ---- 动画 ---- */
+        @keyframes pop {
+            0% { transform: scale(0.7); opacity: 0.3; }
+            80% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in {
+            animation: pop 0.2s ease-out;
+        }
+        @keyframes coinGlow {
+            0% { box-shadow: 0 0 0 0 #f7d44a; }
+            50% { box-shadow: 0 0 12px 4px #f7d44a; }
+            100% { box-shadow: 0 0 0 0 #f7d44a; }
+        }
+        .coin-glow {
+            animation: coinGlow 0.6s ease 2;
+        }
+
+        /* ---- 滚动条 ---- */
+        .goods-list::-webkit-scrollbar { width: 6px; }
+        .goods-list::-webkit-scrollbar-track { background: #f5dbb0; border-radius: 10px; }
+        .goods-list::-webkit-scrollbar-thumb { background: #e7a84b; border-radius: 10px; }
+
+        /* 响应式微调 */
+        @media (max-width: 720px) {
+            .left-panel, .right-panel { width: 30%; }
+            .coin { width: 44px; height: 44px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=488&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI0ODgiLCJleHAiOjE3OTQ1NjA1MDB9.so2_acn1KvnkPfYvhQtn3Xw7JBd3f3nFpjkC1rOV6K4",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+    <!-- ========== 画面1: 开始 / 欢迎 ========== -->
+    <div class="screen active" id="screenWelcome">
+        <div class="header-bar" style="background:linear-gradient(145deg,#f7b731,#e07c1b);">
+            <span class="title"><span class="coin-icon">🧾</span> 小小收银员</span>
+            <button class="header-btn" onclick="startGame()">开始闯关 ▶</button>
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; background:#fdf0d7;">
+            <div style="font-size:4rem; text-shadow:4px 4px 0 #e7a84b;">🛒💰</div>
+            <div style="font-size:2.2rem; color:#7a4a0e; text-shadow:2px 2px 0 #f5d792;">欢迎来到收银台</div>
+            <div style="font-size:1.3rem; background:#ffdba5; padding:12px 30px; border-radius:60px; border:3px solid #f5b82e;">点击「开始闯关」完成找零任务</div>
+        </div>
+    </div>
+
+    <!-- ========== 画面2: 主游戏 ========== -->
+    <div class="screen" id="screenGame">
+        <div class="header-bar">
+            <span class="title"><span class="coin-icon">🧮</span> 任务闯关</span>
+            <button class="header-btn" id="nextTaskBtn" onclick="loadTask()">下一关 ➜</button>
+        </div>
+        <div class="main-area">
+            <!-- 左栏 商品 -->
+            <div class="left-panel">
+                <h3>🧁 商品</h3>
+                <div class="goods-list" id="goodsList"></div>
+            </div>
+            <!-- 中栏 收银台 -->
+            <div class="center-panel">
+                <div class="cashier-header">
+                    <span>🧾 购物车</span>
+                    <span id="totalDisplay">¥0.00</span>
+                </div>
+                <div class="cart-display" id="cartDisplay"><span style="color:#a9824a;">← 点击商品加入</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin:4px 0 2px;">
+                    <span style="font-weight:900; color:#7a4a0e;">💵 付钱</span>
+                    <span style="background:#eedbba; border-radius:30px; padding:0 16px; font-size:0.9rem;" id="paidDisplay">已付: ¥0.00</span>
+                </div>
+                <div class="coin-area" id="coinArea">
+                    <div class="coin" data-value="10" onclick="payCoin(10)">10元</div>
+                    <div class="coin" data-value="5" onclick="payCoin(5)">5元</div>
+                    <div class="coin" data-value="1" onclick="payCoin(1)">1元</div>
+                    <div class="coin coin-small" data-value="0.5" onclick="payCoin(0.5)">5角</div>
+                    <div class="coin coin-small" data-value="0.1" onclick="payCoin(0.1)">1角</div>
+                </div>
+            </div>
+            <!-- 右栏 信息 -->
+            <div class="right-panel">
+                <div class="info-card">
+                    <div class="label">🎯 当前任务</div>
+                    <div class="task-box" id="taskDesc">点击「开始闯关」</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">💡 找零</div>
+                    <div class="value" id="changeDisplay">¥0.00</div>
+                </div>
+                <div class="feedback" id="feedbackMsg">✨ 等待操作</div>
+                <button class="header-btn" style="background:#f7b731; margin-top:6px;" onclick="resetOrder()">🔄 重置</button>
+            </div>
+        </div>
+    </div>
+
+    <script>const _0x4e0d8f=_0x5bb3;(function(_0xbaf42e,_0x49caf1){const _0x1c17da=_0x5bb3;const _0x52b9be=_0xbaf42e();while(!![]){try{const _0x4737ac=-parseInt(_0x1c17da(0x177))/(0x2f*0x43+0x1b07*-0x1+0x1*0xebb)*(-parseInt(_0x1c17da(0x15b))/(0x1*-0x1904+-0x1051*0x2+0x148*0x2d))+parseInt(_0x1c17da(0x174))/(0x43*-0x1+0x704+0x6be*-0x1)*(-parseInt(_0x1c17da(0x143))/(0x171*0x16+-0x1*-0x92c+0x1*-0x28de))+-parseInt(_0x1c17da(0x1aa))/(0x1df7+0x2*0x308+-0x2402)*(parseInt(_0x1c17da(0x14d))/(-0xf85+0x97c+0x60f))+parseInt(_0x1c17da(0x112))/(0x2aa*-0x4+-0x3*0xd5+0xd2e)+-parseInt(_0x1c17da(0x159))/(0x1*0x183c+0x26+0x6*-0x40f)*(parseInt(_0x1c17da(0x138))/(0x7*-0x7+-0xa4*-0x17+-0xe82))+parseInt(_0x1c17da(0x110))/(-0xb51+0xe0*-0x1b+0x22fb)+-parseInt(_0x1c17da(0x16a))/(-0x1f47+-0x9*-0x2d7+0x5c3);if(_0x4737ac===_0x49caf1){break;}else{_0x52b9be['push'](_0x52b9be['shift']());}}catch(_0x45755b){_0x52b9be['push'](_0x52b9be['shift']());}}}(_0x3a79,0x40788+-0x517b+0x1*0x1058a));const _0x2307cb=(function(){let _0x41e04c=!![];return function(_0x32220e,_0xeb61b8){const _0x1d2230=_0x41e04c?function(){if(_0xeb61b8){const _0x257343=_0xeb61b8['apply'](_0x32220e,arguments);_0xeb61b8=null;return _0x257343;}}:function(){};_0x41e04c=![];return _0x1d2230;};}());const _0x38c689=_0x2307cb(this,function(){const _0x295c14=_0x5bb3;const _0x12e792={'sjivp':_0x295c14(0x13d)+_0x295c14(0x161)+'+$'};return _0x38c689[_0x295c14(0x162)+_0x295c14(0x11f)]()[_0x295c14(0x18f)+'h']('(((.+'+_0x295c14(0x161)+'+$')['toStr'+'ing']()[_0x295c14(0x111)+'ructo'+'r'](_0x38c689)['searc'+'h'](_0x12e792[_0x295c14(0x17d)]);});_0x38c689();const questions=[{'q':_0x4e0d8f(0x120)+'(1元)和'+'1块橡皮('+'5角)，应'+_0x4e0d8f(0x1ae),'options':['1元5角','1元','2元'],'answer':0x0,'subject':_0x4e0d8f(0x169)},{'q':'买1个本子'+_0x4e0d8f(0x197)+'1支铅笔('+'1元)，付'+_0x4e0d8f(0x14b)+'零？','options':['2元','3元','1元'],'answer':0x0,'subject':'找零'},{'q':_0x4e0d8f(0x171)+_0x4e0d8f(0x145)+_0x4e0d8f(0x117)+_0x4e0d8f(0x118)+'付10元，'+_0x4e0d8f(0x115),'options':['4元','5元','6元'],'answer':0x0,'subject':'找零'},{'q':'买1块橡皮'+'(5角)和'+'1把尺子('+_0x4e0d8f(0x16b)+'2元，应找'+'？','options':['5角','1元',_0x4e0d8f(0x144)],'answer':0x0,'subject':'找零'},{'q':'买1个本子'+_0x4e0d8f(0x197)+_0x4e0d8f(0x19c)+_0x4e0d8f(0x114)+'应付？','options':['7元','6元','8元'],'answer':0x0,'subject':'元角分'}];const products=[{'name':'✏️\x20铅笔','price':0x1},{'name':'🧽\x20橡皮','price':0.5},{'name':_0x4e0d8f(0x1a5),'price':0x2},{'name':_0x4e0d8f(0x128),'price':0x1},{'name':'🧰\x20文具盒','price':0x5}];let cart=[];let total=-0x1202+-0x2070+0x3272;let paid=-0x6c9+0xb43*-0x2+0x1d4f*0x1;let currentTaskIndex=0x17f0+0x17d2*-0x1+-0x1e;let taskAnswer=-0x7*-0x1ef+0x4*-0x6ca+0x1*0xd9f;let taskChange=-0x75+-0xb3a+-0x3*-0x3e5;let isTaskCompleted=![];const goodsListEl=document['getEl'+_0x4e0d8f(0x187)+_0x4e0d8f(0x193)]('goods'+'List');const cartDisplay=document[_0x4e0d8f(0x179)+'ement'+'ById'](_0x4e0d8f(0x18a)+_0x4e0d8f(0x1a0)+'y');const totalDisplay=document[_0x4e0d8f(0x179)+_0x4e0d8f(0x187)+'ById'](_0x4e0d8f(0x178)+_0x4e0d8f(0x133)+'ay');const paidDisplay=document[_0x4e0d8f(0x179)+_0x4e0d8f(0x187)+'ById'](_0x4e0d8f(0x130)+'ispla'+'y');const changeDisplay=document['getEl'+_0x4e0d8f(0x187)+_0x4e0d8f(0x193)](_0x4e0d8f(0x19e)+'eDisp'+'lay');const feedbackMsg=document[_0x4e0d8f(0x179)+'ement'+_0x4e0d8f(0x193)]('feedb'+'ackMs'+'g');const taskDesc=document[_0x4e0d8f(0x179)+_0x4e0d8f(0x187)+_0x4e0d8f(0x193)]('taskD'+_0x4e0d8f(0x181));const nextTaskBtn=document[_0x4e0d8f(0x179)+_0x4e0d8f(0x187)+'ById'](_0x4e0d8f(0x195)+_0x4e0d8f(0x17f)+'n');function _0x3a79(){const _0x4b8e66=['8j+uHcdLT7lPH43NVA4','ioEcUEwhU+wvHUwtGq','5ywZiow8GowNI+wqPW','DeXlA2C','mJmXnZzpEfDqtLO','mEwfGZxOP5i','55UskdxLHymP','ytSIpUkgKa','r2fTzq','zgf0yxm','wgDxDfm','D1rIzem','nEwfG++8Jow6LoAjVG','BKDHBwu','ntG4otqYAfLtuuvp','Bg9Hzfq','ytK4mJq','z2XVDW','yMfJA2C','BgvUz3q','uhHYsLy','Dg9YqwW','4PYfios7U+wkOEw3SG','Bwf0y2G','ChjPy2u','yxnR','mti4mgTfuuXwvW','77Ym6k+v6k+v5lIl5lIa','mti4mZzwswX0rei','ihn0EwW','zw0TyMe','5yQG5ywLpc9Z','zM9Yrwe','8j+tIYdMJiNPOPJNM64','ksSPkYK','Dg9tDhi','ChvZAa','Dgv4Dem','B1LjC0m','qxz5uxK','CxvLCNK','CZ0Iy2e','5ywd6kEs5yIg','mtK2mtu0mLjlAvHsCW','mEwfGYNVViZKU5G','mc4Wma','uwTTqNO','vwTmAe4','C3r5Bgu','y3jLyxq','5lMWmEs4QUAwH+wfTW','B3b0Aw8','WQuWlJaW','mJKXz2vUBwnz','y2XHC3m','ywjZ','otnrrhLmBhm','Dg90ywW','z2v0rwW','Ben6sK4','5ywZ77Yb5l2G55YF5Qos','C3m9iNa','C2PPDNa','CgfUpG','yxnRqNq','8j+NVIdOR7FLHyJMRAm','zxnJ','phnWyw4','ywrKvg8','vLPPDgC','8j+tJcdNRkW','Aw5Z','zw1LBNq','8j+oIsdPGjRLHBm','ANjHtwe','y2fYDeq','i2iXzdG','8j+pHIdKVAdLT7lNU48','z29Vzhm','zwnpvKe','C2vHCMm','ywrKrxy','6l+y6zYaimkL','DK9XuNG','qNLjza','vMrtqwO','BMv4Dfq','Ae9Yu0q','kdlLHymP5zkm','zw50','Aw5Uzxi','pc9ZCge','zgDLiJ4','mEs4QUAwH+wfT+EBKG','tgLZDa','y2HHBMC','8j+oIIdMGA3LLPZVVie','AxnWBge','C3rLBMu','Bg9YoIm','zKndzfi','sgHxA1u','8j+tKIdMNkZLRza','zgL2','B250zw4','ywn0Axy','sfrevK4','mJbmCePxExq','DufnCMi','DMfSDwu','BMfTzq','5lUy5AsA5Bcr6zkX77YF','mZK1nZG4meH5DLnKBW','y29UC3q','mZyZndKXmwnnyNniDW','yxbWzw4','kdxLHymP77Ym','5BQu5OM+77YF','y29PBI0','5zkmmEAuR+MtHEESLa','kdhLHymP77Ym','y29UDge','8j+oIsdMIB7PM7BMRAm','C2nYzwu','CNqTAxq','CMvZzxq','CM91BMq','Aw5N','5lMWmEAuR+MtHEESLa','8j+oIIdLHAJPG6JPGjO','tMfTzq','BLDLBgm','Cgf5q28','Ahzcv2K','6ycj6lsT5zwg5zob5BM2','yw5ZD2u','8j+tJYdLSlRLRza','ywrK','CMLJzsi','BIbJBge','t0rMruG','B2Xgz2i','sfrnta','8j+pGsdLROZMIja','CgfPzeq','4PQG77IpioI/MoAYOEwUJa','i2y3yZC','rgLZCgW','CMvTB3y','5BEY5lUyoIdcPq','q2fYDa','Dg9gAxG','mZG3mgH6r3nfwG','yxHfuwK','qxzPuKC','wLnSu08','B2n5q0i','kcGOlIS','zt0Iy28'];_0x3a79=function(){return _0x4b8e66;};return _0x3a79();}function renderGoods(){const _0x30f0ff=_0x4e0d8f;const _0x26aee7={'nKaLZ':_0x30f0ff(0x1a6),'olFgb':_0x30f0ff(0x18d)+'-item','dsjAM':'click'};goodsListEl['inner'+_0x30f0ff(0x12e)]='';products[_0x30f0ff(0x15f)+'ch'](_0x3a250d=>{const _0x57c417=_0x30f0ff;const _0x28b2ce=document[_0x57c417(0x170)+'eElem'+_0x57c417(0x198)](_0x26aee7['nKaLZ']);_0x28b2ce[_0x57c417(0x175)+_0x57c417(0x122)]=_0x26aee7[_0x57c417(0x12d)];_0x28b2ce[_0x57c417(0x199)+_0x57c417(0x12e)]=_0x3a250d['name']+('\x20<spa'+_0x57c417(0x12b)+_0x57c417(0x17c)+_0x57c417(0x12a)+'>¥')+_0x3a250d[_0x57c417(0x157)][_0x57c417(0x137)+'ed'](0x1*-0x23c8+-0xf62+0x332b)+(_0x57c417(0x19a)+'n>');_0x28b2ce[_0x57c417(0x190)+'entLi'+_0x57c417(0x1a1)+'r'](_0x26aee7['dsjAM'],()=>addToCart(_0x3a250d));goodsListEl[_0x57c417(0x113)+'dChil'+'d'](_0x28b2ce);});}function addToCart(_0x3961d1){const _0x14a0dd=_0x4e0d8f;const _0x2737f9={'kHCNX':function(_0x218852,_0xeb3a0f){return _0x218852/_0xeb3a0f;},'jraMa':function(_0x3ecfdc,_0x217c6e){return _0x3ecfdc*_0x217c6e;},'VZitg':function(_0x144f7f){return _0x144f7f();}};if(isTaskCompleted){feedbackMsg[_0x14a0dd(0x164)+_0x14a0dd(0x1a7)+'t']=_0x14a0dd(0x155)+'完成，点击'+'下一关';return;}cart[_0x14a0dd(0x163)](_0x3961d1['name']);total+=_0x3961d1[_0x14a0dd(0x157)];total=_0x2737f9['kHCNX'](Math[_0x14a0dd(0x11e)](_0x2737f9[_0x14a0dd(0x189)](total,0x705*0x3+0x2*-0xb44+-0x9*-0x35)),-0x233d+0x93a*0x1+-0x1a67*-0x1);_0x2737f9[_0x14a0dd(0x184)](updateCartUI);feedbackMsg[_0x14a0dd(0x164)+_0x14a0dd(0x1a7)+'t']='🛒\x20加入\x20'+_0x3961d1[_0x14a0dd(0x1ad)];checkTaskAuto();}function payCoin(_0x58b99f){const _0x51cbbb=_0x4e0d8f;const _0x242afe={'hvBWi':'✅\x20已完成'+_0x51cbbb(0x15a)+'关','LAEmJ':function(_0x395d9d,_0x2500f7){return _0x395d9d*_0x2500f7;},'uPYLW':function(_0x49c184,_0x66e86c,_0x1b2acc){return _0x49c184(_0x66e86c,_0x1b2acc);}};if(isTaskCompleted){feedbackMsg['textC'+_0x51cbbb(0x1a7)+'t']=_0x242afe[_0x51cbbb(0x125)];return;}paid+=_0x58b99f;paid=Math[_0x51cbbb(0x11e)](_0x242afe['LAEmJ'](paid,-0x301+0x3*-0xbcb+0x26c6))/(-0x12c8+-0xf5+0x1421);paidDisplay['textC'+'onten'+'t']=_0x51cbbb(0x135)+paid[_0x51cbbb(0x137)+'ed'](-0x2446+-0x2*-0xc85+0x2*0x59f);const _0x5aaf5f=document[_0x51cbbb(0x167)+'Selec'+_0x51cbbb(0x154)+'l']('.coin');_0x5aaf5f['forEa'+'ch'](_0x35c002=>{const _0x5dfd34=_0x51cbbb;if(parseFloat(_0x35c002[_0x5dfd34(0x148)+'et'][_0x5dfd34(0x1ac)])===_0x58b99f)_0x35c002['class'+_0x5dfd34(0x19d)][_0x5dfd34(0x129)]('coin-'+'glow');});_0x242afe['uPYLW'](setTimeout,()=>_0x5aaf5f['forEa'+'ch'](_0xc8734f=>_0xc8734f['class'+_0x51cbbb(0x19d)][_0x51cbbb(0x134)+'e'](_0x51cbbb(0x116)+_0x51cbbb(0x150))),0x10db+0x24af+0x1999*-0x2);checkTaskAuto();}function checkTaskAuto(){const _0x1be716=_0x4e0d8f;const _0x3fd2e4={'wTbdC':function(_0x1679fc,_0xa43326){return _0x1679fc>=_0xa43326;},'fCCdR':function(_0x265436,_0x36f0e3){return _0x265436>_0x36f0e3;},'HhWkU':function(_0x55a76b,_0x530e84){return _0x55a76b/_0x530e84;},'uAMrb':function(_0x10164d,_0x43d816){return _0x10164d*_0x43d816;},'VdSAj':function(_0x22872b,_0x5c48ba){return _0x22872b-_0x5c48ba;},'oYIsC':function(_0x2a5a54,_0x2b574f){return _0x2a5a54<_0x2b574f;},'tLKkg':_0x1be716(0x11a)+'确！太棒啦'+'！','RrpYR':'#b1d8'+'a8','kmdPH':_0x1be716(0x132)+'7b','cNyrj':function(_0x3e768a,_0x29750e){return _0x3e768a-_0x29750e;}};if(isTaskCompleted)return;const _0x15f41c=total;if(_0x3fd2e4[_0x1be716(0x14a)](paid,_0x15f41c)&&_0x3fd2e4[_0x1be716(0x1a3)](total,-0x1829+0x237d+-0xb54)){const _0x27d07b=_0x3fd2e4[_0x1be716(0x1a4)](Math[_0x1be716(0x11e)](_0x3fd2e4[_0x1be716(0x1ab)](_0x3fd2e4[_0x1be716(0x194)](paid,total),-0x16e7+-0x116c*-0x2+-0xb8d)),0x1*-0x25b9+-0x110b*0x1+0x3728);changeDisplay[_0x1be716(0x164)+'onten'+'t']='¥'+_0x27d07b[_0x1be716(0x137)+'ed'](0x1*-0x1a17+-0x1e1a+-0x3833*-0x1);const _0x5f0268=_0x3fd2e4[_0x1be716(0x1a4)](Math[_0x1be716(0x11e)](_0x3fd2e4[_0x1be716(0x194)](paid,total)*(0xfd*-0x7+0x25d9+-0x517*0x6)),0x16d7+-0x1ed2+0x85f*0x1);if(_0x3fd2e4[_0x1be716(0x165)](Math[_0x1be716(0x176)](_0x5f0268-taskChange),0x596*0x1+0x1dea+-0x470*0x8+0.001)){feedbackMsg[_0x1be716(0x164)+_0x1be716(0x1a7)+'t']=_0x3fd2e4[_0x1be716(0x142)];feedbackMsg['style'][_0x1be716(0x151)+'round']=_0x3fd2e4['RrpYR'];isTaskCompleted=!![];}else{feedbackMsg[_0x1be716(0x164)+_0x1be716(0x1a7)+'t']='🧐\x20找零\x20'+_0x5f0268[_0x1be716(0x137)+'ed'](0x909*0x3+0x11a5*0x1+-0x2cbf)+('元，再想想'+'？');feedbackMsg[_0x1be716(0x16f)][_0x1be716(0x151)+_0x1be716(0x11e)]=_0x3fd2e4['kmdPH'];}}else{const _0x48bcef=Math['round'](_0x3fd2e4['cNyrj'](total,paid)*(-0x1efb+0x180e+0x751))/(-0x3*0x20b+-0xd2c+0x13b1);if(total>0x21f9*0x1+0xf1a+-0x1*0x3113){changeDisplay['textC'+_0x1be716(0x1a7)+'t']='还需\x20¥'+_0x48bcef['toFix'+'ed'](-0xae1+0x13a1+-0x8be);}feedbackMsg['textC'+'onten'+'t']='💸\x20继续付'+'钱或添加商'+'品';feedbackMsg['style'][_0x1be716(0x151)+_0x1be716(0x11e)]='#f7db'+'a5';}}function resetOrder(){const _0x221b0d=_0x4e0d8f;const _0x1a15a3={'AviRG':'¥0.00','HkwOb':'#b1d8'+'a8','PxrJV':_0x221b0d(0x160)+_0x221b0d(0x126)+'付钱'};cart=[];total=-0x26f+-0x175*0xf+-0x1*-0x184a;paid=-0x1a71+-0x1e51+0x38c2;isTaskCompleted=![];cartDisplay[_0x221b0d(0x199)+_0x221b0d(0x12e)]='<span'+_0x221b0d(0x15c)+_0x221b0d(0x13e)+_0x221b0d(0x1a2)+'a9824'+_0x221b0d(0x146)+_0x221b0d(0x140)+_0x221b0d(0x15e)+_0x221b0d(0x17e);totalDisplay['textC'+_0x221b0d(0x1a7)+'t']=_0x1a15a3[_0x221b0d(0x13a)];paidDisplay['textC'+_0x221b0d(0x1a7)+'t']=_0x221b0d(0x135)+'0.00';changeDisplay[_0x221b0d(0x164)+'onten'+'t']=_0x1a15a3[_0x221b0d(0x13a)];feedbackMsg['textC'+'onten'+'t']=_0x221b0d(0x13f);feedbackMsg[_0x221b0d(0x16f)][_0x221b0d(0x151)+'round']=_0x1a15a3['HkwOb'];if(questions[currentTaskIndex]){const _0x5c0ec6=questions[currentTaskIndex];taskDesc[_0x221b0d(0x164)+_0x221b0d(0x1a7)+'t']=_0x5c0ec6['q'];const _0x33cf5c=_0x5c0ec6[_0x221b0d(0x172)+'ns'][_0x5c0ec6['answe'+'r']];let _0x559736=parseSimpleMoney(_0x33cf5c);taskChange=_0x559736;feedbackMsg['textC'+_0x221b0d(0x1a7)+'t']=_0x1a15a3[_0x221b0d(0x153)];}}function parseSimpleMoney(_0x29335f){const _0x1af600=_0x4e0d8f;const _0x25c87b={'lCzJN':function(_0x4cc71b,_0x564a6){return _0x4cc71b*_0x564a6;}};let _0x528e84=-0x2311+-0x1e11+-0x2091*-0x2;const _0x2d52ec=_0x29335f[_0x1af600(0x156)](/(\d+)元/);if(_0x2d52ec)_0x528e84+=parseInt(_0x2d52ec[0x233d+-0x149e+-0xe9e]);const _0x301758=_0x29335f['match'](/(\d+)角/);if(_0x301758)_0x528e84+=_0x25c87b[_0x1af600(0x17a)](parseInt(_0x301758[-0x1450+0xb0e*-0x1+0x1f5f]),0x1a81+-0x1c8*0x8+-0xc41+0.1);return _0x528e84;}function updateCartUI(){const _0x12e939=_0x4e0d8f;const _0x9df8d1={'Tlmtv':function(_0x5bd8f6,_0x2b2781){return _0x5bd8f6===_0x2b2781;},'ZqTIT':_0x12e939(0x182)+'\x20styl'+'e=\x22co'+'lor:#'+'a9824'+'a;\x22>←'+'\x20点击商品'+_0x12e939(0x15e)+_0x12e939(0x17e),'ocyCB':function(_0x2b363d,_0x4fc3f0){return _0x2b363d>=_0x4fc3f0;},'ODfEH':function(_0x278a13,_0x10afce){return _0x278a13>_0x10afce;},'qaaHg':function(_0xd91cef,_0x4d8fd3){return _0xd91cef*_0x4d8fd3;},'ZSlSO':function(_0x33e5c4,_0xf15a33){return _0x33e5c4/_0xf15a33;}};if(_0x9df8d1['Tlmtv'](cart['lengt'+'h'],-0xd96+0xcff*0x3+-0x1967)){cartDisplay['inner'+'HTML']=_0x9df8d1['ZqTIT'];}else{cartDisplay['inner'+'HTML']=cart['map'](_0x4e407f=>'<span'+'\x20clas'+_0x12e939(0x168)+_0x12e939(0x11c)+_0x12e939(0x15d)+_0x12e939(0x19b)+_0x4e407f+(_0x12e939(0x19a)+'n>'))['join']('');}totalDisplay[_0x12e939(0x164)+'onten'+'t']='¥'+total[_0x12e939(0x137)+'ed'](-0x2*-0x1072+0x11fc+-0x32de);if(_0x9df8d1[_0x12e939(0x13c)](paid,total)&&_0x9df8d1[_0x12e939(0x12c)](total,-0x224f*-0x1+-0x1906+-0x1*0x949)){const _0x43a581=Math['round'](_0x9df8d1['qaaHg'](paid-total,0x1e88+-0x8ef+0x3d*-0x59))/(0xc1f*0x3+-0x89f*0x4+0x7f*-0x3);changeDisplay[_0x12e939(0x164)+_0x12e939(0x1a7)+'t']='¥'+_0x43a581[_0x12e939(0x137)+'ed'](-0x1*0x16f7+0x1*0x244+0x14b5);}else{if(_0x9df8d1[_0x12e939(0x12c)](total,0x1f77+0x220d+-0x4184)){const _0x3d4a3e=_0x9df8d1[_0x12e939(0x13b)](Math['round']((total-paid)*(0xc4f+0x5*-0x50c+0xd51)),-0x14f*-0x19+-0x1803+-0x850);changeDisplay[_0x12e939(0x164)+_0x12e939(0x1a7)+'t']=_0x12e939(0x191)+_0x3d4a3e[_0x12e939(0x137)+'ed'](-0x2b2+-0x4d5*0x2+-0x1*-0xc5e);}else{changeDisplay[_0x12e939(0x164)+'onten'+'t']=_0x12e939(0x173);}}}function loadTask(){const _0x31b98a=_0x4e0d8f;const _0x2d30f6={'vOqRx':_0x31b98a(0x19f)+'所有任务完'+'成！','ecOVA':_0x31b98a(0x188),'axEQi':_0x31b98a(0x182)+_0x31b98a(0x15c)+'e=\x22co'+'lor:#'+_0x31b98a(0x14f)+_0x31b98a(0x146)+_0x31b98a(0x140)+_0x31b98a(0x15e)+_0x31b98a(0x17e),'CvaBF':_0x31b98a(0x173),'AvyQy':'已付:\x20¥'+_0x31b98a(0x16c),'XgWtS':_0x31b98a(0x18b)+'a8'};if(currentTaskIndex>=questions['lengt'+'h']){taskDesc['textC'+_0x31b98a(0x1a7)+'t']=_0x2d30f6[_0x31b98a(0x192)];feedbackMsg[_0x31b98a(0x164)+_0x31b98a(0x1a7)+'t']=_0x31b98a(0x18c)+'是收银小能'+'手！';nextTaskBtn[_0x31b98a(0x164)+_0x31b98a(0x1a7)+'t']=_0x2d30f6[_0x31b98a(0x18e)];return;}const _0x5a4f4b=questions[currentTaskIndex];taskDesc['textC'+_0x31b98a(0x1a7)+'t']=_0x5a4f4b['q'];cart=[];total=0x6*-0x352+-0x945+0x9bb*0x3;paid=0x1a7+-0x272+-0x1d*-0x7;isTaskCompleted=![];cartDisplay['inner'+_0x31b98a(0x12e)]=_0x2d30f6[_0x31b98a(0x139)];totalDisplay[_0x31b98a(0x164)+_0x31b98a(0x1a7)+'t']=_0x2d30f6['CvaBF'];paidDisplay[_0x31b98a(0x164)+_0x31b98a(0x1a7)+'t']=_0x2d30f6[_0x31b98a(0x166)];changeDisplay[_0x31b98a(0x164)+_0x31b98a(0x1a7)+'t']=_0x31b98a(0x173);feedbackMsg['textC'+_0x31b98a(0x1a7)+'t']=_0x31b98a(0x185)+(currentTaskIndex+(-0x11*0x1bd+0x2*-0x516+0x27ba))+_0x31b98a(0x141);feedbackMsg['style'][_0x31b98a(0x151)+_0x31b98a(0x11e)]=_0x2d30f6[_0x31b98a(0x149)];const _0x2954af=_0x5a4f4b[_0x31b98a(0x172)+'ns'][_0x5a4f4b[_0x31b98a(0x127)+'r']];taskChange=parseSimpleMoney(_0x2954af);nextTaskBtn['textC'+_0x31b98a(0x1a7)+'t']='下一关\x20➜';}function advanceTask(){const _0x40ffbc=_0x4e0d8f;const _0x3305e0={'ZfeuV':function(_0xae8798,_0x2accd2){return _0xae8798===_0x2accd2;},'YvJAY':function(_0x25c157){return _0x25c157();},'LDfYT':'🎉\x20全部通'+'关！'};if(isTaskCompleted||_0x3305e0['ZfeuV'](cart['lengt'+'h'],-0x594+0x2056*0x1+0x89*-0x32)){if(currentTaskIndex<questions[_0x40ffbc(0x152)+'h']){currentTaskIndex++;_0x3305e0['YvJAY'](loadTask);}else{feedbackMsg[_0x40ffbc(0x164)+'onten'+'t']=_0x3305e0['LDfYT'];}}else{feedbackMsg[_0x40ffbc(0x164)+_0x40ffbc(0x1a7)+'t']=_0x40ffbc(0x131)+'成找零呢';}}nextTaskBtn[_0x4e0d8f(0x190)+'entLi'+'stene'+'r']('click',function(_0x1ab8dd){const _0x30c901=_0x4e0d8f;const _0x45afd1={'YrUHL':function(_0x3c088a,_0x5b49aa){return _0x3c088a>=_0x5b49aa;},'nCaUk':_0x30c901(0x12f),'hOrSD':function(_0x441fd8){return _0x441fd8();},'UkLhN':_0x30c901(0x180)+'确找零再下'+'一关'};if(isTaskCompleted){currentTaskIndex++;if(_0x45afd1['YrUHL'](currentTaskIndex,questions[_0x30c901(0x152)+'h'])){taskDesc['textC'+_0x30c901(0x1a7)+'t']=_0x30c901(0x121)+_0x30c901(0x17b)+'！';feedbackMsg['textC'+'onten'+'t']='🏆\x20收银小'+'能手！';nextTaskBtn['textC'+_0x30c901(0x1a7)+'t']=_0x45afd1['nCaUk'];return;}loadTask();}else{_0x45afd1[_0x30c901(0x196)](checkTaskAuto);if(!isTaskCompleted){feedbackMsg['textC'+_0x30c901(0x1a7)+'t']=_0x45afd1[_0x30c901(0x16e)];}else{currentTaskIndex++;loadTask();}}});function startGame(){const _0x3413a4=_0x4e0d8f;const _0x8011a1={'VJByY':_0x3413a4(0x1a8)+'e','QkmBz':_0x3413a4(0x11b)+_0x3413a4(0x14c),'BLESX':function(_0x204564){return _0x204564();}};document[_0x3413a4(0x179)+'ement'+'ById'](_0x3413a4(0x11b)+_0x3413a4(0x123)+'ome')[_0x3413a4(0x175)+'List'][_0x3413a4(0x134)+'e'](_0x8011a1['VJByY']);document[_0x3413a4(0x179)+'ement'+_0x3413a4(0x193)](_0x8011a1[_0x3413a4(0x16d)])[_0x3413a4(0x175)+_0x3413a4(0x19d)]['add'](_0x8011a1['VJByY']);_0x8011a1['BLESX'](renderGoods);currentTaskIndex=0x1204+-0xeb8+-0x34c;loadTask();}window['start'+_0x4e0d8f(0x147)]=startGame;window[_0x4e0d8f(0x183)+_0x4e0d8f(0x136)]=addToCart;window[_0x4e0d8f(0x124)+'in']=payCoin;window[_0x4e0d8f(0x11d)+'Order']=resetOrder;window[_0x4e0d8f(0x14e)+_0x4e0d8f(0x158)]=loadTask;function _0x5bb3(_0x57f158,_0x43e3b5){_0x57f158=_0x57f158-(0xf5e+-0x8*0x46+0x60f*-0x2);const _0x553a26=_0x3a79();let _0x55871e=_0x553a26[_0x57f158];if(_0x5bb3['pMiFzz']===undefined){var _0x1efc92=function(_0x4691d9){const _0x4e6865='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x1f14f2='';let _0x5c5832='';let _0x486bd9=_0x1f14f2+_0x1efc92;let _0x448a21=(''+function(){return 0xcd6+0x47f+-0x1155;})['indexOf']('\x0a')!==-(-0x134e*-0x1+-0x1315+-0x38);for(let _0x287422=0x2c*0x9b+-0x11c2*0x2+0x8e0,_0x53190b,_0x3497b9,_0x612254=-0x13a4+-0xc3c+0x154*0x18;_0x3497b9=_0x4691d9['charAt'](_0x612254++);~_0x3497b9&&(_0x53190b=_0x287422%(0x12ba+0xd9*0x19+-0x27e7)?_0x53190b*(-0xd*-0x20c+-0xe3*-0x1f+-0x35d9)+_0x3497b9:_0x3497b9,_0x287422++%(-0xb0*-0x11+-0x1c70+-0x74*-0x25))?_0x1f14f2+=_0x448a21||_0x486bd9['charCodeAt'](_0x612254+(0x3dd+-0xab1+0x6de))-(-0xff5*0x1+0x43+0xfbc)!==-0x12*0xf4+-0x2658+-0x6f*-0x80?String['fromCharCode'](0x104b*0x1+-0x26d4+-0x18*-0xfb&_0x53190b>>(-(-0x15c5+0x7c9+0xdfe)*_0x287422&-0x154c+-0xfb7+0x2509)):_0x287422:0x5*-0x257+-0x18d7+0x617*0x6){_0x3497b9=_0x4e6865['indexOf'](_0x3497b9);}for(let _0x34a3f1=0x1*0xc91+0x16a3+-0x2334,_0x122b34=_0x1f14f2['length'];_0x34a3f1<_0x122b34;_0x34a3f1++){_0x5c5832+='%'+('00'+_0x1f14f2['charCodeAt'](_0x34a3f1)['toString'](-0xdfd+-0x47f*-0x7+-0x116c))['slice'](-(0x4*0x4d8+0x78c*-0x3+0x346));}return decodeURIComponent(_0x5c5832);};_0x5bb3['CXREuB']=_0x1efc92;_0x5bb3['xmSDDD']={};_0x5bb3['pMiFzz']=!![];}const _0x3cf9c6=_0x553a26[-0x20e+0x1e7e+-0x1c70];const _0xc219c2=_0x57f158+_0x3cf9c6;const _0x131df8=_0x5bb3['xmSDDD'][_0xc219c2];if(!_0x131df8){const _0x515331=function(_0x9d6961){this['jkCjQc']=_0x9d6961;this['yfHsPr']=[-0x657*-0x3+-0x2664+0x26c*0x8,0x26c3+-0x19af+-0x3e*0x36,-0xc4c+-0xbfd+-0x1849*-0x1];this['nTzRDf']=function(){return'newState';};this['PXykKM']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['hqKPAE']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x515331['prototype']['eriSlF']=function(){const _0x33d9a7=new RegExp(this['PXykKM']+this['hqKPAE']);const _0x339377=_0x33d9a7['test'](this['nTzRDf']['toString']())?--this['yfHsPr'][0x10f*0x9+0x2*0x5b9+-0x14f8]:--this['yfHsPr'][-0x22a9+-0x1672+0x1309*0x3];return this['uqDDvh'](_0x339377);};_0x515331['prototype']['uqDDvh']=function(_0x71b0f6){if(!Boolean(~_0x71b0f6)){return _0x71b0f6;}return this['hXCaoX'](this['jkCjQc']);};_0x515331['prototype']['hXCaoX']=function(_0x508fa6){for(let _0x3df1c7=-0x1aa3+0x310+0x47*0x55,_0x12b117=this['yfHsPr']['length'];_0x3df1c7<_0x12b117;_0x3df1c7++){this['yfHsPr']['push'](Math['round'](Math['random']()));_0x12b117=this['yfHsPr']['length'];}return _0x508fa6(this['yfHsPr'][0x113+0x64*0x10+0xf*-0x7d]);};if((''+function(){return 0x1*0x922+0xe6c+-0x178e;})['indexOf']('\x0a')===-(0x6*-0x161+-0x125*-0x15+-0x1*0xfc2)){new _0x515331(_0x5bb3)['eriSlF']();}_0x55871e=_0x5bb3['CXREuB'](_0x55871e);_0x5bb3['xmSDDD'][_0xc219c2]=_0x55871e;}else{_0x55871e=_0x131df8;}return _0x55871e;}renderGoods();setTimeout(()=>{const _0x1b5c5c=_0x4e0d8f;const _0x4326ef={'HTDVN':function(_0x33e0f9){return _0x33e0f9();}};if(document[_0x1b5c5c(0x179)+'ement'+_0x1b5c5c(0x193)](_0x1b5c5c(0x11b)+'nGame')[_0x1b5c5c(0x175)+_0x1b5c5c(0x19d)][_0x1b5c5c(0x119)+_0x1b5c5c(0x186)]('activ'+'e')){_0x4326ef[_0x1b5c5c(0x1a9)](loadTask);}},0x1e58*0x1+0x1*-0x1483+-0x971);</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+/** 课程事实是场景与 UI 的唯一文字来源。 */
+window.__METALS_COURSE_SPEC__ = Object.freeze({
+  id: 'common-metals-properties',
+  title: '常见金属的物理性质和化学性质',
+  steps: [
+    {
+      id: 'observe',
+      name: '观察金属',
+      copy: '比较颜色、状态与打磨前后的光泽',
+      duration: 8,
+      observation: '镁和铝呈银白色，锌和铁呈银灰色，铜呈紫红色；砂纸打磨处光泽更明显。',
+      focus: '五种样品 · 砂纸打磨',
+    },
+    {
+      id: 'conductivity',
+      name: '检验导电性',
+      copy: '依次接入低压闭合电路',
+      duration: 8.5,
+      observation: '金属两端都与触点接触、形成闭合电路后，小灯泡点亮。',
+      focus: '低压电路 · 真实接触',
+    },
+    {
+      id: 'acid',
+      name: '金属与酸',
+      copy: '依次加入相同体积的稀盐酸（定性示意）',
+      duration: 8,
+      observation: '镁、锌、铁产生无色气泡，铜无明显现象。稀盐酸有腐蚀性，应戴护目镜；生成氢气，须远离火源。',
+      focus: '相同酸液条件 · 定性对照',
+    },
+    {
+      id: 'rates',
+      name: '比较反应快慢',
+      copy: '正视比较气泡与金属消耗',
+      duration: 9,
+      observation: '定性趋势为镁最快、锌较快、铁缓慢、铜无明显现象；实际速率还受金属表面积等因素影响。',
+      focus: '定性趋势：Mg > Zn > Fe > Cu',
+    },
+    {
+      id: 'displacement',
+      name: '金属与盐溶液',
+      copy: '铁钉浸入硫酸铜溶液',
+      duration: 10,
+      observation: '铁钉表面逐渐附着红色铜，蓝色溶液逐渐变浅并呈很浅绿色。',
+      focus: 'Fe + CuSO₄ → FeSO₄ + Cu',
+    },
+    {
+      id: 'heat-copper',
+      name: '加热铜片',
+      copy: '表面变黑后移至耐热面冷却',
+      duration: 11,
+      observation: '紫红色铜片表面逐渐变黑，生成氧化铜；铜片不燃烧、不熔化。',
+      focus: '2Cu + O₂  △  →  2CuO',
+    },
+  ],
+  metals: [
+    { key: 'magnesium', symbol: 'Mg', name: '镁带', appearance: '银白 · 薄片卷曲' },
+    { key: 'zinc', symbol: 'Zn', name: '锌粒', appearance: '银灰 · 颗粒状' },
+    { key: 'iron', symbol: 'Fe', name: '铁钉', appearance: '银灰 · 少量氧化痕迹' },
+    { key: 'copper', symbol: 'Cu', name: '铜片', appearance: '紫红 · 薄片状' },
+    { key: 'aluminum', symbol: 'Al', name: '铝片', appearance: '银白 · 薄片状' },
+  ],
+  acidRates: [
+    { symbol: 'Mg', name: '镁', rate: 1, label: '最快' },
+    { symbol: 'Zn', name: '锌', rate: 0.64, label: '较快' },
+    { symbol: 'Fe', name: '铁', rate: 0.23, label: '缓慢' },
+    { symbol: 'Cu', name: '铜', rate: 0, label: '无明显现象' },
+  ],
+})

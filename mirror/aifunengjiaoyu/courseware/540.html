@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head><base href="/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>几个几 · 乘法小探险</title>
+  <style>
+    :root {
+      --bg-page: #f7f3e9;
+      --bg-card: #ffffff;
+      --bg-panel: #fffaf2;
+      --border-soft: #f0e4d3;
+      --text-main: #3d2c1a;
+      --text-dim: #9b8a7a;
+      --text-light: #6f5e4e;
+      --accent-orange: #ff8a5c;
+      --accent-blue: #4aa3df;
+      --accent-green: #6bcb6b;
+      --accent-pink: #f4a7bb;
+      --accent-yellow: #ffd166;
+      --shadow-soft: 0 4px 20px rgba(0,0,0,0.06);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
+      --panel-w: 320px;
+      --header-h: 56px;
+      --transition: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', 'PingFang SC', Roboto, system-ui, sans-serif; background: var(--bg-page); color: var(--text-main); height: 100vh; }
+    #app { display: flex; flex-direction: column; height: 100vh; }
+    #mobile-header { display: none; height: var(--header-h); padding: 0 16px; background: var(--bg-card); border-bottom: 1px solid var(--border-soft); align-items: center; justify-content: space-between; }
+    #mobile-header h1 { font-size: 18px; font-weight: 600; }
+    .header-controls .btn { background: var(--accent-orange); border: none; color: white; padding: 6px 16px; border-radius: 30px; font-weight: 600; font-size: 14px; }
+    #main-layout { display: flex; flex: 1; overflow: hidden; }
+    #side-panel { width: var(--panel-w); min-width: var(--panel-w); background: var(--bg-panel); border-right: 1px solid var(--border-soft); overflow-y: auto; padding: 18px 16px 20px; display: flex; flex-direction: column; gap: 18px; box-shadow: 2px 0 12px rgba(0,0,0,0.02); }
+    .panel-section { background: var(--bg-card); border-radius: var(--radius-md); padding: 16px 18px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
+    .panel-section h3 { font-size: 15px; font-weight: 600; color: var(--accent-orange); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.3px; }
+    .panel-section h3::before { content: ""; display: inline-block; width: 4px; height: 18px; background: var(--accent-orange); border-radius: 4px; }
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+    .preset-btn { padding: 10px 4px; border-radius: 30px; font-size: 15px; font-weight: 600; border: 2px solid var(--border-soft); background: white; color: var(--text-main); cursor: pointer; transition: all 0.2s; text-align: center; }
+    .preset-btn:hover { border-color: var(--accent-orange); background: #fff4ec; }
+    .preset-btn.active { border-color: var(--accent-orange); background: var(--accent-orange); color: white; }
+    .input-group { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+    .input-group label { font-size: 14px; font-weight: 500; color: var(--text-light); }
+    .input-group input { width: 58px; padding: 8px 4px; text-align: center; font-size: 16px; font-weight: 600; border: 2px solid var(--border-soft); border-radius: 30px; background: white; transition: 0.2s; outline: none; }
+    .input-group input:focus { border-color: var(--accent-blue); }
+    .input-group .btn-go { background: var(--accent-blue); color: white; border: none; padding: 8px 18px; border-radius: 30px; font-weight: 600; font-size: 14px; cursor: pointer; transition: 0.2s; }
+    .input-group .btn-go:hover { background: #3b8fc7; }
+    .step-card { background: #fef8f2; border-radius: var(--radius-sm); padding: 14px 16px; border-left: 5px solid var(--accent-orange); min-height: 80px; }
+    .step-card .step-label { font-size: 12px; color: var(--text-dim); letter-spacing: 1px; }
+    .step-card .step-desc { font-size: 18px; font-weight: 700; color: var(--text-main); margin: 6px 0 2px; }
+    .step-card .step-formula { font-size: 18px; font-weight: 600; color: var(--accent-blue); }
+    .data-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; border-bottom: 1px solid rgba(0,0,0,0.04); }
+    .data-row:last-child { border-bottom: none; }
+    .data-row .label { color: var(--text-dim); }
+    .data-row .value { color: var(--text-main); font-weight: 700; }
+    #center-panel { flex: 1; position: relative; overflow: hidden; background: #fcf8f0; display: flex; align-items: center; justify-content: center; }
+    #mainCanvas { display: block; width: 100%; height: 100%; cursor: default; }
+    .viewport-controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; background: rgba(255,255,255,0.85); backdrop-filter: blur(6px); padding: 10px 22px; border-radius: 60px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); border: 1px solid rgba(255,138,92,0.2); pointer-events: auto; z-index: 10; }
+    .viewport-btn { padding: 8px 24px; border-radius: 40px; border: none; font-weight: 700; font-size: 16px; background: var(--accent-orange); color: white; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 8px rgba(255,138,92,0.3); letter-spacing: 0.5px; }
+    .viewport-btn:active { transform: scale(0.95); }
+    .viewport-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .viewport-btn.reset-btn { background: var(--bg-card); color: var(--text-main); box-shadow: none; border: 1px solid var(--border-soft); }
+    .step-indicator { font-size: 14px; font-weight: 600; color: var(--text-light); background: white; padding: 4px 16px; border-radius: 40px; border: 1px solid var(--border-soft); }
+    .icon-selector { display: flex; gap: 10px; margin: 8px 0 4px; flex-wrap: wrap; }
+    .icon-option { font-size: 28px; cursor: pointer; padding: 4px 8px; border-radius: 30px; border: 2px solid transparent; transition: 0.2s; background: white; }
+    .icon-option.active { border-color: var(--accent-orange); background: #fff4ec; }
+    @media (max-width: 860px) {
+      #mobile-header { display: flex; }
+      #side-panel { position: fixed; right: 0; top: var(--header-h); bottom: 0; z-index: 40; margin-right: calc(-1 * var(--panel-w) - 10px); transition: margin-right var(--transition); box-shadow: -6px 0 24px rgba(0,0,0,0.06); border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
+      #side-panel.open { margin-right: 0; }
+      .viewport-controls { bottom: 20px; padding: 8px 16px; gap: 8px; flex-wrap: wrap; justify-content: center; }
+      .viewport-btn { padding: 6px 16px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=540&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI1NDAiLCJleHAiOjE3OTQ1NjA3MjB9.-USzRsLyYmBnapxmLn1pNsXDLX3b_etIA-ssBCaKgYQ",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+<div id="app">
+  <header id="mobile-header">
+    <h1>🍎 几个几 · 乘法</h1>
+    <div class="header-controls"><button class="btn" onclick="togglePanel()">📋 信息</button></div>
+  </header>
+  <div id="main-layout">
+    <aside id="side-panel">
+      <div class="panel-section">
+        <h3>🎯 预设例子</h3>
+        <div class="preset-grid" id="presetGrid">
+          <button class="preset-btn" data-a="2" data-b="3">2个3</button>
+          <button class="preset-btn active" data-a="3" data-b="4">3个4</button>
+          <button class="preset-btn" data-a="5" data-b="2">5个2</button>
+          <button class="preset-btn" data-a="4" data-b="6">4个6</button>
+          <button class="preset-btn" data-a="6" data-b="3">6个3</button>
+          <button class="preset-btn" data-a="2" data-b="5">2个5</button>
+        </div>
+        <div style="margin-top:10px;">
+          <div class="input-group">
+            <label>✏️ 个数</label>
+            <input type="number" id="inputA" value="3" min="1" max="9" step="1">
+            <label>每份数</label>
+            <input type="number" id="inputB" value="4" min="1" max="9" step="1">
+            <button class="btn-go" id="customGoBtn">设置</button>
+          </div>
+        </div>
+        <div class="icon-selector" id="iconSelector">
+          <span class="icon-option active" data-icon="🍎">🍎</span>
+          <span class="icon-option" data-icon="⭐">⭐</span>
+          <span class="icon-option" data-icon="🔵">🔵</span>
+          <span class="icon-option" data-icon="🍀">🍀</span>
+          <span class="icon-option" data-icon="🐧">🐧</span>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h3>📖 当前步骤</h3>
+        <div class="step-card" id="stepCard">
+          <div class="step-label">STEP <span id="stepIndex">0</span></div>
+          <div class="step-desc" id="stepDesc">点击「下一步」开始</div>
+          <div class="step-formula" id="stepFormula">————</div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h3>📊 数据</h3>
+        <div class="data-row"><span class="label">🍎 总数</span><span class="value" id="displayTotal">?</span></div>
+        <div class="data-row"><span class="label">➕ 加法</span><span class="value" id="displayAdd">—</span></div>
+        <div class="data-row"><span class="label">✖️ 乘法</span><span class="value" id="displayMul">—</span></div>
+      </div>
+    </aside>
+    <main id="center-panel">
+      <canvas id="mainCanvas"></canvas>
+      <div class="viewport-controls">
+        <button class="viewport-btn reset-btn" id="resetBtn">🔄 重置</button>
+        <span class="step-indicator" id="stepIndicator">0/5</span>
+        <button class="viewport-btn" id="nextBtn">▶ 下一步</button>
+      </div>
+    </main>
+  </div>
+</div>
+<script>
+  const canvas = document.getElementById('mainCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // 动画状态
+  let animating = false;
+  let animQueue = [];          // 待飞入的图标索引队列
+  let animProgress = 0;        // 0~1
+  let animDuration = 400;      // 每个图标飞入时间 (ms)
+  let animStartTime = 0;
+  let animCurrentIdx = -1;     // 当前正在飞入的图标索引
+
+  // 状态
+  const state = {
+    a: 3, b: 4,
+    step: 0, maxStep: 5,
+    appeared: 0,
+    total: 12,
+    icon: '🍎',
+    dragging: false, dragIdx: -1, dragX: 0, dragY: 0, dragOffsetX: 0, dragOffsetY: 0,
+    apples: [],
+    cols: 4, rows: 3,
+  };
+
+  const stepDesc = document.getElementById('stepDesc');
+  const stepFormula = document.getElementById('stepFormula');
+  const stepIndex = document.getElementById('stepIndex');
+  const stepIndicator = document.getElementById('stepIndicator');
+  const displayTotal = document.getElementById('displayTotal');
+  const displayAdd = document.getElementById('displayAdd');
+  const displayMul = document.getElementById('displayMul');
+  const nextBtn = document.getElementById('nextBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const presetGrid = document.getElementById('presetGrid');
+  const inputA = document.getElementById('inputA');
+  const inputB = document.getElementById('inputB');
+  const customGoBtn = document.getElementById('customGoBtn');
+  const iconSelector = document.getElementById('iconSelector');
+
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * window.devicePixelRatio;
+    canvas.height = rect.height * window.devicePixelRatio;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    draw();
+  }
+
+  function generateApples() {
+    const total = state.a * state.b;
+    const cols = Math.min(state.b, 8);
+    const rows = Math.ceil(total / cols);
+    state.cols = cols; state.rows = rows;
+    const apples = [];
+    for (let i=0; i<total; i++) {
+      apples.push({ group: Math.floor(i / state.b), visible: false, x: 0, y: 0, animX: 0, animY: 0 });
+    }
+    state.apples = apples;
+    state.appeared = 0;
+    animQueue = [];
+    animating = false;
+    animCurrentIdx = -1;
+  }
+
+  function getApplePositions() {
+    const w = canvas.width / window.devicePixelRatio;
+    const h = canvas.height / window.devicePixelRatio;
+    const total = state.a * state.b;
+    const cols = state.cols;
+    const rows = state.rows;
+    const iconSize = Math.min(48, (w-80) / cols, (h-120) / rows);
+    const startX = (w - cols * iconSize) / 2;
+    const startY = (h - rows * iconSize) / 2 + 10;
+    for (let i=0; i<total; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      state.apples[i].x = startX + col * iconSize + iconSize/2;
+      state.apples[i].y = startY + row * iconSize + iconSize/2;
+      state.apples[i].animX = state.apples[i].x;
+      state.apples[i].animY = state.apples[i].y;
+    }
+  }
+
+  // 飞入动画：将一组图标加入队列 (每次点击只出现一组)
+  function enqueueAppearGroup() {
+    const total = state.a * state.b;
+    const b = state.b;
+    let appeared = state.appeared;
+    if (appeared >= total) return;
+    let nextCount = b;
+    if (appeared + nextCount > total) nextCount = total - appeared;
+    if (nextCount <= 0) return;
+    // 将这些索引加入队列
+    for (let i = appeared; i < appeared + nextCount; i++) {
+      if (!state.apples[i].visible) {
+        animQueue.push(i);
+      }
+    }
+    state.appeared += nextCount;
+    // 如果当前没有动画，启动
+    if (!animating && animQueue.length > 0) {
+      startNextAnim();
+    }
+  }
+
+  function startNextAnim() {
+    if (animQueue.length === 0) {
+      animating = false;
+      animCurrentIdx = -1;
+      updateUI();
+      return;
+    }
+    animating = true;
+    animCurrentIdx = animQueue.shift();
+    animProgress = 0;
+    animStartTime = performance.now();
+    // 设置初始位置（从上方飞入）
+    const apple = state.apples[animCurrentIdx];
+    apple.animX = apple.x;
+    apple.animY = apple.y - 80;
+    requestAnimationFrame(animLoop);
+  }
+
+  function animLoop(timestamp) {
+    if (animCurrentIdx < 0) return;
+    const elapsed = timestamp - animStartTime;
+    animProgress = Math.min(elapsed / animDuration, 1);
+    // easeOutBack
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    const val = 1 + c3 * Math.pow(animProgress - 1, 3) + c1 * Math.pow(animProgress - 1, 2);
+    const apple = state.apples[animCurrentIdx];
+    apple.animY = apple.y - 80 * (1 - val);
+    if (animProgress >= 1) {
+      apple.animY = apple.y;
+      apple.visible = true;
+      // 检查是否还有同组的其他图标（当前组可能已经全部出现）
+      if (animQueue.length > 0) {
+        startNextAnim();
+      } else {
+        animating = false;
+        animCurrentIdx = -1;
+        updateUI();
+      }
+    }
+    draw();
+    if (animating) {
+      requestAnimationFrame(animLoop);
+    }
+  }
+
+  function draw() {
+    const w = canvas.width / window.devicePixelRatio;
+    const h = canvas.height / window.devicePixelRatio;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#fcf8f0';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#f0e4d3';
+    for (let i=0;i<30;i++) {
+      ctx.beginPath();
+      ctx.arc(20 + (i*37 + 13) % w, 20 + (i*53 + 7) % h, 3, 0, 2*Math.PI);
+      ctx.fill();
+    }
+
+    getApplePositions();
+    const total = state.a * state.b;
+    let visibleCount = 0;
+    for (let i=0; i<total; i++) {
+      const apple = state.apples[i];
+      const isAnimating = (animCurrentIdx === i);
+      const visible = apple.visible || (state.step >= 3);
+      if (visible) visibleCount++;
+      const isDrag = (state.dragging && state.dragIdx === i);
+      let x = apple.x, y = apple.y;
+      if (isAnimating) {
+        x = apple.animX;
+        y = apple.animY;
+      } else if (isDrag) {
+        x = state.dragX;
+        y = state.dragY;
+      }
+      if (!visible && state.step < 3) {
+        // 未出现的图标显示占位
+        ctx.beginPath();
+        ctx.arc(x, y, 18, 0, 2*Math.PI);
+        ctx.fillStyle = '#f5e6d8';
+        ctx.fill();
+        ctx.strokeStyle = '#dccfc0';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        ctx.font = '38px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(state.icon, x, y);
+        if (isDrag) {
+          ctx.shadowColor = 'rgba(0,0,0,0.2)';
+          ctx.shadowBlur = 12;
+          ctx.fillText(state.icon, x, y);
+          ctx.shadowBlur = 0;
+        }
+      }
+    }
+
+    // 组框 (步骤>=1显示)
+    if (state.step >= 1) {
+      ctx.strokeStyle = '#ff8a5c';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6,6]);
+      for (let g=0; g<state.a; g++) {
+        const startIdx = g * state.b;
+        const endIdx = Math.min(startIdx + state.b, total) - 1;
+        if (startIdx >= total) break;
+        const col0 = startIdx % state.cols;
+        const row0 = Math.floor(startIdx / state.cols);
+        const col1 = endIdx % state.cols;
+        const row1 = Math.floor(endIdx / state.cols);
+        const iconSize = 48;
+        const x0 = state.apples[startIdx].x - iconSize*0.4;
+        const y0 = state.apples[startIdx].y - iconSize*0.4;
+        const x1 = state.apples[endIdx].x + iconSize*0.4;
+        const y1 = state.apples[endIdx].y + iconSize*0.4;
+        ctx.strokeRect(x0, y0, x1-x0, y1-y0);
+        ctx.font = '13px sans-serif';
+        ctx.fillStyle = '#ff8a5c';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`第${g+1}组`, (x0+x1)/2, y0-4);
+      }
+      ctx.setLineDash([]);
+    }
+
+    // 底部加法算式 (步骤>=3显示)
+    if (state.step >= 3) {
+      ctx.font = 'bold 26px sans-serif';
+      ctx.fillStyle = '#3d2c1a';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      let addStr = '';
+      for (let i=0; i<state.a; i++) addStr += state.b + (i<state.a-1?' + ':'');
+      ctx.fillText(addStr, w/2, h - 24);
+    }
+    if (state.step >= 4) {
+      ctx.font = 'bold 32px sans-serif';
+      ctx.fillStyle = '#ff8a5c';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('= ' + state.total, w/2 + 130, h - 24);
+    }
+    if (state.step >= 5) {
+      ctx.font = 'bold 34px sans-serif';
+      ctx.fillStyle = '#4aa3df';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`${state.a} × ${state.b} = ${state.total}`, w/2, h - 24);
+    }
+  }
+
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      if (typeof r === 'number') r = [r];
+      const radii = r.map(v => Math.min(v, Math.min(w, h)/2));
+      this.moveTo(x + radii[0], y);
+      this.lineTo(x + w - radii[0], y);
+      this.quadraticCurveTo(x + w, y, x + w, y + radii[0]);
+      this.lineTo(x + w, y + h - radii[0]);
+      this.quadraticCurveTo(x + w, y + h, x + w, y + h - (radii[0]||0));
+      this.lineTo(x + radii[0], y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - radii[0]);
+      this.lineTo(x, y + radii[0]);
+      this.quadraticCurveTo(x, y, x + radii[0], y);
+      this.closePath();
+    };
+  }
+
+  function updateUI() {
+    const total = state.a * state.b;
+    state.total = total;
+    displayTotal.textContent = (state.step >= 4) ? total : '?';
+    let addStr = '';
+    for (let i=0; i<state.a; i++) addStr += state.b + (i<state.a-1?' + ':'');
+    displayAdd.textContent = (state.step >= 3) ? addStr : '—';
+    displayMul.textContent = (state.step >= 5) ? `${state.a} × ${state.b} = ${total}` : '—';
+
+    stepIndex.textContent = state.step;
+    stepIndicator.textContent = `${state.step}/${state.maxStep}`;
+
+    if (state.step === 0) {
+      stepDesc.textContent = '点击「下一步」开始探索';
+      stepFormula.textContent = `准备: ${state.a} 个 ${state.b}`;
+    } else if (state.step === 1) {
+      stepDesc.textContent = `📦 ${state.a} 组，每组 ${state.b} 个`;
+      stepFormula.textContent = `${state.a} 和 ${state.b}`;
+    } else if (state.step === 2) {
+      stepDesc.textContent = `🍎 点击「下一步」出现一组 (共${state.a}组)`;
+      stepFormula.textContent = `已出现 ${state.appeared}/${total}`;
+    } else if (state.step === 3) {
+      stepDesc.textContent = `📝 列出加法算式`;
+      stepFormula.textContent = addStr;
+    } else if (state.step === 4) {
+      stepDesc.textContent = `✖️ 乘法算式: ${state.a} × ${state.b}`;
+      stepFormula.textContent = `${state.a} × ${state.b} = ?`;
+    } else if (state.step >= 5) {
+      stepDesc.textContent = `🎉 ${state.a} × ${state.b} = ${total}`;
+      stepFormula.textContent = `${state.a} × ${state.b} = ${total}`;
+    }
+
+    if (state.step >= state.maxStep) {
+      nextBtn.disabled = true;
+      nextBtn.textContent = '🎉 完成';
+    } else {
+      nextBtn.disabled = false;
+      nextBtn.textContent = '▶ 下一步';
+    }
+    draw();
+  }
+
+  function resetTo(a, b) {
+    state.a = a;
+    state.b = b;
+    state.step = 0;
+    state.appeared = 0;
+    state.dragging = false;
+    state.dragIdx = -1;
+    generateApples();
+    updateUI();
+    document.querySelectorAll('#presetGrid .preset-btn').forEach(el => {
+      el.classList.toggle('active', parseInt(el.dataset.a) === a && parseInt(el.dataset.b) === b);
+    });
+  }
+
+  function nextStep() {
+    if (state.step >= state.maxStep) return;
+    if (animating) return; // 动画中禁止切换步骤
+    if (state.step === 0) {
+      state.step = 1;
+      updateUI();
+    } else if (state.step === 1) {
+      state.step = 2;
+      state.appeared = 0;
+      updateUI();
+      // 出现第一组（动画）
+      enqueueAppearGroup();
+    } else if (state.step === 2) {
+      const total = state.a * state.b;
+      if (state.appeared >= total) {
+        state.step = 3;
+        updateUI();
+        return;
+      }
+      // 每次只出现一组
+      enqueueAppearGroup();
+    } else if (state.step === 3) {
+      state.step = 4;
+      updateUI();
+    } else if (state.step === 4) {
+      state.step = 5;
+      updateUI();
+    }
+  }
+
+  function getAppleIndex(x, y) {
+    for (let i=0; i<state.apples.length; i++) {
+      const apple = state.apples[i];
+      if (apple.visible || state.step >= 3) {
+        const dx = x - apple.x;
+        const dy = y - apple.y;
+        if (dx*dx + dy*dy < 900) return i;
+      }
+    }
+    return -1;
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const idx = getAppleIndex(x, y);
+    if (idx >= 0 && state.step >= 2 && state.step < 4) {
+      state.dragging = true;
+      state.dragIdx = idx;
+      state.dragOffsetX = x - state.apples[idx].x;
+      state.dragOffsetY = y - state.apples[idx].y;
+      state.dragX = x;
+      state.dragY = y;
+      draw();
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!state.dragging) return;
+    const rect = canvas.getBoundingClientRect();
+    state.dragX = e.clientX - rect.left;
+    state.dragY = e.clientY - rect.top;
+    draw();
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    if (state.dragging) { state.dragging = false; draw(); }
+  });
+  canvas.addEventListener('mouseleave', () => {
+    if (state.dragging) { state.dragging = false; draw(); }
+  });
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const idx = getAppleIndex(x, y);
+    if (idx >= 0 && state.step >= 2 && state.step < 4) {
+      state.dragging = true; state.dragIdx = idx;
+      state.dragOffsetX = x - state.apples[idx].x;
+      state.dragOffsetY = y - state.apples[idx].y;
+      state.dragX = x; state.dragY = y;
+      draw();
+    }
+  }, {passive: false});
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!state.dragging) return;
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    state.dragX = touch.clientX - rect.left;
+    state.dragY = touch.clientY - rect.top;
+    draw();
+  }, {passive: false});
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault(); state.dragging = false; draw();
+  }, {passive: false});
+
+  presetGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.preset-btn');
+    if (!btn) return;
+    const a = parseInt(btn.dataset.a);
+    const b = parseInt(btn.dataset.b);
+    inputA.value = a; inputB.value = b;
+    resetTo(a, b);
+  });
+
+  customGoBtn.addEventListener('click', () => {
+    let a = parseInt(inputA.value);
+    let b = parseInt(inputB.value);
+    if (isNaN(a) || a<1) a=1;
+    if (isNaN(b) || b<1) b=1;
+    if (a>9) a=9; if (b>9) b=9;
+    inputA.value = a; inputB.value = b;
+    resetTo(a, b);
+  });
+
+  iconSelector.addEventListener('click', (e) => {
+    const target = e.target.closest('.icon-option');
+    if (!target) return;
+    state.icon = target.dataset.icon;
+    document.querySelectorAll('.icon-option').forEach(el => el.classList.toggle('active', el === target));
+    draw();
+  });
+
+  nextBtn.addEventListener('click', nextStep);
+  resetBtn.addEventListener('click', () => resetTo(state.a, state.b));
+
+  function togglePanel() {
+    document.getElementById('side-panel').classList.toggle('open');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextStep(); }
+    if (e.key === 'r' || e.key === 'R') resetBtn.click();
+  });
+
+  window.addEventListener('resize', resizeCanvas);
+
+  resizeCanvas();
+  generateApples();
+  resetTo(3, 4);
+  window.togglePanel = togglePanel;
+</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🔢 1-5 比大小 · 数学乐园</title>
+  <style>
+    :root {
+      --bg-deep: #fef7e9;
+      --bg-panel: #fff6e5;
+      --bg-panel-alt: #ffefe0;
+      --border: #f5d6b8;
+      --text: #4d3e3a;
+      --text-dim: #9b8b82;
+      --accent: #f4a261;
+      --accent2: #e76f51;
+      --accent3: #f9c74f;
+      --accent4: #f9dcc4;
+      --danger: #e63946;
+      --panel-width: 280px;
+      --header-h: 48px;
+      --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --radius: 14px;
+      --shadow-card: 0 8px 24px rgba(0,0,0,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    #mobile-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: var(--header-h);
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    #mobile-header h1 {
+      font-size: 18px;
+      color: var(--accent2);
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #mobile-header h1 span { font-size: 22px; }
+    .header-btn {
+      background: var(--bg-panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 6px 14px;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .header-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+    #main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #left-panel {
+      width: var(--panel-width);
+      min-width: var(--panel-width);
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding-bottom: 12px;
+      transition: margin-left var(--transition);
+    }
+    #right-panel {
+      width: var(--panel-width);
+      min-width: var(--panel-width);
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      padding-bottom: 12px;
+      transition: margin-right var(--transition);
+    }
+
+    #center-panel {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #fcf6ed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .panel-section {
+      padding: 16px 16px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-section:last-child { border-bottom: none; }
+    .panel-section h3 {
+      font-size: 14px;
+      color: var(--accent2);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+    .panel-section h3::before {
+      content: "";
+      display: inline-block;
+      width: 4px;
+      height: 16px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-panel-alt);
+      color: var(--text);
+      transition: all 0.2s;
+      white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .btn:hover { 
+      border-color: var(--accent); 
+      color: var(--accent2); 
+      background: #fff4e8;
+      transform: translateY(-1px);
+    }
+    .btn.active { 
+      border-color: var(--accent2); 
+      color: var(--accent2); 
+      background: rgba(231, 111, 81, 0.12);
+      box-shadow: 0 0 0 2px rgba(231, 111, 81, 0.2);
+    }
+    .btn.accent { 
+      border-color: var(--accent); 
+      color: var(--accent2); 
+      background: rgba(244, 162, 97, 0.15);
+    }
+    .btn-primary {
+      background: var(--accent2);
+      border-color: var(--accent2);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #d45f3e;
+      border-color: #d45f3e;
+      color: white;
+    }
+
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+    }
+    .data-row:last-child { border-bottom: none; }
+    .data-row .label { color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+    .data-row .value { 
+      color: var(--text); 
+      font-weight: 700; 
+      text-align: right;
+      background: var(--bg-panel-alt);
+      padding: 2px 12px;
+      border-radius: 20px;
+      font-size: 15px;
+    }
+    .value.highlight { color: var(--accent2); background: rgba(231, 111, 81, 0.08); }
+
+    .slider-group {
+      margin: 8px 0 4px;
+    }
+    .slider-group .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 4px;
+      outline: none;
+      margin: 6px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+
+    .compare-card {
+      background: white;
+      border-radius: 40px;
+      padding: 30px 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      max-width: 700px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+      border: 2px solid var(--border);
+      position: relative;
+    }
+
+    .number-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-width: 80px;
+    }
+    .number-block .big-number {
+      font-size: 72px;
+      font-weight: 800;
+      color: var(--accent2);
+      line-height: 1;
+      background: var(--bg-panel);
+      padding: 0 16px;
+      border-radius: 20px;
+      min-width: 90px;
+      text-align: center;
+      transition: all 0.3s;
+      user-select: none;
+      cursor: pointer;
+    }
+    .number-block .big-number.small {
+      font-size: 56px;
+      color: var(--accent);
+    }
+    .number-block .label {
+      font-size: 14px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    .compare-sign {
+      font-size: 64px;
+      font-weight: 800;
+      color: var(--accent3);
+      min-width: 60px;
+      text-align: center;
+      transition: all 0.4s;
+      user-select: none;
+    }
+    .compare-sign.equal { color: var(--accent); }
+    .compare-sign.greater { color: #4caf50; }
+    .compare-sign.less { color: var(--accent2); }
+
+    .compare-controls {
+      margin-top: 30px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+    .compare-controls .btn {
+      font-size: 18px;
+      padding: 12px 28px;
+    }
+
+    .num-picker {
+      display: flex;
+      gap: 8px;
+    }
+    .num-picker .btn {
+      font-size: 22px;
+      font-weight: 700;
+      padding: 8px 18px;
+      min-width: 48px;
+    }
+
+    @media (max-width: 900px) {
+      #mobile-header { display: flex; }
+      #left-panel {
+        position: fixed;
+        left: 0;
+        top: var(--header-h);
+        bottom: 0;
+        z-index: 50;
+        margin-left: calc(-1 * var(--panel-width));
+        box-shadow: 4px 0 20px rgba(0,0,0,0.08);
+      }
+      #left-panel.open { margin-left: 0; }
+      #right-panel {
+        position: fixed;
+        right: 0;
+        top: var(--header-h);
+        bottom: 0;
+        z-index: 50;
+        margin-right: calc(-1 * var(--panel-width));
+        box-shadow: -4px 0 20px rgba(0,0,0,0.08);
+      }
+      #right-panel.open { margin-right: 0; }
+      .compare-card { padding: 20px; gap: 16px; }
+      .number-block .big-number { font-size: 48px; min-width: 60px; }
+      .compare-sign { font-size: 40px; min-width: 40px; }
+    }
+
+    #left-panel::-webkit-scrollbar,
+    #right-panel::-webkit-scrollbar { width: 4px; }
+    #left-panel::-webkit-scrollbar-track { background: transparent; }
+    #left-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+    }
+    .history-item .sign { font-weight: 700; min-width: 20px; text-align: center; }
+
+    /* 语音状态指示器 */
+    .voice-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--bg-panel-alt);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      margin-top: 6px;
+    }
+    .voice-indicator.speaking { color: var(--accent2); border-color: var(--accent2); }
+  </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=440&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI0NDAiLCJleHAiOjE3OTQ1NjA3MTZ9.jpGphlOEDkDbPIOu4ZZIO_s4ttrfyfNm2rTpZB3unH8",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+<div id="app">
+  <header id="mobile-header">
+    <h1><span>🔢</span> 比大小</h1>
+    <div style="display:flex; gap:8px;">
+      <button class="header-btn" id="mob-toggle-left">🧰 控制</button>
+      <button class="header-btn" id="mob-toggle-right">📊 记录</button>
+    </div>
+  </header>
+
+  <div id="main-layout">
+    <aside id="left-panel">
+      <div class="panel-section">
+        <h3>🎯 数字选择</h3>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">点击数字按钮选择要比较的数</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px;">数字 A</div>
+            <div class="num-picker" id="picker-a">
+              <button class="btn" data-num="1">1</button>
+              <button class="btn" data-num="2">2</button>
+              <button class="btn" data-num="3">3</button>
+              <button class="btn" data-num="4">4</button>
+              <button class="btn" data-num="5">5</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px;">数字 B</div>
+            <div class="num-picker" id="picker-b">
+              <button class="btn" data-num="1">1</button>
+              <button class="btn" data-num="2">2</button>
+              <button class="btn" data-num="3">3</button>
+              <button class="btn" data-num="4">4</button>
+              <button class="btn" data-num="5">5</button>
+            </div>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn btn-primary" id="btn-random">🎲 随机</button>
+          <button class="btn" id="btn-swap">🔄 交换</button>
+        </div>
+        <div class="voice-indicator" id="voiceIndicator">🔇 语音待命</div>
+      </div>
+      <div class="panel-section">
+        <h3>⚙️ 显示选项</h3>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text);padding:6px 0;cursor:pointer;">
+          <input type="checkbox" id="chk-dots" checked> 🔵 显示圆点
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text);padding:6px 0;cursor:pointer;">
+          <input type="checkbox" id="chk-animate" checked> ✨ 切换动画
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text);padding:6px 0;cursor:pointer;">
+          <input type="checkbox" id="chk-voice" checked> 🗣️ 语音播报
+        </label>
+      </div>
+      <div class="panel-section">
+        <h3>💡 小知识</h3>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.7;">
+          👉 数越大，代表数量越多。<br>
+          👉 <strong>大于 &gt;</strong> 左边比右边大<br>
+          👉 <strong>小于 &lt;</strong> 左边比右边小<br>
+          👉 <strong>等于 =</strong> 两边一样多
+        </p>
+      </div>
+    </aside>
+
+    <main id="center-panel">
+      <div class="compare-card" id="compareCard">
+        <div class="number-block">
+          <div class="big-number" id="numA">3</div>
+          <div class="label">数字 A</div>
+          <div id="dotsA" style="display:flex;gap:6px;font-size:24px;margin-top:4px;"></div>
+        </div>
+        <div class="compare-sign" id="compareSign">=</div>
+        <div class="number-block">
+          <div class="big-number" id="numB">3</div>
+          <div class="label">数字 B</div>
+          <div id="dotsB" style="display:flex;gap:6px;font-size:24px;margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <div class="compare-controls">
+        <button class="btn btn-primary" id="btn-random2">🎲 随机比较</button>
+        <button class="btn accent" id="btn-swap2">🔄 交换 A↔B</button>
+      </div>
+
+      <div style="margin-top:16px;font-size:14px;color:var(--text-dim);text-align:center;background:var(--bg-panel);padding:8px 20px;border-radius:30px;border:1px solid var(--border);">
+        🖱️ 点击数字或使用控制面板选择
+      </div>
+    </main>
+
+    <aside id="right-panel">
+      <div class="panel-section">
+        <h3>📊 当前比较</h3>
+        <div class="data-row">
+          <span class="label">🔢 A</span>
+          <span class="value" id="info-a">3</span>
+        </div>
+        <div class="data-row">
+          <span class="label">🔢 B</span>
+          <span class="value" id="info-b">3</span>
+        </div>
+        <div class="data-row">
+          <span class="label">🔗 关系</span>
+          <span class="value highlight" id="info-relation">= 等于</span>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h3>📖 比较符号</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;">
+          <div style="display:flex;align-items:center;gap:12px;padding:6px 0;">
+            <span style="font-size:28px;font-weight:700;color:#4caf50;">&gt;</span>
+            <span>大于 · 左边比右边大</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:6px 0;">
+            <span style="font-size:28px;font-weight:700;color:var(--accent2);">&lt;</span>
+            <span>小于 · 左边比右边小</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:6px 0;">
+            <span style="font-size:28px;font-weight:700;color:var(--accent);">=</span>
+            <span>等于 · 两边一样大</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h3>📋 比较记录</h3>
+        <div id="history-list" style="max-height:180px;overflow-y:auto;font-size:13px;color:var(--text-dim);">
+          <div style="text-align:center;padding:20px 0;">暂无记录</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script type="module">const _0x21ca57=_0x33ad;(function(_0x7971d3,_0x5585b1){const _0x3ad10e=_0x33ad;const _0x3fe62b=_0x7971d3();while(!![]){try{const _0x539c10=parseInt(_0x3ad10e(0x15c))/(-0x2a1*-0x2+0x1069*-0x1+0x3*0x3b8)*(parseInt(_0x3ad10e(0x12a))/(0x1ccd+0x95*0x7+-0x20de))+-parseInt(_0x3ad10e(0x1a9))/(0x1*0x7b5+-0x1*0x17ec+0x103a)+parseInt(_0x3ad10e(0x185))/(0x6b3+-0x980+-0x2d1*-0x1)+-parseInt(_0x3ad10e(0x17f))/(-0x2671+-0xba2*-0x1+0x1ad4)+parseInt(_0x3ad10e(0x16d))/(-0xdbc+0x1*-0x1faa+0x2d6c)+-parseInt(_0x3ad10e(0x18e))/(-0x17c+-0x1fc+0x37f)*(-parseInt(_0x3ad10e(0x11b))/(0x1*-0x8b7+0xfd*0x6+0x2d1))+parseInt(_0x3ad10e(0x178))/(-0x3*-0xb34+0x924*-0x4+-0x2d*-0x11)*(-parseInt(_0x3ad10e(0x1a2))/(-0x66d*-0x2+-0xb29+-0x1a7));if(_0x539c10===_0x5585b1){break;}else{_0x3fe62b['push'](_0x3fe62b['shift']());}}catch(_0xe089ad){_0x3fe62b['push'](_0x3fe62b['shift']());}}}(_0x30f6,0x27043*0x4+-0x1*-0x8116d+0x47*-0x2a55));const _0x3a305c=(function(){let _0x469d9b=!![];return function(_0x546bce,_0x38c0b0){const _0x5664ab=_0x469d9b?function(){if(_0x38c0b0){const _0x357c44=_0x38c0b0['apply'](_0x546bce,arguments);_0x38c0b0=null;return _0x357c44;}}:function(){};_0x469d9b=![];return _0x5664ab;};}());const _0x4ba440=_0x3a305c(this,function(){const _0x41e39d=_0x33ad;const _0x34adb3={'WpKfT':_0x41e39d(0x1ac)+_0x41e39d(0x18d)+'+$'};return _0x4ba440[_0x41e39d(0x11c)+_0x41e39d(0x14a)]()['searc'+'h'](_0x34adb3[_0x41e39d(0x1aa)])[_0x41e39d(0x11c)+'ing']()['const'+_0x41e39d(0x14c)+'r'](_0x4ba440)['searc'+'h'](_0x41e39d(0x1ac)+_0x41e39d(0x18d)+'+$');});_0x4ba440();const numAEl=document[_0x21ca57(0x162)+_0x21ca57(0x14b)+'ById'](_0x21ca57(0x120));const numBEl=document['getEl'+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x12b));const signEl=document[_0x21ca57(0x162)+_0x21ca57(0x14b)+_0x21ca57(0x186)]('compa'+_0x21ca57(0x15e)+'n');const dotsA=document['getEl'+_0x21ca57(0x14b)+_0x21ca57(0x186)]('dotsA');const dotsB=document['getEl'+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x127));const infoA=document[_0x21ca57(0x162)+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x157)+'a');const infoB=document[_0x21ca57(0x162)+'ement'+_0x21ca57(0x186)](_0x21ca57(0x157)+'b');const infoRelation=document['getEl'+_0x21ca57(0x14b)+'ById']('info-'+_0x21ca57(0x19e)+_0x21ca57(0x1a5));const historyList=document[_0x21ca57(0x162)+'ement'+_0x21ca57(0x186)]('histo'+_0x21ca57(0x1a4)+'st');const voiceIndicator=document['getEl'+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x130)+'Indic'+_0x21ca57(0x124));const pickerA=document['getEl'+'ement'+_0x21ca57(0x186)]('picke'+'r-a');const pickerB=document[_0x21ca57(0x162)+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x149)+_0x21ca57(0x119));const btnRandom=document['getEl'+'ement'+_0x21ca57(0x186)](_0x21ca57(0x148)+'andom');const btnSwap=document[_0x21ca57(0x162)+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x1a3)+_0x21ca57(0x194));const btnRandom2=document[_0x21ca57(0x162)+'ement'+_0x21ca57(0x186)]('btn-r'+_0x21ca57(0x170)+'2');const btnSwap2=document['getEl'+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x1a3)+'wap2');const chkDots=document[_0x21ca57(0x162)+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x14e)+_0x21ca57(0x150));const chkAnimate=document['getEl'+_0x21ca57(0x14b)+_0x21ca57(0x186)](_0x21ca57(0x143)+_0x21ca57(0x12c)+'e');const chkVoice=document[_0x21ca57(0x162)+_0x21ca57(0x14b)+'ById']('chk-v'+'oice');document[_0x21ca57(0x162)+_0x21ca57(0x14b)+'ById'](_0x21ca57(0x19c)+_0x21ca57(0x134)+_0x21ca57(0x139))['addEv'+_0x21ca57(0x121)+_0x21ca57(0x18f)+'r'](_0x21ca57(0x12f),()=>{const _0x3bc4f4=_0x21ca57;const _0x3e1d26={'ZCYDq':_0x3bc4f4(0x165)+_0x3bc4f4(0x164)};document['getEl'+_0x3bc4f4(0x14b)+'ById'](_0x3e1d26[_0x3bc4f4(0x17d)])[_0x3bc4f4(0x196)+'List'][_0x3bc4f4(0x12d)+'e'](_0x3bc4f4(0x193));});document['getEl'+'ement'+_0x21ca57(0x186)](_0x21ca57(0x19c)+'oggle'+_0x21ca57(0x19b)+'t')[_0x21ca57(0x14f)+_0x21ca57(0x121)+_0x21ca57(0x18f)+'r']('click',()=>{const _0x191f3e=_0x21ca57;const _0x486ad9={'QaSQX':_0x191f3e(0x179)+'-pane'+'l','SJCXe':'open'};document[_0x191f3e(0x162)+_0x191f3e(0x14b)+'ById'](_0x486ad9['QaSQX'])[_0x191f3e(0x196)+_0x191f3e(0x180)][_0x191f3e(0x12d)+'e'](_0x486ad9[_0x191f3e(0x147)]);});let a=-0x13*0x3d+0x1*0x1652+-0x2*0x8e4;let b=0x6*-0x2a1+0x1c0e+-0xc45;let history=[];function speakText(_0x5efb3c){const _0x5bf29f=_0x21ca57;const _0x297f2b={'SAdPf':'🔇\x20语音待'+'命','RCMeA':'speak'+_0x5bf29f(0x14a)};if(!chkVoice[_0x5bf29f(0x129)+'ed'])return;if(!window['speec'+_0x5bf29f(0x135)+'hesis'])return;window['speec'+_0x5bf29f(0x135)+_0x5bf29f(0x189)][_0x5bf29f(0x192)+'l']();const _0x528705=new SpeechSynthesisUtterance(_0x5efb3c);_0x528705['lang']='zh-CN';_0x528705['rate']=-0x1715+0x2bd*0x7+-0x2*-0x1f5+0.9;_0x528705[_0x5bf29f(0x1ab)]=0x1*-0x4+-0x1972+0x1977+0.10000000000000009;_0x528705['volum'+'e']=0x1fe4+0xbd6+-0x7b*0x5b;voiceIndicator['textC'+_0x5bf29f(0x19f)+'t']='🔊\x20播报中'+_0x5bf29f(0x11f);voiceIndicator[_0x5bf29f(0x196)+'List']['add']('speak'+_0x5bf29f(0x14a));_0x528705[_0x5bf29f(0x152)]=()=>{const _0x317673=_0x5bf29f;voiceIndicator[_0x317673(0x1a0)+_0x317673(0x19f)+'t']=_0x297f2b[_0x317673(0x15a)];voiceIndicator[_0x317673(0x196)+_0x317673(0x180)][_0x317673(0x17c)+'e']('speak'+_0x317673(0x14a));};_0x528705[_0x5bf29f(0x176)+'or']=()=>{const _0x2d26ae=_0x5bf29f;voiceIndicator[_0x2d26ae(0x1a0)+'onten'+'t']=_0x2d26ae(0x115)+'错';voiceIndicator[_0x2d26ae(0x196)+_0x2d26ae(0x180)][_0x2d26ae(0x17c)+'e'](_0x297f2b['RCMeA']);};window[_0x5bf29f(0x169)+'hSynt'+_0x5bf29f(0x189)][_0x5bf29f(0x141)](_0x528705);}function _0x33ad(_0x52e639,_0xd35c3a){_0x52e639=_0x52e639-(0x4e8+0xa*0x2e2+0x1*-0x20a7);const _0x169996=_0x30f6();let _0x53be4b=_0x169996[_0x52e639];if(_0x33ad['bJJAkC']===undefined){var _0x501c61=function(_0x47dab8){const _0x36396d='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x1d4adc='';let _0x3e3b14='';let _0x4b0c67=_0x1d4adc+_0x501c61;let _0x116e38=(''+function(){return 0x2d7+0x5*-0x319+-0x1*-0xca6;})['indexOf']('\x0a')!==-(0x259f+-0x23*-0x78+-0x1e*0x1cd);for(let _0x4c371c=0x5*-0x61f+0x1db6+0xe5,_0x216bb4,_0xf4e5cc,_0x1ae2f7=0x26*0x19+-0x89c+-0x4e6*-0x1;_0xf4e5cc=_0x47dab8['charAt'](_0x1ae2f7++);~_0xf4e5cc&&(_0x216bb4=_0x4c371c%(0x7*-0x17d+-0x50d*-0x6+-0x13df)?_0x216bb4*(0xcb3*-0x1+-0x11*0xd9+0x67*0x44)+_0xf4e5cc:_0xf4e5cc,_0x4c371c++%(-0x2*0x61+-0xdb2*0x2+0x406*0x7))?_0x1d4adc+=_0x116e38||_0x4b0c67['charCodeAt'](_0x1ae2f7+(-0x83a+0x18d7*-0x1+0x211b))-(0x1d6a+0xa75+0x27d5*-0x1)!==-0x1*-0x425+-0x2*-0x1231+-0x2887?String['fromCharCode'](0x7e6+0x7c3*0x5+-0x2db6&_0x216bb4>>(-(0x11f*0x11+-0x71+0x31a*-0x6)*_0x4c371c&0x237e+0x1c*-0xd4+0x624*-0x2)):_0x4c371c:-0x4*0x7ef+-0xc01*-0x1+0x13bb){_0xf4e5cc=_0x36396d['indexOf'](_0xf4e5cc);}for(let _0x364945=-0x1df0+0xa4d+0x1*0x13a3,_0x17f107=_0x1d4adc['length'];_0x364945<_0x17f107;_0x364945++){_0x3e3b14+='%'+('00'+_0x1d4adc['charCodeAt'](_0x364945)['toString'](-0x217f+0x16ae*0x1+0xae1))['slice'](-(-0x50*-0x4+0x1325+0x1*-0x1463));}return decodeURIComponent(_0x3e3b14);};_0x33ad['LfJgdL']=_0x501c61;_0x33ad['GQMLrl']={};_0x33ad['bJJAkC']=!![];}const _0x2b51f6=_0x169996[-0x1*-0x1250+-0x20f0+0x90*0x1a];const _0x4eaa39=_0x52e639+_0x2b51f6;const _0x433536=_0x33ad['GQMLrl'][_0x4eaa39];if(!_0x433536){const _0x3167d9=function(_0x5d2248){this['mHAAeZ']=_0x5d2248;this['hwIExt']=[0x1*-0x1dce+0x9*0x2a5+0x602,0x436*0x2+0x1*0x2305+0x21*-0x151,0x1eb3+-0x4*0xe3+-0x1b27*0x1];this['MBprIv']=function(){return'newState';};this['ZmmHfz']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['RjIQZZ']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x3167d9['prototype']['CLdQwK']=function(){const _0x1c159d=new RegExp(this['ZmmHfz']+this['RjIQZZ']);const _0x33d406=_0x1c159d['test'](this['MBprIv']['toString']())?--this['hwIExt'][0x605+-0x4e*0xb+-0x2aa]:--this['hwIExt'][0x1*-0x6b+-0x1941+0x19ac];return this['ujcWgb'](_0x33d406);};_0x3167d9['prototype']['ujcWgb']=function(_0x264e28){if(!Boolean(~_0x264e28)){return _0x264e28;}return this['SiBynZ'](this['mHAAeZ']);};_0x3167d9['prototype']['SiBynZ']=function(_0x2ef5ab){for(let _0x584bb8=0x1*-0x11fc+0x1d7d*0x1+0x9b*-0x13,_0x290d22=this['hwIExt']['length'];_0x584bb8<_0x290d22;_0x584bb8++){this['hwIExt']['push'](Math['round'](Math['random']()));_0x290d22=this['hwIExt']['length'];}return _0x2ef5ab(this['hwIExt'][-0x2414+-0x1*-0x829+0x1*0x1beb]);};if((''+function(){return 0x5a1+-0x9*-0x1c6+-0x1*0x1597;})['indexOf']('\x0a')===-(0x1*-0x755+-0x6*0x221+-0x27*-0x84)){new _0x3167d9(_0x33ad)['CLdQwK']();}_0x53be4b=_0x33ad['LfJgdL'](_0x53be4b);_0x33ad['GQMLrl'][_0x4eaa39]=_0x53be4b;}else{_0x53be4b=_0x433536;}return _0x53be4b;}function speakCompare(){const _0x2d867f=a>b?'大于':a<b?'小于':'等于';speakText(a+'\x20'+_0x2d867f+'\x20'+b);}function updateDisplay(_0x92780=!![],_0x55f65f=!![]){const _0x3e8fc4=_0x21ca57;const _0xfb0e52={'sUBDK':_0x3e8fc4(0x163),'IKsVp':function(_0x281412,_0xe001db){return _0x281412<_0xe001db;},'KNDpH':_0x3e8fc4(0x13c)+'reCar'+'d','sioDn':_0x3e8fc4(0x190)+'(0.97'+')','uzWwG':function(_0x564355){return _0x564355();}};numAEl[_0x3e8fc4(0x1a0)+_0x3e8fc4(0x19f)+'t']=a;numBEl[_0x3e8fc4(0x1a0)+'onten'+'t']=b;infoA['textC'+_0x3e8fc4(0x19f)+'t']=a;infoB[_0x3e8fc4(0x1a0)+_0x3e8fc4(0x19f)+'t']=b;let _0x53b397='=';let _0x38be13=_0x3e8fc4(0x125);let _0x22fca4='equal';if(a>b){_0x53b397='>';_0x38be13='>\x20大于';_0x22fca4=_0x3e8fc4(0x11a)+'er';}else if(a<b){_0x53b397='<';_0x38be13=_0x3e8fc4(0x138);_0x22fca4=_0xfb0e52['sUBDK'];}signEl['textC'+'onten'+'t']=_0x53b397;signEl['class'+_0x3e8fc4(0x188)]=_0x3e8fc4(0x13c)+_0x3e8fc4(0x172)+_0x3e8fc4(0x174)+_0x22fca4;infoRelation[_0x3e8fc4(0x1a0)+_0x3e8fc4(0x19f)+'t']=_0x38be13;if(chkDots['check'+'ed']){dotsA[_0x3e8fc4(0x16b)+'HTML']='';dotsB[_0x3e8fc4(0x16b)+'HTML']='';for(let _0x276384=0x15*-0x175+0x1a51+0x448;_0x276384<a;_0x276384++)dotsA['inner'+'HTML']+='🔵';for(let _0x4bdc29=-0x1c2e+0x1*-0x52+-0xe4*-0x20;_0xfb0e52[_0x3e8fc4(0x133)](_0x4bdc29,b);_0x4bdc29++)dotsB[_0x3e8fc4(0x16b)+_0x3e8fc4(0x12e)]+='🔵';}else{dotsA['inner'+'HTML']='';dotsB[_0x3e8fc4(0x16b)+'HTML']='';}if(_0x92780&&chkAnimate['check'+'ed']){const _0x332d61=document['getEl'+'ement'+_0x3e8fc4(0x186)](_0xfb0e52[_0x3e8fc4(0x18b)]);_0x332d61[_0x3e8fc4(0x19a)][_0x3e8fc4(0x136)+'ition']='trans'+_0x3e8fc4(0x199)+_0x3e8fc4(0x1a6);_0x332d61[_0x3e8fc4(0x19a)][_0x3e8fc4(0x136)+_0x3e8fc4(0x17a)]=_0xfb0e52['sioDn'];setTimeout(()=>{const _0x1b2056=_0x3e8fc4;_0x332d61['style'][_0x1b2056(0x136)+_0x1b2056(0x17a)]=_0x1b2056(0x190)+'(1)';},0x319*-0xb+0xb*-0x2c5+-0x2*-0x2090);}if(_0x55f65f)_0xfb0e52[_0x3e8fc4(0x17e)](speakCompare);}function addHistory(){const _0x25a331=_0x21ca57;const _0x12080b={'XLXit':function(_0x18f66b,_0x456dc4){return _0x18f66b>_0x456dc4;}};let _0x54ab6b='=';if(_0x12080b['XLXit'](a,b))_0x54ab6b='>';else if(a<b)_0x54ab6b='<';const _0x535469=a+'\x20'+_0x54ab6b+'\x20'+b;history[_0x25a331(0x1a8)](_0x535469);if(history[_0x25a331(0x1b0)+'h']>0x5*-0x6d2+-0x3*-0x8e+-0x6*-0x56a)history[_0x25a331(0x198)]();renderHistory();}function renderHistory(){const _0x4bee62=_0x21ca57;const _0x1063c2={'Phnjl':function(_0x28c355,_0x5a8d28){return _0x28c355===_0x5a8d28;},'LCpfV':_0x4bee62(0x11a)+'er','wEyHa':_0x4bee62(0x18a),'AAUOC':_0x4bee62(0x145)+'50','GQyHp':_0x4bee62(0x163),'VVOhd':function(_0x4260e3,_0x49c81e){return _0x4260e3===_0x49c81e;},'utmhk':_0x4bee62(0x118)+_0x4bee62(0x19a)+'=\x22tex'+_0x4bee62(0x16c)+_0x4bee62(0x137)+'nter;'+'paddi'+_0x4bee62(0x16f)+_0x4bee62(0x167)+'color'+_0x4bee62(0x1a1)+'--tex'+'t-dim'+');\x22>暂'+_0x4bee62(0x1a7)+'div>'};if(_0x1063c2['VVOhd'](history['lengt'+'h'],0x1*-0x1643+-0x18e2+0x9*0x53d)){historyList[_0x4bee62(0x16b)+'HTML']=_0x1063c2[_0x4bee62(0x11d)];return;}historyList['inner'+_0x4bee62(0x12e)]=history[_0x4bee62(0x116)](_0x4112bb=>{const _0x28275e=_0x4bee62;const _0x59a7b1=_0x4112bb['split']('\x20');const _0x1ecc02=_0x1063c2[_0x28275e(0x154)](_0x59a7b1[-0x19*0x11+0x2030+-0x1e86],'>')?_0x1063c2[_0x28275e(0x177)]:_0x59a7b1[-0x449*0x3+0xbac+0x8*0x26]==='<'?_0x28275e(0x163):_0x1063c2[_0x28275e(0x159)];const _0x344ffe=_0x1063c2[_0x28275e(0x154)](_0x1ecc02,_0x28275e(0x11a)+'er')?_0x1063c2[_0x28275e(0x191)]:_0x1ecc02===_0x1063c2[_0x28275e(0x151)]?_0x28275e(0x122)+'51':_0x28275e(0x17b)+'61';return _0x28275e(0x118)+_0x28275e(0x196)+'=\x22his'+_0x28275e(0x156)+'item\x22'+'>\x0a\x20\x20\x20'+'\x20\x20\x20\x20\x20'+'<span'+'>'+_0x59a7b1[0x4a3+0x13cc+0x5*-0x4e3]+(_0x28275e(0x13a)+_0x28275e(0x183)+_0x28275e(0x166)+'\x20<spa'+'n\x20cla'+_0x28275e(0x132)+'ign\x22\x20'+'style'+_0x28275e(0x173)+'or:')+_0x344ffe+'\x22>'+_0x59a7b1[0x1*-0x8d2+-0x268d+0x2f60]+('</spa'+_0x28275e(0x183)+_0x28275e(0x166)+_0x28275e(0x1ad)+'n>')+_0x59a7b1[0x105*-0x13+-0x16b1*-0x1+-0x350]+('</spa'+'n>\x0a\x20\x20'+_0x28275e(0x175)+'/div>');})['join']('');}function setupPicker(_0x172233,_0x2d1325){const _0x33f74f=_0x21ca57;const _0x188759={'aPeJo':'activ'+'e','Xtocd':_0x33f74f(0x144)};const _0x5e9dc=document[_0x33f74f(0x162)+_0x33f74f(0x14b)+_0x33f74f(0x186)](_0x172233);_0x5e9dc[_0x33f74f(0x161)+_0x33f74f(0x15b)+_0x33f74f(0x13b)+'l'](_0x33f74f(0x144))['forEa'+'ch'](_0x293637=>{const _0x1bc50f=_0x33f74f;const _0x4503af={'mzAZU':_0x188759[_0x1bc50f(0x15d)],'XwOfp':_0x188759['Xtocd']};_0x293637[_0x1bc50f(0x14f)+_0x1bc50f(0x121)+'stene'+'r'](_0x1bc50f(0x12f),()=>{const _0x2102ad=_0x1bc50f;const _0x35b3d7=parseInt(_0x293637[_0x2102ad(0x171)+'et']['num']);if(_0x2d1325==='a'){a=_0x35b3d7;_0x5e9dc['query'+_0x2102ad(0x15b)+'torAl'+'l'](_0x2102ad(0x144))['forEa'+'ch'](_0x193dcf=>_0x193dcf['class'+_0x2102ad(0x180)][_0x2102ad(0x17c)+'e'](_0x2102ad(0x14d)+'e'));_0x293637[_0x2102ad(0x196)+'List']['add'](_0x4503af[_0x2102ad(0x195)]);}else{b=_0x35b3d7;_0x5e9dc[_0x2102ad(0x161)+_0x2102ad(0x15b)+_0x2102ad(0x13b)+'l'](_0x4503af[_0x2102ad(0x146)])['forEa'+'ch'](_0x2aeda0=>_0x2aeda0['class'+'List'][_0x2102ad(0x17c)+'e']('activ'+'e'));_0x293637[_0x2102ad(0x196)+_0x2102ad(0x180)]['add'](_0x4503af[_0x2102ad(0x195)]);}updateDisplay(!![],!![]);addHistory();});});}setupPicker('picke'+_0x21ca57(0x11e),'a');setupPicker(_0x21ca57(0x149)+_0x21ca57(0x119),'b');function _0x30f6(){const _0x26461b=['icaGidW','B25LCNi','tenWzLy','mti2rhzwBfnN','CMLNAhq','zM9YBq','i2y0yti','CMvTB3y','wKnzrhe','DxPxD0C','mJi0mdi1mfvtwLzOyq','tgLZDa','DuDxBvu','5OQL5BEY5zcV5yQO','BJ4kica','De9Rtgm','mtK4mtqZnNrouNvttq','qNLjza','C3bSAxq','tMfTzq','AgvZAxm','zxf1ywW','s05eCeG','r1vYt0G','ksSPkYK','mtm0ndy5m3PJyML0EG','C3rLBMu','C2nHBgu','qufvt0m','y2fUy2u','B3bLBG','D2fW','BxPbwLu','y2XHC3m','EM16D0y','C2HPzNq','zM9YBsa','C3r5Bgu','lxjPz2G','Bw9Ilxq','tKPUs0C','CMvSyxq','B250zw4','Dgv4Dem','oNzHCIG','mJm1ntKWrvfvvvbQ','yNrUlxm','CNKTBgK','Aw9U','mc4YCW','5PEG6k6W5B2vpc8','ChvZAa','mZe3mZy3rvrkAgDb','v3blzLq','CgL0y2G','kcGOlIS','idXZCge','tgXTz0S','BNvT','BgvUz3q','4PQG77IpioIVREMFS+whUG','BwfW','DxLZyMG','pgrPDIa','CI1I','z3jLyxq','mZj0BgPAA1i','Dg9tDhi','DxrTAgS','CI1H','lI4U','BNvTqq','zw50tgK','i2u3nMy','zMXVB3i','yxrVCG','psdNRyNKUO4','y2HHBMC','zg90C0i','zxiTyIa','y2HLy2S','mti5mZjUD3fbwMm','BNvTqG','BMLTyxq','Dg9Nz2W','sfrnta','y2XPy2S','DM9Py2u','i3bPy2S','C3m9iNm','suTZvNa','B2DNBgu','Afn5BNq','DhjHBNm','z246y2u','pcdLSi/KUO4','lwXLzNq','pc9ZCge','Dg9YqwW','y29TCge','t0TREg4','tePAD1G','kYdOR63PN7pMKQ0','zM9Yrwe','C3bLywS','ywrK','y2HRlwe','lMj0BG','iZrJywy','whDpzNa','u0Pdwgu','yNrUlxi','CgLJA2u','Aw5N','zw1LBNq','CNvJDg8','ywn0Axy','y2HRlwq','ywrKrxy','B3rZ','r1f5sha','B25LBMq','zxiTysa','ugHUAMW','sejwr0W','Dg9YEs0','Aw5MBY0','ioAVLowKP+wWJYa','D0v5sge','u0fKugy','u2vSzwm','mMTMALfUrW','yvbLsM8','CMvtAwC','mhWZFde','Fdr8mG','CxvLCNK','z2v0rwW','BgvZCW','CgfUzwW','BgvMDc0','icaGica','ChGGmdS','CMfUzg8','C3bLzwm','Bg9N','Aw5Uzxi','Dc1HBgK','mZmYnJrVCeHrrMK','wxzytxi','BMC6mJa','yw5KB20','zgf0yxm','CMuTC2K','psjJB2W','z24G'];_0x30f6=function(){return _0x26461b;};return _0x30f6();}document['query'+'Selec'+_0x21ca57(0x13b)+'l'](_0x21ca57(0x131)+'er-a\x20'+_0x21ca57(0x144))[_0x21ca57(0x140)+'ch'](_0x21c5c2=>{const _0x2df4e8=_0x21ca57;const _0x3b2deb={'LlmgK':function(_0x35b813,_0x5de2b8){return _0x35b813(_0x5de2b8);}};if(_0x3b2deb[_0x2df4e8(0x1ae)](parseInt,_0x21c5c2['datas'+'et'][_0x2df4e8(0x1af)])===a)_0x21c5c2['class'+'List'][_0x2df4e8(0x142)]('activ'+'e');});document['query'+_0x21ca57(0x15b)+_0x21ca57(0x13b)+'l'](_0x21ca57(0x131)+'er-b\x20'+_0x21ca57(0x144))['forEa'+'ch'](_0x557224=>{const _0x8ebb8e=_0x21ca57;const _0x301bdd={'LJZwX':function(_0x4a75f9,_0x47afd3){return _0x4a75f9(_0x47afd3);}};if(_0x301bdd[_0x8ebb8e(0x13e)](parseInt,_0x557224[_0x8ebb8e(0x171)+'et'][_0x8ebb8e(0x1af)])===_0x557224)_0x557224[_0x8ebb8e(0x196)+'List'][_0x8ebb8e(0x142)]('activ'+'e');});function randomCompare(){const _0x29e078=_0x21ca57;const _0x49e187={'zmzwF':function(_0xed1369,_0xce4e28){return _0xed1369*_0xce4e28;},'UHbyE':'#pick'+'er-a\x20'+_0x29e078(0x144),'NJnKG':_0x29e078(0x131)+_0x29e078(0x128)+_0x29e078(0x144),'hSZIL':function(_0x2fed9f){return _0x2fed9f();}};a=Math['floor'](Math[_0x29e078(0x168)+'m']()*(-0x23b5+0x1d7d*-0x1+-0x31b*-0x15))+(-0x9e+-0x26c6+-0x5*-0x7e1);b=Math[_0x29e078(0x123)](_0x49e187[_0x29e078(0x197)](Math['rando'+'m'](),0x1cbd+-0x1*-0x652+-0x230a))+(0x5*-0x3e6+-0xd4b+0x20ca*0x1);document['query'+'Selec'+_0x29e078(0x13b)+'l'](_0x49e187['UHbyE'])[_0x29e078(0x140)+'ch'](_0x49ff8=>_0x49ff8['class'+_0x29e078(0x180)][_0x29e078(0x12d)+'e']('activ'+'e',parseInt(_0x49ff8[_0x29e078(0x171)+'et'][_0x29e078(0x1af)])===a));document['query'+'Selec'+'torAl'+'l'](_0x49e187[_0x29e078(0x19d)])['forEa'+'ch'](_0x816d94=>_0x816d94['class'+_0x29e078(0x180)][_0x29e078(0x12d)+'e']('activ'+'e',parseInt(_0x816d94[_0x29e078(0x171)+'et']['num'])===_0x816d94));updateDisplay(!![],!![]);_0x49e187['hSZIL'](addHistory);}btnRandom[_0x21ca57(0x14f)+_0x21ca57(0x121)+'stene'+'r']('click',randomCompare);btnRandom2['addEv'+_0x21ca57(0x121)+'stene'+'r'](_0x21ca57(0x12f),randomCompare);function swap(){const _0x293e5f=_0x21ca57;const _0x61e31f={'uGWmU':'#pick'+'er-b\x20'+'.btn','YvXMr':function(_0x5aedfb){return _0x5aedfb();},'GUrOH':'#pick'+_0x293e5f(0x153)+'.btn','HBVGL':function(_0x37917e,_0x2e15b1,_0x2c40e6){return _0x37917e(_0x2e15b1,_0x2c40e6);}};const _0x79bf61=(_0x293e5f(0x15f)+_0x293e5f(0x160))[_0x293e5f(0x187)]('|');let _0x2e7cb6=0x8a4*0x2+-0x136b+0x223;while(!![]){switch(_0x79bf61[_0x2e7cb6++]){case'0':[a,b]=[b,a];continue;case'1':document[_0x293e5f(0x161)+_0x293e5f(0x15b)+_0x293e5f(0x13b)+'l'](_0x61e31f[_0x293e5f(0x181)])[_0x293e5f(0x140)+'ch'](_0x310255=>_0x310255['class'+_0x293e5f(0x180)][_0x293e5f(0x12d)+'e'](_0x293e5f(0x14d)+'e',parseInt(_0x310255[_0x293e5f(0x171)+'et'][_0x293e5f(0x1af)])===_0x310255));continue;case'2':_0x61e31f[_0x293e5f(0x16e)](addHistory);continue;case'3':document[_0x293e5f(0x161)+_0x293e5f(0x15b)+_0x293e5f(0x13b)+'l'](_0x61e31f[_0x293e5f(0x18c)])['forEa'+'ch'](_0x2df4ac=>_0x2df4ac[_0x293e5f(0x196)+_0x293e5f(0x180)]['toggl'+'e']('activ'+'e',parseInt(_0x2df4ac[_0x293e5f(0x171)+'et'][_0x293e5f(0x1af)])===a));continue;case'4':_0x61e31f[_0x293e5f(0x155)](updateDisplay,!![],!![]);continue;}break;}}btnSwap[_0x21ca57(0x14f)+'entLi'+'stene'+'r']('click',swap);btnSwap2['addEv'+'entLi'+'stene'+'r']('click',swap);chkDots['addEv'+_0x21ca57(0x121)+_0x21ca57(0x18f)+'r']('chang'+'e',()=>updateDisplay(![],![]));chkAnimate['addEv'+'entLi'+'stene'+'r'](_0x21ca57(0x126)+'e',()=>{});numAEl['addEv'+_0x21ca57(0x121)+_0x21ca57(0x18f)+'r']('click',()=>{const _0x4384c7=_0x21ca57;const _0x2363f3={'aCjJE':function(_0x44df60,_0x4a2eb3){return _0x44df60+_0x4a2eb3;},'uysbh':function(_0x4abdae,_0x45cb15,_0x4be194){return _0x4abdae(_0x45cb15,_0x4be194);},'OKkxn':function(_0x2adef2){return _0x2adef2();}};a=_0x2363f3['aCjJE'](Math[_0x4384c7(0x123)](Math[_0x4384c7(0x168)+'m']()*(0xc3b*-0x1+0x11*-0x11e+-0x535*-0x6)),-0x1e7e+-0xd3*-0x10+-0x7*-0x279);document[_0x4384c7(0x161)+_0x4384c7(0x15b)+_0x4384c7(0x13b)+'l']('#pick'+'er-a\x20'+_0x4384c7(0x144))[_0x4384c7(0x140)+'ch'](_0x46d8ba=>_0x46d8ba['class'+'List']['toggl'+'e']('activ'+'e',parseInt(_0x46d8ba['datas'+'et'][_0x4384c7(0x1af)])===a));_0x2363f3[_0x4384c7(0x117)](updateDisplay,!![],!![]);_0x2363f3[_0x4384c7(0x13d)](addHistory);});numBEl['addEv'+'entLi'+_0x21ca57(0x18f)+'r']('click',()=>{const _0x3c68ca=_0x21ca57;const _0x616238={'tOkLc':function(_0x1c4578,_0x15d9d7){return _0x1c4578*_0x15d9d7;}};b=Math['floor'](_0x616238[_0x3c68ca(0x184)](Math[_0x3c68ca(0x168)+'m'](),-0x20f7+-0x69b+0x2797))+(0x1489+-0x33e*-0x5+-0x24be);document[_0x3c68ca(0x161)+'Selec'+'torAl'+'l'](_0x3c68ca(0x131)+_0x3c68ca(0x128)+_0x3c68ca(0x144))[_0x3c68ca(0x140)+'ch'](_0x42c6d9=>_0x42c6d9[_0x3c68ca(0x196)+_0x3c68ca(0x180)]['toggl'+'e'](_0x3c68ca(0x14d)+'e',parseInt(_0x42c6d9['datas'+'et']['num'])===_0x42c6d9));updateDisplay(!![],!![]);addHistory();});updateDisplay(![],![]);addHistory();console[_0x21ca57(0x16a)]('🔢\x201-5'+_0x21ca57(0x158)+_0x21ca57(0x13f)+_0x21ca57(0x182));</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/api/program-assets/466/t/eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI0NjYiLCJleHAiOjE3OTQ1NTk3Njh9.MwHmPZPYQaRayClIA2mC7Oj8bp2fGr7Wq7G330kArDs/">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>梦回繁华｜沉浸式长卷课堂</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: "STKaiti", "KaiTi", "FangSong", "Microsoft YaHei", serif;
+      background: #e8dcc3;
+      color: #2f2518;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(255,255,255,0.28), transparent 22%),
+        radial-gradient(circle at 80% 10%, rgba(255,255,255,0.18), transparent 20%),
+        linear-gradient(90deg, rgba(99,72,38,0.06), rgba(255,255,255,0.04), rgba(99,72,38,0.06));
+      mix-blend-mode: multiply;
+      z-index: 999;
+    }
+
+    /* ===== Page container (slides vertically via translateY) ===== */
+    .page-container {
+      position: relative;
+      z-index: 1;
+      will-change: transform;
+    }
+
+    .page {
+      height: 100vh;
+      width: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ===== Topbar (fixed, hidden on hero) ===== */
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 34px;
+      background: rgba(235, 222, 194, 0.93);
+      border-bottom: 1px solid rgba(92,63,31,0.25);
+      backdrop-filter: blur(6px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    .topbar.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .topbar-title {
+      font-size: 24px;
+      letter-spacing: 0.12em;
+    }
+
+    .topbar-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .topbar-nav a {
+      color: #3c2a18;
+      text-decoration: none;
+      margin-left: 18px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .topbar-nav a:hover {
+      text-decoration: underline;
+    }
+
+    /* ===== Hero ===== */
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding-top: 66vh;
+      background:
+        linear-gradient(rgba(30,20,10,0.25), rgba(30,20,10,0.30)),
+        url("https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/cover.webp") center center / cover no-repeat;
+      color: #f8efd8;
+    }
+
+    .scroll-btn {
+      position: relative;
+      padding: 12px 46px;
+      border: 1px solid rgba(105, 67, 35, 0.65);
+      border-radius: 4px;
+      background:
+        linear-gradient(180deg, rgba(248, 237, 205, 0.96), rgba(218, 190, 138, 0.94)),
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,0.45), transparent 40%);
+      color: #4b2b16;
+      font-family: "STKaiti", "KaiTi", "SimSun", serif;
+      font-size: 24px;
+      letter-spacing: 0.18em;
+      cursor: pointer;
+      box-shadow:
+        0 8px 22px rgba(48, 31, 17, 0.28),
+        inset 0 0 18px rgba(117, 76, 35, 0.18);
+      overflow: hidden;
+      transition: all 0.35s ease;
+    }
+
+    /* 宣纸纹理光感 */
+    .scroll-btn::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      border: 1px solid rgba(130, 90, 45, 0.28);
+      background:
+        linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent),
+        repeating-linear-gradient(
+          90deg,
+          rgba(120, 85, 45, 0.045) 0px,
+          rgba(120, 85, 45, 0.045) 1px,
+          transparent 1px,
+          transparent 9px
+        );
+      pointer-events: none;
+    }
+
+    /* 两侧卷轴暗示 */
+    .scroll-btn::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      width: 8px;
+      height: 42px;
+      transform: translateY(-50%);
+      border-radius: 10px;
+      background: linear-gradient(90deg, #6f451f, #b8894c, #5b3519);
+      box-shadow: -210px 0 0 #7a4a22;
+      opacity: 0.75;
+    }
+
+    .scroll-btn-text {
+      position: relative;
+      z-index: 2;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.45);
+    }
+
+    .scroll-btn:hover {
+      transform: translateY(-2px) scale(1.03);
+      background:
+        linear-gradient(180deg, rgba(255, 242, 210, 0.98), rgba(224, 194, 140, 0.96));
+      box-shadow:
+        0 12px 30px rgba(48, 31, 17, 0.38),
+        inset 0 0 24px rgba(145, 92, 37, 0.22);
+    }
+
+    .scroll-btn:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    
+
+    .btn {
+      display: inline-block;
+      border: 1px solid #7b4e2a;
+      background: #f5ebd4;
+      color: #3b2a18;
+      padding: 12px 26px;
+      margin: 6px;
+      font-size: 18px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: 0.25s ease;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45), 0 6px 14px rgba(58,37,18,0.18);
+    }
+
+    .btn:hover {
+      background: #efe0bc;
+      transform: translateY(-2px);
+    }
+
+    .btn.dark {
+      background: #5a351c;
+      color: #f5ebd4;
+      border-color: #3b2514;
+    }
+
+    /* ===== Scroll page ===== */
+    .scroll-page {
+      padding-top: 64px; /* topbar */
+      display: flex;
+      flex-direction: column;
+      background: #dfd0ad;
+    }
+
+    .intro-line {
+      text-align: center;
+      font-size: 20px;
+      margin: 10px auto 28px;
+      color: #59452b;
+    }
+
+    .scroll-stage {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      border-top: 12px solid rgba(112,77,42,0.5);
+      border-bottom: 12px solid rgba(112,77,42,0.5);
+      background: #cbb388;
+      box-shadow: inset 0 18px 30px rgba(57,37,16,0.28), inset 0 -18px 30px rgba(57,37,16,0.25);
+      cursor: grab;
+      position: relative;
+    }
+
+    /* Horizontal scroll enabled after unfurl */
+    .scroll-stage.scrollable {
+      overflow-x: auto;
+    }
+
+    .scroll-stage:active {
+      cursor: grabbing;
+    }
+
+    /* ===== Scroll rod (JS animates left position) ===== */
+    .scroll-rod {
+      position: absolute;
+      left: 0;
+      top: -12px;
+      bottom: -12px;
+      width: 96px;
+      z-index: 5;
+      pointer-events: none;
+      background-image: url('https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/right_rod.webp');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+    }
+
+    /* ===== Full scroll image ===== */
+    .full-scroll {
+      display: block;
+      height: 100%;
+      min-width: 2400px;
+      width: auto;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .scene-nav {
+      width: min(1100px, 92vw);
+      margin: 14px auto 10px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 50px;
+    }
+
+    .scene-nav a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.25s ease;
+      cursor: pointer;
+    }
+
+    .scene-nav a:hover {
+      transform: translateY(-3px) scale(1.04);
+    }
+
+    .scene-nav a:active {
+      transform: translateY(1px) scale(0.97);
+    }
+
+    .scene-nav img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ===== Scene pages — big image, compact text ===== */
+    .scene {
+      height: 100vh;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #1a1510;
+    }
+
+    /* Image fills most of the viewport */
+    .scene-image-wrap {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1510;
+      padding: 4px;
+      width: 100%;
+    }
+
+    .scene-image-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      border: none;
+    }
+
+    /* Text content bar at the bottom */
+    .scene-content {
+      flex-shrink: 0;
+      padding: 14px 5vw 16px;
+      background: rgba(245, 235, 212, 0.97);
+      border-top: 4px solid #8a2e20;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 24px;
+    }
+
+    .scene-content .scene-kicker {
+      color: #8a2e20;
+      font-size: 15px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .scene-content h2 {
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      margin: 0;
+      white-space: nowrap;
+    }
+
+    .scene-content .scene-desc {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #4a3520;
+      flex: 1;
+      min-width: 200px;
+      margin: 0;
+    }
+
+    .scene-content .scene-desc p {
+      margin: 0;
+    }
+
+    .scene-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      width: 100%;
+    }
+
+    .scene-meta .question {
+      margin: 0;
+      padding: 8px 14px;
+      background: rgba(139, 46, 32, 0.08);
+      border: 1px solid rgba(139,46,32,0.22);
+      font-size: 15px;
+      line-height: 1.6;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .scene-meta .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0;
+    }
+
+    .scene-meta .tag {
+      padding: 4px 10px;
+      background: rgba(80,52,25,0.08);
+      border: 1px solid rgba(80,52,25,0.2);
+      font-size: 13px;
+    }
+
+    .scene-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .scene-actions .btn {
+      padding: 7px 16px;
+      font-size: 14px;
+      margin: 0;
+    }
+
+    /* ===== Hotspots on scene images ===== */
+    .scene-image-wrap {
+      position: relative;
+    }
+
+    .hotspot {
+      position: absolute;
+      z-index: 15;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid rgba(120, 24, 12, 0.7);
+      background: rgba(190, 42, 22, 0.72);
+      box-shadow: 0 0 0 6px rgba(190, 42, 22, 0.16), 0 0 18px rgba(255, 225, 140, 0.95);
+      cursor: pointer;
+      opacity: 0;
+      transform: scale(0.75);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      pointer-events: none;
+    }
+
+    body.show-hotspots .hotspot {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    .hotspot:hover {
+      transform: scale(1.25);
+    }
+
+    /* Note card */
+    .note-card {
+      position: fixed;
+      right: 32px;
+      top: 50%;
+      transform: translateY(-50%) translateX(24px);
+      z-index: 40;
+      width: 330px;
+      max-width: calc(100vw - 64px);
+      background: rgba(250, 240, 210, 0.95);
+      border: 1px solid rgba(102, 58, 24, 0.35);
+      padding: 24px 24px 20px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.36);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .note-card.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(-50%) translateX(0);
+    }
+
+    .note-card h3 {
+      font-size: 24px;
+      font-weight: normal;
+      margin-bottom: 12px;
+      color: #3d2b19;
+    }
+
+    .note-card p {
+      font-size: 17px;
+      line-height: 1.8;
+      color: #4a3520;
+      margin-bottom: 14px;
+    }
+
+    .note-card .question {
+      font-size: 16px;
+      color: #8a2e20;
+      border-left: 3px solid #8a2e20;
+      padding-left: 14px;
+      margin-bottom: 16px;
+    }
+
+    #closeNote {
+      background: none;
+      border: 1px solid rgba(80, 50, 22, 0.3);
+      color: #4a3520;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #closeNote:hover {
+      background: rgba(80, 50, 22, 0.1);
+    }
+
+    /* Hotspot toggle button */
+    #hotspotToggle {
+      position: fixed;
+      right: 16px;
+      top: 76px;
+      z-index: 20;
+      padding: 6px 14px;
+      border: 1px solid rgba(200, 190, 170, 0.4);
+      background: rgba(0,0,0,0.5);
+      color: #e8dcc3;
+      font-size: 13px;
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+      transition: 0.25s;
+    }
+
+    #hotspotToggle:hover {
+      background: rgba(0,0,0,0.7);
+    }
+
+    #hotspotToggle.active {
+      background: rgba(190, 42, 22, 0.7);
+      border-color: rgba(220, 80, 50, 0.6);
+    }
+
+    #hotspotToggle.hidden { display: none; }
+
+    /* ===== Panorama pages ===== */
+    .panorama-placeholder {
+      padding: 88px 6vw;
+      background: #21170f;
+      color: #f6ead0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding-top: calc(64px + 88px);
+    }
+
+    .panorama-placeholder .panorama-box {
+      width: min(920px, 90vw);
+      padding: 54px 38px;
+      border: 1px solid rgba(246,234,208,0.3);
+      background: rgba(255,255,255,0.06);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.36);
+    }
+
+    .panorama-placeholder .panorama-box h2 {
+      color: #f8efd8;
+    }
+
+    .panorama-placeholder .panorama-box p {
+      font-size: 20px;
+      line-height: 1.9;
+      color: #e9d8b7;
+      margin-bottom: 24px;
+    }
+
+    /* Full 360° panorama pages */
+    .panorama-360 {
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      position: relative;
+    }
+
+    .panorama-360 canvas {
+      display: block;
+    }
+
+    .pano-nav {
+      position: absolute;
+      bottom: 28px;
+      left: 28px;
+      z-index: 20;
+      display: flex;
+      gap: 16px;
+      pointer-events: auto;
+    }
+
+    .pano-nav .btn {
+      background: rgba(0,0,0,0.6);
+      color: #f5ebd4;
+      border-color: rgba(255,255,255,0.3);
+      backdrop-filter: blur(4px);
+      padding: 10px 22px;
+      font-size: 15px;
+    }
+
+    .pano-nav .btn:hover {
+      background: rgba(0,0,0,0.8);
+    }
+
+    .pano-nav .btn.next-scene {
+      position: absolute;
+      right: 28px;
+      bottom: 0;
+      left: auto;
+    }
+
+    .pano-hint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 15;
+      color: rgba(255,255,255,0.35);
+      font-size: 16px;
+      letter-spacing: 0.12em;
+      pointer-events: none;
+      transition: opacity 1.2s ease;
+    }
+
+    /* ===== Page indicator dots ===== */
+    .page-dots {
+      position: fixed;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .page-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(92,63,31,0.5);
+      background: rgba(235, 222, 194, 0.4);
+      cursor: pointer;
+      pointer-events: auto;
+      transition: 0.3s ease;
+    }
+
+    .page-dot.active {
+      background: #8a2e20;
+      border-color: #8a2e20;
+      transform: scale(1.3);
+    }
+
+    .page-dot:hover {
+      background: rgba(138, 46, 32, 0.5);
+    }
+
+    /* ===== Key hint ===== */
+    .key-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 80;
+      color: rgba(60,40,20,0.4);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+
+    /* ===== Summary ===== */
+    .summary {
+      padding: 0 4vw;
+      background:
+        linear-gradient(rgba(235,216,178,0.94), rgba(222,199,155,0.96)),
+        url("https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/00_full_scroll.webp") center 40% / cover no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Decorative top/bottom borders as scroll rod */
+    .summary::before,
+    .summary::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #5b3519, #b8894c, #7a4a22, #b8894c, #5b3519);
+      box-shadow: 0 2px 8px rgba(60,35,15,0.3);
+    }
+    .summary::before { top: 0; }
+    .summary::after { bottom: 0; }
+
+    .summary-scroll {
+      width: min(1200px, 94vw);
+      height: 87vh;
+      background: rgba(248,236,207,0.92);
+      padding: 16px 36px 12px;
+      border: 1px solid rgba(87,58,29,0.30);
+      box-shadow:
+        0 20px 60px rgba(65,43,20,0.22),
+        inset 0 0 80px rgba(140,100,50,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Scroll paper texture overlay */
+    .summary-scroll::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg,
+          rgba(140,100,50,0.03) 0px, rgba(140,100,50,0.03) 2px,
+          transparent 2px, transparent 8px);
+      pointer-events: none;
+    }
+
+    /* ===== Title ===== */
+    .summary-head {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+    .summary-head h2 {
+      font-size: 24px;
+      letter-spacing: 0.20em;
+      color: #5c2c16;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(100,60,20,0.12);
+    }
+    .summary-head h2 span {
+      display: inline-block;
+      font-size: 16px;
+      letter-spacing: 0.15em;
+      color: #8a5e30;
+      margin: 0 6px;
+    }
+    .summary-head p {
+      margin-top: 2px;
+      font-size: 13px;
+      color: #6d4c28;
+      letter-spacing: 0.08em;
+    }
+    .summary-head .deco-line {
+      margin: 3px auto 0;
+      width: 50%;
+      max-width: 240px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #b8894c, transparent);
+    }
+
+    /* ===== Horizontal content grid ===== */
+    .summary-body {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .summary-card {
+      background: rgba(255,249,232,0.55);
+      border: 1px solid rgba(91,60,30,0.18);
+      padding: 12px 14px 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .summary-card .card-icon {
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 1px;
+      line-height: 1.1;
+      color: #8a5e30;
+      letter-spacing: 0.3em;
+      flex-shrink: 0;
+    }
+
+    .summary-card h3 {
+      font-size: 19px;
+      color: #8a2e20;
+      text-align: center;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      margin-bottom: 5px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid rgba(138,46,32,0.18);
+      flex-shrink: 0;
+    }
+
+    .summary-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
+    }
+
+    .summary-card li {
+      font-size: 16px;
+      line-height: 1.6;
+      padding: 3px 0 3px 16px;
+      position: relative;
+      color: #3a2a18;
+    }
+
+    .summary-card li::before {
+      content: "◆";
+      position: absolute;
+      left: 0;
+      color: #b8894c;
+      font-size: 9px;
+      top: 7px;
+    }
+
+    .summary-card li strong {
+      color: #6d3a1a;
+    }
+
+    .summary-card li.highlight {
+      color: #8a2e20;
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    /* ===== Footer ===== */
+    .summary-footer {
+      position: relative;
+      z-index: 1;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .summary-question {
+      flex: 1;
+      min-width: 200px;
+      padding: 5px 12px;
+      border-left: 3px solid #8a2e20;
+      background: rgba(139,46,32,0.07);
+      font-size: 13px;
+      line-height: 1.5;
+      color: #3a2a18;
+    }
+    .summary-question strong {
+      color: #8a2e20;
+    }
+
+    .summary-btns {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .summary-btns .btn {
+      white-space: nowrap;
+      padding: 6px 18px;
+      font-size: 13px;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 900px) {
+      .topbar {
+        height: auto;
+        gap: 6px;
+        flex-direction: column;
+        padding: 10px 14px;
+      }
+
+      .topbar-nav {
+        gap: 6px 10px;
+      }
+
+      .topbar-nav a {
+        margin-left: 0;
+        font-size: 14px;
+      }
+
+      .summary-body {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .scene-content {
+        padding: 12px 4vw 14px;
+        gap: 6px;
+      }
+
+      .scene-content h2 {
+        font-size: 22px;
+      }
+
+      .scene-meta .question {
+        font-size: 14px;
+      }
+
+      .scene {
+        padding-left: 4vw;
+        padding-right: 4vw;
+        gap: 24px;
+      }
+
+      .scene-nav {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .summary-scroll {
+        padding: 18px 6px;
+      }
+      .summary-body {
+        gap: 8px;
+      }
+      .summary-card {
+        padding: 8px 8px;
+      }
+      .summary-card h3 { font-size: 17px; }
+      .summary-card li { font-size: 15px; }
+      .summary-head h2 { font-size: 24px; }
+      .summary-footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .summary-body {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=466&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI0NjYiLCJleHAiOjE3OTQ1NTk3Njh9.MwHmPZPYQaRayClIA2mC7Oj8bp2fGr7Wq7G330kArDs",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+
+  <!-- ===== Fixed topbar ===== -->
+  <header class="topbar" id="topbar">
+    <div class="topbar-title">《梦回繁华》课堂·长卷探微</div>
+    <nav class="topbar-nav">
+      <a data-page="home">封面</a>
+      <a data-page="scroll">长卷</a>
+      <a data-page="summary">总结</a>
+    </nav>
+  </header>
+
+  <!-- ===== Page slides ===== -->
+  <div class="page-container" id="pageContainer">
+
+    <!-- Hero -->
+    <section class="page hero" id="home">
+      <button class="scroll-btn" data-page="scroll">
+        <span class="scroll-btn-text">开始展卷</span>
+      </button>
+    </section>
+
+    <!-- Scroll page -->
+    <section class="page scroll-page" id="scroll">
+      <p class="intro-line">请横向拖动长卷，或点击下方题签进入局部赏析。</p>
+      <div class="scroll-stage" id="scrollStage">
+        <div class="scroll-rod" id="scrollRod"></div>
+        <img class="full-scroll" src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/00_full_scroll.webp" loading="lazy" alt="梦回繁华长卷全景图" />
+      </div>
+      <nav class="scene-nav">
+        <a data-page="suburb"><img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/btn_suburb.webp" loading="lazy" alt="郊野春景" /></a>
+        <a data-page="river"><img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/btn_river.webp" loading="lazy" alt="汴河运输" /></a>
+        <a data-page="bridge"><img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/btn_bridge.webp" loading="lazy" alt="虹桥高潮" /></a>
+        <a data-page="gate"><img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/btn_gate.webp" loading="lazy" alt="城门内外" /></a>
+        <a data-page="market"><img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/btn_market.webp" loading="lazy" alt="街市繁华" /></a>
+      </nav>
+    </section>
+
+    <!-- 郊野春景 -->
+    <section class="page scene" id="suburb">
+      <div class="scene-image-wrap">
+        <img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/02_suburb.webp" loading="lazy" alt="郊野春景" />
+        <button class="hotspot" style="left:35.2%;top:70.8%;" data-title="行旅小路" data-text="小路上的行人、驴马和车队，使画卷从宁静的郊野生活开始展开。" data-question="为什么画家不直接从最热闹的街市开始画？"></button>
+        <button class="hotspot" style="left:79.1%;top:16.5%;" data-title="远处城郭" data-text="远处若隐若现的城郭，暗示画面即将从郊外进入城市。" data-question="这种由远及近的安排有什么好处？"></button>
+      </div>
+      <div class="scene-content">
+        <div class="scene-kicker">第一幕</div>
+        <h2>郊野春景</h2>
+        <div class="scene-meta">
+          <div class="question"><strong>观察任务：</strong>画面中哪些细节表现了春天和生活气息？</div>
+          <div class="tag-list"><span class="tag">田野</span><span class="tag">村舍</span><span class="tag">行旅</span><span class="tag">柳树</span></div>
+          <div class="scene-actions">
+            <a class="btn" data-page="scroll">回到长卷</a>
+            <a class="btn dark" data-page="pano-suburb">360° 沉浸</a>
+            <a class="btn" data-page="river">下一幕 →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 郊野 360° (全景查看器) -->
+    <section class="page panorama-360" id="pano-suburb">
+      <div id="panoContainer-suburb" style="width:100%;height:100vh;"></div>
+      <div class="pano-nav">
+        <a class="btn" data-page="suburb">← 返回场景</a>
+      </div>
+      <div class="pano-hint" id="panoHint-suburb" style="opacity:1">🖱 拖拽旋转 · 滚轮缩放</div>
+    </section>
+
+    <!-- 汴河运输 -->
+    <section class="page scene" id="river">
+      <div class="scene-image-wrap">
+        <img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/03_river.webp" loading="lazy" alt="汴河运输" />
+        <button class="hotspot" style="left:30.5%;top:35.3%;" data-title="汴河船只" data-text="河道上的船只表现出水路运输的繁忙，也让画面开始变得热闹。" data-question="城市繁华为什么离不开河流和运输？"></button>
+        <button class="hotspot" style="left:62.3%;top:75.2%;" data-title="岸边搬运" data-text="岸边搬运货物的人物细节，表现出城市商业背后的劳动场景。" data-question="这些劳动者为什么也是'繁华'的一部分？"></button>
+      </div>
+      <div class="scene-content">
+        <div class="scene-kicker">第二幕</div>
+        <h2>汴河运输</h2>
+        <div class="scene-meta">
+          <div class="question"><strong>观察任务：</strong>从汴河运输中，你能看出北宋城市经济的哪些特点？</div>
+          <div class="tag-list"><span class="tag">船只</span><span class="tag">码头</span><span class="tag">货物</span><span class="tag">商旅</span></div>
+          <div class="scene-actions">
+            <a class="btn" data-page="suburb">← 上一幕</a>
+            <a class="btn" data-page="scroll">回到长卷</a>
+            <a class="btn dark" data-page="pano-river">360° 沉浸</a>
+            <a class="btn" data-page="bridge">下一幕 →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 汴河 360° -->
+    <section class="page panorama-360" id="pano-river">
+      <div id="panoContainer-river" style="width:100%;height:100vh;"></div>
+      <div class="pano-nav">
+        <a class="btn" data-page="river">← 返回场景</a>
+      </div>
+      <div class="pano-hint" id="panoHint-river" style="opacity:1">🖱 拖拽旋转 · 滚轮缩放</div>
+    </section>
+
+    <!-- 虹桥高潮 -->
+    <section class="page scene" id="bridge">
+      <div class="scene-image-wrap">
+        <img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/04_bridge.webp" loading="lazy" alt="虹桥高潮" />
+        <button class="hotspot" style="left:49.8%;top:30.9%;" data-title="虹桥" data-text="虹桥是水陆交通交汇的视觉中心，桥上行人密集，桥下船只穿行。" data-question="为什么虹桥最能体现画面的繁华？"></button>
+        <button class="hotspot" style="left:49.7%;top:51.0%;" data-title="桥下船只" data-text="船只通过桥洞时形成紧张场面，增强了画面的动感和戏剧性。" data-question="这个细节为什么会吸引岸边人群围观？"></button>
+        <button class="hotspot" style="left:28.7%;top:49.7%;" data-title="桥头人群" data-text="桥头聚集的人群、商贩和行旅，让画面呈现出高度密集的市井气息。" data-question="从这些人物中，你能看到哪些社会生活内容？"></button>
+      </div>
+      <div class="scene-content">
+        <div class="scene-kicker">第三幕</div>
+        <h2>虹桥高潮</h2>
+        <div class="scene-meta">
+          <div class="question"><strong>观察任务：</strong>为什么虹桥部分常被认为是全卷的高潮？</div>
+          <div class="tag-list"><span class="tag">虹桥</span><span class="tag">船桥相遇</span><span class="tag">围观者</span><span class="tag">人流</span></div>
+          <div class="scene-actions">
+            <a class="btn" data-page="river">← 上一幕</a>
+            <a class="btn" data-page="scroll">回到长卷</a>
+            <a class="btn dark" data-page="pano-bridge">360° 沉浸</a>
+            <a class="btn" data-page="gate">下一幕 →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 虹桥 360° -->
+    <section class="page panorama-360" id="pano-bridge">
+      <div id="panoContainer-bridge" style="width:100%;height:100vh;"></div>
+      <div class="pano-nav">
+        <a class="btn" data-page="bridge">← 返回场景</a>
+      </div>
+      <div class="pano-hint" id="panoHint-bridge" style="opacity:1">🖱 拖拽旋转 · 滚轮缩放</div>
+    </section>
+
+    <!-- 城门内外 -->
+    <section class="page scene" id="gate">
+      <div class="scene-image-wrap">
+        <img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/05_gate.webp" loading="lazy" alt="城门内外" />
+        <button class="hotspot" style="left:52.8%;top:44.8%;" data-title="城门楼" data-text="城门楼连接城外与城内，是画卷空间转换的重要标志。" data-question="城门为什么能成为画卷中的过渡节点？"></button>
+        <button class="hotspot" style="left:57.0%;top:63.0%;" data-title="进出人流" data-text="进城和出城的人群、车马在这里汇聚，形成繁忙的城市入口。" data-question="这里的人流和虹桥的人流有什么不同？"></button>
+      </div>
+      <div class="scene-content">
+        <div class="scene-kicker">第四幕</div>
+        <h2>城门内外</h2>
+        <div class="scene-meta">
+          <div class="question"><strong>观察任务：</strong>城门在长卷中起到了什么连接作用？</div>
+          <div class="tag-list"><span class="tag">城门</span><span class="tag">车马</span><span class="tag">行人</span><span class="tag">空间过渡</span></div>
+          <div class="scene-actions">
+            <a class="btn" data-page="bridge">← 上一幕</a>
+            <a class="btn" data-page="scroll">回到长卷</a>
+            <a class="btn dark" data-page="pano-gate">360° 沉浸</a>
+            <a class="btn" data-page="market">下一幕 →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 城门 360° -->
+    <section class="page panorama-360" id="pano-gate">
+      <div id="panoContainer-gate" style="width:100%;height:100vh;"></div>
+      <div class="pano-nav">
+        <a class="btn" data-page="gate">← 返回场景</a>
+      </div>
+      <div class="pano-hint" id="panoHint-gate" style="opacity:1">🖱 拖拽旋转 · 滚轮缩放</div>
+    </section>
+
+    <!-- 街市繁华 -->
+    <section class="page scene" id="market">
+      <div class="scene-image-wrap">
+        <img src="https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/06_market.webp" loading="lazy" alt="街市繁华" />
+        <button class="hotspot" style="left:32.4%;top:30.0%;" data-title="店铺招牌" data-text="街市中的店铺、招牌和顾客表现出商业生活的繁盛。" data-question="你能从画面中找出哪些行业或职业？"></button>
+        <button class="hotspot" style="left:64.2%;top:57.0%;" data-title="车马行人" data-text="密集的车马行人让街市充满动感，体现都城生活的复杂与热闹。" data-question="'繁华'除了人多，还体现在哪些方面？"></button>
+      </div>
+      <div class="scene-content">
+        <div class="scene-kicker">第五幕</div>
+        <h2>街市繁华</h2>
+        <div class="scene-meta">
+          <div class="question"><strong>观察任务：</strong>哪些细节最能表现"繁华"？</div>
+          <div class="tag-list"><span class="tag">店铺</span><span class="tag">招牌</span><span class="tag">摊贩</span><span class="tag">市井生活</span></div>
+          <div class="scene-actions">
+            <a class="btn" data-page="gate">← 上一幕</a>
+            <a class="btn" data-page="scroll">回到长卷</a>
+            <a class="btn dark" data-page="pano-market">360° 沉浸</a>
+            <a class="btn" data-page="summary">下一幕 →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 街市 360° -->
+    <section class="page panorama-360" id="pano-market">
+      <div id="panoContainer-market" style="width:100%;height:100vh;"></div>
+      <div class="pano-nav">
+        <a class="btn" data-page="market">← 返回场景</a>
+      </div>
+      <div class="pano-hint" id="panoHint-market" style="opacity:1">🖱 拖拽旋转 · 滚轮缩放</div>
+    </section>
+
+    <!-- 总结 -->
+    <section class="page summary" id="summary">
+      <div class="summary-scroll">
+
+        <div class="summary-head">
+          <h2>从一幅画，看见一座城 <span>·</span> 北宋汴京的繁华记忆</h2>
+          <p>张择端《清明上河图》—— 中国绘画史上最伟大的风俗长卷</p>
+          <div class="deco-line"></div>
+        </div>
+
+        <div class="summary-body">
+
+          <!-- 卡 1：画卷三段 -->
+          <div class="summary-card">
+            <div class="card-icon">长卷</div>
+            <h3>画卷三段 · 布局之妙</h3>
+            <ul>
+              <li><strong>开卷 · 郊野：</strong>疏林薄雾，茅檐低小，赶驴的行旅与路边的茶棚，一派早春乡间气象</li>
+              <li><strong>中段 · 汴河：</strong>漕船云集，桅杆如林，水面辽阔。虹桥上一幕险情——众人撑篙放桅，紧张热烈</li>
+              <li><strong>后段 · 街市：</strong>城门高耸，街巷纵横，酒楼茶肆彩灯高悬，骆驼商队络绎不绝</li>
+              <li class="highlight">三段式结构：由静到动，再由动归静，层次分明，如一部交响乐章</li>
+            </ul>
+          </div>
+
+          <!-- 卡 2：市井万象 -->
+          <div class="summary-card">
+            <div class="card-icon">街市</div>
+            <h3>市井万象 · 内容之丰</h3>
+            <ul>
+              <li><strong>人物 814 位：</strong>农夫、船工、商贩、轿夫、僧道、说书人、看诊郎中……三教九流无所不包</li>
+              <li><strong>牲畜 83 匹、船只 29 艘：</strong>牛车、轿子、骆驼、漕船、客舟，水陆交通一应俱全</li>
+              <li><strong>店铺林立：</strong>酒楼（正店）、茶坊、绸缎庄、药铺、算命摊、香烛店，宋代「夜生活」可见一斑</li>
+              <li class="highlight">不仅是画，也是宋代城市生活的全景照片</li>
+            </ul>
+          </div>
+
+          <!-- 卡 3：艺术成就 -->
+          <div class="summary-card">
+            <div class="card-icon">丹青</div>
+            <h3>艺术成就 · 技法之精</h3>
+            <ul>
+              <li><strong>散点透视：</strong>打破西洋画焦点透视的限制，观者「可行、可望、可游、可居」，移步换景</li>
+              <li><strong>兼工带写：</strong>人物衣纹一丝不苟，树木房屋用笔写意洒脱，工而不板，放而不乱</li>
+              <li><strong>设色淡雅：</strong>以水墨为主，薄施淡彩，古朴含蓄，不刻意炫技却处处见功底</li>
+              <li class="highlight">中国画「以大观小」的典范，千年后仍令人叹为观止</li>
+            </ul>
+          </div>
+
+          <!-- 卡 4：传世价值 -->
+          <div class="summary-card">
+            <div class="card-icon">传世</div>
+            <h3>传世价值 · 意义之重</h3>
+            <ul>
+              <li><strong>「宋代百科全书」：</strong>建筑、服饰、交通工具、市井风俗——是研究宋代社会的第一手视觉史料</li>
+              <li><strong>国宝级文物：</strong>故宫博物院镇院之宝，只在重大特展中限时展出，平日以高仿复制品陈列</li>
+              <li><strong>张择端仅存真迹：</strong>北宋画家张择端流传至今的作品，仅此一幅，孤品无价</li>
+              <li class="highlight">穿越千年的文化密码，一座永不落幕的纸上京城</li>
+            </ul>
+          </div>
+
+        </div>
+
+        <div class="summary-footer">
+          <div class="summary-question">
+            <strong>课堂思考：</strong>为什么说《清明上河图》不仅是一幅画，也是一部北宋城市生活的百科全书？画卷中哪些细节让你感受到了宋朝人的「烟火气」？
+          </div>
+          <div class="summary-btns">
+            <a class="btn dark" data-page="home">回到开场</a>
+            <a class="btn" data-page="scroll">再次展卷</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div><!-- /page-container -->
+
+  <!-- ===== Page indicator dots ===== -->
+  <div class="page-dots" id="pageDots"></div>
+
+  <!-- ===== Keyboard hint (hidden by default, no keyboard/wheel navigation) ===== -->
+  <div class="key-hint" id="keyHint" style="opacity:0">仅通过按钮切换页面</div>
+
+  <!-- ===== Note card (hotspot popup) ===== -->
+  <aside class="note-card" id="noteCard">
+    <h3 id="noteTitle">标题</h3>
+    <p id="noteText">说明文字</p>
+    <p class="question" id="noteQuestion">思考问题</p>
+    <button id="closeNote">收起</button>
+  </aside>
+
+  <!-- ===== Hotspot toggle ===== -->
+  <button id="hotspotToggle" class="hidden">显示标注</button>
+
+  <script>
+    // ===== Page navigation engine =====
+    (function() {
+      const container = document.getElementById('pageContainer');
+      const pages = document.querySelectorAll('.page');
+      const topbar = document.getElementById('topbar');
+      const dotsContainer = document.getElementById('pageDots');
+      const keyHint = document.getElementById('keyHint');
+      const PAGE_IDS = ['home', 'scroll', 'suburb', 'pano-suburb', 'river', 'pano-river',
+                        'bridge', 'pano-bridge', 'gate', 'pano-gate', 'market', 'pano-market', 'summary'];
+
+      let currentIndex = 0;
+      let transitioning = false;
+
+      // Build dots
+      PAGE_IDS.forEach((id, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'page-dot' + (i === 0 ? ' active' : '');
+        dot.title = id;
+        dot.addEventListener('click', function() { goTo(i); });
+        dotsContainer.appendChild(dot);
+      });
+      const dots = dotsContainer.querySelectorAll('.page-dot');
+
+      function goTo(index) {
+        if (transitioning) return;
+        if (index < 0 || index >= pages.length) return;
+        if (index === currentIndex) return;
+
+        transitioning = true;
+        const prevIndex = currentIndex;
+        currentIndex = index;
+
+        // Slide the container
+        container.style.transform = 'translateY(-' + (index * 100) + 'vh)';
+
+        // Update dots
+        dots.forEach((d, i) => d.classList.toggle('active', i === index));
+
+        // Show/hide topbar (hide on hero and panorama pages for full-screen)
+        var hideTopbarPages = [0, 3, 5, 7, 9, 11];
+        if (hideTopbarPages.indexOf(index) !== -1) {
+          topbar.classList.remove('visible');
+        } else {
+          topbar.classList.add('visible');
+        }
+
+        // Hide key hint after first navigation
+        keyHint.style.opacity = '0';
+
+        // Scroll page unfurl logic
+        const SCROLL_IDX = 1;  // scroll page index
+        const COVER_IDX = 0;   // cover / home page index
+        if (index === SCROLL_IDX) {
+          if (prevIndex === COVER_IDX) {
+            // From cover: animate unfurl — immediately start (no delay)
+            startScrollUnfurl();
+          } else {
+            // From elsewhere: show already-unfurled static state
+            showUnfurledScroll();
+          }
+        } else if (prevIndex === SCROLL_IDX) {
+          // Leaving scroll page — cancel any running animation but DON'T reset visual state
+          cancelRunningUnfurl();
+        }
+
+        // ---- Panorama 360° lifecycle ----
+        var panoPages = ['pano-suburb', 'pano-river', 'pano-bridge', 'pano-gate', 'pano-market'];
+        var prevPageId = PAGE_IDS[prevIndex];
+        var currPageId = PAGE_IDS[index];
+        // Stop when leaving any panorama page
+        if (panoPages.indexOf(prevPageId) !== -1) {
+          if (typeof window.stopPanorama === 'function') window.stopPanorama();
+        }
+        // Start when entering any panorama page
+        var panoConfig = {
+          'pano-suburb':  { container: 'panoContainer-suburb',  image: 'https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/360/1.webp',  hint: 'panoHint-suburb' },
+          'pano-river':   { container: 'panoContainer-river',   image: 'https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/360/2.webp',  hint: 'panoHint-river' },
+          'pano-bridge':  { container: 'panoContainer-bridge',  image: 'https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/360/3.webp',  hint: 'panoHint-bridge' },
+          'pano-gate':    { container: 'panoContainer-gate',    image: 'https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/360/4.webp',  hint: 'panoHint-gate' },
+          'pano-market':  { container: 'panoContainer-market',  image: 'https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/programs/menghui/360/5.webp',  hint: 'panoHint-market' }
+        };
+        if (panoConfig[currPageId]) {
+          var cfg = panoConfig[currPageId];
+          // Cache-bust: append timestamp to avoid stale images
+          var bustedImage = cfg.image + '?t=' + Date.now();
+          (function tryStartPano(attempts) {
+            if (typeof window.startPanorama === 'function') {
+              setTimeout(function() {
+                window.startPanorama(cfg.container, bustedImage, cfg.hint);
+              }, 50);
+            } else if (attempts > 0) {
+              setTimeout(function() { tryStartPano(attempts - 1); }, 300);
+            }
+          })(20);
+        }
+
+        transitioning = false;
+      }
+
+      function cancelRunningUnfurl() {
+        if (scrollUnfurlRAF) { cancelAnimationFrame(scrollUnfurlRAF); scrollUnfurlRAF = null; }
+      }
+
+      function resetScrollUnfurl() {
+        cancelRunningUnfurl();
+        const stage = document.getElementById('scrollStage');
+        const rod = document.getElementById('scrollRod');
+        const img = stage ? stage.querySelector('.full-scroll') : null;
+        if (!stage) return;
+        stage.classList.remove('scrollable');
+        if (rod) { rod.style.left = ''; rod.style.opacity = ''; }
+        if (img) { img.style.clipPath = ''; img.style.transition = ''; img.style.transform = ''; }
+        stage.scrollLeft = 0;
+      }
+
+      function showUnfurledScroll() {
+        cancelRunningUnfurl();
+        const stage = document.getElementById('scrollStage');
+        const rod = document.getElementById('scrollRod');
+        const img = stage ? stage.querySelector('.full-scroll') : null;
+        if (!stage || !rod || !img) return;
+        // Full image, no clip, no transform
+        img.style.clipPath = '';
+        img.style.transform = '';
+        img.style.transition = '';
+        // Hide rod
+        rod.style.opacity = '0';
+        rod.style.left = '';
+        // Enable scroll from beginning
+        stage.scrollLeft = 0;
+        stage.classList.add('scrollable');
+      }
+
+      var scrollUnfurlRAF = null;
+
+      function startScrollUnfurl() {
+        const stage = document.getElementById('scrollStage');
+        const rod = document.getElementById('scrollRod');
+        const img = stage ? stage.querySelector('.full-scroll') : null;
+        if (!stage || !rod || !img) return;
+
+        if (scrollUnfurlRAF) { cancelAnimationFrame(scrollUnfurlRAF); scrollUnfurlRAF = null; }
+
+        // Reset any leftover state from previous runs
+        stage.classList.remove('scrollable');
+        stage.scrollLeft = 0;
+        rod.style.opacity = '';
+        rod.style.left = '';
+        img.style.transform = '';
+        img.style.transition = '';
+
+        // Measure actual rendered dimensions (img may be shrunk by flex/height constraints)
+        var VP_W = stage.clientWidth;
+        var IMG_W = img.offsetWidth || img.naturalWidth;
+        var ROD_W = 96;
+        // ⬇ 调整这个值：木卷最终停的位置距离画像最右边的偏移量（像素）
+        //    正数=往左偏（木卷停得更早），负数=往右偏（木卷走得更远）
+        var ROD_STOP_OFFSET = 30;
+
+        var rodTravel = IMG_W - ROD_W - ROD_STOP_OFFSET;
+        var scrollTravel = Math.max(0, IMG_W - VP_W);
+        var SPEED = Math.max(VP_W * 0.35, 250); // slower, smoother unrolling
+        var DURATION = (rodTravel / SPEED) * 1000;
+
+        // Hard clip initial state (no transition)
+        img.style.clipPath = 'inset(0 ' + IMG_W + 'px 0 0)';
+        rod.style.left = '0px';
+
+        var startTime = performance.now();
+
+        function tick(time) {
+          var elapsed = time - startTime;
+          var progress = Math.min(1, elapsed / DURATION);
+          var p = 1 - Math.pow(1 - progress, 3);
+
+          // Rod's LEFT edge position relative to the full image
+          var rodImgX = p * rodTravel;
+
+          // ---- Clip the image: show only up to where the rod has passed ----
+          // rodImgX = how much of the image has been "unrolled" from the left
+          var clipRightPx = Math.round(Math.max(0, IMG_W - rodImgX));
+          img.style.clipPath = 'inset(0 ' + clipRightPx + 'px 0 0)';
+
+          // ---- Scroll the image so the rod stays visible ----
+          // Use translateX instead of scrollLeft to avoid confusing browsers
+          // with absolute-positioned elements in overflow:hidden containers
+          var scrollLeft = Math.min(
+            Math.max(0, rodImgX + ROD_W - VP_W),
+            scrollTravel
+          );
+          img.style.transform = 'translateX(' + (-Math.round(scrollLeft)) + 'px)';
+
+          // ---- Rod's visual position within the viewport ----
+          // rodImgX is the rod's position in the IMAGE coordinate system.
+          // The image is shifted by -scrollLeft via translateX, so
+          // the rod's actual screen position = rodImgX - scrollLeft
+          var visualLeft = Math.round(rodImgX - scrollLeft);
+          rod.style.left = visualLeft + 'px';
+
+          // Rod stays fully opaque until it reaches the end
+
+          if (progress < 1) {
+            scrollUnfurlRAF = requestAnimationFrame(tick);
+          } else {
+            scrollUnfurlRAF = null;
+            // Instantly reveal everything, snap to scroll mode
+            img.style.transition = 'none';
+            img.style.transform = '';
+            img.style.clipPath = '';
+            stage.scrollLeft = Math.round(scrollTravel);
+            rod.style.opacity = '0';
+            stage.classList.add('scrollable');
+          }
+        }
+
+        scrollUnfurlRAF = requestAnimationFrame(tick);
+      }
+
+      // Click handler for all data-page links
+      document.addEventListener('click', function(e) {
+        const link = e.target.closest('[data-page]');
+        if (!link) return;
+        e.preventDefault();
+        const targetId = link.getAttribute('data-page');
+        const idx = PAGE_IDS.indexOf(targetId);
+        if (idx !== -1) goTo(idx);
+      });
+
+      // No keyboard/wheel navigation — only button clicks
+
+      // Horizontal scroll drag (scroll-stage)
+      const scrollStage = document.getElementById('scrollStage');
+      if (scrollStage) {
+        let isDown = false;
+        let startX = 0;
+        let scrollLeft = 0;
+
+        scrollStage.addEventListener('mousedown', function(e) {
+          isDown = true;
+          startX = e.pageX - scrollStage.offsetLeft;
+          scrollLeft = scrollStage.scrollLeft;
+        });
+
+        scrollStage.addEventListener('mouseleave', function() {
+          isDown = false;
+        });
+
+        scrollStage.addEventListener('mouseup', function() {
+          isDown = false;
+        });
+
+        scrollStage.addEventListener('mousemove', function(e) {
+          if (!isDown) return;
+          e.preventDefault();
+          const x = e.pageX - scrollStage.offsetLeft;
+          const walk = (x - startX) * 1.4;
+          scrollStage.scrollLeft = scrollLeft - walk;
+        });
+      }
+
+      // ===== Hotspot positioning (maps % to actual image area) =====
+      function repositionHotspots() {
+        document.querySelectorAll('.scene-image-wrap').forEach(function(wrap) {
+          var img = wrap.querySelector('img');
+          var hotspots = wrap.querySelectorAll('.hotspot');
+          if (!img || hotspots.length === 0) return;
+
+          // Wait for image to render
+          var rect = wrap.getBoundingClientRect();
+          var imgRect = img.getBoundingClientRect();
+
+          // Calculate the image content area inside the container
+          // image uses object-fit: contain, so imgRect shows actual rendered size
+          if (imgRect.width === 0 || imgRect.height === 0) return;
+
+          // The image's content area (where the actual pixels are rendered)
+          // with object-fit: contain, the image is centered both vertically and horizontally
+          var offsetX = imgRect.left - rect.left;
+          var offsetY = imgRect.top - rect.top;
+          var contentW = imgRect.width;
+          var contentH = imgRect.height;
+
+          hotspots.forEach(function(h) {
+            // Store original percentages as data attributes for re-calculation
+            if (!h.dataset.pctX) h.dataset.pctX = parseFloat(h.style.left) || 50;
+            if (!h.dataset.pctY) h.dataset.pctY = parseFloat(h.style.top) || 50;
+            var pctX = parseFloat(h.dataset.pctX);
+            var pctY = parseFloat(h.dataset.pctY);
+            // Position within the image content area
+            var px = offsetX + (pctX / 100) * contentW;
+            var py = offsetY + (pctY / 100) * contentH;
+            h.style.left = (px / rect.width * 100) + '%';
+            h.style.top = (py / rect.height * 100) + '%';
+          });
+        });
+      }
+
+      // Debounced resize handler
+      var resizeTimer = null;
+      window.addEventListener('resize', function() {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(repositionHotspots, 200);
+      });
+
+      // ===== Hotspot interactions =====
+      var noteCard = document.getElementById('noteCard');
+      var noteTitle = document.getElementById('noteTitle');
+      var noteText = document.getElementById('noteText');
+      var noteQuestion = document.getElementById('noteQuestion');
+      var closeNote = document.getElementById('closeNote');
+
+      document.querySelectorAll('.hotspot').forEach(function(hotspot) {
+        hotspot.addEventListener('click', function(event) {
+          event.stopPropagation();
+          noteTitle.textContent = hotspot.dataset.title || '观察点';
+          noteText.textContent = hotspot.dataset.text || '';
+          noteQuestion.textContent = hotspot.dataset.question || '';
+          noteCard.classList.add('visible');
+        });
+      });
+
+      if (closeNote) {
+        closeNote.addEventListener('click', function() {
+          noteCard.classList.remove('visible');
+        });
+      }
+
+      // Close note on Escape
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') noteCard.classList.remove('visible');
+      });
+
+      // ===== Hotspot toggle button =====
+      var scenePageIds = ['suburb', 'river', 'bridge', 'gate', 'market'];
+      var hotspotToggle = document.getElementById('hotspotToggle');
+      var hotspotsVisible = false;  // default hidden
+
+      function updateHotspotToggle() {
+        var pageId = PAGE_IDS[currentIndex];
+        if (scenePageIds.indexOf(pageId) !== -1) {
+          hotspotToggle.classList.remove('hidden');
+          hotspotToggle.textContent = hotspotsVisible ? '隐藏标注' : '显示标注';
+          if (hotspotsVisible) {
+            document.body.classList.add('show-hotspots');
+          } else {
+            document.body.classList.remove('show-hotspots');
+          }
+        } else {
+          hotspotToggle.classList.add('hidden');
+        }
+      }
+
+      if (hotspotToggle) {
+        hotspotToggle.addEventListener('click', function() {
+          hotspotsVisible = !hotspotsVisible;
+          hotspotToggle.textContent = hotspotsVisible ? '隐藏标注' : '显示标注';
+          if (hotspotsVisible) {
+            document.body.classList.add('show-hotspots');
+            setTimeout(repositionHotspots, 100);
+          } else {
+            document.body.classList.remove('show-hotspots');
+          }
+          hotspotToggle.classList.toggle('active', hotspotsVisible);
+        });
+      }
+
+      updateHotspotToggle();
+      // Intercept goTo
+      var origGoTo = goTo;
+      goTo = function(index) {
+        origGoTo(index);
+        setTimeout(repositionHotspots, 200);
+        updateHotspotToggle();
+      };
+    })();
+  </script>
+
+  <!-- Panorama 360° module -->
+  <script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+  // Global panorama state
+  var panoState = null;
+
+  window.startPanorama = function(containerId, imagePath, hintId) {
+    console.log('[360] startPanorama:', containerId, imagePath);
+    // Clean up previous
+    if (panoState) {
+      window.stopPanorama();
+    }
+
+    var container = document.getElementById(containerId);
+    if (!container) {
+      console.warn('[360] container not found');
+      return;
+    }
+
+    var w = container.clientWidth;
+    var h = container.clientHeight;
+    console.log('[360] container size:', w, h);
+
+    // Scene
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111);
+
+    // Camera
+    var camera = new THREE.PerspectiveCamera(100, w / h, 0.1, 1000);
+    camera.position.set(0, 0, 0.1);
+
+    // Renderer
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+
+    // Controls
+    var controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableZoom = true;
+    controls.zoomSpeed = 0.8;
+    controls.rotateSpeed = 0.8;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 0.5;
+    controls.enablePan = false;
+    controls.target.set(0, 0, 0);
+    controls.minPolarAngle = 0;
+    controls.maxPolarAngle = Math.PI;
+
+    // Texture
+    var textureLoader = new THREE.TextureLoader();
+    var texture = textureLoader.load(imagePath,
+      function() {
+        console.log('[360] texture loaded');
+        // Hide hint on load
+        if (hintId) {
+          var hint = document.getElementById(hintId);
+          if (hint) hint.style.opacity = '0';
+        }
+      },
+      undefined,
+      function(err) {
+        console.error('[360] texture error:', err);
+      }
+    );
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.repeat.x = -1;
+    texture.offset.x = 1;
+
+    // Sphere
+    var geometry = new THREE.SphereGeometry(500, 64, 64);
+    var material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.BackSide
+    });
+    var mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    // Resize handler
+    function onResize() {
+      var cw = container.clientWidth;
+      var ch = container.clientHeight;
+      camera.aspect = cw / ch;
+      camera.updateProjectionMatrix();
+      renderer.setSize(cw, ch);
+    }
+    window.addEventListener('resize', onResize);
+
+    // Animation
+    var animating = true;
+    function animate() {
+      if (!animating) return;
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    panoState = {
+      renderer: renderer,
+      controls: controls,
+      scene: scene,
+      mesh: mesh,
+      material: material,
+      geometry: geometry,
+      texture: texture,
+      onResize: onResize,
+      animating: animating,
+      container: container
+    };
+  };
+
+  window.stopPanorama = function() {
+    if (!panoState) return;
+    panoState.animating = false;
+    window.removeEventListener('resize', panoState.onResize);
+    if (panoState.renderer) {
+      panoState.renderer.dispose();
+      if (panoState.renderer.domElement && panoState.renderer.domElement.parentNode) {
+        panoState.renderer.domElement.parentNode.removeChild(panoState.renderer.domElement);
+      }
+    }
+    panoState = null;
+  };
+  </script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

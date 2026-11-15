@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/api/program-assets/1377/t/eyJwcml2YXRlUmV2aXNpb24iOiI0NmUxZGUyMGE4M2MxZDIwZmE1MDI3YjdmMTZkOGVkMiIsIm8iOiJvSHNWcjJ6N0VYZURDS1RlMkNXYXJleVU2QjdnIiwicCI6IjEzNzciLCJleHAiOjE3OTQ1NTk2NDUsInB1cnBvc2UiOiJwcm90ZWN0ZWRfcHJvZ3JhbV9hc3NldCJ9.2BsoTkmR9ETNkOGuoIUjRvu2hHrlEJWJzRzgs2dhVzw/package/"><script>
+(function(){var prefixes=["/api/program-assets/1377/"];function needsCors(v){if(!v||typeof v!=="string")return false;try{var href=new URL(v,document.baseURI).href;for(var i=0;i<prefixes.length;i++){var p=new URL(prefixes[i],location.origin).href;if(href.indexOf(p)===0)return true;}return false;}catch(e){return false;}}function mark(img,v){if(needsCors(v)){try{img.crossOrigin="anonymous";}catch(e){}}}var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(d&&d.set&&d.get){try{Object.defineProperty(HTMLImageElement.prototype,"src",{get:d.get,set:function(v){mark(this,v);return d.set.call(this,v);},configurable:true,enumerable:d.enumerable});}catch(e){}}var set=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(this instanceof HTMLImageElement&&String(n).toLowerCase()==="src")mark(this,String(v||""));return set.apply(this,arguments);};})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抗原抗体特异性结合 · 3D 教学示意</title>
+<style>
+  :root{
+    --bg1:#0b1a2b;
+    --bg2:#12324d;
+    --accent:#5fd0ff;
+    --accent2:#ffd166;
+    --text:#eaf6ff;
+    --muted:#9fc3dd;
+    --panel:rgba(8,24,40,.72);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 800px at 70% 20%, #17456b 0%, var(--bg1) 55%, #06111c 100%);
+    color:var(--text);
+    overflow:hidden;
+  }
+  #stage{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  /* 顶部标题 */
+  .title{
+    position:fixed;top:18px;left:50%;transform:translateX(-50%);
+    text-align:center;pointer-events:none;z-index:5;
+    text-shadow:0 2px 18px rgba(0,0,0,.55);
+  }
+  .title h1{
+    margin:0;font-size:clamp(18px,2.4vw,30px);letter-spacing:.06em;font-weight:700;
+  }
+  .title p{
+    margin:6px 0 0;font-size:clamp(12px,1.2vw,15px);color:var(--muted);letter-spacing:.04em;
+  }
+
+  /* 左下说明卡 */
+  .legend{
+    position:fixed;left:18px;bottom:18px;z-index:5;
+    background:var(--panel);border:1px solid rgba(95,208,255,.28);
+    border-radius:14px;padding:12px 14px;max-width:min(340px,44vw);
+    backdrop-filter:blur(8px);
+    font-size:clamp(11px,1.05vw,13.5px);line-height:1.65;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  .legend .row{display:flex;align-items:center;gap:8px;margin:4px 0;}
+  .dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 8px currentColor;}
+  .legend .hint{margin-top:8px;color:var(--muted);font-size:.92em;border-top:1px dashed rgba(159,195,221,.28);padding-top:7px;}
+
+  /* 右下控制 */
+  .controls{
+    position:fixed;right:18px;bottom:18px;z-index:5;
+    display:flex;flex-direction:column;gap:8px;align-items:flex-end;
+  }
+  button{
+    font-family:inherit;font-size:clamp(12px,1.1vw,14px);
+    color:var(--text);background:rgba(20,58,90,.85);
+    border:1px solid rgba(95,208,255,.45);border-radius:10px;
+    padding:9px 16px;cursor:pointer;letter-spacing:.04em;
+    transition:background .18s,border-color .18s,transform .12s;
+    box-shadow:0 6px 18px rgba(0,0,0,.3);
+  }
+  button:hover{background:rgba(34,92,140,.95);border-color:var(--accent);}
+  button:active{transform:scale(.97);}
+  button.primary{background:linear-gradient(180deg,#1f7fb8,#155a86);border-color:#7fdcff;}
+  button.primary:hover{background:linear-gradient(180deg,#2797d6,#1a6b9e);}
+
+  /* 状态条 */
+  .status{
+    position:fixed;top:18px;right:18px;z-index:5;
+    background:var(--panel);border:1px solid rgba(255,209,102,.35);
+    border-radius:12px;padding:9px 14px;
+    font-size:clamp(11px,1.05vw,13px);color:var(--accent2);
+    letter-spacing:.05em;backdrop-filter:blur(8px);
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    max-width:46vw;
+  }
+  .status b{color:#fff;font-weight:600;}
+
+  /* 结果提示 */
+  .toast{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.85);
+    z-index:8;pointer-events:none;opacity:0;
+    background:linear-gradient(180deg,rgba(255,209,102,.96),rgba(255,168,60,.96));
+    color:#3a2300;font-weight:800;letter-spacing:.08em;
+    padding:16px 34px;border-radius:16px;
+    font-size:clamp(16px,2vw,26px);
+    box-shadow:0 18px 50px rgba(255,168,60,.45);
+    transition:opacity .3s,transform .35s cubic-bezier(.2,1.4,.4,1);
+    text-align:center;line-height:1.4;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  .toast small{display:block;font-size:.55em;font-weight:600;letter-spacing:.04em;margin-top:4px;color:#5a3800;}
+
+  @media (max-width:640px){
+    .legend{max-width:58vw;}
+    .status{max-width:52vw;}
+  }
+</style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=1377&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIxMzc3IiwiZXhwIjoxNzk0NTU5NjQ0fQ.weBCzmv4abU9ibcZ24PRtkf791lzXGPkrZ90CKk1Amo",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+<div id="stage"></div>
+
+<div class="title">
+  <h1>抗原 · 抗体 特异性结合</h1>
+  <p>形状互补才能“锁”在一起 —— 就像钥匙和锁</p>
+</div>
+
+<div class="status" id="status">
+  当前：<b id="statusText">自由漂浮</b>
+</div>
+
+<div class="legend">
+  <div class="row"><span class="dot" style="background:#ff6b6b;color:#ff6b6b"></span>抗原（红色小球 + 凸起“表位”）</div>
+  <div class="row"><span class="dot" style="background:#5fd0ff;color:#5fd0ff"></span>抗体（Y 形，末端两个“结合位点”）</div>
+  <div class="row"><span class="dot" style="background:#ffd166;color:#ffd166"></span>结合位点：形状正好互补</div>
+  <div class="hint">只有形状匹配的抗原才能嵌进抗体的结合位点；形状不匹配的会被“弹开”。</div>
+</div>
+
+<div class="controls">
+  <button id="btnPlay" class="primary">▶ 开始结合演示</button>
+  <button id="btnReset">↺ 重置</button>
+  <button id="btnDecoy">✕ 放入“不匹配”抗原</button>
+</div>
+
+<div class="toast" id="toast">特异性结合成功！<small>抗原表位与抗体结合位点形状互补</small></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+   场景基础
+   ============================================================ */
+const stage = document.getElementById('stage');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x081726, 0.018);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 300);
+camera.position.set(0, 6, 26);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+stage.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 10;
+controls.maxDistance = 55;
+controls.target.set(0, 0.5, 0);
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.55;
+
+/* 灯光 */
+scene.add(new THREE.HemisphereLight(0x9fd8ff, 0x0a1a2a, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(9, 14, 12);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x66c8ff, 0.9);
+rim.position.set(-12, -6, -10);
+scene.add(rim);
+const warm = new THREE.PointLight(0xffb066, 1.1, 60);
+warm.position.set(0, -8, 6);
+scene.add(warm);
+
+/* 背景星点，增加空间感 */
+(function stars(){
+  const g = new THREE.BufferGeometry();
+  const N = 700, pos = new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const r = 45 + Math.random()*70;
+    const th = Math.random()*Math.PI*2;
+    const ph = Math.acos(2*Math.random()-1);
+    pos[i*3]   = r*Math.sin(ph)*Math.cos(th);
+    pos[i*3+1] = r*Math.cos(ph)*0.6;
+    pos[i*3+2] = r*Math.sin(ph)*Math.sin(th);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const m = new THREE.PointsMaterial({ color:0x7fbde0, size:0.55, transparent:true, opacity:0.55, depthWrite:false });
+  scene.add(new THREE.Points(g,m));
+})();
+
+/* 一个柔和的“水面/地面”光晕，帮助判断空间位置 */
+(function floorGlow(){
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  const grd = ctx.createRadialGradient(128,128,10,128,128,128);
+  grd.addColorStop(0,'rgba(80,180,255,0.55)');
+  grd.addColorStop(0.5,'rgba(50,120,200,0.18)');
+  grd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = grd; ctx.fillRect(0,0,256,256);
+  const tex = new THREE.CanvasTexture(c);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(60,60),
+    new THREE.MeshBasicMaterial({ map:tex, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending })
+  );
+  mesh.rotation.x = -Math.PI/2;
+  mesh.position.y = -7.5;
+  scene.add(mesh);
+})();
+
+/* ============================================================
+   工具函数
+   ============================================================ */
+const clock = new THREE.Clock();
+
+function makeGlowTexture(){
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(0.25,'rgba(255,255,255,0.65)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+const glowTex = makeGlowTexture();
+
+function sprite(color, scale=3, opacity=0.8){
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color, transparent:true, opacity,
+    depthWrite:false, blending:THREE.AdditiveBlending
+  }));
+  s.scale.set(scale, scale, 1);
+  return s;
+}
+
+/* ============================================================
+   抗原：红色球体 + 一个“凸起表位”（形状 A：圆顶小柱）
+   ============================================================ */
+function createAntigen(epitopeShape = 'dome', color = 0xff6b6b){
+  const group = new THREE.Group();
+
+  // 主体
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color, roughness:0.35, metalness:0.12,
+    emissive: new THREE.Color(color).multiplyScalar(0.18)
+  });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(2.0, 48, 36), bodyMat);
+  group.add(body);
+
+  // 表面小颗粒质感
+  const bumpMat = new THREE.MeshStandardMaterial({ color:0xff9d9d, roughness:0.5, metalness:0.05 });
+  for(let i=0;i<26;i++){
+    const r = 2.0;
+    const th = Math.random()*Math.PI*2;
+    const ph = Math.acos(2*Math.random()-1);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.16+Math.random()*0.12, 10, 8), bumpMat);
+    b.position.set(
+      r*Math.sin(ph)*Math.cos(th),
+      r*Math.cos(ph),
+      r*Math.sin(ph)*Math.sin(th)
+    );
+    group.add(b);
+  }
+
+  // 表位（凸起）—— 朝向 +Y 方向
+  const epMat = new THREE.MeshStandardMaterial({
+    color:0xffd166, roughness:0.28, metalness:0.25,
+    emissive:0x996600, emissiveIntensity:0.35
+  });
+
+  const epitope = new THREE.Group();
+  if(epitopeShape === 'dome'){
+    // 圆顶柱：与抗体凹槽互补
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.72, 0.9, 28), epMat);
+    stem.position.y = 0.45;
+    epitope.add(stem);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 28, 18, 0, Math.PI*2, 0, Math.PI/2), epMat);
+    cap.position.y = 0.9;
+    epitope.add(cap);
+    // 表位高亮环
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.78, 0.055, 10, 40),
+      new THREE.MeshBasicMaterial({ color:0xffe08a, transparent:true, opacity:0.9 })
+    );
+    ring.rotation.x = Math.PI/2;
+    ring.position.y = 0.02;
+    epitope.add(ring);
+  } else {
+    // 不匹配的“尖刺”表位
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.5, 24), epMat);
+    cone.position.y = 0.75;
+    epitope.add(cone);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), epMat);
+    tip.position.y = 1.5;
+    epitope.add(tip);
+  }
+  epitope.position.y = 1.95;
+  group.add(epitope);
+  group.userData.epitope = epitope;
+
+  // 光晕
+  const halo = sprite(color, 7.5, 0.35);
+  group.add(halo);
+
+  return group;
+}
+
+/* ============================================================
+   抗体：Y 形（两条臂 + 主干），末端有“凹槽结合位点”
+   ============================================================ */
+function createAntibody(){
+  const group = new THREE.Group();
+
+  const armMat = new THREE.MeshStandardMaterial({
+    color:0x5fd0ff, roughness:0.3, metalness:0.25,
+    emissive:0x0d4a6e, emissiveIntensity:0.55
+  });
+  const stemMat = new THREE.MeshStandardMaterial({
+    color:0x3aa8dd, roughness:0.35, metalness:0.2,
+    emissive:0x0a3550, emissiveIntensity:0.5
+  });
+
+  // 主干（向下）
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 4.2, 28), stemMat);
+  stem.position.y = -2.1;
+  group.add(stem);
+
+  // 主干末端球
+  const foot = new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 18), stemMat);
+  foot.position.y = -4.2;
+  group.add(foot);
+
+  // 两条臂：从 (0,0,0) 向左右上方伸展
+  const armLen = 4.6;
+  const armAngle = THREE.MathUtils.degToRad(38); // 与竖直方向夹角
+
+  const armDirs = [
+    new THREE.Vector3(-Math.sin(armAngle), Math.cos(armAngle), 0),
+    new THREE.Vector3( Math.sin(armAngle), Math.cos(armAngle), 0)
+  ];
+
+  const tips = [];
+
+  armDirs.forEach((dir, idx)=>{
+    // 臂
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, armLen, 24), armMat);
+    const mid = dir.clone().multiplyScalar(armLen/2);
+    arm.position.copy(mid);
+    arm.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+    group.add(arm);
+
+    // 臂末端（结合位点基座）
+    const tipPos = dir.clone().multiplyScalar(armLen);
+    const base = new THREE.Mesh(new THREE.SphereGeometry(0.78, 28, 20), armMat);
+    base.position.copy(tipPos);
+    group.add(base);
+
+    // 结合位点：一个“凹槽/杯状”——用半球 + 环表示
+    const socket = new THREE.Group();
+    socket.position.copy(tipPos);
+
+    // 让凹槽朝向“臂的外上方”
+    const outDir = dir.clone().normalize();
+    socket.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), outDir);
+
+    // 凹槽外圈（环）
+    const ringMat = new THREE.MeshStandardMaterial({
+      color:0xffd166, roughness:0.25, metalness:0.4,
+      emissive:0xaa7a00, emissiveIntensity:0.55
+    });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.14, 16, 40), ringMat);
+    ring.rotation.x = Math.PI/2;
+    ring.position.y = 0.55;
+    socket.add(ring);
+
+    // 凹槽内壁（半球壳，开口朝外）
+    const cupMat = new THREE.MeshStandardMaterial({
+      color:0xffe6a3, roughness:0.4, metalness:0.3,
+      side:THREE.DoubleSide, transparent:true, opacity:0.55,
+      emissive:0x7a5a00, emissiveIntensity:0.4
+    });
+    const cup = new THREE.Mesh(
+      new THREE.SphereGeometry(0.72, 32, 20, 0, Math.PI*2, Math.PI*0.42, Math.PI*0.58),
+      cupMat
+    );
+    cup.position.y = 0.5;
+    socket.add(cup);
+
+    // 位点光晕
+    const s = sprite(0xffd166, 3.4, 0.55);
+    s.position.y = 0.6;
+    socket.add(s);
+
+    group.add(socket);
+    tips.push({ socket, tipPos: tipPos.clone(), dir: outDir.clone() });
+  });
+
+  group.userData.tips = tips;
+
+  // 整体光晕
+  const halo = sprite(0x5fd0ff, 11, 0.22);
+  halo.position.y = 0.5;
+  group.add(halo);
+
+  return group;
+}
+
+/* ============================================================
+   组装场景对象
+   ============================================================ */
+const antibody = createAntibody();
+antibody.position.set(0, 0.6, 0);
+scene.add(antibody);
+
+// 用于演示的“匹配”抗原
+const antigen = createAntigen('dome', 0xff6b6b);
+antigen.position.set(0, 11, 0);
+scene.add(antigen);
+
+// 不匹配抗原（默认隐藏）
+const decoy = createAntigen('spike', 0xff8f4d);
+decoy.position.set(9, 9, -3);
+decoy.visible = false;
+scene.add(decoy);
+
+/* 抗原的初始位置（用于重置） */
+const AG_START = new THREE.Vector3(0, 11, 0);
+const DECOY_START = new THREE.Vector3(9, 9, -3);
+
+/* ============================================================
+   动画状态机
+   ============================================================ */
+const STATE = {
+  IDLE: 'idle',
+  APPROACH: 'approach',
+  LOCK: 'lock',
+  SUCCESS: 'success',
+  DECOY_APPROACH: 'decoyApproach',
+  DECOY_BOUNCE: 'decoyBounce'
+};
+
+let state = STATE.IDLE;
+let t = 0;                 // 状态内计时
+let decoyActive = false;
+let bounceDir = new THREE.Vector3();
+let successPulse = 0;
+
+const statusText = document.getElementById('statusText');
+const toast = document.getElementById('toast');
+
+// 记录抗体两个结合位点的世界坐标（每帧更新）
+const tipWorld = [new THREE.Vector3(), new THREE.Vector3()];
+const tipWorldPrev = [new THREE.Vector3(), new THREE.Vector3()];
+
+function setStatus(txt){ statusText.textContent = txt; }
+
+function resetAll(){
+  state = STATE.IDLE;
+  t = 0;
+  decoyActive = false;
+  successPulse = 0;
+  antigen.position.copy(AG_START);
+  antigen.rotation.set(0,0,0);
+  antibody.rotation.set(0,0,0);
+  antibody.position.set(0, 0.6, 0);
+  decoy.visible = false;
+  decoy.position.copy(DECOY_START);
+  decoy.rotation.set(0,0,0);
+  toast.classList.remove('show');
+  controls.autoRotate = true;
+  setStatus('自由漂浮');
+}
+
+/* 计算某个结合位点的世界坐标与朝向 */
+function updateTipWorld(){
+  antibody.updateMatrixWorld(true);
+  antibody.userData.tips.forEach((tip, i)=>{
+    tipWorldPrev[i].copy(tipWorld[i]);
+    tip.socket.getWorldPosition(tipWorld[i]);
+  });
+}
+
+/* 让抗原的“表位”朝某个方向对齐 */
+function alignEpitopeTo(dirWorld){
+  // 抗原的表位默认朝 +Y。需要旋转使 +Y 对齐 dirWorld
+  const q = new THREE.Quaternion().setFromUnitVectors(
+    new THREE.Vector3(0,1,0),
+    dirWorld.clone().normalize()
+  );
+  return q;
+}
+
+/* ============================================================
+   交互
+   ============================================================ */
+document.getElementById('btnPlay').addEventListener('click', ()=>{
+  if(state === STATE.IDLE || state === STATE.SUCCESS || state === STATE.DECOY_BOUNCE){
+    resetAll();
+    state = STATE.APPROACH;
+    t = 0;
+    controls.autoRotate = false;
+    setStatus('抗原正在靠近抗体…');
+  }
+});
+
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  resetAll();
+});
+
+document.getElementById('btnDecoy').addEventListener('click', ()=>{
+  if(state === STATE.DECOY_APPROACH || state === STATE.DECOY_BOUNCE) return;
+  resetAll();
+  decoyActive = true;
+  decoy.visible = true;
+  decoy.position.copy(DECOY_START);
+  state = STATE.DECOY_APPROACH;
+  t = 0;
+  controls.autoRotate = false;
+  setStatus('一个形状不匹配的抗原靠近了…');
+});
+
+/* ============================================================
+   主循环
+   ============================================================ */
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  t += dt;
+
+  updateTipWorld();
+
+  // 抗体轻微呼吸/摆动
+  const breathe = Math.sin(performance.now()*0.0011)*0.035;
+  antibody.scale.setScalar(1 + breathe*0.4);
+
+  // 目标位点（取左臂结合位点作为主结合点）
+  const targetTip = tipWorld[0];
+  const targetDir = antibody.userData.tips[0].dir.clone()
+    .applyQuaternion(antibody.quaternion).normalize();
+
+  if(state === STATE.IDLE){
+    // 抗原缓慢漂浮
+    antigen.position.y = AG_START.y + Math.sin(performance.now()*0.0009)*0.5;
+    antigen.rotation.y += dt*0.25;
+    antigen.rotation.x = Math.sin(performance.now()*0.0007)*0.15;
+  }
+
+  else if(state === STATE.APPROACH){
+    // 抗原沿曲线飞向结合位点
+    const progress = Math.min(t / 2.6, 1);
+    const ease = 1 - Math.pow(1-progress, 3);
+
+    // 起点
+    const start = AG_START.clone();
+    // 终点：结合位点上方一点（让表位插入凹槽）
+    const end = targetTip.clone().add(targetDir.clone().multiplyScalar(1.35));
+
+    // 中间控制点，形成弧线
+    const mid = start.clone().lerp(end, 0.5).add(new THREE.Vector3(3.2, 1.5, 1.6));
+
+    // 二次贝塞尔
+    const p = new THREE.Vector3()
+      .copy(start).multiplyScalar((1-ease)*(1-ease))
+      .add(mid.clone().multiplyScalar(2*(1-ease)*ease))
+      .add(end.clone().multiplyScalar(ease*ease));
+
+    antigen.position.copy(p);
+
+    // 旋转：让表位逐渐朝向结合位点的“开口方向”（即 targetDir）
+    const qTarget = alignEpitopeTo(targetDir);
+    const qStart = new THREE.Quaternion(); // 初始无旋转
+    antigen.quaternion.slerpQuaternions(qStart, qTarget, Math.min(ease*1.25, 1));
+
+    // 接近时高亮
+    if(progress > 0.72){
+      setStatus('形状匹配！正在嵌入结合位点…');
+    }
+
+    if(progress >= 1){
+      state = STATE.LOCK;
+      t = 0;
+      setStatus('锁定中…');
+    }
+  }
+
+  else if(state === STATE.LOCK){
+    // 轻微回弹并稳定，产生“咔哒”锁合感
+    const k = Math.min(t/0.55, 1);
+    const ease = 1 - Math.pow(1-k, 3);
+
+    const end = targetTip.clone().add(targetDir.clone().multiplyScalar(1.35));
+    const overshoot = targetTip.clone().add(targetDir.clone().multiplyScalar(1.05));
+    const pos = overshoot.clone().lerp(end, ease);
+    antigen.position.copy(pos);
+
+    // 朝向保持对齐
+    const qTarget = alignEpitopeTo(targetDir);
+    antigen.quaternion.slerp(qTarget, 0.25);
+
+    if(k >= 1){
+      state = STATE.SUCCESS;
+      t = 0;
+      successPulse = 1;
+      toast.classList.add('show');
+      setStatus('特异性结合成功 ✓');
+      // 成功后自动缓慢旋转
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.9;
+      setTimeout(()=>{ toast.classList.remove('show'); }, 2600);
+    }
+  }
+
+  else if(state === STATE.SUCCESS){
+    // 锁定后跟随抗体轻微运动（保持贴合）
+    const end = targetTip.clone().add(targetDir.clone().multiplyScalar(1.35));
+    antigen.position.lerp(end, 0.35);
+    const qTarget = alignEpitopeTo(targetDir);
+    antigen.quaternion.slerp(qTarget, 0.2);
+
+    // 成功脉冲光
+    if(successPulse > 0){
+      successPulse = Math.max(0, successPulse - dt*0.8);
+      const s = 1 + successPulse*0.35;
+      antigen.scale.setScalar(s);
+      antibody.scale.multiplyScalar(1 + successPulse*0.02);
+    }
+  }
+
+  else if(state === STATE.DECOY_APPROACH){
+    // 不匹配抗原靠近，但在接触前被“弹开”
+    const progress = Math.min(t / 2.4, 1);
+    const ease = 1 - Math.pow(1-progress, 3);
+
+    const start = DECOY_START.clone();
+    // 目标：靠近结合位点但不到达
+    const near = targetTip.clone().add(targetDir.clone().multiplyScalar(3.4));
+    const mid = start.clone().lerp(near, 0.5).add(new THREE.Vector3(-2.5, 1.0, 1.0));
+
+    const p = new THREE.Vector3()
+      .copy(start).multiplyScalar((1-ease)*(1-ease))
+      .add(mid.clone().multiplyScalar(2*(1-ease)*ease))
+      .add(near.clone().multiplyScalar(ease*ease));
+
+    decoy.position.copy(p);
+    decoy.rotation.y += dt*0.6;
+    decoy.rotation.x += dt*0.3;
+
+    if(progress > 0.6){
+      setStatus('形状不匹配，无法嵌入…');
+    }
+
+    if(progress >= 1){
+      state = STATE.DECOY_BOUNCE;
+      t = 0;
+      // 弹开方向：远离结合位点
+      bounceDir = decoy.position.clone().sub(targetTip).normalize()
+        .add(new THREE.Vector3(0.6, 0.9, 0.4)).normalize();
+      setStatus('被弹开了！形状不互补 ✕');
+    }
+  }
+
+  else if(state === STATE.DECOY_BOUNCE){
+    // 弹开并飞远
+    const speed = 7.5;
+    decoy.position.addScaledVector(bounceDir, speed*dt);
+    decoy.rotation.x += dt*2.2;
+    decoy.rotation.z += dt*1.4;
+    decoy.scale.setScalar(Math.max(0.05, 1 - t*0.32));
+
+    if(t > 2.6){
+      decoy.visible = false;
+      state = STATE.IDLE;
+      t = 0;
+      controls.autoRotate = true;
+      setStatus('自由漂浮');
+    }
+  }
+
+  // 结合位点高亮呼吸（在接近/锁定时更亮）
+  const highlight = (state === STATE.APPROACH || state === STATE.LOCK || state === STATE.SUCCESS)
+    ? 1 : 0.45;
+  antibody.userData.tips.forEach((tip)=>{
+    const ring = tip.socket.children.find(c => c.geometry && c.geometry.type === 'TorusGeometry');
+    if(ring){
+      ring.material.emissiveIntensity = 0.4 + Math.sin(performance.now()*0.005)*0.25*highlight + highlight*0.3;
+    }
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
+
+/* ============================================================
+   自适应
+   ============================================================ */
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/api/program-assets/279/t/eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIyNzkiLCJleHAiOjE3OTQ1NTk5Mzl9.wUWykbNV7QmItCh6rukVcOGzvMP5bCkFM_gWyIUemus/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>英雄抢答大乱斗 - 动感对决版</title>
+    <!-- 引入 SheetJS 库用于解析 Excel 文件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* --- 1. 基础样式 (Base) --- */
+        :root {
+            --bg-color: #2c3e50;
+            --p1-color: #e74c3c; /* 红 */
+            --p2-color: #3498db; /* 蓝 */
+            --ui-yellow: #f1c40f;
+            --font-main: 'Courier New', Courier, monospace;
+            --hp-block-size: 30px;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #111;
+            font-family: var(--font-main);
+            color: white;
+            overflow: hidden;
+        }
+
+        /* 通用按钮 */
+        .btn {
+            border: 4px solid white;
+            padding: 15px 30px;
+            font-size: 24px;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            margin: 10px;
+        }
+        .btn:active { transform: translateY(6px); box-shadow: none; }
+        .btn-primary { background: var(--ui-yellow); color: #000; }
+        .btn-secondary { background: #7f8c8d; color: white; }
+        .btn-danger { background: var(--p1-color); color: white; }
+
+        /* --- 2. 屏幕容器 (Screens) --- */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            background-size: cover;
+            background-position: center;
+        }
+        .screen.active { display: flex; }
+
+        /* --- 主菜单 (Main Menu) --- */
+        #screen-menu {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2c3e50 100%);
+        }
+        .game-title {
+            font-size: 80px; color: var(--ui-yellow);
+            text-shadow: 6px 6px 0 #c0392b;
+            margin-bottom: 50px; text-align: center;
+            animation: bounce 2s infinite;
+        }
+
+        /* --- 设置界面 (Settings) --- */
+        #screen-settings { background: #222; padding: 40px; }
+        .settings-panel {
+            width: 80%; max-width: 800px;
+            background: #333; padding: 30px;
+            border: 4px solid #555; border-radius: 10px;
+        }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 20px; margin-bottom: 10px; color: var(--ui-yellow); }
+        textarea {
+            width: 100%; height: 150px;
+            background: #000; color: #0f0;
+            font-family: monospace; padding: 10px;
+            border: 2px solid #555;
+            font-size: 16px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        input[type="number"] { padding: 10px; font-size: 20px; width: 100px; }
+        .hint { color: #aaa; font-size: 14px; margin-top: 5px; line-height: 1.5; }
+        .file-upload-btn {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #444;
+            border: 1px solid #777;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* --- 角色选择 (Char Select) --- */
+        #screen-select { background: #1e1e1e; flex-direction: row; }
+        .player-col {
+            flex: 1; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; transition: background 0.3s;
+            position: relative;
+        }
+        .col-p1 { background: rgba(231, 76, 60, 0.1); border-right: 2px solid #555; }
+        .col-p2 { background: rgba(52, 152, 219, 0.1); }
+        
+        .char-preview {
+            width: 200px; height: 200px;
+            border: 4px solid white;
+            margin-bottom: 20px;
+            background-size: cover; background-position: center;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 100px; background-color: #333;
+        }
+        .preset-grid { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+        .preset-item {
+            width: 50px; height: 50px; background: #444; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 24px;
+            border: 2px solid #666;
+        }
+        .preset-item:hover { border-color: white; background: #666; }
+        .vs-badge {
+            position: absolute; left: 50%; top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px; font-weight: 900;
+            color: var(--ui-yellow); text-shadow: 4px 4px 0 #000;
+            z-index: 10;
+        }
+        .ready-btn {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 200px; z-index: 20;
+        }
+
+        /* --- 战斗界面 (Battle) --- */
+        #screen-battle {
+            background: linear-gradient(to bottom, #2c3e50, #000);
+            justify-content: space-between;
+        }
+        
+        /* 顶部信息 */
+        .battle-hud {
+            width: 100%; height: 15%;
+            display: flex; justify-content: space-between; padding: 20px 40px;
+            background: rgba(0,0,0,0.3);
+        }
+        .hud-p1, .hud-p2 { display: flex; flex-direction: column; gap: 5px; }
+        .hud-p2 { align-items: flex-end; }
+        
+        .hp-container { display: flex; gap: 5px; }
+        .hp-block {
+            width: 25px; height: 35px; background: #555;
+            border: 2px solid #fff;
+            transform: skewX(-15deg);
+        }
+        .hp-block.active { background: var(--p1-color); box-shadow: 0 0 10px var(--p1-color); }
+        .hud-p2 .hp-block.active { background: var(--p2-color); box-shadow: 0 0 10px var(--p2-color); }
+
+        /* 中间舞台 */
+        .battle-stage {
+            flex: 1; width: 100%; position: relative;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            padding: 0 100px 50px 100px;
+        }
+
+        .fighter {
+            width: 200px; height: 260px;
+            background-size: contain; background-repeat: no-repeat; background-position: bottom center;
+            filter: drop-shadow(5px 5px 0 rgba(0,0,0,0.5));
+            display: flex; align-items: center; justify-content: center; font-size: 130px;
+            transform-origin: bottom center; /* 动画基点设为脚底 */
+        }
+        
+        /* P1 待机动画配置 */
+        #fighter-p1 {
+            animation: idle-p1 2s infinite ease-in-out;
+        }
+
+        /* P2 待机动画配置 (包含水平翻转) */
+        #fighter-p2 {
+            animation: idle-p2 2s infinite ease-in-out;
+        }
+
+        /* 题目区域 */
+        .question-board {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 60%; background: #fff; color: #000;
+            padding: 20px; border-radius: 10px; border: 4px solid #000;
+            text-align: center; font-size: 24px; font-weight: bold;
+            box-shadow: 0 10px 0 rgba(0,0,0,0.2); z-index: 5;
+        }
+
+        /* 底部抢答区 */
+        .controls-area {
+            height: 25%; width: 100%;
+            display: flex;
+        }
+        .buzzer-area {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.2); position: relative;
+        }
+        .buzzer-btn {
+            width: 180px; height: 180px; border-radius: 50%;
+            border: 8px solid rgba(255,255,255,0.5);
+            font-size: 40px; font-weight: 900; color: white;
+            cursor: pointer; position: relative; top: -20px;
+            box-shadow: 0 10px 0 rgba(0,0,0,0.5);
+            transition: all 0.1s;
+        }
+        .buzzer-btn:active { top: -10px; box-shadow: 0 0 0 rgba(0,0,0,0.5); }
+        .buzzer-p1 { background: var(--p1-color); }
+        .buzzer-p2 { background: var(--p2-color); }
+        .buzzer-area.disabled { filter: grayscale(1); pointer-events: none; opacity: 0.3; }
+
+        /* 答题选项弹窗 */
+        .options-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        
+        /* 倒计时样式 */
+        .timer-display {
+            font-size: 80px;
+            font-weight: 900;
+            color: #ff3333;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+            animation: pulse-timer 1s infinite;
+        }
+
+        .options-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 80%;
+        }
+        .option-card {
+            background: #fff; color: #000; padding: 30px;
+            font-size: 24px; text-align: center; border-radius: 10px;
+            border: 4px solid #ccc; cursor: pointer;
+        }
+        .option-card:hover { background: var(--ui-yellow); }
+
+        /* --- 结算界面 (Game Over) --- */
+        #screen-gameover { background: rgba(0,0,0,0.9); z-index: 200; }
+        .winner-avatar {
+            width: 250px; height: 250px; border-radius: 50%; border: 10px solid var(--ui-yellow);
+            background-size: cover; background-position: center;
+            margin-bottom: 20px; display: flex; align-items: center; justify-content: center; font-size: 100px;
+            background-color: #333;
+        }
+        .win-text { font-size: 80px; color: var(--ui-yellow); margin-bottom: 30px; animation: pulse 0.5s infinite; }
+
+        /* --- 动画 --- */
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes pulse-timer { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* 待机呼吸动画 - P1 (正常方向) */
+        @keyframes idle-p1 {
+            0% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.05) translateY(-5px); } /* 呼吸感：变大并轻微上浮 */
+            100% { transform: scale(1) translateY(0); }
+        }
+
+        /* 待机呼吸动画 - P2 (修正：去掉 scaleX(-1) 翻转，保持原图方向) */
+        @keyframes idle-p2 {
+            0% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.05) translateY(-5px); }
+            100% { transform: scale(1) translateY(0); }
+        }
+
+        /* 受击动画 - P1 (正常方向) */
+        @keyframes shake-p1 {
+            0% { transform: translate(0, 0); }
+            20% { transform: translate(-15px, 0) skewX(-5deg); }
+            40% { transform: translate(15px, 0) skewX(5deg); }
+            60% { transform: translate(-15px, 0) skewX(-5deg); }
+            80% { transform: translate(15px, 0) skewX(5deg); }
+            100% { transform: translate(0, 0); }
+        }
+
+        /* 受击动画 - P2 (修正：去掉翻转，震动方向改为向右弹开) */
+        @keyframes shake-p2 {
+            0% { transform: translate(0, 0); }
+            20% { transform: translate(15px, 0) skewX(5deg); } /* 向右震动 */
+            40% { transform: translate(-15px, 0) skewX(-5deg); }
+            60% { transform: translate(15px, 0) skewX(5deg); }
+            80% { transform: translate(-15px, 0) skewX(-5deg); }
+            100% { transform: translate(0, 0); }
+        }
+
+        /* CSS类触发受击 (会覆盖 idle 动画) */
+        #fighter-p1.anim-shake { animation: shake-p1 0.5s; }
+        #fighter-p2.anim-shake { animation: shake-p2 0.5s; }
+
+        .anim-red { filter: sepia(1) saturate(10) hue-rotate(-50deg); } /* 变红 */
+
+        /* 投射物 */
+        .projectile {
+            position: absolute; font-size: 80px; z-index: 50; 
+            transition: left 0.5s linear, top 0.5s linear;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .projectile.spin { animation: spin 0.5s linear infinite; }
+
+        .damage-text {
+            position: absolute; font-size: 50px; color: #ff0; font-weight: bold;
+            text-shadow: 2px 2px 0 #f00; z-index: 60; animation: floatUp 1s forwards;
+        }
+        @keyframes floatUp { to { transform: translateY(-100px); opacity: 0; } }
+
+    </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=279&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiIyNzkiLCJleHAiOjE3OTQ1NTk5NDB9.0DqQs_wGVezwfDQ2ipRalTapgOPYuJ9s4ZD6HheGRDE",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+
+<!-- 1. 主菜单 -->
+<div id="screen-menu" class="screen active">
+    <div class="game-title">⚡ 英雄抢答大乱斗 ⚡<br><span style="font-size:30px; color:white;">双人对决版</span></div>
+    <button class="btn btn-primary" onclick="showScreen('screen-select')">开始战斗</button>
+    <button class="btn btn-secondary" onclick="showScreen('screen-settings')">系统设置</button>
+</div>
+
+<!-- 2. 系统设置 -->
+<div id="screen-settings" class="screen">
+    <div class="settings-panel">
+        <h2 style="text-align:center; color:var(--ui-yellow);">⚙️ 系统设置</h2>
+        
+        <div class="setup-row" style="display:flex; gap:20px;">
+            <div class="form-group" style="flex:1;">
+                <label>初始血量 (HP):</label>
+                <input type="number" id="setting-hp" value="5" min="1" max="10" style="width:100%;">
+            </div>
+            
+            <div class="form-group" style="flex:1;">
+                <label>答题限时 (秒):</label>
+                <input type="number" id="setting-time" value="10" min="3" max="60" style="width:100%;">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>题目导入 (支持 Excel .xlsx / CSV / 文本):</label>
+            <textarea id="setting-questions" placeholder="题目将会显示在这里...
+格式示例：
+1+1等于几?, 2, 3, 4, 5
+或者点击下方按钮导入 Excel 文件..."></textarea>
+            
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:5px;">
+                <div class="hint">
+                    支持格式：<b>.xlsx (Excel)</b>, .csv, .txt<br>
+                    <b>智能识别：</b>系统会自动识别 A. B. C. 等前缀来区分题目和选项，哪怕题目里有逗号也没关系！
+                </div>
+                <div>
+                    <!-- 修改：增加对 .xlsx, .xls 的支持 -->
+                    <input type="file" id="import-file" accept=".xlsx,.xls,.csv,.txt,.tsv" style="display:none;" onchange="importQuestionFile(this)">
+                    <button class="file-upload-btn" onclick="document.getElementById('import-file').click()">📂 导入题目文件 (支持Excel)</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:30px;">
+            <button class="btn btn-primary" onclick="saveSettings()">保存并返回</button>
+            <button class="btn btn-secondary" onclick="showScreen('screen-menu')">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. 角色选择 -->
+<div id="screen-select" class="screen">
+    <div class="vs-badge">VS</div>
+    
+    <!-- P1 选人 -->
+    <div class="player-col col-p1">
+        <h2 style="color:var(--p1-color)">1P (红方)</h2>
+        <div class="char-preview" id="preview-p1">🔴</div>
+        <div class="preset-grid" id="presets-p1"></div>
+        <input type="file" onchange="handleFileSelect(this, 'p1')" accept="image/*" style="display:none;" id="file-p1">
+        <button class="btn btn-secondary" style="font-size:16px;" onclick="document.getElementById('file-p1').click()">上传图片</button>
+    </div>
+
+    <!-- P2 选人 -->
+    <div class="player-col col-p2">
+        <h2 style="color:var(--p2-color)">2P (蓝方)</h2>
+        <div class="char-preview" id="preview-p2">🔵</div>
+        <div class="preset-grid" id="presets-p2"></div>
+        <input type="file" onchange="handleFileSelect(this, 'p2')" accept="image/*" style="display:none;" id="file-p2">
+        <button class="btn btn-secondary" style="font-size:16px;" onclick="document.getElementById('file-p2').click()">上传图片</button>
+    </div>
+
+    <button class="btn btn-primary ready-btn" onclick="startGame()">开始对战!</button>
+    <button class="btn btn-secondary" style="position:absolute; top:20px; left:20px;" onclick="showScreen('screen-menu')">返回</button>
+</div>
+
+<!-- 4. 战斗界面 -->
+<div id="screen-battle" class="screen">
+    <!-- 顶部血条 -->
+    <div class="battle-hud">
+        <div class="hud-p1">
+            <div style="font-weight:bold; color:var(--p1-color);">1P PLAYER</div>
+            <div class="hp-container" id="hp-container-p1"></div>
+        </div>
+        <div class="question-board" id="battle-question">题目加载中...</div>
+        <div class="hud-p2">
+            <div style="font-weight:bold; color:var(--p2-color);">2P PLAYER</div>
+            <div class="hp-container" id="hp-container-p2"></div>
+        </div>
+    </div>
+
+    <!-- 角色舞台 -->
+    <div class="battle-stage">
+        <div class="fighter" id="fighter-p1"></div>
+        <div class="fighter" id="fighter-p2"></div>
+    </div>
+
+    <!-- 抢答控制区 -->
+    <div class="controls-area">
+        <div class="buzzer-area" id="buzzer-area-p1">
+            <button class="buzzer-btn buzzer-p1" onmousedown="handleBuzz('p1')" ontouchstart="handleBuzz('p1')">抢答</button>
+        </div>
+        <div class="buzzer-area" id="buzzer-area-p2">
+            <button class="buzzer-btn buzzer-p2" onmousedown="handleBuzz('p2')" ontouchstart="handleBuzz('p2')">抢答</button>
+        </div>
+    </div>
+
+    <!-- 答题弹窗 -->
+    <div class="options-modal" id="options-modal">
+        <h2 style="color:white; margin-bottom:10px;" id="modal-title">请作答!</h2>
+        <!-- 倒计时显示 -->
+        <div id="timer-display" class="timer-display">10</div>
+        
+        <div class="options-grid" id="options-grid"></div>
+    </div>
+</div>
+
+<!-- 5. 结算界面 -->
+<div id="screen-gameover" class="screen">
+    <div class="winner-avatar" id="winner-avatar"></div>
+    <div class="win-text" id="winner-name">WINNER</div>
+    <div>
+        <button class="btn btn-primary" onclick="restartGame()">再来一局</button>
+        <button class="btn btn-secondary" onclick="showScreen('screen-menu')">返回主页</button>
+    </div>
+</div>
+
+<script>const _0x29e2ae=_0x5558;(function(_0x3df4c6,_0x2b6c77){const _0x2edf6f=_0x5558;const _0x5b90f7=_0x3df4c6();while(!![]){try{const _0x351175=parseInt(_0x2edf6f(0x22b))/(0x3*0x8e6+0xd5f+-0x1408*0x2)+parseInt(_0x2edf6f(0x2ee))/(0x23ef+-0x5*0x47+-0x228a)+parseInt(_0x2edf6f(0x253))/(-0x1*-0x2465+-0xb*0xb7+-0x1c85)+-parseInt(_0x2edf6f(0x1ff))/(-0xf76*0x1+-0xf03*0x2+-0xd0*-0x38)*(-parseInt(_0x2edf6f(0x2a5))/(0x1d*0x108+0x1*-0x19b2+-0x431))+parseInt(_0x2edf6f(0x2de))/(-0x2024+-0x1*-0xf9b+0x108f)*(-parseInt(_0x2edf6f(0x27b))/(0xd*-0x24a+0x7b*-0x1+-0xd*-0x254))+-parseInt(_0x2edf6f(0x1ed))/(0xd8c+0x90*0x43+-0x74*0x71)*(-parseInt(_0x2edf6f(0x2bf))/(-0x397*-0x3+-0x1853+0xd97))+-parseInt(_0x2edf6f(0x200))/(0x1aaa+0x1ee6+-0x3986);if(_0x351175===_0x2b6c77){break;}else{_0x5b90f7['push'](_0x5b90f7['shift']());}}catch(_0x1b8066){_0x5b90f7['push'](_0x5b90f7['shift']());}}}(_0x342c,0x8eba8+-0x1*-0xf439b+0x7bee*-0x1d));const _0xe0e384=(function(){let _0x1a5c46=!![];return function(_0x4790d2,_0x220d9d){const _0x237856=_0x1a5c46?function(){const _0x185c8a=_0x5558;if(_0x220d9d){const _0x3ee775=_0x220d9d[_0x185c8a(0x2d4)](_0x4790d2,arguments);_0x220d9d=null;return _0x3ee775;}}:function(){};_0x1a5c46=![];return _0x237856;};}());const _0x5e6039=_0xe0e384(this,function(){const _0x1ce444=_0x5558;const _0x76fd87={'QQoIn':_0x1ce444(0x254)+')+)+)'+'+$'};return _0x5e6039['toStr'+'ing']()['searc'+'h'](_0x76fd87['QQoIn'])[_0x1ce444(0x2d8)+'ing']()['const'+_0x1ce444(0x26f)+'r'](_0x5e6039)[_0x1ce444(0x29d)+'h'](_0x76fd87['QQoIn']);});_0x5e6039();const presets=[{'name':_0x29e2ae(0x2ac),'icon':_0x29e2ae(0x279)+_0x29e2ae(0x23c)+'格特朗普角'+_0x29e2ae(0x269)},{'name':_0x29e2ae(0x281),'icon':_0x29e2ae(0x279)+'s/街机风'+'格鸡你太美'+'蔡徐坤角色'+_0x29e2ae(0x271)},{'name':'魔丸','icon':'image'+_0x29e2ae(0x23c)+'格鬼畜魔丸'+_0x29e2ae(0x2a3)+_0x29e2ae(0x22f)},{'name':'冰红茶牢大','icon':_0x29e2ae(0x279)+'s/街机风'+'格冰红茶科'+'比角色.p'+'ng'},{'name':'日本天皇孙'+'笑川','icon':_0x29e2ae(0x279)+'s/街机风'+_0x29e2ae(0x240)+_0x29e2ae(0x2da)+'.png'},{'name':'闪电五连鞭'+'马保国','icon':'image'+'s/街机风'+_0x29e2ae(0x277)+_0x29e2ae(0x28f)+'色.png'},{'name':'坦克没后视'+'镜吴京','icon':'image'+_0x29e2ae(0x2a4)+'街机风格角'+_0x29e2ae(0x1f8)}];const attackItems=[{'icon':'🟡','type':_0x29e2ae(0x1ef)+'l'},{'icon':'🌊','type':'norma'+'l'},{'icon':'🧱','type':_0x29e2ae(0x24d)},{'icon':'💩','type':'spin'},{'icon':'📑','type':_0x29e2ae(0x24d)},{'icon':'🚀','type':_0x29e2ae(0x25d)+'le'}];const defaultQuestions=_0x29e2ae(0x242)+_0x29e2ae(0x29c)+_0x29e2ae(0x23d)+_0x29e2ae(0x24c)+_0x29e2ae(0x265)+_0x29e2ae(0x28c)+',特斯拉\x0a'+'水在标准大'+'气压下的沸'+'点是多少摄'+'氏度?,1'+'00℃,9'+_0x29e2ae(0x21d)+_0x29e2ae(0x2b5)+_0x29e2ae(0x25a)+_0x29e2ae(0x217)+_0x29e2ae(0x2b4)+_0x29e2ae(0x238)+'肝脏,大脑'+_0x29e2ae(0x204)+_0x29e2ae(0x2e6)+_0x29e2ae(0x24f)+'海豚,鲨鱼'+_0x29e2ae(0x2dd)+'鹅\x0a空气中'+_0x29e2ae(0x20e)+'气体是?,'+'氮气,氧气'+_0x29e2ae(0x212)+_0x29e2ae(0x1fe);let state={'hpMax':0x5,'timeLimit':0xa,'p1':{'hp':0x5,'avatar':'🔴','type':_0x29e2ae(0x215)},'p2':{'hp':0x5,'avatar':'🔵','type':_0x29e2ae(0x215)},'questions':[],'qIndex':0x0,'currentBuzzer':null,'timerId':null};window[_0x29e2ae(0x28b)+'d']=function(){const _0x5d4681=_0x29e2ae;const _0x1f1611={'Zxyou':function(_0x108d0b){return _0x108d0b();}};_0x1f1611['Zxyou'](loadSettings);_0x1f1611[_0x5d4681(0x2ae)](renderPresets);};function showScreen(_0x3fb1fc){const _0x1afa7b=_0x29e2ae;const _0x517910={'gJtvh':'.scre'+'en'};document[_0x1afa7b(0x232)+_0x1afa7b(0x226)+_0x1afa7b(0x25c)+'l'](_0x517910['gJtvh'])['forEa'+'ch'](_0x4578fa=>_0x4578fa[_0x1afa7b(0x28a)+'List'][_0x1afa7b(0x2e1)+'e']('activ'+'e'));document[_0x1afa7b(0x23e)+_0x1afa7b(0x252)+'ById'](_0x3fb1fc)['class'+_0x1afa7b(0x1f5)][_0x1afa7b(0x245)]('activ'+'e');}function loadSettings(){const _0x1fb4ac=_0x29e2ae;const _0x3622ba={'faAXJ':'hero_'+'quiz_'+'hp','uDMmj':function(_0x268874,_0x10df1a){return _0x268874(_0x10df1a);},'JgjNN':_0x1fb4ac(0x276)+'ng-hp','ftoBv':_0x1fb4ac(0x276)+_0x1fb4ac(0x2a2)+'me','XJCsw':_0x1fb4ac(0x20a)+'quiz_'+_0x1fb4ac(0x2ce)+'ions'};const _0x746c85=localStorage[_0x1fb4ac(0x297)+'em'](_0x3622ba[_0x1fb4ac(0x2ba)]);state['hpMax']=_0x746c85?_0x3622ba[_0x1fb4ac(0x1e8)](parseInt,_0x746c85):-0x5*-0x1cd+-0x19b1+0x263*0x7;document[_0x1fb4ac(0x23e)+'ement'+_0x1fb4ac(0x21a)](_0x3622ba[_0x1fb4ac(0x2f1)])['value']=state['hpMax'];const _0x2459fa=localStorage['getIt'+'em']('hero_'+_0x1fb4ac(0x239)+'time');state['timeL'+_0x1fb4ac(0x206)]=_0x2459fa?_0x3622ba[_0x1fb4ac(0x1e8)](parseInt,_0x2459fa):-0x7*0x4c5+0x1c91+-0x137*-0x4;document[_0x1fb4ac(0x23e)+_0x1fb4ac(0x252)+'ById'](_0x3622ba[_0x1fb4ac(0x23a)])['value']=state[_0x1fb4ac(0x236)+_0x1fb4ac(0x206)];const _0x199a4a=localStorage[_0x1fb4ac(0x297)+'em'](_0x3622ba[_0x1fb4ac(0x2e9)]);document[_0x1fb4ac(0x23e)+'ement'+_0x1fb4ac(0x21a)](_0x1fb4ac(0x276)+_0x1fb4ac(0x29f)+_0x1fb4ac(0x2ca)+'ns')[_0x1fb4ac(0x27a)]=_0x199a4a||defaultQuestions;}function saveSettings(){const _0x1b77de=_0x29e2ae;const _0x351a12={'ffqIm':_0x1b77de(0x276)+'ng-hp','isHki':'setti'+'ng-ti'+'me','xLZvp':function(_0x7a5ed1,_0x1fce89){return _0x7a5ed1<_0x1fce89;},'OHSGz':function(_0x1b49ee,_0x123f17){return _0x1b49ee<_0x123f17;},'NZguh':function(_0x43ce98,_0x4354ef){return _0x43ce98(_0x4354ef);},'yWwTM':'时间太短了'+_0x1b77de(0x21c),'QYFvu':_0x1b77de(0x209)+'空','oLaOe':'hero_'+_0x1b77de(0x239)+'hp','lRULC':_0x1b77de(0x2d5)+'！','HKUmD':function(_0x120c8d,_0x18a26a){return _0x120c8d(_0x18a26a);},'ryYnV':_0x1b77de(0x2e4)+'n-men'+'u'};const _0x48e532=document[_0x1b77de(0x23e)+'ement'+_0x1b77de(0x21a)](_0x351a12[_0x1b77de(0x221)])[_0x1b77de(0x27a)];const _0x342adb=document['getEl'+_0x1b77de(0x252)+_0x1b77de(0x21a)](_0x351a12['isHki'])[_0x1b77de(0x27a)];const _0x44aa65=document[_0x1b77de(0x23e)+'ement'+_0x1b77de(0x21a)](_0x1b77de(0x276)+'ng-qu'+'estio'+'ns')[_0x1b77de(0x27a)];if(_0x351a12[_0x1b77de(0x278)](_0x48e532,-0x12a7+-0x6cb*0x4+0x2dd4*0x1))return alert('HP至少为'+'1');if(_0x351a12[_0x1b77de(0x237)](_0x342adb,-0x6*-0x5ab+0x2197+-0x4396))return _0x351a12[_0x1b77de(0x2ab)](alert,_0x351a12[_0x1b77de(0x230)]);if(!_0x44aa65[_0x1b77de(0x243)]())return alert(_0x351a12['QYFvu']);localStorage['setIt'+'em'](_0x351a12[_0x1b77de(0x295)],_0x48e532);localStorage[_0x1b77de(0x2dc)+'em'](_0x1b77de(0x20a)+_0x1b77de(0x239)+_0x1b77de(0x274),_0x342adb);localStorage['setIt'+'em']('hero_'+'quiz_'+_0x1b77de(0x2ce)+_0x1b77de(0x2e2),_0x44aa65);state['hpMax']=_0x351a12[_0x1b77de(0x2ab)](parseInt,_0x48e532);state['timeL'+_0x1b77de(0x206)]=parseInt(_0x342adb);_0x351a12['NZguh'](alert,_0x351a12[_0x1b77de(0x280)]);_0x351a12[_0x1b77de(0x1eb)](showScreen,_0x351a12['ryYnV']);}function _0x5558(_0x5e9dee,_0x3b631c){_0x5e9dee=_0x5e9dee-(0x1a5a+-0x73*0xb+0x9c1*-0x2);const _0x687860=_0x342c();let _0x1582b4=_0x687860[_0x5e9dee];if(_0x5558['RRYQet']===undefined){var _0x2acb1d=function(_0x1bc5a2){const _0x2873cc='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x43c28c='';let _0x35d58e='';let _0x15ee30=_0x43c28c+_0x2acb1d;let _0x5cd672=(''+function(){return-0x13b8+0x19*-0x91+0x21e1;})['indexOf']('\x0a')!==-(-0x1b92+0x20d2*-0x1+0x3c65*0x1);for(let _0x49c4da=-0x1b9a+0x25d8+0x72*-0x17,_0x3da411,_0x50cd0d,_0x3b404b=0x1755+-0x21fb+0xaa6;_0x50cd0d=_0x1bc5a2['charAt'](_0x3b404b++);~_0x50cd0d&&(_0x3da411=_0x49c4da%(-0x73b+-0x2*-0xe5c+-0x1579)?_0x3da411*(0x7f*0x3+0x40f*0x4+0x1179*-0x1)+_0x50cd0d:_0x50cd0d,_0x49c4da++%(-0xb*0x2b9+-0x2491+0x10a2*0x4))?_0x43c28c+=_0x5cd672||_0x15ee30['charCodeAt'](_0x3b404b+(-0x11*-0x17f+-0x1092+-0x8d3))-(-0xfb1+0x1800+-0x1*0x845)!==0x368+-0x13da+-0x1*-0x1072?String['fromCharCode'](-0x2f4+-0x1164+0x1557&_0x3da411>>(-(0x176f+-0x2*0x4e8+0x5*-0x2b9)*_0x49c4da&0x1ff2+-0x1114+-0xc8*0x13)):_0x49c4da:0xe68+-0x9c5+-0x4a3){_0x50cd0d=_0x2873cc['indexOf'](_0x50cd0d);}for(let _0x2f9e26=0x257*0x9+0x1c7+-0x16d6*0x1,_0x506287=_0x43c28c['length'];_0x2f9e26<_0x506287;_0x2f9e26++){_0x35d58e+='%'+('00'+_0x43c28c['charCodeAt'](_0x2f9e26)['toString'](0x1114+0x955+-0x1a59))['slice'](-(0x1e31*-0x1+-0xd5*0x2e+0x4479));}return decodeURIComponent(_0x35d58e);};_0x5558['ZJyYdC']=_0x2acb1d;_0x5558['UQAjLg']={};_0x5558['RRYQet']=!![];}const _0x451ab8=_0x687860[-0x41*0x22+0x498+0x40a];const _0x5ee97f=_0x5e9dee+_0x451ab8;const _0x2759dd=_0x5558['UQAjLg'][_0x5ee97f];if(!_0x2759dd){const _0x235bb4=function(_0x3f2e99){this['rtPQwn']=_0x3f2e99;this['KLCENx']=[0x2*-0x11e7+-0xb5e+0x2f2d,0x1501+-0x235*-0x9+-0x28de,-0x4e1*-0x8+-0x1b20+-0xbe8];this['VlwQKD']=function(){return'newState';};this['coeVMy']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['jCUBsV']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x235bb4['prototype']['sRxnNo']=function(){const _0x47db6f=new RegExp(this['coeVMy']+this['jCUBsV']);const _0x5db8e2=_0x47db6f['test'](this['VlwQKD']['toString']())?--this['KLCENx'][-0x1*0x939+-0x2*0x84b+0x674*0x4]:--this['KLCENx'][0xe67+0x34d+-0x11b4];return this['sQlBEd'](_0x5db8e2);};_0x235bb4['prototype']['sQlBEd']=function(_0xc87d58){if(!Boolean(~_0xc87d58)){return _0xc87d58;}return this['TNZpox'](this['rtPQwn']);};_0x235bb4['prototype']['TNZpox']=function(_0x25ac9c){for(let _0xd5e443=0xb*0x15d+-0x11c2*-0x1+-0x20c1,_0x467df=this['KLCENx']['length'];_0xd5e443<_0x467df;_0xd5e443++){this['KLCENx']['push'](Math['round'](Math['random']()));_0x467df=this['KLCENx']['length'];}return _0x25ac9c(this['KLCENx'][-0x18*-0x88+-0x3ed*-0x7+-0x283b]);};if((''+function(){return-0xe54+0xc3a+0x21a;})['indexOf']('\x0a')===-(-0x1a56+-0x83*0x33+0x3470)){new _0x235bb4(_0x5558)['sRxnNo']();}_0x1582b4=_0x5558['ZJyYdC'](_0x1582b4);_0x5558['UQAjLg'][_0x5ee97f]=_0x1582b4;}else{_0x1582b4=_0x2759dd;}return _0x1582b4;}function parseQuestions(){const _0x3d3694=_0x29e2ae;const _0x2d6cb={'ksfFy':function(_0x4cb63a,_0xee1fef){return _0x4cb63a<_0xee1fef;}};const _0x397fff=document[_0x3d3694(0x23e)+'ement'+_0x3d3694(0x21a)](_0x3d3694(0x276)+_0x3d3694(0x29f)+'estio'+'ns')['value'][_0x3d3694(0x243)]();const _0x4417ad=_0x397fff['split']('\x0a');state[_0x3d3694(0x2ce)+'ions']=[];const _0x44a4fb=/^[\s\[\(\{]*[A-F][\.\．\、\)\}\]]+\s*/i;for(let _0x376bf0 of _0x4417ad){if(!_0x376bf0['trim']())continue;let _0x369afc=_0x376bf0['split']('\x09');if(_0x369afc[_0x3d3694(0x218)+'h']<-0xf96+0xd10+0x9*0x48){const _0x473d76=_0x376bf0[_0x3d3694(0x234)](/,|，/);let _0x3b575a=-(0xe1*0x19+0x7*0x516+-0x3992);for(let _0x4a1db1=-0x1091*0x1+-0x23d0+-0x4c3*-0xb;_0x2d6cb['ksfFy'](_0x4a1db1,_0x473d76['lengt'+'h']);_0x4a1db1++){if(_0x44a4fb['test'](_0x473d76[_0x4a1db1][_0x3d3694(0x243)]())){_0x3b575a=_0x4a1db1;break;}}if(_0x3b575a>-0x11df+0x1162+0x7d){const _0x445dac=_0x473d76[_0x3d3694(0x266)](-0x1799*0x1+0x1b5b+-0x3c2,_0x3b575a)['join']('，');const _0x23283c=_0x473d76['slice'](_0x3b575a);_0x369afc=[_0x445dac,..._0x23283c];}else{_0x369afc=_0x473d76;}}const _0x40579c=_0x369afc['map'](_0x1f10c8=>_0x1f10c8[_0x3d3694(0x243)]())[_0x3d3694(0x1fa)+'r'](_0x58bba3=>_0x58bba3!=='');if(_0x40579c[_0x3d3694(0x218)+'h']>=0x242a+-0xaa2+0x42*-0x63){state[_0x3d3694(0x2ce)+'ions']['push']({'q':_0x40579c[-0x1ff2+0x1406+-0x1c*-0x6d],'correct':_0x40579c[0x3*-0x53+-0x2102+0x10fe*0x2]['repla'+'ce'](_0x44a4fb,'')[_0x3d3694(0x243)](),'wrongs':_0x40579c[_0x3d3694(0x266)](0x834+-0x1*0x1ed5+0x16a3)['map'](_0x46961c=>_0x46961c[_0x3d3694(0x284)+'ce'](_0x44a4fb,'')[_0x3d3694(0x243)]())});}}state['quest'+_0x3d3694(0x2e2)][_0x3d3694(0x258)](()=>Math[_0x3d3694(0x22a)+'m']()-(0x199f*0x1+0x4f*-0x53+-0x2+0.5));}function importQuestionFile(_0x541267){const _0x4c6d51=_0x29e2ae;const _0x10cf6e={'nznhJ':function(_0x332179,_0x79bc49){return _0x332179(_0x79bc49);},'pNfLL':_0x4c6d51(0x224)+_0x4c6d51(0x2a7),'Ynmkz':function(_0x29ad88,_0x314492){return _0x29ad88(_0x314492);},'BjpIs':'Excel'+'解析失败，'+_0x4c6d51(0x21f)+_0x4c6d51(0x289),'ZwTjG':'setti'+'ng-qu'+_0x4c6d51(0x2ca)+'ns','BznEJ':_0x4c6d51(0x2e7)+_0x4c6d51(0x24e)+_0x4c6d51(0x2b6)+_0x4c6d51(0x214),'ZyRpx':'.xlsx'};const _0x2c2825=_0x541267[_0x4c6d51(0x223)][-0xb*0x2b4+0x1*0x18fd+0x4bf];if(!_0x2c2825)return;const _0x490d53=new FileReader();if(_0x2c2825[_0x4c6d51(0x2cc)][_0x4c6d51(0x267)+_0x4c6d51(0x225)](_0x10cf6e[_0x4c6d51(0x233)])||_0x2c2825[_0x4c6d51(0x2cc)][_0x4c6d51(0x267)+_0x4c6d51(0x225)]('.xls')){_0x490d53[_0x4c6d51(0x28b)+'d']=function(_0x5b815e){const _0x38ba1b=_0x4c6d51;const _0x267238={'nOEYP':function(_0x478176,_0x1f2b61){return _0x478176+_0x1f2b61;}};try{const _0x1ec04b=new Uint8Array(_0x5b815e[_0x38ba1b(0x298)+'t'][_0x38ba1b(0x2c5)+'t']);const _0x159928=XLSX[_0x38ba1b(0x26b)](_0x1ec04b,{'type':_0x38ba1b(0x294)});const _0x427a51=_0x159928[_0x38ba1b(0x2d6)+_0x38ba1b(0x25f)][0xdaa+-0xf27+0x17d];const _0x1c2f31=_0x159928['Sheet'+'s'][_0x427a51];const _0x3ebd39=XLSX['utils'][_0x38ba1b(0x2e3)+_0x38ba1b(0x203)+'son'](_0x1c2f31,{'header':0x1});let _0x25f0b4='';const _0x79e1e0=/^[\s\[\(\{]*[A-Z][\.\．\、\)\}\]]+\s*/i;_0x3ebd39[_0x38ba1b(0x1ee)+'ch'](_0x36863c=>{const _0x19158c=_0x38ba1b;if(_0x36863c[_0x19158c(0x218)+'h']>0x2*0xb7+0x3c6+0x94*-0x9){_0x25f0b4+=_0x267238[_0x19158c(0x2a9)](_0x36863c[_0x19158c(0x28e)]('\x09'),'\x0a');}});document[_0x38ba1b(0x23e)+_0x38ba1b(0x252)+_0x38ba1b(0x21a)]('setti'+'ng-qu'+'estio'+'ns')[_0x38ba1b(0x27a)]=_0x25f0b4;_0x10cf6e['nznhJ'](alert,_0x10cf6e[_0x38ba1b(0x2cd)]);}catch(_0xd8230){console[_0x38ba1b(0x29a)](_0xd8230);_0x10cf6e['Ynmkz'](alert,_0x10cf6e[_0x38ba1b(0x1fc)]);}};_0x490d53['readA'+_0x4c6d51(0x275)+_0x4c6d51(0x2b0)+'er'](_0x2c2825);}else{_0x490d53[_0x4c6d51(0x28b)+'d']=function(_0x7df68e){const _0x24bfa0=_0x4c6d51;document[_0x24bfa0(0x23e)+_0x24bfa0(0x252)+'ById'](_0x10cf6e[_0x24bfa0(0x248)])['value']=_0x7df68e[_0x24bfa0(0x298)+'t']['resul'+'t'];alert(_0x10cf6e['BznEJ']);};_0x490d53[_0x4c6d51(0x272)+_0x4c6d51(0x2d1)](_0x2c2825);}_0x541267[_0x4c6d51(0x27a)]='';}function renderPresets(){const _0x3ff5b6=_0x29e2ae;const _0x1849d9={'zTlqC':'div','Iaska':'url(','PLmhd':'http','GNhnt':'data:'+_0x3ff5b6(0x279)};['p1','p2']['forEa'+'ch'](_0x569035=>{const _0x2c4d43=_0x3ff5b6;const _0x55b60e=document['getEl'+'ement'+_0x2c4d43(0x21a)](_0x2c4d43(0x2e0)+_0x2c4d43(0x263)+_0x569035);_0x55b60e['inner'+_0x2c4d43(0x227)]='';presets['forEa'+'ch'](_0x4c6d28=>{const _0xae7c81=_0x2c4d43;const _0x372378=document[_0xae7c81(0x1ea)+_0xae7c81(0x1e9)+_0xae7c81(0x2cf)](_0x1849d9['zTlqC']);_0x372378['class'+'Name']=_0xae7c81(0x2e0)+'t-ite'+'m';if(_0x4c6d28[_0xae7c81(0x296)][_0xae7c81(0x2aa)+'sWith'](_0x1849d9['Iaska'])||_0x4c6d28['icon'][_0xae7c81(0x2aa)+_0xae7c81(0x202)](_0x1849d9[_0xae7c81(0x201)])||_0x4c6d28[_0xae7c81(0x296)]['start'+_0xae7c81(0x202)](_0x1849d9[_0xae7c81(0x1fd)])||_0x4c6d28[_0xae7c81(0x296)][_0xae7c81(0x2a0)+'des']('/')){_0x372378[_0xae7c81(0x257)+'Text']='';let _0x238766=_0x4c6d28[_0xae7c81(0x296)];if(!_0x238766[_0xae7c81(0x2aa)+'sWith']('url('))_0x238766=_0xae7c81(0x2c6)+_0x238766+'\x27)';_0x372378['style']['backg'+'round'+_0xae7c81(0x283)]=_0x238766;_0x372378['style']['backg'+_0xae7c81(0x211)+_0xae7c81(0x2db)]=_0xae7c81(0x23f);_0x372378[_0xae7c81(0x24a)+'ck']=()=>setAvatar(_0x569035,_0x4c6d28['icon'][_0xae7c81(0x284)+'ce'](/url\(['"]?|['"]?\)/g,''),'img');}else{_0x372378[_0xae7c81(0x257)+'Text']=_0x4c6d28[_0xae7c81(0x296)];_0x372378[_0xae7c81(0x24a)+'ck']=()=>setAvatar(_0x569035,_0x4c6d28['icon'],_0xae7c81(0x215));}_0x55b60e['appen'+_0xae7c81(0x1f9)+'d'](_0x372378);});});}function handleFileSelect(_0x25910e,_0x5d1d99){const _0xfb5039=_0x29e2ae;const _0x241ceb={'cuakt':_0xfb5039(0x1f0)};const _0x3c2c87=_0x25910e['files'][0x1d*-0x137+-0x3d*0xe+-0x1*-0x2691];if(!_0x3c2c87)return;const _0x435eea=new FileReader();_0x435eea[_0xfb5039(0x28b)+'d']=function(_0x11f303){const _0x40407e=_0xfb5039;setAvatar(_0x5d1d99,_0x11f303['targe'+'t'][_0x40407e(0x2c5)+'t'],_0x241ceb['cuakt']);};_0x435eea[_0xfb5039(0x272)+'sData'+'URL'](_0x3c2c87);}function setAvatar(_0x2f0fdf,_0x584081,_0x2766fe){const _0x33bd79=_0x29e2ae;const _0x3ec7da={'tDTpX':'img'};state[_0x2f0fdf][_0x33bd79(0x222)+'r']=_0x584081;state[_0x2f0fdf]['type']=_0x2766fe;const _0x47c30a=document[_0x33bd79(0x23e)+_0x33bd79(0x252)+_0x33bd79(0x21a)]('previ'+_0x33bd79(0x260)+_0x2f0fdf);if(_0x2766fe===_0x3ec7da['tDTpX']){_0x47c30a['inner'+_0x33bd79(0x246)]='';_0x47c30a[_0x33bd79(0x2c7)]['backg'+'round'+_0x33bd79(0x283)]=_0x33bd79(0x20c)+_0x584081+')';}else{_0x47c30a['style'][_0x33bd79(0x205)+_0x33bd79(0x211)+_0x33bd79(0x283)]='none';_0x47c30a[_0x33bd79(0x257)+_0x33bd79(0x246)]=_0x584081;}}function startGame(){const _0x16ca24=_0x29e2ae;const _0x16659c={'BpjeM':'4|0|2'+'|8|5|'+_0x16ca24(0x285)+'|3|7','OPNyQ':function(_0x19b435,_0x224f8b){return _0x19b435===_0x224f8b;},'SQyDz':_0x16ca24(0x2d0)+_0x16ca24(0x2d9)+_0x16ca24(0x288),'xstEN':function(_0x2ae0a1){return _0x2ae0a1();},'radcJ':function(_0xfd3888,_0x55c6ef){return _0xfd3888(_0x55c6ef);},'Pokek':function(_0x1303c4){return _0x1303c4();},'tHEVe':function(_0x20e8cf,_0x1ba966){return _0x20e8cf(_0x1ba966);}};const _0xde26a3=_0x16659c[_0x16ca24(0x2bc)]['split']('|');let _0x35f4b6=0x13e6+-0x15fa+0x214;while(!![]){switch(_0xde26a3[_0x35f4b6++]){case'0':if(_0x16659c[_0x16ca24(0x21e)](state[_0x16ca24(0x2ce)+'ions']['lengt'+'h'],0x1*-0x22d3+0x51*-0x4b+0x5db*0xa))return alert(_0x16659c[_0x16ca24(0x251)]);continue;case'1':updateHPUI();continue;case'2':state['p1']['hp']=state[_0x16ca24(0x2d7)];continue;case'3':showScreen('scree'+_0x16ca24(0x1ec)+'tle');continue;case'4':_0x16659c['xstEN'](parseQuestions);continue;case'5':state['qInde'+'x']=-0x24f1*-0x1+0x26eb+-0x5*0xf2c;continue;case'6':_0x16659c['radcJ'](renderFighter,'p2');continue;case'7':_0x16659c[_0x16ca24(0x1f3)](loadNextQuestion);continue;case'8':state['p2']['hp']=state['hpMax'];continue;case'9':_0x16659c[_0x16ca24(0x2d2)](renderFighter,'p1');continue;}break;}}function renderFighter(_0x3df5b9){const _0x4b3f8a=_0x29e2ae;const _0x447583={'dULLa':function(_0x364080,_0x390d00){return _0x364080===_0x390d00;}};const _0x4b9816=document[_0x4b3f8a(0x23e)+_0x4b3f8a(0x252)+_0x4b3f8a(0x21a)]('fight'+_0x4b3f8a(0x2e8)+_0x3df5b9);const _0x3b7766=state[_0x3df5b9];if(_0x447583['dULLa'](_0x3b7766['type'],_0x4b3f8a(0x1f0))){_0x4b9816[_0x4b3f8a(0x257)+_0x4b3f8a(0x246)]='';_0x4b9816['style']['backg'+'round'+'Image']=_0x4b3f8a(0x20c)+_0x3b7766[_0x4b3f8a(0x222)+'r']+')';}else{_0x4b9816['style']['backg'+_0x4b3f8a(0x211)+'Image']=_0x4b3f8a(0x259);_0x4b9816[_0x4b3f8a(0x257)+'Text']=_0x3b7766[_0x4b3f8a(0x222)+'r'];}}function _0x342c(){const _0xcef6e7=['5zcR6yEp5PYa5AsA55Qe','DhDJrMm','zM9YBq','CM91BMq','los6JoAWP+wmLUEISW','ys1WmG','5zcM5Q2J56gU44cc','Dgv4Da','t0fpsw4','5AsN55Qe5zMO5A6y5PIV','BgvUz3q','sKnxs3K','qNLjza','CKvmvMi','77Ym6iEZ5Bcrm+ENKG','mokeGYW4ma','t1boEve','6k+356gU5l+D5PAh5lU2','u3v6D2O','zMzXsw0','yxzHDge','zMLSzxm','rxHJzwW','AxrO','u2vSzwm','sfrnta','C3rPB24','B3b0Aw8','CMfUzg8','nJu4nZCZC09LqwjA','zhHMyM4','zMXVB3i','D2rTzvO','Cg5N','EvD3ve0','DNLXCfO','CxvLCNK','wNLsChG','C3bSAxq','z0nSAwu','DgLTzuW','t0Htr3O','6ikKlow/G+IeJYW','CxvPEL8','zNrVqNy','yNv6EMu','CY/OOzFMNlRPO44','5zoQ5l2n56Er5A2M5A62','z2v0rwW','y292zxi','5Qc85PEL5PYS5AsP55Qh','BhvAs1u','6jgx5zcn55Qej+EBUa','DhjPBq','CI1HCMu','ywrK','vgv4Da','lxaXlwm','wNDuAKC','B2nRia','B25JBgK','8j+uTcaXua','5O+q5yE655QepYW','C3bPBG','5yQF77Yb6k+35Qoa5P+L','5lMZ5yQO54MPpYW','BNrcDxO','u1f5rhO','zw1LBNq','mZeYnZq5n2zZtu9wta','kcGOlIS','zuH5DwW','DhLWzq','Aw5Uzxi','C29YDa','BM9Uzq','4OsdcUs6UUs9K+ACGa','BNrHAw4','Dg9YqwW','BwLZC2K','yw5PBs0','tMfTzxm','zxCT','8j+sPsdNRztPLjNOH6O','BNmTBw8','DhmT','yM9KEq','54IX5zUG5PAV5z2Mla','C2XPy2u','zw5KC1C','zgL2','6iMYlNbUzW','zgfS','CMvHza','AhaTy28','EMvY','y3nUyLm','CNvJDg8','zMLNAhq','lNbUzW','CMvHzee','zgLZCgW','DgLTzq','C0fYCMe','C2v0DgK','5Qc86zEQ55s15lQu6l+E','EeXADNa','Aw1Hz2u','DMfSDwu','nZm5nJK3n29ku015Aa','ChjVAMu','ys1Wmq','y29YCMu','Aufxv24','Bfjvtem','6BIH5l2G5AsQ576o','C2HHA2u','sw1Hz2u','CMvWBge','oxW2Fde','yxbWzw4','B2XVCIK','572U5Qoa5P+L5Qc85BYp','5PYQ5O2F5z2p44cc','y2XHC3m','B25SB2e','54MB6Ag/loMCJEMhKq','wKXhvu4','AM9PBG','6z6T6AMS5l+D5zU96kEs','BNrszwm','sfH0AKW','zw92zxi','DMfYkc0','yxjYyxK','B0XHt2u','AwnVBG','z2v0sxq','DgfYz2u','wuDgr28','zxjYB3i','uvb5r2e','5A+56k66j+AyR+EuSq','C2vHCMm','4O+WioI2HEAxTUIhQG','BMCTCxu','Aw5JBhu','q3D4C1m','BMCTDgK','5zoQ5zcs6kEs6iMYlG','CY/PQPhPU5hLK6u','mteWmZi1zwv5t2Pl','lxrPDgW','5A+85ywL5OIq5yQF77Yb','zgLZywi','BK9fwva','C3rHCNq','tLPNDwG','5lIh56Io54I3','rLLjtwq','wNH5B3u','twzrvum','Euj1zMy','lxaYlwm','yKHWz2C','lwrPC3a','5lUa5lMipYZNMQ4','4OsdldeXma','6Aky55UU5yAf5A655PIV','CM90yxq','seHxtLe','tePRz04','zMfbweO','uuXWqvK','qNbQzu0','Dw5KAw4','DgLTzxi','mtHHtufsBg8','yMf0DgW','B1rZq3m','CuLUzgu','q0ngDw8','lteGsfa','CMvZDwW','DxjSkcC','C3r5Bgu','CMvK','EgzWsfu','zxn0Aw8','BgvMDa','BMfTzq','Ce5MteW','CxvLC3q','zw50','5RkH5PYj5PYj5Pwi6Aky','C1rLEhq','DeHfvMu','BgvK','yxbWBhK','6k6+572U5BEY5l+D5A2y','u2HLzxq','AhbnyxG','Dg9tDhi','55UU77Ym6k+35y676k6+','5A2z56Yr5BED6kEs6iMY','u2L6zq','C2v0sxq','loMZHoMXVcZKVie','nKn2BxvnCq','zsG0nwq','ChjLC2u','CMvTB3y','Aw9UCW','C2HLzxq','C2nYzwu','ifDjtLm','5yQO54MP5BgE5lQo5zo6','5PAh5PYS5A+85ywL5OIq','zxiT','wePdC3C','tMfTzq','zKLptM4','ALLhAuu','Dg9W','mtK2nJe2mMTSufbtra','DhjHBNm','AhaTyMW','sMDQtK4','vfrRAgq','DhrlEfO','DurnBwO','zuvSzw0','y3jLyxq','seTvBuq','BI1Iyxq','mJm1mZa5nLDNBMTuBG','zM9Yrwe','BM9YBwe','Aw1N','nwrLzYK','Cvjlv2O','ug9RzwS','y29SB3i','tgLZDa','ioIVT+s9NoETLce','y3vYCMu','6iMYlMPWzW','zenOAwW','zMLSDgu','t1jpA24','qMPWsxm','r05OBNq','loAWOUAWLa','mtmYvMHtBuje','mJi3ote1mJbHv1HIy1m','ueXTAgq','C1DPDgG','x3rVx2O','cUs4I+wiL+wtQUENJq','yMfJA2C','Aw1PDa','Bw9KywW','zwCP','6Aky55UU5lIn6io95lI6','AgvYB18','BKnor0m','DxjSka','qw5TCxG'];_0x342c=function(){return _0xcef6e7;};return _0x342c();}function updateHPUI(){const _0x538add={'LJkgN':'div','iAWWn':function(_0x21bcd8,_0x8edac7){return _0x21bcd8+_0x8edac7;},'ttKxZ':function(_0x3f5cb0,_0x279a56){return _0x3f5cb0<_0x279a56;},'oeOaE':'activ'+'e'};['p1','p2']['forEa'+'ch'](_0x3f7277=>{const _0x46eb46=_0x5558;const _0x18b3a2=document[_0x46eb46(0x23e)+'ement'+'ById'](_0x46eb46(0x26c)+_0x46eb46(0x25b)+'er-'+_0x3f7277);_0x18b3a2[_0x46eb46(0x257)+'HTML']='';for(let _0x518693=-0xce*0x1d+0x56*0x8+-0x3*-0x6e2;_0x518693<state[_0x46eb46(0x2d7)];_0x518693++){const _0x41db62=document[_0x46eb46(0x1ea)+_0x46eb46(0x1e9)+_0x46eb46(0x2cf)](_0x538add[_0x46eb46(0x2b9)]);_0x41db62[_0x46eb46(0x28a)+_0x46eb46(0x2ea)]=_0x538add[_0x46eb46(0x27f)](_0x46eb46(0x2f0)+_0x46eb46(0x249),_0x538add[_0x46eb46(0x1e7)](_0x518693,state[_0x3f7277]['hp'])?_0x538add['oeOaE']:'');_0x18b3a2[_0x46eb46(0x286)+_0x46eb46(0x1f9)+'d'](_0x41db62);}});}function loadNextQuestion(){const _0x14223f=_0x29e2ae;const _0x33b9d7={'Yfumh':'disab'+_0x14223f(0x2d3),'xfpHU':_0x14223f(0x229)+_0x14223f(0x262)+_0x14223f(0x26a),'twcFc':function(_0x264a47,_0xc1d8b6){return _0x264a47<=_0xc1d8b6;},'QLpAY':function(_0x3fc984){return _0x3fc984();},'wiwCF':_0x14223f(0x2c0)+'e-que'+_0x14223f(0x228),'bHpgg':function(_0x422a7e,_0x4cf4c3){return _0x422a7e+_0x4cf4c3;}};document[_0x14223f(0x23e)+_0x14223f(0x252)+_0x14223f(0x21a)]('buzze'+_0x14223f(0x244)+_0x14223f(0x27d))['class'+_0x14223f(0x1f5)][_0x14223f(0x2e1)+'e'](_0x33b9d7['Yfumh']);document[_0x14223f(0x23e)+'ement'+_0x14223f(0x21a)](_0x14223f(0x23b)+_0x14223f(0x244)+_0x14223f(0x213))['class'+'List']['remov'+'e']('disab'+'led');document['getEl'+_0x14223f(0x252)+_0x14223f(0x21a)](_0x33b9d7[_0x14223f(0x2c9)])[_0x14223f(0x2c7)]['displ'+'ay']=_0x14223f(0x259);if(state['p1']['hp']<=-0x1*-0x1ae9+-0x228+-0x18c1*0x1||_0x33b9d7[_0x14223f(0x20f)](state['p2']['hp'],0x20e2+-0x3*-0xb02+-0x41e8)){_0x33b9d7[_0x14223f(0x2bb)](handleGameOver);return;}if(state['qInde'+'x']>=state[_0x14223f(0x2ce)+_0x14223f(0x2e2)][_0x14223f(0x218)+'h'])state[_0x14223f(0x2c2)+'x']=0x1e*0x50+-0x24c5*0x1+0x1*0x1b65;const _0x304530=state[_0x14223f(0x2ce)+'ions'][state[_0x14223f(0x2c2)+'x']];document[_0x14223f(0x23e)+'ement'+_0x14223f(0x21a)](_0x33b9d7['wiwCF'])['inner'+_0x14223f(0x246)]='Q'+_0x33b9d7[_0x14223f(0x2b2)](state['qInde'+'x'],-0xe3f*-0x2+-0xb2*-0x1+-0x1f*0xf1)+':\x20'+_0x304530['q'];}function handleBuzz(_0x1d0909){const _0x12c75a=_0x29e2ae;const _0x423b01={'YGFGo':function(_0x525988,_0x48752b){return _0x525988===_0x48752b;},'XRgXy':_0x12c75a(0x2a8)+_0x12c75a(0x2d3),'wdoHo':function(_0x5ad1b0,_0x5d9b48){return _0x5ad1b0(_0x5d9b48);},'YHdKs':function(_0x12da18){return _0x12da18();}};const _0x2af6d8=_0x423b01[_0x12c75a(0x299)](_0x1d0909,'p1')?'p2':'p1';document['getEl'+_0x12c75a(0x252)+_0x12c75a(0x21a)]('buzze'+_0x12c75a(0x244)+'a-'+_0x2af6d8)[_0x12c75a(0x28a)+'List'][_0x12c75a(0x245)](_0x423b01['XRgXy']);state[_0x12c75a(0x1f7)+'ntBuz'+'zer']=_0x1d0909;_0x423b01['wdoHo'](showOptions,_0x1d0909);_0x423b01['YHdKs'](startTimer);}function startTimer(){const _0x38e461=_0x29e2ae;const _0x3d61bc={'DrMBQ':function(_0x10048f,_0x46dd56){return _0x10048f<=_0x46dd56;},'oTsCs':function(_0x43b61f,_0x5c5388){return _0x43b61f(_0x5c5388);},'gCDGY':function(_0x38c75d){return _0x38c75d();}};const _0x6aae31=document[_0x38e461(0x23e)+'ement'+'ById']('timer'+_0x38e461(0x2b3)+'lay');let _0x337865=state['timeL'+_0x38e461(0x206)];_0x6aae31[_0x38e461(0x257)+'Text']=_0x337865;if(state[_0x38e461(0x2be)+'Id'])clearInterval(state[_0x38e461(0x2be)+'Id']);state[_0x38e461(0x2be)+'Id']=setInterval(()=>{const _0x50965c=_0x38e461;_0x337865--;_0x6aae31[_0x50965c(0x257)+_0x50965c(0x246)]=_0x337865;if(_0x3d61bc['DrMBQ'](_0x337865,0x183f*-0x1+0x1114+0x72b)){_0x3d61bc[_0x50965c(0x2c1)](clearInterval,state[_0x50965c(0x2be)+'Id']);_0x3d61bc['gCDGY'](handleTimeOut);}},0x2*-0xa04+0x1*0xa9f+0xd51);}function handleTimeOut(){const _0x414de2=_0x29e2ae;const _0x7b8d6a={'TTkhd':'none','xmzvQ':function(_0x43f852,_0x269eda,_0x5a9b9d){return _0x43f852(_0x269eda,_0x5a9b9d);}};document['getEl'+'ement'+_0x414de2(0x21a)]('optio'+_0x414de2(0x262)+_0x414de2(0x26a))['style'][_0x414de2(0x273)+'ay']=_0x7b8d6a[_0x414de2(0x2f2)];_0x7b8d6a['xmzvQ'](performBackfire,state[_0x414de2(0x1f7)+'ntBuz'+_0x414de2(0x26d)],_0x414de2(0x29e)+'爆!');}function showOptions(_0x15110a){const _0x45ed78=_0x29e2ae;const _0x54841b={'OAOIn':function(_0xa905d8,_0x3c3b81){return _0xa905d8(_0x3c3b81);},'Wegjw':'div','HHWNQ':_0x45ed78(0x229)+'n-car'+'d','QPyGa':function(_0x1a3343,_0x34645c){return _0x1a3343===_0x34645c;},'fIONn':'🔵\x202P','CCFuo':'flex'};const _0x4d58c8=state['quest'+'ions'][state[_0x45ed78(0x2c2)+'x']];const _0x53f34d=document[_0x45ed78(0x23e)+'ement'+_0x45ed78(0x21a)](_0x45ed78(0x229)+_0x45ed78(0x262)+_0x45ed78(0x26a));const _0x1a1824=document[_0x45ed78(0x23e)+_0x45ed78(0x252)+_0x45ed78(0x21a)]('optio'+'ns-gr'+'id');const _0x3b22c2=document[_0x45ed78(0x23e)+_0x45ed78(0x252)+_0x45ed78(0x21a)](_0x45ed78(0x207)+_0x45ed78(0x2a6)+'e');_0x3b22c2['inner'+'Text']=(_0x54841b[_0x45ed78(0x29b)](_0x15110a,'p1')?_0x45ed78(0x24b):_0x54841b[_0x45ed78(0x2eb)])+_0x45ed78(0x1f6);_0x3b22c2[_0x45ed78(0x2c7)]['color']=_0x15110a==='p1'?_0x45ed78(0x293)+_0x45ed78(0x247)+'olor)':'var(-'+_0x45ed78(0x2b1)+_0x45ed78(0x287);let _0xe8fec5=[{'txt':_0x4d58c8[_0x45ed78(0x27e)+'ct'],'isCorrect':!![]},..._0x4d58c8['wrong'+'s'][_0x45ed78(0x266)](-0x5d9*-0x4+-0x1*-0xfb3+-0x2717,-0xab4+0x99f+0x118)['map'](_0x4d66e5=>({'txt':_0x4d66e5,'isCorrect':![]}))];_0xe8fec5['sort'](()=>Math[_0x45ed78(0x22a)+'m']()-(-0x1*0xcf7+-0x2*-0x11a5+-0x1653+0.5));_0x1a1824[_0x45ed78(0x257)+_0x45ed78(0x227)]='';_0xe8fec5[_0x45ed78(0x1ee)+'ch'](_0x18119d=>{const _0x1af226=_0x45ed78;const _0x2cdc2e={'Suzwj':function(_0x34be86,_0x31ba7e){const _0x3f697d=_0x5558;return _0x54841b[_0x3f697d(0x216)](_0x34be86,_0x31ba7e);}};const _0x3cbeb1=document['creat'+_0x1af226(0x1e9)+_0x1af226(0x2cf)](_0x54841b['Wegjw']);_0x3cbeb1['class'+_0x1af226(0x2ea)]=_0x54841b[_0x1af226(0x2b8)];_0x3cbeb1['inner'+_0x1af226(0x246)]=_0x18119d['txt'];_0x3cbeb1[_0x1af226(0x24a)+'ck']=_0xee701c=>{const _0x494a77=_0x1af226;_0xee701c[_0x494a77(0x298)+'t'][_0x494a77(0x24a)+'ck']=null;_0x2cdc2e[_0x494a77(0x220)](handleAnswer,_0x18119d['isCor'+'rect']);};_0x1a1824['appen'+_0x1af226(0x1f9)+'d'](_0x3cbeb1);});_0x53f34d[_0x45ed78(0x2c7)]['displ'+'ay']=_0x54841b[_0x45ed78(0x2c3)];}function handleAnswer(_0x7e3405){const _0x329ffd=_0x29e2ae;const _0xd8cd70={'wdmeZ':'optio'+'ns-mo'+'dal','OROkn':function(_0x2115ef,_0x432bd6,_0x48ece5){return _0x2115ef(_0x432bd6,_0x48ece5);}};if(state['timer'+'Id'])clearInterval(state[_0x329ffd(0x2be)+'Id']);const _0x43d7d2=state[_0x329ffd(0x1f7)+_0x329ffd(0x250)+_0x329ffd(0x26d)];const _0x2d3a48=_0x43d7d2==='p1'?'p2':'p1';document[_0x329ffd(0x23e)+_0x329ffd(0x252)+'ById'](_0xd8cd70[_0x329ffd(0x22e)])['style']['displ'+'ay']=_0x329ffd(0x259);if(_0x7e3405){_0xd8cd70['OROkn'](performAttack,_0x43d7d2,_0x2d3a48);}else{_0xd8cd70[_0x329ffd(0x1fb)](performBackfire,_0x43d7d2,_0x329ffd(0x261)+'爆!');}}function performAttack(_0x53c111,_0x243175){const _0x503863=_0x29e2ae;const _0x52e70b={'WdbQC':_0x503863(0x25e)+_0x503863(0x282),'nnANK':function(_0x41dd3d){return _0x41dd3d();},'NAWan':function(_0x2a715d){return _0x2a715d();},'vyqpZ':function(_0x2ca3f2,_0x758493,_0x9aefe8){return _0x2ca3f2(_0x758493,_0x9aefe8);},'nCNGC':function(_0x5a6bd7,_0x65fe0f){return _0x5a6bd7===_0x65fe0f;},'xaWTR':_0x503863(0x24d),'uZpyo':_0x503863(0x25d)+'le','BDXZH':_0x503863(0x2b7)+_0x503863(0x2df)+_0x503863(0x208),'qRKWj':_0x503863(0x2b7)+'e(-13'+_0x503863(0x1f1),'dxfbn':function(_0x1a1a69,_0x188c8f){return _0x1a1a69+_0x188c8f;},'CwxsS':function(_0x2acc11,_0x17b313){return _0x2acc11+_0x17b313;}};const _0x5f1bbb=document[_0x503863(0x23e)+'ement'+_0x503863(0x21a)]('fight'+'er-'+_0x53c111);const _0x6819e7=document[_0x503863(0x23e)+_0x503863(0x252)+_0x503863(0x21a)](_0x503863(0x270)+_0x503863(0x2e8)+_0x243175);const _0x17b0e4=attackItems[Math[_0x503863(0x22d)](Math['rando'+'m']()*attackItems['lengt'+'h'])];const _0x189b8c=document['creat'+_0x503863(0x1e9)+_0x503863(0x2cf)](_0x503863(0x268));_0x189b8c[_0x503863(0x28a)+_0x503863(0x2ea)]=_0x503863(0x27c)+'ctile';_0x189b8c['inner'+_0x503863(0x246)]=_0x17b0e4['icon'];if(_0x52e70b['nCNGC'](_0x17b0e4['type'],'spin')){_0x189b8c['class'+'List'][_0x503863(0x245)](_0x52e70b['xaWTR']);}if(_0x52e70b[_0x503863(0x20b)](_0x17b0e4[_0x503863(0x256)],_0x52e70b['uZpyo'])){if(_0x53c111==='p1'){_0x189b8c[_0x503863(0x2c7)]['trans'+_0x503863(0x210)]=_0x52e70b['BDXZH'];}else{_0x189b8c['style'][_0x503863(0x2ef)+'form']=_0x52e70b[_0x503863(0x1f2)];}}const _0x32a79e=_0x5f1bbb['getBo'+'undin'+_0x503863(0x235)+'ntRec'+'t']();const _0x307adc=_0x6819e7['getBo'+'undin'+_0x503863(0x235)+_0x503863(0x290)+'t']();_0x189b8c['style'][_0x503863(0x2cb)]=_0x52e70b['dxfbn'](_0x52e70b['dxfbn'](_0x32a79e[_0x503863(0x2cb)],_0x32a79e['width']/(0xabe+-0x71*-0x2b+-0x1db7*0x1)),'px');_0x189b8c[_0x503863(0x2c7)]['top']=_0x52e70b['dxfbn'](_0x52e70b[_0x503863(0x22c)](_0x32a79e['top'],-0x3b7*-0x3+0x1e32+-0x2925),'px');document['body']['appen'+_0x503863(0x1f9)+'d'](_0x189b8c);_0x189b8c['getBo'+_0x503863(0x2bd)+'gClie'+_0x503863(0x290)+'t']();_0x189b8c[_0x503863(0x2c7)][_0x503863(0x2cb)]=_0x52e70b[_0x503863(0x2a1)](_0x307adc[_0x503863(0x2cb)],_0x307adc['width']/(0xc4f+0x542*0x4+-0x4c3*0x7))+'px';_0x189b8c[_0x503863(0x2c7)]['top']=_0x52e70b['CwxsS'](_0x307adc[_0x503863(0x2ed)]+(0xfd1+0x38f+-0x132e),'px');_0x52e70b[_0x503863(0x231)](setTimeout,()=>{const _0x12cf1d=_0x503863;const _0x5d8c57={'RuZJB':_0x52e70b['WdbQC'],'HXtjL':function(_0x51c461){return _0x52e70b['nnANK'](_0x51c461);}};_0x189b8c[_0x12cf1d(0x2e1)+'e']();_0x6819e7['class'+'List'][_0x12cf1d(0x245)]('anim-'+_0x12cf1d(0x282),_0x12cf1d(0x25e)+_0x12cf1d(0x2c8));showDamage(_0x6819e7,_0x12cf1d(0x2c4));state[_0x243175]['hp']--;_0x52e70b['NAWan'](updateHPUI);_0x52e70b[_0x12cf1d(0x231)](setTimeout,()=>{const _0x4f013d=_0x12cf1d;_0x6819e7['class'+_0x4f013d(0x1f5)][_0x4f013d(0x2e1)+'e'](_0x5d8c57['RuZJB'],'anim-'+_0x4f013d(0x2c8));_0x5d8c57[_0x4f013d(0x291)](checkNext);},0xfb6*-0x1+0x11ef+0x1af*0x1);},0xb21+-0xd30+0x403);}function performBackfire(_0x503073,_0x5a724d){const _0x1f476f=_0x29e2ae;const _0x3ec4fd={'JCWKy':_0x1f476f(0x25e)+'shake','MfQUC':function(_0x5a903a,_0x54bbee,_0x3c7c5f){return _0x5a903a(_0x54bbee,_0x3c7c5f);},'yCPSP':function(_0x1e46a5,_0x16e1ca,_0x36d8bf){return _0x1e46a5(_0x16e1ca,_0x36d8bf);}};const _0x5ba4d6=document[_0x1f476f(0x23e)+_0x1f476f(0x252)+'ById'](_0x1f476f(0x270)+'er-'+_0x503073);_0x5ba4d6[_0x1f476f(0x28a)+'List']['add'](_0x3ec4fd[_0x1f476f(0x219)],'anim-'+_0x1f476f(0x2c8));_0x3ec4fd[_0x1f476f(0x2af)](showDamage,_0x5ba4d6,_0x5a724d);state[_0x503073]['hp']--;updateHPUI();_0x3ec4fd['yCPSP'](setTimeout,()=>{const _0x25ee40=_0x1f476f;_0x5ba4d6[_0x25ee40(0x28a)+_0x25ee40(0x1f5)]['remov'+'e'](_0x3ec4fd[_0x25ee40(0x219)],_0x25ee40(0x25e)+_0x25ee40(0x2c8));checkNext();},0x83*-0x1+0x1a*0x2b+-0x1*-0xd);}function showDamage(_0x1f2114,_0x56820f){const _0x4d7779=_0x29e2ae;const _0x248370={'Anmqx':_0x4d7779(0x268),'FYIMd':'damag'+'e-tex'+'t','ZLGUN':function(_0x3d05ac,_0x46bea8,_0x3927aa){return _0x3d05ac(_0x46bea8,_0x3927aa);}};const _0x4f0b86=document['creat'+_0x4d7779(0x1e9)+_0x4d7779(0x2cf)](_0x248370[_0x4d7779(0x20d)]);_0x4f0b86['class'+_0x4d7779(0x2ea)]=_0x248370[_0x4d7779(0x2ad)];_0x4f0b86['inner'+'Text']=_0x56820f;const _0x2add9e=_0x1f2114['getBo'+_0x4d7779(0x2bd)+_0x4d7779(0x235)+_0x4d7779(0x290)+'t']();_0x4f0b86[_0x4d7779(0x2c7)]['left']=_0x2add9e[_0x4d7779(0x2cb)]+'px';_0x4f0b86['style'][_0x4d7779(0x2ed)]=_0x2add9e[_0x4d7779(0x2ed)]+'px';document[_0x4d7779(0x264)][_0x4d7779(0x286)+_0x4d7779(0x1f9)+'d'](_0x4f0b86);_0x248370[_0x4d7779(0x28d)](setTimeout,()=>_0x4f0b86[_0x4d7779(0x2e1)+'e'](),-0x1e57+-0x1f7*-0x7+0x147e);}function checkNext(){state['qInde'+'x']++;loadNextQuestion();}function handleGameOver(){const _0x5a3b45=_0x29e2ae;const _0x22e11e={'jYGiE':'winne'+'r-ava'+'tar','rELVb':'winne'+'r-nam'+'e','dVTWE':function(_0x13112d,_0x43ebe5){return _0x13112d===_0x43ebe5;},'jkbHP':_0x5a3b45(0x2e5)+'!','eHyul':function(_0x2e4db8,_0x5b45ca){return _0x2e4db8===_0x5b45ca;},'luZKU':_0x5a3b45(0x293)+'-p1-c'+_0x5a3b45(0x287),'csnbS':'var(-'+'-p2-c'+'olor)','OQoFE':function(_0x243e8d,_0x104b7c){return _0x243e8d(_0x104b7c);}};const _0x257f82=state['p1']['hp']>0x1021*-0x1+0x131+0x1*0xef0?'p1':'p2';const _0x43176e=document['getEl'+'ement'+_0x5a3b45(0x21a)](_0x22e11e[_0x5a3b45(0x2ec)]);const _0xf4cf29=document['getEl'+'ement'+_0x5a3b45(0x21a)](_0x22e11e[_0x5a3b45(0x21b)]);const _0x3b7582=state[_0x257f82];if(_0x3b7582['type']==='img'){_0x43176e[_0x5a3b45(0x2c7)]['backg'+_0x5a3b45(0x211)+'Image']=_0x5a3b45(0x20c)+_0x3b7582[_0x5a3b45(0x222)+'r']+')';_0x43176e[_0x5a3b45(0x257)+_0x5a3b45(0x246)]='';}else{_0x43176e['style']['backg'+'round'+'Image']='none';_0x43176e['inner'+_0x5a3b45(0x246)]=_0x3b7582[_0x5a3b45(0x222)+'r'];}_0xf4cf29['inner'+'Text']=(_0x22e11e['dVTWE'](_0x257f82,'p1')?'1P':'2P')+_0x22e11e['jkbHP'];_0xf4cf29[_0x5a3b45(0x2c7)][_0x5a3b45(0x1f4)]=_0x22e11e[_0x5a3b45(0x255)](_0x257f82,'p1')?_0x22e11e[_0x5a3b45(0x241)]:_0x22e11e[_0x5a3b45(0x26e)];_0x22e11e['OQoFE'](showScreen,_0x5a3b45(0x2e4)+'n-gam'+_0x5a3b45(0x292));}function restartGame(){const _0x55ed65={'EtvZa':function(_0x3b94d7){return _0x3b94d7();}};_0x55ed65['EtvZa'](startGame);}</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

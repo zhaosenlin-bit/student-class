@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>空间向量数量积 · 几何意义教学工具</title>
+    <!-- 使用 Three.js 以及辅助库 -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.126.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.126.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        /* 三栏布局容器 */
+        .app {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            padding: 12px 16px;
+            gap: 16px;
+        }
+        /* 左侧控制面板 */
+        .panel-left {
+            width: 260px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            backdrop-filter: blur(2px);
+            border: 1px solid #e2e8f0;
+        }
+        /* 中间视口 */
+        .viewport-center {
+            flex: 1;
+            min-width: 400px;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #eef2f6;
+        }
+        #three-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* 右侧信息面板 */
+        .panel-right {
+            width: 280px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+        }
+        /* 通用样式 */
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            color: #475569;
+            text-transform: uppercase;
+            border-bottom: 2px solid #dbeafe;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .step-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .step-btn {
+            background: #f1f5f9;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid transparent;
+        }
+        .step-btn.active {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+            font-weight: 600;
+        }
+        .step-btn:hover {
+            background: #e2e8f0;
+        }
+        .step-btn .step-icon {
+            font-size: 18px;
+        }
+        .vector-input {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 6px;
+        }
+        .input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 15px;
+        }
+        .input-row label {
+            font-weight: 500;
+            color: #475569;
+            min-width: 32px;
+        }
+        .input-row input {
+            width: 70px;
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: center;
+            background: #f8fafc;
+            transition: 0.2s;
+        }
+        .input-row input:focus {
+            border-color: #3b82f6;
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+        .vec-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 4px;
+            margin-right: 6px;
+        }
+        .formula-box {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 14px 12px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            margin-top: 6px;
+        }
+        .formula-main {
+            font-size: 20px;
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+        }
+        .formula-sub {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        .projection-card {
+            background: #f0f9ff;
+            border-radius: 16px;
+            padding: 14px;
+            border-left: 5px solid #3b82f6;
+        }
+        .value-big {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1d4ed8;
+        }
+        .tag {
+            background: #e0f2fe;
+            color: #0369a1;
+            border-radius: 30px;
+            padding: 4px 12px;
+            font-size: 13px;
+            display: inline-block;
+        }
+        .footer-note {
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+            margin-top: 8px;
+            border-top: 1px solid #eef2f6;
+            padding-top: 12px;
+        }
+        .drag-hint {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(4px);
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            color: #475569;
+            border: 1px solid #dbeafe;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            pointer-events: none;
+            z-index: 10;
+            white-space: nowrap;
+        }
+        .coordinate-badge {
+            font-size: 14px;
+            font-weight: 500;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 30px;
+        }
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body><script>
+(function(){try{document.body.style.visibility="hidden"}catch(e){}var h=location.hostname,p=location.protocol;if(p==="file:"||p==="about:"||p==="chrome:"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">内容仅在授权平台运行</div>";return;}var a=["aifunengjiaoyu.com","www.aifunengjiaoyu.com","play.aifunengjiaoyu.com","localhost","127.0.0.1"],ok=false;for(var i=0;i<a.length;i++){if(h===a[i]||h.endsWith("."+a[i])){ok=true;break;}}if(!ok&&h!=="localhost"&&h!=="127.0.0.1"){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">未授权的运行环境</div>";return;}var x=new XMLHttpRequest();x.open("GET",location.origin+"/api/program-file/verify-access?id=753&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI3NTMiLCJleHAiOjE3OTQ1NTk2OTN9.gGJjTr-th3gEI-AuI1CvCuswj0z_OLxUS_DDey6R3x0",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility="visible"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">授权验证失败</div>";};x.onerror=function(){document.documentElement.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\">网络连接异常，请确保在网络环境中使用</div>";};x.send();})();</script>
+<div class="app">
+    <!-- 左侧控制面板 -->
+    <div class="panel-left">
+        <div>
+            <div class="section-title">📘 教学步骤</div>
+            <div class="step-buttons">
+                <button class="step-btn active" data-step="0"><span class="step-icon">①</span> 定义</button>
+                <button class="step-btn" data-step="1"><span class="step-icon">②</span> 公式</button>
+                <button class="step-btn" data-step="2"><span class="step-icon">③</span> 投影</button>
+                <button class="step-btn" data-step="3"><span class="step-icon">④</span> 练习</button>
+            </div>
+        </div>
+        <div>
+            <div class="section-title">📐 向量坐标</div>
+            <div class="vector-input">
+                <div class="input-row">
+                    <label><span class="vec-color" style="background:#3b82f6;"></span> a</label>
+                    <input type="number" id="ax" value="2" step="0.1">
+                    <input type="number" id="ay" value="1" step="0.1">
+                    <input type="number" id="az" value="2" step="0.1">
+                </div>
+                <div class="input-row">
+                    <label><span class="vec-color" style="background:#f97316;"></span> b</label>
+                    <input type="number" id="bx" value="3" step="0.1">
+                    <input type="number" id="by" value="-1" step="0.1">
+                    <input type="number" id="bz" value="1" step="0.1">
+                </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:14px;">
+                <button id="randomBtn" style="flex:1; background:#e2e8f0; border:none; padding:8px; border-radius:20px; font-weight:500; cursor:pointer;">🎲 随机</button>
+                <button id="resetBtn" style="flex:1; background:#dbeafe; color:#1d4ed8; border:none; padding:8px; border-radius:20px; font-weight:500; cursor:pointer;">↺ 重置</button>
+            </div>
+        </div>
+        <div style="margin-top:auto;">
+            <div class="section-title">📌 提示</div>
+            <div style="font-size:13px; color:#475569; background:#f1f5f9; padding:12px; border-radius:14px;">
+                🖱️ 拖拽箭头端点改变向量<br>· 实时更新夹角/投影<br>· 可精确输入坐标
+            </div>
+        </div>
+    </div>
+
+    <!-- 中间3D视口 -->
+    <div class="viewport-center">
+        <div id="three-container"></div>
+        <div class="drag-hint">🟠 拖拽箭头末端 · 观察变化</div>
+    </div>
+
+    <!-- 右侧信息面板 -->
+    <div class="panel-right">
+        <div>
+            <div class="section-title">🧮 数量积公式</div>
+            <div class="formula-box">
+                <div class="formula-main">a · b = |a||b|cosθ</div>
+                <div class="formula-sub" id="formula-coord">= 2×3 + 1×(-1) + 2×1 = 7</div>
+            </div>
+        </div>
+        <div>
+            <div class="section-title">📏 实时计算</div>
+            <div style="display:grid; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#475569;">|a|</span>
+                    <span class="tag" id="normA">2.449</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#475569;">|b|</span>
+                    <span class="tag" id="normB">3.317</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#475569;">夹角 θ</span>
+                    <span class="tag" id="angleDeg">54.7°</span>
+                </div>
+            </div>
+        </div>
+        <div>
+            <div class="section-title">📥 投影 (b在a上)</div>
+            <div class="projection-card">
+                <div style="font-size:14px; color:#475569;">投影长度 = a·b / |a|</div>
+                <div class="value-big" id="projValue">2.857</div>
+                <div style="font-size:13px; color:#0369a1; margin-top:6px;">方向: <span id="projDir">与a同向</span></div>
+            </div>
+        </div>
+        <div>
+            <div class="section-title">📚 当前步骤说明</div>
+            <div id="stepDescription" style="background:#f8fafc; border-radius:16px; padding:14px; font-size:14px; color:#334155; line-height:1.6;">
+                <strong>定义：</strong>向量数量积 a·b 等于它们的模长与夹角的余弦的乘积。
+            </div>
+        </div>
+        <div class="footer-note">
+            ｜ 空间向量数量积 · 几何意义 ｜
+        </div>
+    </div>
+</div>
+
+<script type="module">const _0x3f2e48=_0x4ef5;(function(_0x1e9b19,_0xf2429c){const _0x1dfe37=_0x4ef5;const _0x370a59=_0x1e9b19();while(!![]){try{const _0x34e585=parseInt(_0x1dfe37(0x1c5))/(0x12a8+0xf79+-0x2220)+-parseInt(_0x1dfe37(0x1d1))/(0xdb0+0x67*0x26+0x48*-0x67)+parseInt(_0x1dfe37(0x1e0))/(0x20f3+-0x655*-0x1+0x2745*-0x1)+-parseInt(_0x1dfe37(0x1cd))/(-0x184+0x1f*-0x1+0x1a7)*(-parseInt(_0x1dfe37(0x240))/(-0xb61+0x4ea*0x7+-0x1700))+parseInt(_0x1dfe37(0x1b8))/(-0x25f5*-0x1+0x1*-0x1a65+-0xb8a)*(parseInt(_0x1dfe37(0x1ab))/(-0x1*-0x36a+-0x1ccb+0x1968))+-parseInt(_0x1dfe37(0x21a))/(0x2189+-0x1377+-0xe0a)*(-parseInt(_0x1dfe37(0x242))/(0x25e+-0x1bdb*0x1+-0x16b*-0x12))+parseInt(_0x1dfe37(0x254))/(0x166d*0x1+-0xe4*-0xe+0x1*-0x22db)*(-parseInt(_0x1dfe37(0x1cb))/(-0x7fc+-0x18f4+0x20fb));if(_0x34e585===_0xf2429c){break;}else{_0x370a59['push'](_0x370a59['shift']());}}catch(_0x447a20){_0x370a59['push'](_0x370a59['shift']());}}}(_0x16aa,0x22d29+-0x22c0e+0x4621a));const _0x305fff=(function(){let _0xcf04c7=!![];return function(_0x1b8a65,_0x59750d){const _0x24b576=_0xcf04c7?function(){if(_0x59750d){const _0x215479=_0x59750d['apply'](_0x1b8a65,arguments);_0x59750d=null;return _0x215479;}}:function(){};_0xcf04c7=![];return _0x24b576;};}());const _0x226661=_0x305fff(this,function(){const _0x553f2e=_0x4ef5;return _0x226661[_0x553f2e(0x250)+'ing']()['searc'+'h'](_0x553f2e(0x1c7)+')+)+)'+'+$')[_0x553f2e(0x250)+_0x553f2e(0x18f)]()['const'+'ructo'+'r'](_0x226661)['searc'+'h'](_0x553f2e(0x1c7)+_0x553f2e(0x21c)+'+$');});_0x226661();import*as _0x5de69c from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';import{DragControls}from'three/addons/controls/DragControls.js';const container=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)](_0x3f2e48(0x1bd)+_0x3f2e48(0x1e9)+_0x3f2e48(0x1ad));const scene=new _0x5de69c[(_0x3f2e48(0x1ca))]();scene['backg'+'round']=new _0x5de69c['Color'](0x16a2983+0x154209e+0x17*-0x139f2e);const camera=new _0x5de69c[(_0x3f2e48(0x226))+(_0x3f2e48(0x212))+(_0x3f2e48(0x20b))+'ra'](0xa45+-0x1a81+-0x1*-0x1069,container['clien'+'tWidt'+'h']/container[_0x3f2e48(0x225)+'tHeig'+'ht'],-0x5*-0xe5+0x1*0x1a7a+0x39*-0x8b+0.1,-0x2f*-0x4f+0x9f2*0x1+-0x148b);camera['posit'+'ion']['set'](0xcaa*-0x1+-0x19*-0x7f+0x2*0x24,0xc56*-0x2+0xa36+0xe7a,-0x2629+-0x329*0x6+0x13*0x302);camera['lookA'+'t'](-0x2*0x21f+-0x646*0x2+0x10ca,-0x2*-0x104e+0x1*0x204f+0x1*-0x40eb,0x1bc8+0x303+-0x1ecb);const renderer=new _0x5de69c['WebGL'+(_0x3f2e48(0x1d6))+(_0x3f2e48(0x23a))]({'antialias':!![]});renderer['setSi'+'ze'](container['clien'+'tWidt'+'h'],container['clien'+_0x3f2e48(0x20f)+'ht']);renderer[_0x3f2e48(0x21d)+_0x3f2e48(0x186)]['enabl'+'ed']=!![];renderer[_0x3f2e48(0x21d)+_0x3f2e48(0x186)][_0x3f2e48(0x215)]=_0x5de69c['PCFSo'+_0x3f2e48(0x1a3)+_0x3f2e48(0x228)+'p'];container[_0x3f2e48(0x22f)+'dChil'+'d'](renderer[_0x3f2e48(0x1d9)+_0x3f2e48(0x1dd)]);const ambient=new _0x5de69c['Ambie'+(_0x3f2e48(0x205))+'ht'](-0xa*-0x52e17+-0xb17819+-0x1*-0x17dab32,-0x521+-0xc*0x2db+-0x7e1*-0x5+0.7);scene[_0x3f2e48(0x21b)](ambient);const dirLight=new _0x5de69c['Direc'+'tiona'+(_0x3f2e48(0x1d3))+'t'](0x3b3b*0xa9+0x1e59944+-0x10cb338*0x1,-0x22*-0x16+0x9*-0x314+0x18c9+0.19999999999999996);dirLight[_0x3f2e48(0x243)+'ion']['set'](0x1*0x232f+0x7*0xfa+0x1501*-0x2,0x1b60+-0x21d1+0x33b*0x2,-0x1*-0x6fd+-0x936+0x23b);scene['add'](dirLight);const gridHelper=new _0x5de69c[(_0x3f2e48(0x204))+(_0x3f2e48(0x1bc))](0x1dd1+0xd4c+-0x2b17,-0x278+0x1*-0x1065+-0x67*-0x2f,-0xae7a62+0x285b*-0x379+0x1cf421d,0x11*-0x79ea3+0x715de0+-0xf313e3*-0x1);scene['add'](gridHelper);function createAxisLine(_0x4a842c,_0x195b8c,_0x35728c){const _0x273697=_0x3f2e48;const _0x41a9d3=new _0x5de69c[(_0x273697(0x184))+(_0x273697(0x217))+'ateri'+'al']({'color':_0x4a842c});const _0x5b7152=[_0x195b8c,_0x35728c];const _0x5819a6=new _0x5de69c[(_0x273697(0x1fd))+(_0x273697(0x244))+'etry']()['setFr'+_0x273697(0x1c9)+_0x273697(0x1ba)](_0x5b7152);return new _0x5de69c['Line'](_0x5819a6,_0x41a9d3);}const axisLength=0x1*0x2395+-0x1435*0x1+0x1b5*-0x9+0.7999999999999998;const arrowHeadLen=0x124a+-0x207c+0x719*0x2+0.3;const arrowHeadWid=-0x2*0x607+-0x1f46*0x1+0x2b54+0.2;const arrowX=new _0x5de69c[(_0x3f2e48(0x1c6))+'Helpe'+'r'](new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](0x78a+0xc08+0x1*-0x1391,-0x755+0x257d+-0x1e28,0x6b6*0x2+0xa37+0x3*-0x7e1),new _0x5de69c['Vecto'+'r3'](0xab0*-0x1+-0x2*-0xb2+0x94c,-0x1eb+-0x1*-0x2463+-0x2278,0x600+-0x1450+0x10*0xe5),axisLength,-0x1d52f8a+0x35037d*0x7+0x1515b63,arrowHeadLen,arrowHeadWid);scene[_0x3f2e48(0x21b)](arrowX);const arrowY=new _0x5de69c['Arrow'+'Helpe'+'r'](new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](0x16ff+0xcb4+-0x23b3,0x247+0x4b*0x47+-0x21*0xb3,-0x10*-0x100+0x1cd3+-0x2cd3),new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](-0x1747+-0x649+0x1d90,-0x2*-0xc1b+-0x25e1+0xdab,-0x1634+0x3ff+0x1235),axisLength,0x32560+-0x2521*0x85+0x4e5*0xa67,arrowHeadLen,arrowHeadWid);scene[_0x3f2e48(0x21b)](arrowY);const arrowZ=new _0x5de69c[(_0x3f2e48(0x1c6))+'Helpe'+'r'](new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](0x3b+0x1422+-0x145d,0x1dd3+0x41d*0x2+0xcaf*-0x3,0x7cf*-0x4+-0x51b+0x2458),new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](-0x1b68+-0x2478+-0x124*-0x38,0x1*0x10af+-0x21fd*0x1+-0x1bb*-0xa,-0x25e2+-0x10dd*0x1+0x36bf),axisLength,-0xa*0x2d07d+0x6032*-0xd4+0x37c5c*0x30,arrowHeadLen,arrowHeadWid);scene[_0x3f2e48(0x21b)](arrowZ);function createLabel(_0x130369,_0x2485b0,_0x565bd9){const _0x2bf723=_0x3f2e48;const _0x43f1b1={'iedGJ':_0x2bf723(0x222)+'r'};const _0x5a5e81=document[_0x2bf723(0x235)+_0x2bf723(0x1af)+_0x2bf723(0x190)](_0x2bf723(0x200)+'s');_0x5a5e81['width']=-0x311*-0xb+-0xcad+-0x14ce;_0x5a5e81[_0x2bf723(0x1d0)+'t']=0x19d9+-0x75e+-0x123b;const _0x7e3cff=_0x5a5e81['getCo'+'ntext']('2d');_0x7e3cff['fillS'+_0x2bf723(0x189)]=_0x2485b0;_0x7e3cff[_0x2bf723(0x213)]=_0x2bf723(0x1fe)+'48px\x20'+'Arial';_0x7e3cff[_0x2bf723(0x234)+_0x2bf723(0x19d)]=_0x43f1b1[_0x2bf723(0x1d5)];_0x7e3cff['textB'+_0x2bf723(0x24f)+'ne']=_0x2bf723(0x202)+'e';_0x7e3cff[_0x2bf723(0x1db)+'ext'](_0x130369,-0x2*-0x5a7+0xeff+-0x1a2d,-0x1d8*0x2+-0x9*-0x409+-0x2081);const _0xa68678=new _0x5de69c['Canva'+(_0x2bf723(0x1b4))+'ure'](_0x5a5e81);const _0x5cbb24=new _0x5de69c[(_0x2bf723(0x18e))+(_0x2bf723(0x1e7))+'rial']({'map':_0xa68678,'depthTest':![],'depthWrite':![]});const _0x4f4346=new _0x5de69c['Sprit'+'e'](_0x5cbb24);_0x4f4346[_0x2bf723(0x238)][_0x2bf723(0x191)](-0x13f1+-0x43*0x86+0x3703*0x1+0.5,-0x1e*0x10d+-0xd6d+0x2cf3+0.5,0xa02+0xd5*-0x9+-0x2b*0xf+0.5);_0x4f4346[_0x2bf723(0x243)+_0x2bf723(0x18b)]['copy'](_0x565bd9);scene['add'](_0x4f4346);return _0x4f4346;}createLabel('+X','#ef44'+'44',new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](axisLength+(-0x20de+0x2*-0x95f+0x339c+0.5),0x521*0x2+0x2*0xa03+0x4c*-0x66,-0x195*0x17+-0x71f*0x3+-0x1*-0x39c0));createLabel('+Y',_0x3f2e48(0x1fc)+'5e',new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](0x209f+0x547*-0x7+0x452,axisLength+(0x807*-0x1+-0x1ac9*-0x1+0xe*-0x157+0.5),-0x14b3*0x1+-0xcf4+0x1*0x21a7));createLabel('+Z','#3b82'+'f6',new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](0x99*0x1f+0x6*-0x2ff+-0x8d,-0x26*0xa7+0x32*0x26+0x115e,axisLength+(0x11c7*-0x2+-0x21*0x64+0x3072+0.5)));createLabel('O',_0x3f2e48(0x194)+'8b',new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](-(0x1825*0x1+0x1ea1*-0x1+0x14c*0x5+0.4),-(0xcf7*0x1+-0x1678+0x981+0.4),-(-0x1c4+-0x1016+0x11da+0.4)));const originSphere=new _0x5de69c['Mesh'](new _0x5de69c[(_0x3f2e48(0x1fa))+(_0x3f2e48(0x1f8))+'etry'](-0x2303*0x1+-0x104f*-0x1+0x12b4+0.08,-0x24ae+-0xb5b+0x7*0x6df,0x1*0x5e6+0x169*-0x9+-0x27*-0x2d),new _0x5de69c[(_0x3f2e48(0x227))+(_0x3f2e48(0x209))+(_0x3f2e48(0x1dc))+'erial']({'color':0x334155}));scene['add'](originSphere);const arrowHeadLength=-0x86*-0x5+-0x25e*0xf+0x1072*0x2+0.3;const arrowHeadWidth=0xcb0+-0x6+-0xcaa+0.2;let vecA=new _0x5de69c['Vecto'+'r3'](-0x19fc+0x7f2*0x2+0x50d*0x2,-0x13aa*0x1+-0x12df*0x2+0x3*0x1323,-0x26ea+-0x1dc4+0x44b0);let vecB=new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](-0x1c39+0x1c4e+-0x12*0x1,-(0x27b*-0xb+0x2b*0x47+0x39*0x45),0x2ad*-0x4+0x172a+0x3*-0x427);const arrowA=new _0x5de69c['Arrow'+(_0x3f2e48(0x23b))+'r'](new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](-0xb8f+0x235a*-0x1+0x2eea,0x96a+-0x202*-0x10+-0xd*0x332,0x2fa*0xa+0x14bd+-0x1*0x3281),new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](0x12f2*0x1+-0x2*-0x4c3+0x71e*-0x4,0xb99+0x1882+-0x241b,-0x29*0x9d+-0x85f+-0x2*-0x10c2),0x1*0x1937+-0x3b6+-0x1580,0x2*-0x7d7ee+-0x13*-0x12dbb+0x34cdf1,-0x1a*0x5b+0x10d2*0x2+-0x1866+0.3,0x6f*-0x25+0xf0b+0x100+0.2);const arrowB=new _0x5de69c[(_0x3f2e48(0x1c6))+(_0x3f2e48(0x23b))+'r'](new _0x5de69c['Vecto'+'r3'](-0x19f7+-0xb57+0xa*0x3bb,-0xac*0x18+0x7*0x4d3+-0x11a4,0x1f00+-0x350*-0x5+-0x2f90),new _0x5de69c[(_0x3f2e48(0x1df))+'r3'](-0x8*-0x251+0x1577+-0x27ff,0x11*0x153+0x18e2+-0x2f65,0x1981+-0x1c30*-0x1+0x35b1*-0x1),0x16*0x166+-0x1865+-0x1*0x65e,-0x65*-0x18ba5+0x1e7e8bf+-0x18a8dc2,-0x15b9*0x1+-0x1ff6+-0x35af*-0x1+0.3,0x8b1*0x3+-0x3c7*-0x5+0x47f*-0xa+0.2);scene['add'](arrowA);scene['add'](arrowB);const sphereA=new _0x5de69c[(_0x3f2e48(0x236))](new _0x5de69c[(_0x3f2e48(0x1fa))+'eGeom'+'etry'](-0x2b1*-0x3+0x1*-0x94d+0x13a+0.18,-0x1*0x123+-0xb*-0x20f+0x2*-0xab5,0x6dd+0x21e3*-0x1+0x6*0x485),new _0x5de69c[(_0x3f2e48(0x227))+(_0x3f2e48(0x209))+'rdMat'+'erial']({'color':0x3b82f6,'emissive':0x1e3a8a,'emissiveIntensity':0.2}));const sphereB=new _0x5de69c[(_0x3f2e48(0x236))](new _0x5de69c[(_0x3f2e48(0x1fa))+'eGeom'+'etry'](-0x1f*-0x6a+-0x26fa+0x1a24+0.18,-0x15e0+0x26d1+-0x13*0xe3,0x19ba+0x6fc*-0x1+-0x16*0xd9),new _0x5de69c[(_0x3f2e48(0x227))+'tanda'+(_0x3f2e48(0x1dc))+(_0x3f2e48(0x1e6))]({'color':0xf97316,'emissive':0x9a3412,'emissiveIntensity':0.2}));scene[_0x3f2e48(0x21b)](sphereA);scene[_0x3f2e48(0x21b)](sphereB);function updateVectors(){const _0x12de81=_0x3f2e48;const _0x8f76a4={'EehWb':function(_0x3b414e,_0x21689b){return _0x3b414e>_0x21689b;}};const _0x15dca3=vecA['lengt'+'h']();const _0x1cac84=vecB['lengt'+'h']();if(_0x8f76a4[_0x12de81(0x18d)](_0x15dca3,0xb87+-0x1c05+0x107e+0.001)){arrowA[_0x12de81(0x216)+_0x12de81(0x252)+'on'](vecA[_0x12de81(0x192)]()[_0x12de81(0x1b7)+_0x12de81(0x201)]());arrowA['setLe'+'ngth'](_0x15dca3,arrowHeadLength,arrowHeadWidth);}else{arrowA[_0x12de81(0x18c)+'ngth'](-0x82*-0x7+0x169f*-0x1+-0x1*-0x1311+0.001);}if(_0x1cac84>0x57*0x59+-0x16a0+-0x1*0x79f+0.001){arrowB[_0x12de81(0x216)+'recti'+'on'](vecB[_0x12de81(0x192)]()[_0x12de81(0x1b7)+_0x12de81(0x201)]());arrowB['setLe'+_0x12de81(0x196)](_0x1cac84,arrowHeadLength,arrowHeadWidth);}else{arrowB['setLe'+'ngth'](0x6*0x3d7+0xb00+-0x220a+0.001);}sphereA['posit'+_0x12de81(0x18b)]['copy'](vecA);sphereB[_0x12de81(0x243)+_0x12de81(0x18b)]['copy'](vecB);}updateVectors();const controls=new OrbitControls(camera,renderer['domEl'+'ement']);controls[_0x3f2e48(0x1bb)+_0x3f2e48(0x22e)+'ing']=!![];controls[_0x3f2e48(0x206)+'ngFac'+'tor']=-0x20af+-0xb9a+0x3*0xec3+0.08;controls['autoR'+_0x3f2e48(0x23d)]=![];controls[_0x3f2e48(0x1bb)+'eZoom']=!![];controls['targe'+'t']['set'](0x61*-0x53+0x8a8+-0x3*-0x799,0x2612+-0x1ee3+0x72f*-0x1,-0x4*-0x7a2+-0x1*-0x36d+0x1*-0x21f5);controls[_0x3f2e48(0x24e)+'e']();const dragObjects=[sphereA,sphereB];const dragControls=new DragControls(dragObjects,camera,renderer['domEl'+_0x3f2e48(0x1dd)]);function _0x16aa(){const _0x4b92cf=['5PwW6yEp56EV44cb5As5','C3rLBMu','DMfSDwu','zuDLB20','yw5NBgu','u3bOzxi','Awj1Dgu','iZiYyZu','qNvMzMu','qM9Szca','y29ZZRJJGii','y2fUDMe','BgL6zq','BwLKzgW','ighcT2iG','r3jPzeG','BNrmAwC','zgfTCgK','lwj0BG','zZ7LKjhPH48G','DgfUzge','5A6A5lMj77YApc8','zunHBwu','yJ4G562j5lQo','DgfYDa','57Ud5lMG77YApc8','DeHLAwC','qLjoz0S','ueHzA1C','zwn0Axy','zM9UDa','qNLjza','DhLWzq','C2v0rgK','yxnPy00','8j+tLIa8C3q','qNrU','oe9dre9izq','ywrK','ksSPkYK','C2HHzg8','BwLU','uvHkA0C','yJ5Ipc8','BM9YBue','y2vUDgu','zgf0yxm','CMLHBa','y2XPzw4','ugvYC3a','twvZAfm','zg93twe','Dgv4Dem','5OQv5B2X77YApc8','tgLZDa','B2jQzwm','zhjHz2u','zurHBxa','yxbWzw4','C3rYB24','A1frEgW','4OkclhNIGOiS','zZ4G5OUw5yQO','Dgv4Dee','y3jLyxq','twvZAa','8j+tPsa8C3q','C2nHBgu','vwXbufi','CMvY','sgvSCgu','C2v0qxq','B3rHDgu','DfDPzhq','BM9YBui','mtC1odi2mezNquLNsq','sfrnta','mZq5ntG2mw9rzMvAtW','Cg9ZAxq','CKDLB20','Dg9YqwW','zvbYB2O','ChjVAKq','tgvUz3q','thnSBeK','5z2q5Qch77Ym6kEc5A+F','uKXVAfK','y2XHC3m','y2XPy2S','DxbKyxq','yxnLBgK','Dg9tDhi','5PA55zcr5lIk55Qe5OQv','CMvJDgK','C3bSAxq','nZiYmZbqsu1is0C','id0G','tgLUzui','yxX8yNW','D01HCa','yNrfBMi','idXIpMe','DhLSzq','lNn0zxa','Aw9U','C2v0tgu','rwvOv2i','u3bYAxq','Aw5N','zw50','C2v0','y2XVBMu','6yEp56EV5Pwz5A2M5BEL','iZy0nZq','EUkcGINVViZLIjK','BMD0Aa','BgvUz3q','Bg9N','BgeTy28','5lIoigeG5zcm','zhjHzW','zxrYEq','BgLNBG','5lIo5As56kEs5l2z5BYM','CMfUzg8','ywrKrxy','5l2v5lIk6kgO56s6ia','ywnVCW','zNrtAge','z2v0rwW','pc9IpIa','5B2X5lIoihXH','5y+y5yYw77Ym6AQm6k+b','5zcr6yEp5OIw6l6t5ywL','Bwf4','igi9khG','mZe3ndG1yKP0sw9A','Dg9gAxG','ywLUzxi','4Okck3NIGOf5','zuvSzw0','icSG','ug9PBNq','4Okck3RIGOf6','psb44OkbEa','C1rLEhq','mNWZFda','DgnzDKO','BM9YBwe','nKrKyuX1Bq','ChjVALy','BNrZ','zw5HyMW','zwXWzxi','DgHYzwu','l2i+iowCQa','5ywS5BYp44cc','zwn0Aw8','C01HDgu','Aw5Uzxi','6lsF6kgO56s65PA55zcr','5A6d5lUS55Qe5QIH6zw/','nty0mtmZvhvQq2TP','qxjYB3C','kcGOlIS','B250zw4','B21qB2K','u2nLBMu','mtmZmuHAChHXra','pgi+ytW','ne1Zwg5kAW','A0TrCLO','zhjHz3m','AgvPz2G','ntCWnJKWA3rVtMDf','y29WEq','BeXPz2G','Aw5WDxq','AwvKr0O','uMvUzgu','DhjPyNu','56M66zE05zcr6yEp5PwW','zg9TrwW','5lI6icHHWRC','zMLSBfq','CMrnyxq','zw1LBNq','qKfWzge','vMvJDg8','mJKXotaWBuzqELbO','txjQvgC','z29dvM4','ywn0Axy','EeLdu1i','l2i+WRC8','zxjPywW','zu1HDgu','svbuBLu','lwnVBNq','sejyCwu','zM9Yrwe','vfz1wNe','6kEs5zkm5OQv5B2X55Qe','5yw35BEY5zcV5yQO77Yb','yIKGlYa','CM9UzZ4','BK1HDhi','8j+tKca8C3q','zw50tgK','ChrPB24'];_0x16aa=function(){return _0x4b92cf;};return _0x16aa();}dragControls[_0x3f2e48(0x1a0)+_0x3f2e48(0x1f3)+'stene'+'r'](_0x3f2e48(0x1cf)+_0x3f2e48(0x20d),function(_0x143157){const _0x49f92b=_0x3f2e48;controls[_0x49f92b(0x1bb)+'ed']=![];});dragControls['addEv'+_0x3f2e48(0x1f3)+_0x3f2e48(0x1f6)+'r'](_0x3f2e48(0x19b),function(_0x47e595){const _0x52f84a=_0x3f2e48;const _0x465bf4={'BRNgK':function(_0x112895,_0x287959){return _0x112895===_0x287959;},'MrjTg':function(_0xc99ccc){return _0xc99ccc();}};const _0x4e6300=_0x47e595[_0x52f84a(0x22c)+'t'];if(_0x4e6300===sphereA){vecA[_0x52f84a(0x1d2)](_0x4e6300[_0x52f84a(0x243)+'ion']);}else if(_0x465bf4[_0x52f84a(0x210)](_0x4e6300,sphereB)){vecB[_0x52f84a(0x1d2)](_0x4e6300[_0x52f84a(0x243)+_0x52f84a(0x18b)]);}vecA['x']=Math[_0x52f84a(0x21e)](-0x129e*0x1+0x1e*-0x81+0x21bf+0.5,Math[_0x52f84a(0x1a9)](-(0xc1+-0x25b+0x19d+0.5),vecA['x']));vecA['y']=Math[_0x52f84a(0x21e)](0x2078+-0xc19*0x3+-0x1eb*-0x2+0.5,Math[_0x52f84a(0x1a9)](-(0xe45+0x180c+-0x2*0x1327+0.5),vecA['y']));vecA['z']=Math[_0x52f84a(0x21e)](0x2a3+0x40a*0x7+-0x317*0xa+0.5,Math[_0x52f84a(0x1a9)](-(-0x195f+-0x5*0x3c1+0x7f*0x59+0.5),vecA['z']));vecB['x']=Math[_0x52f84a(0x21e)](-0x19b2+0x6*-0x125+0x2093+0.5,Math[_0x52f84a(0x1a9)](-(-0xafa+0x1b57+0xd*-0x142+0.5),vecB['x']));vecB['y']=Math['min'](0x1d7*-0x13+-0x7ea*-0x4+-0x350*-0x1+0.5,Math['max'](-(-0x576*0x4+-0x662+0x1c3d+0.5),vecB['y']));vecB['z']=Math[_0x52f84a(0x21e)](-0x10*-0x22+0x16bb+-0x31b*0x8+0.5,Math['max'](-(-0x26b4+0x283*0x7+0x1522*0x1+0.5),vecB['z']));_0x4e6300['posit'+'ion'][_0x52f84a(0x1d2)](vecA);if(_0x4e6300===sphereA){}else{}_0x465bf4[_0x52f84a(0x1e1)](updateVectors);updateUIFromVectors();syncInputs();});dragControls['addEv'+'entLi'+_0x3f2e48(0x1f6)+'r'](_0x3f2e48(0x22d)+'nd',function(){const _0x3d299e=_0x3f2e48;controls[_0x3d299e(0x1bb)+'ed']=!![];});const inputAx=document[_0x3f2e48(0x1a4)+'ement'+_0x3f2e48(0x214)]('ax');const inputAy=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)]('ay');const inputAz=document['getEl'+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)]('az');const inputBx=document['getEl'+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)]('bx');const inputBy=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+'ById']('by');function _0x4ef5(_0xa708d6,_0x4755cb){_0xa708d6=_0xa708d6-(-0x1765+0x4ab+-0xa1f*-0x2);const _0x205349=_0x16aa();let _0x11a247=_0x205349[_0xa708d6];if(_0x4ef5['VMxbPA']===undefined){var _0x52c4a7=function(_0x4d9ba4){const _0x27cfc3='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x2d7fa4='';let _0x534dae='';let _0x31b25c=_0x2d7fa4+_0x52c4a7;let _0x531ff5=(''+function(){return 0x199f+-0xa9b+0x1*-0xf04;})['indexOf']('\x0a')!==-(0x1974+-0x2425+-0x1*-0xab2);for(let _0x582c85=-0x1a1*-0x3+0x18df+-0x1dc2,_0x147a22,_0x4643c9,_0x55e4c3=0xb4b*-0x2+0x530+0x1166;_0x4643c9=_0x4d9ba4['charAt'](_0x55e4c3++);~_0x4643c9&&(_0x147a22=_0x582c85%(0xf*-0xf5+0x10bb+-0x25c)?_0x147a22*(0x3b1+0x13*-0x66+0x421*0x1)+_0x4643c9:_0x4643c9,_0x582c85++%(-0xfb5*-0x1+-0x2e6+-0xccb))?_0x2d7fa4+=_0x531ff5||_0x31b25c['charCodeAt'](_0x55e4c3+(0x118+0x33b+0x449*-0x1))-(-0x1f*0x59+-0x2d2*0x5+0x1*0x18eb)!==-0x125d+0x3*-0x560+0x227d?String['fromCharCode'](0x185*-0x19+0x1d50+0x9ac&_0x147a22>>(-(-0x19ef+0x1*-0x2029+0x3a1a*0x1)*_0x582c85&0x1*-0x166b+-0x17*0x72+0x20af)):_0x582c85:0x6*-0x30a+0x1671+0x435*-0x1){_0x4643c9=_0x27cfc3['indexOf'](_0x4643c9);}for(let _0x514676=0x121b+0x2*-0x93b+0xd*0x7,_0x2da389=_0x2d7fa4['length'];_0x514676<_0x2da389;_0x514676++){_0x534dae+='%'+('00'+_0x2d7fa4['charCodeAt'](_0x514676)['toString'](0x1d37+0x6*-0x467+-0x2bd))['slice'](-(-0x1b1d+0x2258+-0x739*0x1));}return decodeURIComponent(_0x534dae);};_0x4ef5['xjLqIN']=_0x52c4a7;_0x4ef5['flZiTA']={};_0x4ef5['VMxbPA']=!![];}const _0xbd5d24=_0x205349[0x3*0xbe3+0x1*0x149d+-0x2a*0x157];const _0x4964db=_0xa708d6+_0xbd5d24;const _0x52bf90=_0x4ef5['flZiTA'][_0x4964db];if(!_0x52bf90){const _0x46adfb=function(_0x1b7fa0){this['MJePTQ']=_0x1b7fa0;this['WyVrsM']=[-0xc1e+0x200b*-0x1+0x2*0x1615,0x1*-0x16eb+-0x595*-0x6+-0xa93,0x1*-0x254f+0x2f9*-0x1+-0x1*-0x2848];this['lgWHSD']=function(){return'newState';};this['nOiMkN']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*';this['ztPdnv']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x46adfb['prototype']['UDdvfr']=function(){const _0x54767d=new RegExp(this['nOiMkN']+this['ztPdnv']);const _0x5d1731=_0x54767d['test'](this['lgWHSD']['toString']())?--this['WyVrsM'][-0x74+-0xaa*-0x23+-0x16c9]:--this['WyVrsM'][0x359*0x9+0x281+-0x2*0x1051];return this['ELfrpl'](_0x5d1731);};_0x46adfb['prototype']['ELfrpl']=function(_0x2f78c3){if(!Boolean(~_0x2f78c3)){return _0x2f78c3;}return this['SpGuSP'](this['MJePTQ']);};_0x46adfb['prototype']['SpGuSP']=function(_0x12df9e){for(let _0x1887ca=0xa3*-0xf+0x1*-0x221b+0x2ba8,_0x388061=this['WyVrsM']['length'];_0x1887ca<_0x388061;_0x1887ca++){this['WyVrsM']['push'](Math['round'](Math['random']()));_0x388061=this['WyVrsM']['length'];}return _0x12df9e(this['WyVrsM'][-0xb79*-0x1+-0x22e*-0x3+0x1203*-0x1]);};if((''+function(){return-0x185*-0xe+0xca0+-0x21e6;})['indexOf']('\x0a')===-(0x1f47+-0x1d05+-0x1*0x241)){new _0x46adfb(_0x4ef5)['UDdvfr']();}_0x11a247=_0x4ef5['xjLqIN'](_0x11a247);_0x4ef5['flZiTA'][_0x4964db]=_0x11a247;}else{_0x11a247=_0x52bf90;}return _0x11a247;}const inputBz=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)]('bz');const normAEl=document['getEl'+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)](_0x3f2e48(0x221));const normBEl=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)](_0x3f2e48(0x23f));const angleEl=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+_0x3f2e48(0x214)](_0x3f2e48(0x1f9)+'Deg');const projValueEl=document[_0x3f2e48(0x1a4)+'ement'+'ById'](_0x3f2e48(0x1b9)+'alue');const projDirEl=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+'ById'](_0x3f2e48(0x247)+'ir');const formulaCoordEl=document[_0x3f2e48(0x1a4)+'ement'+'ById']('formu'+_0x3f2e48(0x199)+'ord');const stepDescEl=document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+'ById']('stepD'+'escri'+_0x3f2e48(0x1f4));const stepBtns=document['query'+'Selec'+_0x3f2e48(0x245)+'l'](_0x3f2e48(0x18a)+_0x3f2e48(0x207));const stepDescriptions=[_0x3f2e48(0x218)+'rong>'+_0x3f2e48(0x20a)+'stron'+_0x3f2e48(0x208)+_0x3f2e48(0x1cc)+_0x3f2e48(0x1e5)+_0x3f2e48(0x220)+_0x3f2e48(0x20c)+_0x3f2e48(0x1c4)+_0x3f2e48(0x19e)+'的乘积。几'+_0x3f2e48(0x1a1)+'<b>b<'+_0x3f2e48(0x1be)+_0x3f2e48(0x188)+_0x3f2e48(0x1a5)+_0x3f2e48(0x251)+_0x3f2e48(0x1a6)+'|\x20的乘积'+'。',_0x3f2e48(0x1f2)+_0x3f2e48(0x1f0)+'公式：</'+'stron'+'g>\x20a·'+'b\x20=\x20|'+_0x3f2e48(0x185)+_0x3f2e48(0x1ff)+'若\x20a=('+'x₁,y₁'+',z₁),'+_0x3f2e48(0x1aa)+_0x3f2e48(0x232)+_0x3f2e48(0x195)+_0x3f2e48(0x203)+_0x3f2e48(0x1b3)+_0x3f2e48(0x1ae)+_0x3f2e48(0x1b2)+'₂。',_0x3f2e48(0x237)+'rong>'+_0x3f2e48(0x22a)+'stron'+'g>\x20b\x20'+'在\x20a\x20上'+'的投影长度'+_0x3f2e48(0x1da)+_0x3f2e48(0x1ef)+'|a|。正'+_0x3f2e48(0x1c3)+_0x3f2e48(0x19a)+'向或反向。','✏️\x20<st'+_0x3f2e48(0x1f0)+_0x3f2e48(0x20e)+_0x3f2e48(0x230)+_0x3f2e48(0x233)+_0x3f2e48(0x1a8)+_0x3f2e48(0x24a)+_0x3f2e48(0x1f5)+_0x3f2e48(0x1ed)+_0x3f2e48(0x1a7)+_0x3f2e48(0x1bf)];function updateUIFromVectors(){const _0x1287f7=_0x3f2e48;const _0xad80c3={'kQQxl':function(_0x3876d6,_0x3d3358){return _0x3876d6>_0x3d3358;},'RLohY':function(_0x547d1d,_0x5c94d4){return _0x547d1d/_0x5c94d4;},'btEnb':function(_0x4a14cc,_0x2ecd01){return _0x4a14cc*_0x2ecd01;},'ChSOD':function(_0x72c21b,_0x1106c4){return _0x72c21b>_0x1106c4;},'OVnof':function(_0x3e0d63,_0x4f3c7d){return _0x3e0d63+_0x4f3c7d;},'Dezyk':function(_0xe9fb32,_0x79d0d6){return _0xe9fb32>=_0x79d0d6;}};const _0xccb4fd=vecA['dot'](vecB);const _0x4c401b=vecA[_0x1287f7(0x197)+'h']();const _0xa3f651=vecB[_0x1287f7(0x197)+'h']();const _0xbe521f=_0xad80c3[_0x1287f7(0x231)](_0x4c401b*_0xa3f651,-0x1*-0x239b+0x7bf*-0x2+-0x141d)?_0xad80c3[_0x1287f7(0x24b)](_0xccb4fd,_0xad80c3[_0x1287f7(0x187)](_0x4c401b,_0xa3f651)):0x1*0x1f81+0x2399+-0x431a;const _0x55293f=Math[_0x1287f7(0x1a2)](Math[_0x1287f7(0x21e)](0x1fc4+0x1afd*-0x1+0x4c6*-0x1,Math[_0x1287f7(0x1a9)](-(-0xefb+-0x2505+0x3401*0x1),_0xbe521f)));const _0x1a26fc=(_0xad80c3['btEnb'](_0x55293f,0x1170*0x1+0x17*0x13+-0x1*0x1271)/Math['PI'])['toFix'+'ed'](-0x12f*0x5+-0x13fa*0x1+0x8a2*0x3);const _0x53b268=_0xad80c3['ChSOD'](_0x4c401b,-0xfc+0x286+-0x18a+0.0001)?_0xccb4fd/_0x4c401b:-0xb1e+0x143c+-0x185*0x6;normAEl[_0x1287f7(0x229)+'onten'+'t']=_0x4c401b['toFix'+'ed'](-0x899+0x2590+-0x1cf4);normBEl[_0x1287f7(0x229)+_0x1287f7(0x1c8)+'t']=_0xa3f651['toFix'+'ed'](-0x4*0x5cf+0x1*-0x25cb+0x3d0a);angleEl['textC'+_0x1287f7(0x1c8)+'t']=_0xad80c3['OVnof'](_0x1a26fc,'°');projValueEl[_0x1287f7(0x229)+_0x1287f7(0x1c8)+'t']=_0x53b268[_0x1287f7(0x1ac)+'ed'](0x22b1+0x19c0+-0x3c6e);projDirEl[_0x1287f7(0x229)+_0x1287f7(0x1c8)+'t']=_0xad80c3['Dezyk'](_0x53b268,-0x1fcf+0xbc2*-0x1+0x2b91)?'与a同向':'与a反向';formulaCoordEl[_0x1287f7(0x1c2)+_0x1287f7(0x241)]='=\x20'+vecA['x']['toFix'+'ed'](-0x79*-0x12+0x7c5+-0x1046*0x1)+'×'+vecB['x']['toFix'+'ed'](-0x35*0x84+0x89b*-0x1+0x398*0xa)+_0x1287f7(0x1b0)+vecA['y']['toFix'+'ed'](-0x1435+-0x713*-0x1+0xd23)+'×'+vecB['y']['toFix'+'ed'](-0xfae*0x1+0x1dbf+-0x1e*0x78)+_0x1287f7(0x1b0)+vecA['z']['toFix'+'ed'](0x1b72+0x1afc+-0x366d)+'×'+vecB['z'][_0x1287f7(0x1ac)+'ed'](0x5b2*-0x5+0x64c+0x1*0x162f)+_0x1287f7(0x255)+_0xccb4fd['toFix'+'ed'](0xf67*-0x2+0xd27+0x11aa);}function syncInputs(){const _0x28d119=_0x3f2e48;const _0x530b28={'QXJkG':_0x28d119(0x1b5)+'|4|1|'+'5'};const _0x4b63b7=_0x530b28[_0x28d119(0x21f)][_0x28d119(0x253)]('|');let _0x192c4b=0x1*0x352+0x1a63+0xa9*-0x2d;while(!![]){switch(_0x4b63b7[_0x192c4b++]){case'0':inputAz[_0x28d119(0x1f7)]=vecA['z']['toFix'+'ed'](0x1019+0x21a9+-0x31c1);continue;case'1':inputBy[_0x28d119(0x1f7)]=vecB['y'][_0x28d119(0x1ac)+'ed'](0x130a+-0x31*0x59+-0x200);continue;case'2':inputAx[_0x28d119(0x1f7)]=vecA['x'][_0x28d119(0x1ac)+'ed'](0xcf*-0x7+0x90a+0x6*-0x90);continue;case'3':inputAy[_0x28d119(0x1f7)]=vecA['y'][_0x28d119(0x1ac)+'ed'](0x268a+-0xb*0x239+-0x6*0x259);continue;case'4':inputBx['value']=vecB['x']['toFix'+'ed'](0xb0b+0x1*-0x1692+0xb88);continue;case'5':inputBz[_0x28d119(0x1f7)]=vecB['z'][_0x28d119(0x1ac)+'ed'](0xce0*-0x1+-0x41*0x8e+0x30ef);continue;}break;}}function readFromInputs(){const _0x3ba418=_0x3f2e48;const _0x468451={'goCVn':function(_0x504b7b,_0x8951ed){return _0x504b7b(_0x8951ed);},'HlxDr':function(_0x2c4ed9,_0x36ce85){return _0x2c4ed9(_0x36ce85);},'fCxMr':function(_0x4fea29,_0x1a6a6d){return _0x4fea29(_0x1a6a6d);},'tcYvJ':function(_0x262829){return _0x262829();}};const _0x4244be=parseFloat(inputAx['value'])||0x106f+-0x4ba+-0xbb5;const _0x1ab8d2=_0x468451[_0x3ba418(0x1e2)](parseFloat,inputAy[_0x3ba418(0x1f7)])||-0x58f*-0x3+-0xbaa+-0x1*0x503;const _0x22d55d=parseFloat(inputAz['value'])||-0xaa7+0x1*-0x733+-0x11da*-0x1;const _0x184168=_0x468451['HlxDr'](parseFloat,inputBx[_0x3ba418(0x1f7)])||-0x1040+0x2*-0xeed+0x15*0x232;const _0x1d94d1=_0x468451['fCxMr'](parseFloat,inputBy['value'])||0x757+-0x419+-0x19f*0x2;const _0x1cc489=parseFloat(inputBz['value'])||0x4*-0xf1+0x1e8d+0x1*-0x1ac9;vecA[_0x3ba418(0x191)](_0x4244be,_0x1ab8d2,_0x22d55d);vecB[_0x3ba418(0x191)](_0x184168,_0x1d94d1,_0x1cc489);vecA['clamp'+_0x3ba418(0x248)+'h'](0x13fa+0x1*-0x19df+-0x3*-0x1f7,0x235e+-0x29*0x55+-0x15be+0.5);vecB['clamp'+'Lengt'+'h'](0x1d27*0x1+-0x8db+0x513*-0x4,0xae7+-0xb2b*0x1+-0x47*-0x1+0.5);updateVectors();updateUIFromVectors();_0x468451[_0x3ba418(0x1b6)](syncInputs);}[inputAx,inputAy,inputAz,inputBx,inputBy,inputBz]['forEa'+'ch'](_0x5873aa=>{const _0x4e146f=_0x3f2e48;_0x5873aa[_0x4e146f(0x1a0)+_0x4e146f(0x1f3)+'stene'+'r']('chang'+'e',readFromInputs);_0x5873aa[_0x4e146f(0x1a0)+'entLi'+_0x4e146f(0x1f6)+'r'](_0x4e146f(0x1d4),readFromInputs);});document[_0x3f2e48(0x1a4)+_0x3f2e48(0x1dd)+'ById'](_0x3f2e48(0x19f)+'mBtn')['addEv'+_0x3f2e48(0x1f3)+_0x3f2e48(0x1f6)+'r'](_0x3f2e48(0x24d),()=>{const _0x8c890f=_0x3f2e48;const _0x48f2ca={'xICSR':function(_0x5ee4a5,_0x5520a6){return _0x5ee4a5-_0x5520a6;},'kKQrZ':function(_0x5a3885,_0x3f6d2f){return _0x5a3885*_0x3f6d2f;},'TVuZq':function(_0x52fa96,_0x365c87){return _0x52fa96*_0x365c87;},'LsllI':function(_0x404444){return _0x404444();},'IPTnU':function(_0x535edd){return _0x535edd();}};vecA['set'](_0x48f2ca[_0x8c890f(0x1e4)](_0x48f2ca[_0x8c890f(0x1ce)](Math[_0x8c890f(0x19f)+'m'](),0x265a+0xf68+-0x35be),-0x1*0x163+0x1602+-0x3*0x6df),Math[_0x8c890f(0x19f)+'m']()*(0x6da*0x2+0xe80+-0x1c30)-(0x973*-0x1+-0x1c1e+-0x1*-0x2593),_0x48f2ca[_0x8c890f(0x1e4)](_0x48f2ca[_0x8c890f(0x1ec)](Math['rando'+'m'](),-0x20*0x12d+0x1e13*0x1+0xd*0x95),0x1099+0xec2*0x1+-0x6b*0x4b));vecB[_0x8c890f(0x191)](Math[_0x8c890f(0x19f)+'m']()*(0x3a*0x9e+0x5bd+-0x49d*0x9)-(0x2f1*-0x8+0x5f3*0x5+-0x635),Math['rando'+'m']()*(-0x1d47+-0x2*-0x6b+0x2f*0x9b)-(0xa2d+0x10e5+0xd88*-0x2),Math[_0x8c890f(0x19f)+'m']()*(0x4af+0x2292+-0x59b*0x7)-(0x97b+0x19b+-0xb14));updateVectors();_0x48f2ca[_0x8c890f(0x249)](updateUIFromVectors);_0x48f2ca[_0x8c890f(0x1e8)](syncInputs);});document['getEl'+'ement'+_0x3f2e48(0x214)]('reset'+_0x3f2e48(0x219))['addEv'+_0x3f2e48(0x1f3)+'stene'+'r']('click',()=>{const _0x1e56e6=_0x3f2e48;const _0x22551d={'HBXqe':function(_0x4735c7){return _0x4735c7();}};vecA[_0x1e56e6(0x191)](0x26e4+0x514+0x296*-0x11,0x117f+0x7b9*0x1+-0x1937,-0x19c*-0x6+0x1*0x115f+-0x1b05);vecB['set'](-0x1137+0x1a1+-0xb*-0x16b,-(0x3*0xbfb+-0xad3+-0x191d*0x1),-0xaea+-0x105d*0x1+-0x8*-0x369);_0x22551d[_0x1e56e6(0x1ea)](updateVectors);updateUIFromVectors();syncInputs();});stepBtns['forEa'+'ch'](_0x176058=>{const _0x12a6da=_0x3f2e48;const _0xe0fe9e={'BApda':function(_0x5578e5,_0x4630fb){return _0x5578e5(_0x4630fb);},'UlAPR':_0x12a6da(0x24d)};_0x176058[_0x12a6da(0x1a0)+_0x12a6da(0x1f3)+'stene'+'r'](_0xe0fe9e[_0x12a6da(0x239)],()=>{const _0x466ae7=_0x12a6da;const _0x34e3bf=_0xe0fe9e[_0x466ae7(0x1de)](parseInt,_0x176058[_0x466ae7(0x223)+'et']['step']);stepBtns[_0x466ae7(0x1eb)+'ch'](_0x39da21=>_0x39da21[_0x466ae7(0x24c)+_0x466ae7(0x22b)]['remov'+'e'](_0x466ae7(0x1e3)+'e'));_0x176058['class'+_0x466ae7(0x22b)][_0x466ae7(0x21b)](_0x466ae7(0x1e3)+'e');stepDescEl[_0x466ae7(0x1c2)+'HTML']=stepDescriptions[_0x34e3bf];});});updateUIFromVectors();syncInputs();function animate(){const _0x88c533=_0x3f2e48;const _0xecd4e5={'PHYkW':function(_0x201c7b,_0x464f46){return _0x201c7b(_0x464f46);}};_0xecd4e5[_0x88c533(0x211)](requestAnimationFrame,animate);controls['updat'+'e']();renderer['rende'+'r'](scene,camera);}animate();window['addEv'+_0x3f2e48(0x1f3)+_0x3f2e48(0x1f6)+'r']('resiz'+'e',()=>{const _0x4c0330=_0x3f2e48;const _0x3affbd=container['clien'+_0x4c0330(0x23e)+'h'];const _0x2c75d3=container[_0x4c0330(0x225)+_0x4c0330(0x20f)+'ht'];camera['aspec'+'t']=_0x3affbd/_0x2c75d3;camera[_0x4c0330(0x24e)+_0x4c0330(0x246)+_0x4c0330(0x1c0)+_0x4c0330(0x1f1)+'ix']();renderer['setSi'+'ze'](_0x3affbd,_0x2c75d3);});const pointsGeo=new _0x5de69c[(_0x3f2e48(0x1fd))+'rGeom'+(_0x3f2e48(0x19c))]();const pointsCount=0xfe6+0x10*0x76+-0x167e;const posArray=new Float32Array(pointsCount*(-0x1693+0x27f*0xc+-0x75e));for(let i=0x13b+0x1afe+-0x5*0x5a5;i<pointsCount*(-0xc7*-0x2d+0x103b+0x3*-0x1111);i+=0xddd+-0xe*-0x1a8+0xb*-0x35e){posArray[i]=(Math[_0x3f2e48(0x19f)+'m']()-(-0x19c6+0xd15+0xcb1+0.5))*(0x1*-0x2682+-0x1*0x1153+0x37df);posArray[i+(0x947+-0x47a+-0x4cc)]=(Math['rando'+'m']()-(0x14ee+0x3*-0xa27+0x987+0.5))*(0x3*0x393+-0x5c*-0x3e+0x123*-0x1d);posArray[i+(0x26f6+0x1*0x1411+-0x3b05)]=(Math[_0x3f2e48(0x19f)+'m']()-(-0x101e+0x177f+-0x761+0.5))*(0x1ee6+0x1cba+-0x3b96*0x1);}pointsGeo[_0x3f2e48(0x23c)+_0x3f2e48(0x1d7)+'te']('posit'+'ion',new _0x5de69c['Buffe'+'rAttr'+(_0x3f2e48(0x1fb))](posArray,0x2273+-0x966+-0x190a*0x1));const pointsMat=new _0x5de69c[(_0x3f2e48(0x1b1))+(_0x3f2e48(0x1c1))+(_0x3f2e48(0x224))]({'color':0x94a3b8,'size':0.03});const points=new _0x5de69c[(_0x3f2e48(0x1b1))+'s'](pointsGeo,pointsMat);scene[_0x3f2e48(0x21b)](points);console[_0x3f2e48(0x198)](_0x3f2e48(0x1d8)+_0x3f2e48(0x193)+_0x3f2e48(0x1ee)+'坐标轴已带'+'箭头和正方'+'向。');</script>
+
+<script>
+(function() {
+  // 防右键
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||
+      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+      (e.ctrlKey && (e.key === 's' || e.key === 'S'))
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // DevTools 检测（基于 debugger 语句执行耗时）
+  var _cdt = function() {
+    var t0 = performance.now();
+    (function(){}).constructor('debugger')();
+    if (performance.now() - t0 > 100) {
+      (function lp() {
+        (function(){}).constructor('debugger')();
+        setTimeout(lp, 50);
+      })();
+    }
+  };
+  setTimeout(_cdt, 1000);
+  setInterval(_cdt, 3000);
+
+  // 控制台版权声明
+  setTimeout(function() {
+    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');
+    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');
+  }, 500);
+})();
+</script>
+</body>
+</html>

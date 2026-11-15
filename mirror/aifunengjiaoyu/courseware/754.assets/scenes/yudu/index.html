@@ -1,0 +1,131 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#17150f}body{display:grid;place-items:center}.ring{width:32px;height:32px;border:3px solid #5d5136;border-top-color:#dfc48d;border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="ring" role="status" aria-label="正在恢复进度"></div><script>(function longMarchSaveClient(config, html) {
+  'use strict';
+  const schedule = window.setTimeout.bind(window), cancel = window.clearTimeout.bind(window);
+  const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
+  const allowed = new Set(config.keys), pending = new Map(), children = new Map(), replayed = new WeakSet();
+  let upstream, values = {}, sequence = 0, failed = false, failure = 'SAVE_UNAVAILABLE', loaded = false, timer, deadline, observer, disposed = false;
+  function notice(message) {
+    let node = document.getElementById('lm-save-error');
+    if (!node) { node = document.createElement('div'); node.id='lm-save-error'; node.setAttribute('role','alert'); node.style='position:fixed;z-index:2147483647;top:4px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#59251d;color:#fff3db;font:14px system-ui;border-radius:8px'; (document.body||document.documentElement).append(node); }
+    node.textContent=message;
+  }
+  function reason(error) {
+    const value=typeof error==='string'?error:error?.message;
+    return ['VERSION_CONFLICT','SESSION_CHANGED','INVALID_SAVE','SAVE_TIMEOUT'].includes(value)?value:'SAVE_UNAVAILABLE';
+  }
+  function delayNotice() {
+    if(!failed&&!disposed)notice('正在等待保存确认，请保留本页。连接恢复后会自动完成，请勿重复刷新。');
+  }
+  function clearDelay() {
+    if(!failed&&!disposed&&!pending.size)document.getElementById('lm-save-error')?.remove();
+  }
+  function fail(error) {
+    if(failed||disposed)return;
+    failed = true; failure=reason(error); cancel(timer); cancel(deadline);
+    for (const p of pending.values()) { cancel(p.timer); p.reject(Error(failure)); } pending.clear();
+    notice(!loaded?'无法恢复进度，请重新从网站打开课件。':failure==='VERSION_CONFLICT'?
+      '其他页面已更新存档，当前页已暂停保存以免覆盖新进度。请从网站重新打开课件，继续最新进度。':
+      '保存连接已中断，请保留本页，暂勿刷新或继续操作。');
+  }
+  function validPatch(p) { return p && allowed.has(p.key) && ['set','remove'].includes(p.op) && (p.op==='remove'||typeof p.value==='string'&&p.value.length<=4096); }
+  function send(patch) {
+    if (disposed || failed || !upstream || !validPatch(patch) || pending.size>=64) { fail(); return Promise.reject(Error(disposed?'SESSION_CHANGED':failure)); }
+    if (patch.op==='remove') delete values[patch.key]; else values[patch.key]=patch.value;
+    const id=++sequence;
+    let resolve,reject;
+    const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
+    // Background throttling can delay a real ACK. Keep the bounded pending
+    // write; do not resend, declare success, or turn a late ACK into data loss.
+    const timeout=schedule(delayNotice,5000);
+    pending.set(id,{resolve,reject,promise,timer:timeout});upstream.postMessage({id,...patch});return promise;
+  }
+  async function flush() {
+    while(pending.size) { if(failed||disposed)throw Error(failed?failure:'SESSION_CHANGED'); await Promise.all(Array.from(pending.values(),p=>p.promise)); }
+    if(failed||disposed)throw Error(failed?failure:'SESSION_CHANGED');
+  }
+  function storage(data, persistent) {
+    return {get length(){return Object.keys(data()).length;},key:i=>Object.keys(data())[Number(i)]??null,
+      getItem:k=>Object.hasOwn(data(),String(k))?data()[String(k)]:null,
+      setItem(k,v){k=String(k);v=String(v);if(persistent){if(!allowed.has(k)||v.length>4096)throw Error('SAVE_KEY_DENIED');send({op:'set',key:k,value:v}).catch(()=>{});}else data()[k]=v;},
+      removeItem(k){k=String(k);if(persistent){if(!allowed.has(k))throw Error('SAVE_KEY_DENIED');send({op:'remove',key:k}).catch(()=>{});}else delete data()[k];},
+      clear(){throw Error('BULK_SAVE_CLEAR_DENIED');}};
+  }
+  function childFrame(event) {
+    if(event.origin!=='null')return null;
+    for(const frame of document.querySelectorAll('iframe')) {
+      if(frame.contentWindow!==event.source)continue;
+      try { const u=new URL(frame.getAttribute('src'),document.baseURI), base=new URL(document.baseURI);
+        if(u.origin!==base.origin||!u.pathname.startsWith(config.assetRoot))return null;
+        const entry=decodeURIComponent(u.pathname.slice(config.assetRoot.length));
+        return config.entries.includes(entry)&&entry!=='index.html'?{frame,entry}:null;
+      }catch{return null;}
+    }
+    return null;
+  }
+  function receiveChild(event) {
+    if(!config.root||replayed.has(event))return;
+    const found=childFrame(event);if(!found)return;
+    const d=event.data;
+    if(d?.type==='longMarch:closeScene') {
+      event.stopImmediatePropagation();
+      const child=children.get(found.frame);if(!child){fail();return;}
+      child.checkpoint().then(flush).then(()=>{if(!found.frame.isConnected)return;clearDelay();const e=new MessageEvent('message',{data:d,source:event.source,origin:event.origin});replayed.add(e);window.dispatchEvent(e);}).catch(error=>{if(reason(error)==='SAVE_TIMEOUT')delayNotice();else fail(error);});
+      return;
+    }
+    if(d?.type!==config.protocol+':ready'||d.programId!==config.programId||d.revision!==config.revision||d.entry!==found.entry||!/^[a-f0-9]{32}$/.test(d.nonce||''))return;
+    const previous=children.get(found.frame);
+    if(previous?.nonce===d.nonce)return;
+    // Reload keeps the iframe and WindowProxy, but creates a new document/nonce.
+    // Drain already accepted writes before hydrating that new document.
+    const settled=previous?.drain();
+    previous?.close();
+    const channel=new MessageChannel();let serial=0,chain=Promise.resolve(),active=true;
+    const src=found.frame.getAttribute('src');
+    const current=()=>active&&found.frame.isConnected&&found.frame.getAttribute('src')===src;
+    let checkpoint;
+    function close(){active=false;channel.port1.close();if(children.get(found.frame)===child)children.delete(found.frame);if(checkpoint){cancel(checkpoint.timeout);checkpoint.reject(Error('SESSION_CHANGED'));checkpoint=null;}}
+    function requestCheckpoint(){
+      if(!current())return Promise.reject(Error('SESSION_CHANGED'));
+      if(checkpoint)return checkpoint.promise;
+      let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
+      const id=crypto.randomUUID(),timeout=schedule(()=>{checkpoint=null;reject(Error('SAVE_TIMEOUT'));},5000);
+      checkpoint={id,resolve,reject,timeout,promise};channel.port1.postMessage({control:'checkpoint',id});return promise;
+    }
+    const child={nonce:d.nonce,current,close,checkpoint:requestCheckpoint,drain:()=>chain.then(flush)};
+    children.set(found.frame,child);
+    channel.port1.onmessage=e=>{const p=e.data;
+      if(p?.control==='checkpoint-result'){if(checkpoint&&p.id===checkpoint.id){cancel(checkpoint.timeout);p.ok?checkpoint.resolve():checkpoint.reject(Error(reason(p.error)));checkpoint=null;}return;}
+      if(!current()||!p||p.id!==++serial||serial>20000||!validPatch(p)){close();return;}
+      chain=chain.then(()=>send({op:p.op,key:p.key,...(p.op==='set'?{value:p.value}:{})})).then(()=>{if(current())channel.port1.postMessage({id:p.id,ok:true});}).catch(error=>{if(current())channel.port1.postMessage({id:p.id,ok:false,error:reason(error)});});};
+    const hydrate=()=>{if(current()&&!disposed&&!failed)event.source.postMessage({type:config.protocol+':connect',nonce:d.nonce,values:{...values}},'*',[channel.port2]);else channel.port2.close();};
+    if(settled)settled.then(hydrate).catch(fail);else hydrate();
+  }
+  function install() {
+    Object.defineProperty(window,'localStorage',{configurable:true,value:storage(()=>values,true)});
+    let reloading=false;
+    Object.defineProperty(window,'LongMarchSave',{configurable:true,value:Object.freeze({
+      async reload(){if(reloading)return false;reloading=true;try{await flush();window.location.reload();return true;}catch(error){reloading=false;fail(error);return false;}}
+    })});
+    const session=Object.create(null);Object.defineProperty(window,'sessionStorage',{configurable:true,value:storage(()=>session,false)});
+    window.addEventListener('message',receiveChild,true);
+    observer=new MutationObserver(()=>{for(const child of children.values())if(!child.current())child.close();});
+    observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});
+    window.addEventListener('pagehide',()=>{disposed=true;cancel(timer);cancel(deadline);observer.disconnect();for(const child of children.values())child.close();for(const p of pending.values()){cancel(p.timer);p.reject(Error('SESSION_CHANGED'));}pending.clear();upstream?.close();});
+  }
+  function connect(event) {
+    const d=event.data;
+    if(event.source!==window.parent||d?.nonce!==nonce||loaded)return;
+    if(config.root ? event.origin!==location.origin : event.origin!=='null')return;
+    if(d.type===config.protocol+':unavailable'){fail();return;}
+    if(d.type!==config.protocol+':connect'||event.ports.length!==1||!d.values||typeof d.values!=='object'||Array.isArray(d.values)||Object.entries(d.values).some(([k,v])=>!allowed.has(k)||typeof v!=='string'||v.length>4096))return;
+    values=Object.fromEntries(Object.entries(d.values));upstream=event.ports[0];
+    upstream.onmessage=e=>{if(e.data?.control==='checkpoint'){Promise.all(Array.from(children,([frame,child])=>frame.isConnected?child.checkpoint():undefined)).then(flush).then(()=>upstream.postMessage({control:'checkpoint-result',id:e.data.id,ok:true}),error=>upstream.postMessage({control:'checkpoint-result',id:e.data.id,ok:false,error:reason(error)}));return;}const p=pending.get(e.data?.id);if(!p)return;if(!e.data.ok){fail(e.data.error);return;}cancel(p.timer);pending.delete(e.data.id);p.resolve();clearDelay();};
+    cancel(timer);cancel(deadline);loaded=true;
+    window.__longMarchResumeSave=install;
+    // Hydrate before ANY authored script runs; keep the response sandbox/CSP.
+    document.open();document.write(html.replace(/<head>/i,'<head><script>window.__longMarchResumeSave();<\/script>'));document.close();
+  }
+  window.addEventListener('message',connect);
+  function ready(){if(loaded||failed)return;window.parent.postMessage({type:config.protocol+':ready',programId:config.programId,revision:config.revision,entry:config.entry,nonce},'*');timer=schedule(ready,150);}
+  deadline=schedule(fail,10000);ready();
+})({"protocol":"turing-long-march-save-v1","schema":"legacy-keys-v1","revision":"dd0d0e7ed5689fd93522ede552faf68c","keys":["longMarch_ruijin_chapterState","longMarch_progress","longMarch_chapter_yudu_v2","longMarch_progress_v2","longMarch.xiangjiang.chapter.v1","longMarch_zunyi_chapterState","chishui-chapter-state","longMarch_jinsha_chapter6_state","longMarchMapProgress","longMarch_ludingBridge_chapter7_v3","longMarch_demo_settings","long-march-chapter-9-v2","long-march-master-volume-v2"],"entries":["index.html","scenes/ruijin/index.html","scenes/yudu/index.html","scenes/xiangjiang/index.html","scenes/zunyi/index.html","scenes/chishui/index.html","scenes/jinshajiang/index.html","scenes/luding/index.html","scenes/snowgrass/index.html","scenes/final/index.html"],"compatibleRevisions":["4fe45c0dd86a3b5875a25701600027a8","5c667983fbba77a3d41a9f857a7da4ef","dd0d0e7ed5689fd93522ede552faf68c"],"programId":754,"entry":"scenes/yudu/index.html","root":false,"assetRoot":"/api/program-assets/754/t/eyJhY2Nlc3NUeXBlIjoidHJpYWwiLCJwcml2YXRlUmV2aXNpb24iOiJkZDBkMGU3ZWQ1Njg5ZmQ5MzUyMmVkZTU1MmZhZjY4YyIsIm8iOiJvSHNWcjJ6N0VYZURDS1RlMkNXYXJleVU2QjdnIiwicCI6Ijc1NCIsImV4cCI6MTc5NDU1MjE2MywicHVycG9zZSI6ImxvbmdfbWFyY2hfY2hhcHRlcl9hc3NldF9yZXZpc2lvbl92MSJ9.JcYk6gwE3n0W1hh9hOILPinwR2QQKtvar7mtK6-r9gY/"},"\u003c!doctype html>\n\u003chtml lang=\"zh-CN\">\n\u003chead>\u003cscript data-long-march-memory-storage>\n(function(){function createMemoryStorage(){var values=Object.create(null),keys=[];return{get length(){return keys.length;},key:function(i){i=Number(i);return Number.isInteger(i)&&i>=0&&i\u003ckeys.length?keys[i]:null;},getItem:function(k){k=String(k);return Object.prototype.hasOwnProperty.call(values,k)?values[k]:null;},setItem:function(k,v){k=String(k);if(!Object.prototype.hasOwnProperty.call(values,k))keys.push(k);values[k]=String(v);},removeItem:function(k){k=String(k);if(!Object.prototype.hasOwnProperty.call(values,k))return;delete values[k];keys=keys.filter(function(x){return x!==k;});},clear:function(){values=Object.create(null);keys=[];}};}function install(name){try{var current=window[name];void current.length;return;}catch(e){}try{Object.defineProperty(window,name,{configurable:true,enumerable:true,value:createMemoryStorage()});}catch(e){}}install(\"localStorage\");install(\"sessionStorage\");})();\n\u003c/script>\u003cscript>\n(function(){var prefixes=[\"/api/program-assets/754/\"];function needsCors(v){if(!v||typeof v!==\"string\")return false;try{var href=new URL(v,document.baseURI).href;for(var i=0;i\u003cprefixes.length;i++){var p=new URL(prefixes[i],location.origin).href;if(href.indexOf(p)===0)return true;}return false;}catch(e){return false;}}function mark(img,v){if(needsCors(v)){try{img.crossOrigin=\"anonymous\";}catch(e){}}}var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,\"src\");if(d&&d.set&&d.get){try{Object.defineProperty(HTMLImageElement.prototype,\"src\",{get:d.get,set:function(v){mark(this,v);return d.set.call(this,v);},configurable:true,enumerable:d.enumerable});}catch(e){}}var set=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(this instanceof HTMLImageElement&&String(n).toLowerCase()===\"src\")mark(this,String(v||\"\"));return set.apply(this,arguments);};})();\n\u003c/script>\u003cbase href=\"/api/program-assets/754/t/eyJhY2Nlc3NUeXBlIjoidHJpYWwiLCJwcml2YXRlUmV2aXNpb24iOiJkZDBkMGU3ZWQ1Njg5ZmQ5MzUyMmVkZTU1MmZhZjY4YyIsIm8iOiJvSHNWcjJ6N0VYZURDS1RlMkNXYXJleVU2QjdnIiwicCI6Ijc1NCIsImV4cCI6MTc5NDU1MjE2MywicHVycG9zZSI6ImxvbmdfbWFyY2hfY2hhcHRlcl9hc3NldF9yZXZpc2lvbl92MSJ9.JcYk6gwE3n0W1hh9hOILPinwR2QQKtvar7mtK6-r9gY/scenes/yudu/\">\n\u003cscript src=\"../../courseware/website-bridge.js\">\u003c/script>\n\u003cscript src=\"../../courseware/runtime.js\">\u003c/script>\n\u003clink rel=\"stylesheet\" href=\"../../courseware/classroom.css\">\n\u003cscript defer src=\"../../courseware/classroom.js\">\u003c/script>\n\n  \u003cmeta charset=\"UTF-8\">\n  \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\">\n  \u003cmeta name=\"theme-color\" content=\"#17150f\">\n  \u003ctitle>长征红色征途 · 历史体验引擎\u003c/title>\n  \u003clink rel=\"stylesheet\" href=\"../../shared-audio.css\">\n  \u003cscript src=\"../../shared-audio.js\">\u003c/script>\n  \u003clink rel=\"stylesheet\" href=\"../../shared-ui/ui-tokens.css\">\n  \u003clink rel=\"stylesheet\" href=\"styles.css\">\n  \u003clink rel=\"stylesheet\" href=\"../../shared-ui/topbar.css\">\n\u003clink rel=\"stylesheet\" href=\"../../shared-ui/unified-topbar.css?v=20260829-maprestore\">\n  \u003clink rel=\"stylesheet\" href=\"../../shared-ui/chapter-titlecard.css\">\n\u003cscript src=\"../../shared-ui/unified-topbar.js?v=20260829-maprestore\" defer>\u003c/script>\n  \u003cscript src=\"../../shared-ui/chapter-titlecard.js\" defer>\u003c/script>\n\u003c/head>\n\u003cbody class=\"lm-titlecard-pending\">\u003cscript>\n(function(){try{document.body.style.visibility=\"hidden\"}catch(e){}var h=location.hostname,p=location.protocol;if(p===\"file:\"||p===\"about:\"||p===\"chrome:\"){document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">内容仅在授权平台运行\u003c/div>\";return;}var a=[\"aifunengjiaoyu.com\",\"www.aifunengjiaoyu.com\",\"play.aifunengjiaoyu.com\",\"localhost\",\"127.0.0.1\"],ok=false;for(var i=0;i\u003ca.length;i++){if(h===a[i]||h.endsWith(\".\"+a[i])){ok=true;break;}}if(!ok&&h!==\"localhost\"&&h!==\"127.0.0.1\"){document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">未授权的运行环境\u003c/div>\";return;}var x=new XMLHttpRequest();x.open(\"GET\",location.origin+\"/api/program-file/verify-access?id=754&token=eyJvIjoib0hzVnIyejdFWGVEQ0tUZTJDV2FyZXlVNkI3ZyIsInAiOiI3NTQiLCJleHAiOjE3OTQ1NTI1NzR9.wiRwZ_WORamlmpFqzoI084ENjU4c5zdpERLnH5N8jYA\",true);x.onload=function(){if(x.status===200){try{var r=JSON.parse(x.responseText);if(r.ok){try{document.body.style.visibility=\"visible\"}catch(e){}return}}catch(e){}}document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">授权验证失败\u003c/div>\";};x.onerror=function(){document.documentElement.innerHTML=\"\u003cdiv style=\\\"display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#999;font-size:18px;padding:20px;text-align:center\\\">网络连接异常，请确保在网络环境中使用\u003c/div>\";};x.send();})();\u003c/script>\n  \u003cmain id=\"viewport\" class=\"viewport\" aria-label=\"长征红色征途历史体验场景\">\n    \u003ccanvas id=\"panorama\" aria-label=\"按住拖动可转动视角的180度全景\">\u003c/canvas>\n    \u003cdiv id=\"hotspotLayer\" class=\"hotspot-layer\" aria-label=\"场景互动热点\">\u003c/div>\n    \u003cdiv class=\"sun-haze\" aria-hidden=\"true\">\u003c/div>\n    \u003cdiv class=\"cinematic-grain\" aria-hidden=\"true\">\u003c/div>\n    \u003cdiv class=\"vignette\" aria-hidden=\"true\">\u003c/div>\n\n    \u003cheader class=\"scene-caption\">\n      \u003cp id=\"sceneMeta\">\u003c/p>\n      \u003ch1 id=\"sceneTitle\">\u003c/h1>\n    \u003c/header>\n\n    \u003cnav id=\"chapterNav\" class=\"chapter-nav\" aria-label=\"章节选择\">\u003c/nav>\n\n    \u003csection class=\"chapter-progress\" aria-label=\"章节进度\">\n      \u003cbutton id=\"progressToggle\" class=\"progress-toggle\" type=\"button\" aria-expanded=\"false\">\n        \u003cspan id=\"chapterLabel\">章节\u003c/span>\n        \u003cstrong id=\"progressCount\">探索 0/0\u003c/strong>\n        \u003ci aria-hidden=\"true\">\u003c/i>\n      \u003c/button>\n      \u003col id=\"progressList\" class=\"progress-list\">\u003c/ol>\n      \u003cbutton id=\"archiveLibraryButton\" class=\"archive-library-button ui-control ui-control--panel\" type=\"button\" title=\"历史档案\" data-ui-tooltip=\"历史档案\">长征历史档案库\u003c/button>\n      \u003cbutton id=\"resetButton\" class=\"reset-button ui-control ui-control--panel\" type=\"button\" title=\"重置本章\" data-ui-tooltip=\"重置本章\">重置本章\u003c/button>\n    \u003c/section>\n\n    \u003csection class=\"controls-hint\" aria-label=\"操作说明\">\n      \u003cspan>\u003cb>按住拖动\u003c/b> 转动视角\u003c/span>\u003ci>\u003c/i>\u003cspan>\u003cb>发光热点\u003c/b> 探索\u003c/span>\n    \u003c/section>\n\n    \u003cdiv id=\"sceneNotice\" class=\"scene-notice\" role=\"status\" aria-live=\"polite\">\u003c/div>\n    \u003cdiv id=\"rewardToast\" class=\"reward-toast\" role=\"status\" aria-live=\"polite\">\u003c/div>\n    \u003cdiv id=\"transitionCurtain\" class=\"transition-curtain\" aria-hidden=\"true\">\u003cspan>\u003c/span>\u003c/div>\n\n    \u003csection id=\"finalePlayer\" class=\"finale-player\" aria-label=\"于都篇最终电影\" aria-hidden=\"true\">\n      \u003cvideo id=\"finaleVideo\" class=\"finale-media\" muted playsinline>\u003c/video>\n      \u003ccanvas id=\"finaleFreezeFrame\" class=\"finale-media finale-freeze-frame\" hidden>\u003c/canvas>\n      \u003cp id=\"finaleError\" class=\"finale-error\" role=\"status\">\u003c/p>\n    \u003c/section>\n\n    \u003csection id=\"cinematicNarration\" class=\"cinematic-narration\" role=\"dialog\" aria-modal=\"true\" aria-live=\"polite\" aria-hidden=\"true\">\n      \u003cdiv class=\"cinematic-narration-backdrop\" aria-hidden=\"true\">\u003c/div>\n      \u003cp id=\"cinematicCopy\" class=\"cinematic-copy\">\u003c/p>\n      \u003cbutton id=\"cinematicSkip\" class=\"cinematic-skip\" type=\"button\">跳过\u003c/button>\n    \u003c/section>\n\n    \u003csection id=\"chapterMap\" class=\"chapter-map\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"mapTitle\" aria-hidden=\"true\">\n      \u003cheader class=\"chapter-map-header\">\n        \u003cp id=\"mapEyebrow\">长征路线\u003c/p>\n        \u003ch2 id=\"mapTitle\">章节完成\u003c/h2>\n      \u003c/header>\n      \u003cdiv id=\"mapStage\" class=\"map-stage\">\u003c/div>\n      \u003cp id=\"mapStatus\" class=\"map-status\">\u003c/p>\n      \u003cbutton id=\"mapClose\" class=\"map-close\" type=\"button\">返回章节\u003c/button>\n    \u003c/section>\n\n    \u003csection id=\"dialogue\" class=\"dialogue\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"speakerName\" aria-hidden=\"true\">\n      \u003cdiv class=\"dialogue-inner\">\n        \u003cdiv class=\"speaker-line\">\n          \u003cspan id=\"speakerMark\" class=\"speaker-mark\" aria-hidden=\"true\">征\u003c/span>\n          \u003cdiv>\u003cp id=\"speakerLabel\" class=\"speaker-label\">LONG MARCH\u003c/p>\u003ch2 id=\"speakerName\">旁白\u003c/h2>\u003c/div>\n        \u003c/div>\n        \u003cp id=\"dialogueText\" class=\"dialogue-text\">\u003c/p>\n        \u003cdiv id=\"dialogueConcepts\" class=\"dialogue-concepts\" hidden>\u003c/div>\n        \u003cdiv id=\"dialogueFeedback\" class=\"dialogue-feedback\" role=\"status\">\u003c/div>\n        \u003cdiv id=\"dialogueOptions\" class=\"dialogue-options\">\u003c/div>\n        \u003cbutton id=\"dialogueClose\" class=\"dialogue-close\" type=\"button\" aria-label=\"结束交谈\">×\u003c/button>\n      \u003c/div>\n    \u003c/section>\n\n    \u003csection id=\"archive\" class=\"archive\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"archiveTitle\" aria-hidden=\"true\">\n      \u003cdiv id=\"archiveBackdrop\" class=\"archive-backdrop\" aria-hidden=\"true\">\u003c/div>\n      \u003caside class=\"archive-panel\">\n        \u003cheader class=\"archive-header\">\u003cp>\u003cspan aria-hidden=\"true\">档\u003c/span> 长征历史档案库\u003c/p>\u003cbutton id=\"archiveClose\" type=\"button\" aria-label=\"关闭历史档案\">×\u003c/button>\u003c/header>\n        \u003cdiv id=\"archiveContent\" class=\"archive-content\">\u003c/div>\n      \u003c/aside>\n    \u003c/section>\n\n    \u003csection id=\"resumeChoice\" class=\"resume-choice\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"resumeChoiceTitle\" aria-hidden=\"true\">\n      \u003carticle class=\"resume-choice-panel\">\n        \u003cp class=\"resume-choice-eyebrow\">第二章 · 于都\u003c/p>\n        \u003ch2 id=\"resumeChoiceTitle\">发现上次学习记录\u003c/h2>\n        \u003cp class=\"resume-choice-text\">可以接着上次的场景与任务继续，也可以清空本章记录，从于都河畔重新开始。\u003c/p>\n        \u003cdiv class=\"resume-choice-actions\">\n          \u003cbutton id=\"resumeChapterButton\" class=\"resume-choice-button primary\" type=\"button\">继续上次\u003c/button>\n          \u003cbutton id=\"restartChapterButton\" class=\"resume-choice-button\" type=\"button\">重新开始\u003c/button>\n        \u003c/div>\n      \u003c/article>\n    \u003c/section>\n\n    \u003cdiv id=\"loading\" class=\"loading\" role=\"status\">\u003cspan>\u003c/span>\u003cp>正在载入章节……\u003c/p>\u003c/div>\n  \u003c/main>\n  \u003cscript src=\"assets/vendor/three.min.js\">\u003c/script>\n\u003cscript src=\"../../courseware/video-color-r152.js\">\u003c/script>\n  \u003cscript type=\"module\" src=\"src/main.js\">\u003c/script>\n\n\u003cscript>\n(function() {\n  // 防右键\n  document.addEventListener('contextmenu', function(e) {\n    e.preventDefault();\n    return false;\n  });\n\n  // 防键盘快捷键: F12 | Ctrl+Shift+I | Ctrl+Shift+J | Ctrl+U | Ctrl+S\n  document.addEventListener('keydown', function(e) {\n    if (\n      e.key === 'F12' ||\n      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) ||\n      (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||\n      (e.ctrlKey && (e.key === 's' || e.key === 'S'))\n    ) {\n      e.preventDefault();\n      return false;\n    }\n  });\n\n  // DevTools 检测（基于 debugger 语句执行耗时）\n  var _cdt = function() {\n    var t0 = performance.now();\n    (function(){}).constructor('debugger')();\n    if (performance.now() - t0 > 100) {\n      (function lp() {\n        (function(){}).constructor('debugger')();\n        setTimeout(lp, 50);\n      })();\n    }\n  };\n  setTimeout(_cdt, 1000);\n  setInterval(_cdt, 3000);\n\n  // 控制台版权声明\n  setTimeout(function() {\n    console.log('%c⚠️ 版权声明', 'font-size:18px;color:#ef4444;font-weight:bold');\n    console.log('%c本内容受版权保护，未经授权复制或分发将承担法律责任。', 'font-size:13px;color:#666');\n  }, 500);\n})();\n\u003c/script>\n\u003c/body>\n\u003c/html>\n");</script></body></html>
