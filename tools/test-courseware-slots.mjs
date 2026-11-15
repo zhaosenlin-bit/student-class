@@ -5,11 +5,12 @@
  *   图灵智赋  GET /api/program-file/<id> -> GET /courseware/<id>.html
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const XB = 'http://localhost:4173';
 const AFE = 'http://localhost:4174';
-const AFE_DIR = 'C:/kaifa/xiaobai-class/mirror/aifunengjiaoyu/courseware';
+const AFE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'mirror', 'aifunengjiaoyu', 'courseware');
 
 const check = async (label, url, expect) => {
   const res = await fetch(url);

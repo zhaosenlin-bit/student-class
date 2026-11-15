@@ -15,8 +15,17 @@ import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'C:/kaifa/xiaobai-class';
+/*
+ * The repository root is found from this file's own location, so a fresh
+ * clone works wherever it is unpacked. An explicit LQ_ROOT environment
+ * variable still wins, which is handy when the mirror lives on another
+ * drive.
+ */
+const ROOT = process.env.LQ_ROOT
+  ? path.resolve(process.env.LQ_ROOT)
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const XB_ROOT = path.join(ROOT, 'mirror', 'xbjiaoyu');
 const AFE_ROOT = path.join(ROOT, 'mirror', 'aifunengjiaoyu');
 const LQ_ROOT = path.join(ROOT, 'mirror', 'leqixiang');

@@ -9,12 +9,13 @@
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { zstdDecompressSync } from 'node:zlib';
 
 const run = promisify(execFile);
-const ROOT = 'C:/kaifa/xiaobai-class';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEST = path.join(ROOT, 'tools', 'mingw-binutils');
 const CACHE = path.join(ROOT, 'tools', '.cache');
 const MIRRORS = [

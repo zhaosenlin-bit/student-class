@@ -1,10 +1,14 @@
 param(
   [int]$Port = 9222,
-  [string]$Profile = 'C:\kaifa\xiaobai-class\tools\chrome-recon',
+  [string]$Profile = (Join-Path $PSScriptRoot 'chrome-recon'),
   [string]$StartUrl = 'about:blank'
 )
 
-$chrome = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+$chrome = @(
+  "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+  "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+  "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not (Test-Path $chrome)) { throw "Chrome not found at $chrome" }
 
 New-Item -ItemType Directory -Force -Path $Profile | Out-Null

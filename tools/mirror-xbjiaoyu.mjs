@@ -10,11 +10,12 @@
 // them without a purchase entitlement.
 
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
 const ORIGIN = 'https://xbjiaoyu.com';
-const ROOT = 'C:/kaifa/xiaobai-class/mirror/xbjiaoyu';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'mirror', 'xbjiaoyu');
 const ASSET_DIR = path.join(ROOT, 'assets');
 const CW_DIR = path.join(ROOT, 'courseware');
 const MANIFEST = path.join(ROOT, 'manifest.json');

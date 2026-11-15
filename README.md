@@ -726,6 +726,14 @@ node tools/pull-xb-courseware.mjs --cookie (Get-Content recon\scratch\xb-cookie.
 克隆下来之后，`node server/server.mjs` 就能跑 —— 服务端只依赖 Node
 自带模块，不需要 `npm install`。
 
+根目录是从 `server/server.mjs` 自己的位置推出来的，所以仓库放在哪儿都
+能跑；`tools/` 下的脚本同理。想把镜像放到别的盘，设 `LQ_ROOT` 就行：
+
+```powershell
+$env:LQ_ROOT = 'D:\courseware-library'
+node server/server.mjs
+```
+
 | 目录 | 内容 |
 | --- | --- |
 | `server/` | 本地服务（一个文件，Node 自带模块，无依赖） |

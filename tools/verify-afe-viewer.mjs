@@ -5,14 +5,27 @@
  * That pins down the exact /api/program-file handshake the shell expects.
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
-const ROOT = 'C:/kaifa/xiaobai-class';
-const NODE = 'C:/kaifa/xiaobai-class/tools/node24/node-v24.22.3-win-x64/node.exe';
-const REA = 'C:/Users/Administrator/AppData/Roaming/npm/node_modules/rea-agents/scripts/rea.mjs';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const NODE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'node24', 'node-v24.22.3-win-x64', 'node.exe');
+const REA =
+  process.env.REA_SCRIPT ||
+  path.join(
+    os.homedir(),
+    'AppData',
+    'Roaming',
+    'npm',
+    'node_modules',
+    'rea-agents',
+    'scripts',
+    'rea.mjs'
+  );
 const SLOT_DIR = path.join(ROOT, 'mirror', 'aifunengjiaoyu', 'courseware');
 const PROGRAM_ID = process.argv[2] || '13';
 const TITLE = process.argv[3] || 'AR';

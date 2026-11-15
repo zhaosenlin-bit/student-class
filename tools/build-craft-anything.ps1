@@ -10,13 +10,13 @@ param(
 # windows-* crates need it to build import libraries for raw-dylib.  So the
 # build puts that folder on PATH first.
 
-$root    = 'C:\kaifa\xiaobai-class'
+$root    = Split-Path -Parent $PSScriptRoot
 $repo    = Join-Path $root 'craft-anything'
-$toolc   = 'C:\Users\Administrator\.rustup\toolchains\stable-x86_64-pc-windows-gnu'
+$toolc   = Join-Path $env:USERPROFILE '.rustup\toolchains\stable-x86_64-pc-windows-gnu'
 $selfc   = Join-Path $toolc 'lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained'
 $mingw   = Join-Path $root 'tools\mingw-binutils'
 $mingw64 = Join-Path $root 'tools\mingw64'
-$cargo   = 'C:\Users\Administrator\.cargo\bin\cargo.exe'
+$cargo   = Join-Path $env:USERPROFILE '.cargo\bin\cargo.exe'
 $logDir  = Join-Path $root 'recon'
 
 if (-not (Test-Path $selfc)) { throw "self-contained tools not found: $selfc" }
@@ -44,8 +44,8 @@ if (Test-Path "$mingw64\bin") {
 }
 
 $env:PATH = "$selfc;$env:PATH"
-$env:CARGO_HOME = 'C:\Users\Administrator\.cargo'
-$env:RUSTUP_HOME = 'C:\Users\Administrator\.rustup'
+$env:CARGO_HOME = Join-Path $env:USERPROFILE '.cargo'
+$env:RUSTUP_HOME = Join-Path $env:USERPROFILE '.rustup'
 
 $args = @('build', '--release', '-p', $Package)
 

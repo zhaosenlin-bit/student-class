@@ -9,11 +9,12 @@
  * subsets the CSS actually references.
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const CSS_URL =
   'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap';
-const ROOT = 'C:/kaifa/xiaobai-class';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'mirror', 'aifunengjiaoyu', 'assets', 'fonts');
 const CSS_FILE = path.join(OUT_DIR, 'noto-serif-sc.css');
 

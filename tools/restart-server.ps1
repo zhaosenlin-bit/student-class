@@ -1,8 +1,16 @@
 param([switch]$Quiet)
 
-$node = 'C:\kaifa\xiaobai-class\tools\node24\node-v24.22.3-win-x64\node.exe'
-$server = 'C:\kaifa\xiaobai-class\server\server.mjs'
-$root = 'C:\kaifa\xiaobai-class'
+$root = Split-Path -Parent $PSScriptRoot
+$server = Join-Path $root 'server\server.mjs'
+
+# The bundled Node is used when it is there; otherwise whatever node is on
+# the PATH will do — the server only uses the standard library.
+$bundled = Get-ChildItem (Join-Path $root 'tools\node24') -Directory -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -like 'node-v*-win-x64' } |
+  ForEach-Object { Join-Path $_.FullName 'node.exe' } |
+  Where-Object { Test-Path $_ } |
+  Select-Object -First 1
+$node = if ($bundled) { $bundled } else { 'node' }
 
 # Find the listeners on the three ports as well as the processes whose
 # command line mentions the server — a copy started with a relative path

@@ -9,8 +9,10 @@
  *   5. remove the stand-in again
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-const ROOT = 'C:/kaifa/xiaobai-class';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SLOT = `${ROOT}/mirror/aifunengjiaoyu/courseware/754.html`;
 const LOCAL = 'http://localhost:4174';
 

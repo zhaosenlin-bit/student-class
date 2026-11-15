@@ -6,14 +6,27 @@
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
-const ROOT = 'C:/kaifa/xiaobai-class';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ids = process.argv.slice(2);
-const NODE = 'C:/kaifa/xiaobai-class/tools/node24/node-v24.22.3-win-x64/node.exe';
-const REA = 'C:/Users/Administrator/AppData/Roaming/npm/node_modules/rea-agents/scripts/rea.mjs';
+const NODE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'node24', 'node-v24.22.3-win-x64', 'node.exe');
+const REA =
+  process.env.REA_SCRIPT ||
+  path.join(
+    os.homedir(),
+    'AppData',
+    'Roaming',
+    'npm',
+    'node_modules',
+    'rea-agents',
+    'scripts',
+    'rea.mjs'
+  );
 // Heavier lessons build their scene lazily, so the settle time is tunable.
 const SETTLE = Number(process.env.SETTLE_MS || 5000);
 

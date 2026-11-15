@@ -7,9 +7,10 @@
  * local mirror and rewrite the URLs to /tuxiaoling/models/<file>.glb.
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const ROOT = 'C:/kaifa/xiaobai-class';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ASSETS = path.join(ROOT, 'mirror', 'aifunengjiaoyu', 'assets');
 const DATA_FILE = path.join(ASSETS, 'tuxiaoling', 'js', 'assets-data.js');
 const OUT_DIR = path.join(ASSETS, 'tuxiaoling', 'models');

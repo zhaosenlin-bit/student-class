@@ -10,10 +10,11 @@
  * online site does ("请先登录后打开课件") instead of a missing-module 404.
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const ORIGIN = 'https://aifunengjiaoyu.com';
-const ROOT = 'C:/kaifa/xiaobai-class/mirror/aifunengjiaoyu/assets';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'mirror', 'aifunengjiaoyu', 'assets');
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36';

@@ -11,11 +11,12 @@
  */
 
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const ORIGIN = 'https://aifunengjiaoyu.com';
 const CDN = 'https://static.aifunengjiaoyu.com';
-const ROOT = 'C:/kaifa/xiaobai-class/mirror/aifunengjiaoyu';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'mirror', 'aifunengjiaoyu');
 const ASSET_DIR = path.join(ROOT, 'assets');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const MANIFEST = path.join(ROOT, 'manifest.json');

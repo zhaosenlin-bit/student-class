@@ -5,9 +5,10 @@
  * helper script REA left in the capture folder.
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const ROOT = 'C:/kaifa/xiaobai-class';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const cache = path.join(ROOT, 'tools', '.cache');
 if (fs.existsSync(cache)) {

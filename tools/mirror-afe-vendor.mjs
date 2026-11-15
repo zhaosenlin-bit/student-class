@@ -8,9 +8,10 @@
  * at the local copy.
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const ROOT = 'C:/kaifa/xiaobai-class';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SHELL = path.join(
   ROOT, 'mirror', 'aifunengjiaoyu', 'assets', 'assets', 'app.17e3fb394175.min.js'
 );

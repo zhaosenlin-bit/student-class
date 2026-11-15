@@ -5,10 +5,11 @@
  * courseware through /api/programs/<id>/access-token.
  */
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const ORIGIN = 'https://aifunengjiaoyu.com';
-const ROOT = 'C:/kaifa/xiaobai-class/mirror/aifunengjiaoyu';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'mirror', 'aifunengjiaoyu');
 const OUT = path.join(ROOT, 'play');
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +

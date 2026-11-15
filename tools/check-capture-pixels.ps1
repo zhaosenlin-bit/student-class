@@ -1,4 +1,4 @@
-param([string]$Dir = 'C:\kaifa\xiaobai-class\recon\captures')
+param([string]$Dir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'recon\captures'))
 
 # A courseware page that renders nothing is still "console clean", so the
 # screenshot has to be checked for real pixels: a blank or all-one-colour

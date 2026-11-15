@@ -1,8 +1,17 @@
 param([switch]$Foreground)
 
-$node = 'C:\kaifa\xiaobai-class\tools\node24\node-v24.22.3-win-x64\node.exe'
-$server = 'C:\kaifa\xiaobai-class\server\server.mjs'
-$logDir = 'C:\kaifa\xiaobai-class\recon'
+$root = Split-Path -Parent $PSScriptRoot
+$server = Join-Path $root 'server\server.mjs'
+$logDir = Join-Path $root 'recon'
+
+# The bundled Node is used when it is there; otherwise whatever node is on
+# the PATH will do — the server only uses the standard library.
+$bundled = Get-ChildItem (Join-Path $root 'tools\node24') -Directory -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -like 'node-v*-win-x64' } |
+  ForEach-Object { Join-Path $_.FullName 'node.exe' } |
+  Where-Object { Test-Path $_ } |
+  Select-Object -First 1
+$node = if ($bundled) { $bundled } else { 'node' }
 
 if (-not (Test-Path $node)) { throw "node not found: $node" }
 
@@ -22,7 +31,7 @@ $outLog = Join-Path $logDir 'server.log'
 $errLog = Join-Path $logDir 'server.err.log'
 $cmd = '"{0}" "{1}" >> "{2}" 2>> "{3}"' -f $node, $server, $outLog, $errLog
 $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create `
-  -Arguments @{ CommandLine = "cmd /c $cmd"; CurrentDirectory = 'C:\kaifa\xiaobai-class' }
+  -Arguments @{ CommandLine = "cmd /c $cmd"; CurrentDirectory = $root }
 $pid1 = $created.ProcessId
 
 Write-Output "server pid=$pid1"
