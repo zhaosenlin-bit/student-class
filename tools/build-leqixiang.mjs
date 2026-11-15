@@ -232,6 +232,39 @@ const swapLine = (source, head, replacement) => {
     + `<p><a class="button secondary small" href="https://codebn.cn/" target="_blank" rel="noreferrer">官网 codebn.cn ↗</a></p>`
     + `</div>');}`;
   js = js.replace(/function about\(\)\{modal\([\s\S]*?\);?\}/, about);
+  /*
+   * The descriptions of the 图灵智赋 works were written as small pieces of
+   * markup — a paragraph, a heading, a list of steps.  The shell escapes
+   * every description, so those tags used to show up as the characters
+   * "<p>" and "<h3>" in the middle of the text.
+   *
+   * The text is escaped first and only the bare tags are let through
+   * afterwards, so nothing but the shape of the paragraph survives.  Any
+   * attribute, any other tag and any script stays escaped text.
+   */
+  const richText = [
+    'const richText=value=>{',
+    'if(!value||!/[&]lt;[a-z]/.test(String(value)))return esc(value);',
+    'const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;',
+    'return esc(value).replace(/&lt;\\/?([a-z][a-z0-9]*)&gt;/gi,(whole,tag)=>',
+    'allowed.test(tag.toLowerCase())?whole.replace(/&lt;/g,"<").replace(/&gt;/g,">"):whole);',
+    '};'
+  ].join('');
+  js = js.replace(
+    "const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));",
+    "$&\n" + richText
+  );
+  js = js.replace('<p class="card-description">${esc(p.description)}</p>', '<p class="card-description">${richText(p.description)}</p>');
+  js = js.replace(
+    '<p class="chapter-course-description">${esc(p.description)}</p>',
+    '<p class="chapter-course-description">${richText(p.description)}</p>'
+  );
+  js = js.replace(
+    '<p class="course-lead course-introduction-lead">${esc(p.description)}</p>',
+    '<p class="course-lead course-introduction-lead">${richText(p.description)}</p>'
+  );
+  js = js.replace('<p>${esc(p.description)}</p>', '<p>${richText(p.description)}</p>');
+  js = js.replace("${m.description?`<p>${esc(m.description)}</p>`:''}", "${m.description?`<p>${richText(m.description)}</p>`:''}");
   /* The catalogue panel is rewritten on every build, so its module tag
      has to move with it or the browser keeps the old one. */
   js = js.replace(
