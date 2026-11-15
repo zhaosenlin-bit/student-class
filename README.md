@@ -398,6 +398,38 @@ node tools\pull-xb-courseware.mjs --cookie "<session cookie>"   # 小白教育 4
 
 `recon\scratch\afe-token.txt` 里现在是本地这一份微信会话的 token。
 
+### 已经拿到手的文件，一条命令接进本地站
+
+上面三条路都走不通的时候，文件通常已经在你硬盘上了 —— 官网下载包、
+自己服务器上导出的正文目录、教研组传下来的单份课件，只要**正文**
+（`.html`）在，就能直接并进乐启享合并站，不用再走线上那三道门。
+
+```powershell
+$env:PATH="C:\kaifa\xiaobai-class\tools\node24\node-v24.22.3-win-x64;$env:PATH"
+
+node tools\import-local.mjs <文件夹> --dry-run    # 先看会认出哪几门
+node tools\import-local.mjs <文件夹> --rebuild    # 接入 + 重建合并站
+```
+
+认课的方式：按文件名（`1360.html`、`afe-1360.html`），文件名被改过就
+按正文里的 `<title>` 认。三本账它都认：
+
+| 账 | 覆盖 | 写回哪里 |
+| --- | --- | --- |
+| `mirror/xbjiaoyu/catalog.json` | 小白教育 550 门 | `mirror/xbjiaoyu/courseware/` |
+| `mirror/aifunengjiaoyu/programs-all.json` | 图灵智赋作品 442 门 | `mirror/aifunengjiaoyu/courseware/` |
+| `mirror/aifunengjiaoyu/premium/catalogue.json` | 图灵智赋精品课 480 门 | `mirror/aifunengjiaoyu/courseware/` |
+
+同名的 `<id>.assets` 素材目录会跟着一起搬。只跳转到
+`/api/program-file/` 的壳、`.assets` 里的第三方子页面、目录页，都不算
+课，会被跳过。源镜像里原来那份不会被删掉 —— 重复跑就是覆盖更新。
+
+拿现有的镜像自检一遍（只读）：523 门全部认出来，0 认错、0 缺口。
+
+```powershell
+node tools\import-local.mjs mirror\leqixiang\courseware --dry-run
+```
+
 **换号的办法（本地留了一个扫码页）**：起一个监听器，它每 20 秒向线上
 要一张新码并写在 `recon\scratch\afe-qr.png`：
 
