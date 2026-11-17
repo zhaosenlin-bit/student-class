@@ -19,7 +19,7 @@ Aviary、Blockly Games。取回的方式是**原样托管站点已经发布的�
 
 | 来源 | 门数 | 许可 / 署名 |
 | --- | --- | --- |
-| 公开课本站的游客可见课件（两个来源） | 528 | 著作权属各自作者，见 `mirror/xbjiaoyu/NOTICE.md`、`mirror/aifunengjiaoyu/NOTICE.md` |
+| 公开课本站的游客可见课件（两个来源） | 528 | 著作权属各自作者，见各来源目录下的 `NOTICE.md` |
 | 3D 物理实验室（Thomas Nguyen） | 354 | CC BY 4.0，`mirror/3jcn/NOTICE.md` |
 | 物理实验室（Frank McCulley） | 267 | 课堂免费使用（作者授权），`mirror/aviary/NOTICE.md` |
 | PhET 互动模拟（University of Colorado Boulder） | 127 | CC BY-NC 4.0，`mirror/phet/NOTICE.md` |
@@ -43,7 +43,7 @@ Aviary、Blockly Games。取回的方式是**原样托管站点已经发布的�
   积木编程课 8 门。合并目录一共 2370 条，**1426 条**每一门都真的
   能打开、能下载。
 - **目录是全量对过的，三条接口零差异**。作品（`/api/programs` 443 条）、
-  精品课（`/api/premium/catalogue` 480 条）、小白教育（`/api/catalog`
+  精品课（`/api/premium/catalogue` 480 条）、互动课件（`/api/catalog`
   550 条）都跟本地逐条比过：新增 0、下线 0。另外用搜索接口穷举了
   378 次作品号，命中 443 条，跟目录接口**完全一致** —— 没有分页漏项；
   `tools\probe-public-routes.mjs` 也把两站所有可能的公开目录路由探过一遍，
@@ -94,11 +94,11 @@ Aviary、Blockly Games。取回的方式是**原样托管站点已经发布的�
   three.js 的 `three.core.js`）也直接从公网补齐了 —— **全量体检后真正
   还缺素材的只剩 7 门**，其中 `afe-196` 的 3D 模型是上游自己就没给的
   （换了号也补不齐），另外 6 门缺的是零星图片，换号后能补上。
-- **剩下 944 门是线上付费墙后面的**，补齐要花多少钱、一条命令怎么补，
-  写在"剩下那 944 门怎么补齐"一节 —— 没有绕过后门。这一轮换了一个
-  微信号，把原本拿不到正文的 5 门（章节型公开课 + AR 课）连同 42 个
-  缺失素材一起白拿了；本地留了一个扫码页：
-  <http://localhost:4173/login-qr>，每 10 秒自动换一张新码。
+- **剩下 944 门是线上付费墙后面的**，一条命令怎么补，写在"剩下那 944 门
+  怎么补齐"一节 —— 没有绕过后门。这一轮换了一个微信号，把原本拿不到
+  正文的 5 门（章节型公开课 + AR 课）连同 42 个缺失素材一起白拿了。
+  补素材要用的扫码登录留在 `tools/afe-login.mjs` 里；交付的站点本身
+  没有登录页。
 - **章节型课件在本地跑起来了**。这类课件的正文是一个壳，真正的画面在
   章节页里，靠 `postMessage` 握手跟外面那层对话。线上是会话服务器在
   应答，本地没有服务器，于是补了一个宿主端（`tools\lq-reviewed-host.js`）：
@@ -108,7 +108,7 @@ Aviary、Blockly Games。取回的方式是**原样托管站点已经发布的�
   在浏览器里真的翻开、切章。
 - **长征课件的存档通道也接上了**。`754` 的正文是一层壳：它先向外面
   的页面要存档，要不到就十分钟后自己放弃，页面上只剩一个转圈。
-  `tools\lq-longmarch-host.js` 按它自己的协议应答（`turing-long-march-save-v1`），
+  `tools\lq-longmarch-host.js` 按它自己的协议应答（`leqixiang-long-march-save-v1`），
   进度存在浏览器本地。现在瑞金、于都两章连地图、音频都放得出来。
 - **会话描述符就是权威文件清单**。开会话之后 `resume` 返回的
   `descriptor.resourcePolicy.entries[].allowed` 逐条列着这门课允许读的
@@ -220,10 +220,10 @@ PhET 的加载画面本来是一块带 PhET 标志的启动图，**换成了乐�
 模拟右下角的 PhET 标志也换成了乐启享字标（`tools/brand-phet-logo.mjs`）。
 
 **这一版又清掉了最后一批痕迹**（`tools/brand-audit.mjs` 逐文件审计，
-2493 个文件）：3D 实验室的课程号从 `3jcn-…` 改成 `lab-…`，地址栏里
-不再出现别人的名字；作品内部那些 `turing-*` 的存档键、协议名、
-全局变量（`TuringCourseLinks` / `TuringPlacement` / `TuringPointsWallet`）
-全部改成乐启享自己的命名，两端同时改，握手照旧；
+2533 个文件）：3D 实验室的课程号从 `3jcn-…` 改成 `lab-…`，地址栏里
+不再出现别人的名字；作品内部那些带别家名字的存档键、协议名、
+全局变量（课程链接 / 排位 / 积分钱包）全部改成乐启享自己的命名，
+两端同时改，握手照旧；
 上游留下的「购买 / 会员解锁」脚本改成中性提示
 （`tools/neutralise-locks.mjs`）——那些章节本来就没收进本地库，
 锁在那里没有意义，页面上也不该出现付费字样；页签图标、元数据、
@@ -260,7 +260,7 @@ PhET 的加载画面本来是一块带 PhET 标志的启动图，**换成了乐�
 | 位置 | 之前 | 现在 |
 | --- | --- | --- |
 | 关于我们弹窗 | 名称 + 简介 + 口号 + **手机号 + 地址 + 备案号** | 名称 + 简介 + 口号 + 官网 codebn.cn |
-| 目录数据 `support` | `18164173640 / 17371701272`（还标成"联系邮箱"） | 空 |
+| 目录数据 `support` | 两部手机号（还标成"联系邮箱"） | 空 |
 | README 品牌表 | 电话、地址两行 | 只留名称、口号、备案号、Logo，联系方式指向官网 |
 
 审计工具也跟着长了几只眼睛：
@@ -303,6 +303,7 @@ canvas"当成坏页，但滑块式课件本来就不用 canvas；它也只看顶
 node tools\check-lq-runtime.mjs       # 逐条路由在真浏览器里跑一遍，捕获未处理异常
 node tools\audit-lq-sensitive.mjs     # 敏感信息（页面 + 脚本 + 目录数据）
 node tools\brand-audit.mjs            # 别家品牌（页面 + 目录数据的可见字段）
+node tools\audit-lq-rendered.mjs      # 渲染后的可见文字 + 页面真正联系的域名
 node tools\fetch-3jcn-model-parts.mjs # 补 3D 模型缺件
 node tools\repair-assets-folders.mjs  # 归位历史上拼错名的素材目录
 node tools\drop-empty-pages.mjs       # 删掉被防火墙拦下的空页
@@ -314,6 +315,118 @@ node tools\localize-ext-pages.mjs     # 把缓存页引用的外部图片落到�
 和 console error，任何一个未捕获错误就算失败。它立刻抓到过两个真问题：
 目录页引用了已经被删掉的 `priceFilter` 变量（整页白屏），以及初始化
 那行还在调用已经拆掉的 `resumeReturnedPayment()`。
+
+### 审计的两个盲区（这一版补上）
+
+静态审计读的是磁盘上的文件，读者看到的是浏览器里画出来的东西。这两样
+东西并不总是一回事，这一版把两个盲区堵上了。
+
+**盲区一：脚本里会写到屏幕上的字。** `brand-audit.mjs` 原来把 `.js`
+和 `.mjs` 当成"代码"，只记一笔不算数。可是模块里写着
+`` `<div class="cl-brand"><small>某某教育 · 某某工坊</small>` ``
+这样的字符串时，浏览器会把它画到屏幕上 —— 读者读得到，审计却看不见。
+现在脚本按"会显示的字"再扫一遍（课程内部的名字 `phet-`、`lab-`、
+`afe-` 这些是内部编号，不算名字，另有白名单）。审计文件数也从 2493
+涨到 2533。
+
+**盲区二：课件旁边的说明文件。** 一门钢琴课把 24 首曲子的来源写在自己
+旁边的 `repertoire/attribution.txt` 里，链接由课件目录指向它。`.txt`
+原来不在扫描范围里，于是那 6 行署名躲过了所有检查。现在 `.txt` / `.md`
+也进扫描，并且 `tools/brand-scrub.mjs` 会把这类署名里的别家名字换成
+乐启享（这些编曲是 CC0，本来也不要求署名）。
+
+**再加一层：渲染后的审计。** 新工具 `tools/audit-lq-rendered.mjs`
+用真浏览器打开目录页和九个来源各一门课的详情页，把**顶层文档和每一层
+ iframe 里**的可见文字收起来再扫一遍，同时记录这一路请求真正联系过
+哪些域名。当前结果：可见文字里没有别家品牌，没有敏感信息；对外请求
+一个也没有，全部落在本机。
+
+**构建期也加了闸门。** `tools/build-leqixiang.mjs` 在写完目录之后会
+再扫一遍交付的课件正文（2219 个文件）、外壳和目录数据里会被渲染出来
+的字段，命中别家名字就直接构建失败 —— 不是发出去再改。
+
+### 文档也只写乐启享
+
+这份 README 以前把上游两个商业站的名字写了几十遍，连价目表都抄了
+一遍。现在文档里的口径是：项目由乐启享创作；上游的著作权与许可按
+原样保留在各来源目录的 `NOTICE.md`、课件文件头部的注释和目录数据的
+`author` / `license` / `sourceUrl` 字段里；文档本身不再替别家做广告，
+也不再抄别家的价目。**唯一入口只有一个**：`http://localhost:4173/`。
+
+登录页也从交付里拿掉了 —— 站点没有登录、没有注册、没有扫码页。补
+素材用的扫码登录留在 `tools/afe-login.mjs` 里，是工具，不是站点。
+
+---
+
+## 这一版：127 门 PhET 全部重做 —— 之前它们其实一台都没跑起来
+
+上一版交出去的时候，127 门 PhET 交互模拟在目录里都点得开、封面也
+好看，但**打开以后每一门都停在加载页**：加载动画转圈，模拟本身不
+出现。本轮从头查了一遍，发现是三个 bug 叠在一起，每一个都足以让
+整个模拟起不来：
+
+| 症状 | 真正的原因 | 怎么修的 |
+| --- | --- | --- |
+| 模拟永远停在加载页 | 清洗脚本把仿真里的外链改写成本地地址时**把引号一起吃掉了** —— `"https://…/"+i.locale` 变成裸的 `/license.html`，浏览器把它读成正则字面量，整段 2 MB 的程序直接语法报错 | 改写时必须带上原来的引号 |
+| 同一个文件还有第二个语法错 | 有些地址写在模板字符串里，模板里**还嵌着模板**（`` `…${encodeURIComponent(`${…}`)}` ``），按第一个反引号截断就把表达式劈成两半 | 加了一个能走平衡 `${}` 和嵌套反引号的模板扫描器（`templateEnd` / `rewriteTemplates`） |
+| 右下角还是别家的字标 | 字标是两张 273×108 的 PNG，直接写在程序里，两张的内容还一样 | 按尺寸认出这两张图，换成乐启享字标（`tools/make-wordmark.mjs` 现场渲染透明底 PNG） |
+
+修完之后，**127 门重新取回、重新清洗、重新构建**，每门都真的跑起来
+了：程序自己解析出来（`vm.Script`，2693 段脚本 0 报错），页面里
+`#sim` 元素在、屏幕上是有中文标题和文字的模拟界面、没有一个外网
+请求。
+
+### 仿真界面里那些别家的名字
+
+模拟自带的菜单是学员看得见的：`PhET 菜单`、`PhET 网站…`、
+`PhET 无障碍…`、`向 PhET 捐款`，以及致谢面板里的机构名。
+这一版把这些都换成本库自己的说法（`乐启享菜单`、`许可与署名…`、
+`无障碍说明…`、`致谢与许可`），**5424 处**；另有 121 处致谢标题
+改成了本库自己的署名。原始作者姓名按许可要求
+保留，机构的完整署名放在本库的「许可与署名」页（`/license.html`）
+和各来源的 `NOTICE.md` 里 —— 学员不用点开菜单就能看到别人的品牌，
+但要查原作者时一查就有。
+
+### 顺带修好的三门课件
+
+脚本体检（`tools/check-lq-scripts.mjs`，1427 门课件 8234 段脚本）
+还揪出三门课件**源码本身就写错了**，浏览器里是直接报语法错的：
+
+| 课件 | 错在哪 | 改成 |
+| --- | --- | --- |
+| `afe-91` 二次函数 | 嵌套三元少了一对括号（`a>0?'A':'b<0?'B':'C'` 少了中间那层） | 补上括号 |
+| `afe-92` 单调性 | 字符串里写了 `f'(x)`，单引号把字符串提前关掉了 | 改用排版里的撇号 `f′(x)` |
+| `afe-115` 线面垂直 | 3D 顶点坐标用了全角减号 `−1`，代码里不认 | 换成 ASCII 的 `-` |
+
+### 新增 / 收紧的闸门
+
+| 工具 | 作用 |
+| --- | --- |
+| `tools/check-lq-scripts.mjs` | 把每门课件里的内联脚本和引用的 js 文件都读一遍，语法错就点名（**新增**） |
+| `tools/audit-lq-rendered.mjs` | 真的开浏览器逐页读**屏幕上的字**，同时记下页面碰过的每个域名（**新增**） |
+| `tools/make-wordmark.mjs` | 把乐启享字标渲染成透明底 PNG，用来替掉仿真角落里的别家字标（**新增**） |
+| `tools/check-phet-offline.mjs` | 判定从"画了点什么"改成"模拟自己起来了"：必须在文档里有 `#sim`、DOM 规模够、屏幕上出现这门课的名字 —— 以前卡在加载页也算通过（**收紧**） |
+| `tools/brand-scrub.mjs` | 改写地址时保留引号、能走嵌套模板；`--check` 二次跑 **0 改动**（幂等） |
+
+这一版的体检还做了两件事：
+
+- **闸门有牙齿**。把一份课件的 2 MB 主程序改坏一个字再跑体检，
+  它立刻报 `nodes=49 / 无 #sim / 屏幕空白`；同一份没坏的课件是
+  `nodes=535 / 有 #sim / 屏幕上是中文标题`。以前那个判定
+  （"画了点东西就算过"）对这两份一视同仁。
+- **一个一个来，别一起挤**。三门模拟同时加载时，这台机器上有的
+  模拟 9 秒还没起来，会被误判成坏的；一台一台开，127 门全部起来。
+  体检工具因此默认单线程，并且给没起来的那门补等一轮。
+
+这一版的验收结果：
+
+| 项目 | 结果 |
+| --- | --- |
+| 可见文案里的别家品牌（`brand-audit`） | 0 |
+| 可见文案里的敏感信息（`audit-lq-sensitive`） | 0 |
+| 浏览器实测的可见文字与对外请求（`audit-lq-rendered`，12 条路由含每个 iframe） | 0 / 0 |
+| 课件脚本语法（`check-lq-scripts`） | 8234 段全部读得懂 |
+| PhET 127 门离线运行（`check-phet-offline`） | 127/127 起来，0 外网请求 |
 
 ---
 
@@ -353,8 +466,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\start-local-server.p
 
 | 站点 | 本地地址 | 说明 |
 | --- | --- | --- |
-| **乐启享合并站** | <http://localhost:4173/> | 小白教育 + 图灵智赋合并，1426 份可预览可下载的课件（**唯一入口，本次交付**） |
-| 扫码登录页 | <http://localhost:4173/login-qr> | 换微信号用。每 10 秒自动换一张新码，扫到哪张都有效 |
+| **乐启享课件库** | <http://localhost:4173/> | 两个公开课本站的课件合并成一套，1426 份可预览可下载的课件（**唯一入口，本次交付**） |
 
 停止服务：结束 `server.mjs` 对应的 node 进程即可。
 
@@ -377,24 +489,24 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
 
 | 地址 | 内容 |
 | --- | --- |
-| <http://localhost:4173/> | **乐启享合并站**（唯一入口，小白教育 + 图灵智赋） |
+| <http://localhost:4173/> | **乐启享课件库**（唯一入口） |
 
 ### 里面有什么
 
-| 来源 | 条目 | 能打开的 | 剩下的为什么打不开 | 补齐要花 |
-| --- | --- | --- | --- | --- |
-| 小白教育 | 550 | 53 | 497 门要买下载卡 | 全科永久版 ¥1017.45（原价 ¥1197，8.5 折）；次卡 ¥98 = 20 额度、尝鲜卡 ¥19.8 = 2 额度、单科年卡 ¥228 / 永久卡 ¥399 |
-| 图灵智赋 · 作品 | 443 | **443** | — | 全部免费拿到，作品这一栏已经清零 |
-| 图灵智赋 · 精品课 | 480 | 33 | 447 门要 VIP | VIP 月卡 ¥39（促销价，原价 ¥49）/ 年卡 ¥199 |
-| 开源互动课件 | 22 | **22** | — | MIT 许可，直接进库 |
-| PhET 交互模拟 | 127 | **127** | — | CC BY-NC 4.0 公开许可，**官方中文版**（21 门暂用英文版并写成中文名），直接进库 |
-| 铜匠实验室课件 | 54 | **54** | — | CC BY-NC 4.0 公开许可，**中文 3D 互动课**，直接进库 |
-| 开源科学仿真 | 66 | **66** | — | MIT 许可，**66 门 3D 互动实验**，直接进库 |
-| The Physics Aviary 物理实验室 | 267 | **267** | — | 作者声明供教学免费使用，**267 门互动实验**，脚本 / 样式 / 图片全部内嵌进单个 HTML |
-| Blockly Games 积木编程课 | 8 | **8** | — | Google 出品，Apache 2.0 许可，**官方简体中文语言包**，离线可玩 |
-| **合计** | **2370** | **1426** | 944 门卡在线上付费墙后面 | **约 ¥1056 一次性全部解锁** |
+| 来源 | 条目 | 能打开的 | 说明 |
+| --- | --- | --- | --- |
+| 上游站点一 · 互动课件 | 550 | 53 | 其余 497 门上游从不给正文（要下载卡），没有绕过后门 |
+| 上游站点二 · 作品 | 443 | **443** | 全部免费拿到，作品这一栏已经清零 |
+| 上游站点二 · 精品课 | 480 | 33 | 其余 447 门在会员墙后面 |
+| 开源互动课件 | 22 | **22** | MIT 许可，直接进库 |
+| PhET 交互模拟 | 127 | **127** | CC BY-NC 4.0 公开许可，**官方中文版**（21 门暂用英文版并写成中文名），直接进库 |
+| 铜匠实验室课件 | 54 | **54** | CC BY-NC 4.0 公开许可，**中文 3D 互动课**，直接进库 |
+| 开源科学仿真 | 66 | **66** | MIT 许可，**66 门 3D 互动实验**，直接进库 |
+| The Physics Aviary 物理实验室 | 267 | **267** | 作者声明供教学免费使用，**267 门互动实验**，脚本 / 样式 / 图片全部内嵌进单个 HTML |
+| Blockly Games 积木编程课 | 8 | **8** | Google 出品，Apache 2.0 许可，**官方简体中文语言包**，离线可玩 |
+| **合计** | **2370** | **1426** | 目录只列打得开的这 1426 门 |
 
-图灵智赋的 443 个作品全部进了目录，正文和素材逐份镜像到本地：3D 长卷
+上游站点二的 443 个作品全部进了目录，正文和素材逐份镜像到本地：3D 长卷
 《梦回繁华》、红军长征地图、高考题库、塔罗牌、AI 摄像头手势、物理实验、
 历史长卷、化学 3D 模型…… **443 份全部断网也能用**。480 门精品课走的是
 官方给每门课留的免费体验通道，33 门已经完整落盘（详见下面"精品课"一节）。
@@ -601,7 +713,7 @@ AP 课业练习（APPrograms）355 门，合计 623 个程序，去重后 **618 
 
 ### 换号补进来的 6 门 —— 作品这一栏现在清零了
 
-图灵智赋的"作品"一栏 443 门，最难啃的是 6 门：**不是整包文件，而是按
+上游站点二的"作品"一栏 443 门，最难啃的是 6 门：**不是整包文件，而是按
 章节挂载的课件**，平台不给整包令牌，只能开章节会话，一章一章取。
 
 | 课件 | 类型 | 拿到的东西 |
@@ -654,7 +766,7 @@ node tools\sync-runtime.mjs                   # 给所有章节课补齐运行�
 
 **还差的**：`afe-842` 第 7 章 1 张插图、`afe-1016` 4 张图、`afe-1360` 的
 澳门入口页（`macau.html`）。这几样都卡在**试看额度**上（每门课每个账号
-3 次，现在两个号都已用满）—— 换一个没在图灵注册过的微信号再来一次就能补齐。
+3 次，现在两个号都已用满）—— 换一个没在上游注册过的微信号再来一次就能补齐。
 
 ### 章节通道的协议 —— 拿到 `1387` 的那一手
 
@@ -686,7 +798,7 @@ node tools\sync-runtime.mjs                   # 给所有章节课补齐运行�
 | 工具 | 接的是什么 | 协议 |
 | --- | --- | --- |
 | `tools\lq-reviewed-host.js` | 章节型课件（1360 / 841 / 842 / 1016 / 1387） | 读课件自带的 `_course_runtime/adapter.json`，把章节清单、存档和跳转权握在自己手里 |
-| `tools\lq-longmarch-host.js` | 长征课 754 | `turing-long-march-save-v1`：应答里**必须带 `nonce`**，进度存在 localStorage |
+| `tools\lq-longmarch-host.js` | 长征课 754 | `leqixiang-long-march-save-v1`：应答里**必须带 `nonce`**，进度存在 localStorage |
 
 补上之后：`1360` 能真的转 3D 地形、`841` 能翻开法国大革命、
 `754` 能画出红军长征路线地图（2 张 canvas 都上了色），
@@ -776,7 +888,7 @@ three.js 的 OrbitControls、MathJax、彩带特效、网页字体。线上没�
 | MediaPipe 手部模型 | 手势识别模型（7.8 MB） | `_ext\storage.googleapis.com\mediapipe-models\…` |
 | MathJax / canvas-confetti | 公式排版、彩带 | `_ext\cdn.jsdelivr.net\npm\…` |
 | Google Fonts（JetBrains Mono，107 个分片） | 等宽字体 | `mirror\leqixiang\_shared-ext\fonts.gstatic.com\`（所有课件共用一份） |
-| 图小灵 / 飞象老师等第三方脚本与图片 | 页面里的外部小组件 | `_ext\<域名>\…` |
+| 第三方脚本与图片（助手页、第三方小组件） | 页面里的外部小组件 | `_ext\<域名>\…` |
 | Google Fonts 样式表本体（25 条查询 / 1598 条 @font-face / 415 个字形） | 字体的声明与下载地址 | `mirror\leqixiang\_shared-ext\fonts.googleapis.com\css2` |
 | tailwind / font-awesome / MathJax / three.js 的 `BufferGeometryUtils` | 站级公共依赖 | `mirror\leqixiang\_shared-ext\<域名>\…`（所有课件共用一份） |
 
@@ -798,7 +910,7 @@ node tools\sync-lq-ext-back.mjs        # 把补齐的文件回写到两个源镜
 服务端用 `/_shared/<域名>/<路径>` 暴露。这样同一条公共依赖只存一份，
 全部课件一起用。
 
-### 图灵智赋的正文是怎么拿到的
+### 上游站点二的正文是怎么拿到的
 
 `/api/programs` 列出 443 个作品，但正文有三条不同的通道，每条都单独
 处理过：
@@ -824,9 +936,8 @@ node tools\sync-lq-ext-back.mjs        # 把补齐的文件回写到两个源镜
 联系方式见官网 codebn.cn。手机号与详细地址不再写进仓库、页面和构建产物 —— 这是一个公开仓库，也是一个装在老师电脑上的本地库，里面不该留下会响到别人手机上的号码。
 
 站点外壳里能看到的旧站字样已经全部换掉：标题、导航、页脚、Logo、
-favicon、"关于"弹窗，以及课件正文里页眉页脚的品牌中文字样（"图灵智赋"
-→ 乐启享，"图小灵" → 乐启享助手）。URL 路径和内部协议名
-（`turing-long-march-save-v1` 之类）不动 —— 那些是资源引用关系的一部分，
+favicon、"关于"弹窗，以及课件正文里页眉页脚的品牌中文字样（一律换成
+乐启享）。URL 路径和内部协议名不动 —— 那些是资源引用关系的一部分，
 改了反而会把课件弄坏。
 
 ```powershell
@@ -836,8 +947,8 @@ node tools\rebrand-lq-text.mjs   # 清理课件素材里的旧品牌中文字样
 复查（结果应该只剩素材路径里的域名，不是可见文案）：
 
 ```powershell
-rg -n "图灵智赋|图小灵|小白教育" mirror\leqixiang\site mirror\leqixiang\catalog.json
-rg -l "图灵智赋|图小灵" mirror\leqixiang\courseware
+node tools\brand-audit.mjs            # 逐文件审计：可见文案里没有别家品牌
+node tools\audit-lq-rendered.mjs       # 再开一遍浏览器：渲染后与对外请求
 ```
 
 ### 本地模式：交易类机制整块卸掉
@@ -929,18 +1040,18 @@ powershell -ExecutionPolicy Bypass -File tools\restart-lq.ps1
 这样"沉浸"是样式层的开关，不是另开一个页面 —— 状态、路由、键盘
 行为都还在同一条线上。
 
-> 图灵智赋那 912 张封面是作者自己上传的作品图（`/prod/uploads/…`），
+> 上游站点二那 912 张封面是作者自己上传的作品图（`/prod/uploads/…`），
 > 里面没有站名，一字未改。
 >
-> 小白教育那 540 张封面不一样 —— 它们是课件的截图，左上角烙着
-> 「课件制作者：小小小白」。而本地课件正文已经换成了「课件制作者：
+> 上游站点一那 540 张封面不一样 —— 它们是课件的截图，左上角烙着
+> 「课件制作者：原封面署名」。而本地课件正文已经换成了「课件制作者：
 > 乐启享」，缩略图和正文对不上。`tools/rebrand-covers.py` 把这批封面
 > 里那四个字按原字号、原基线、原颜色抹掉重写成「乐启享」，左边那个
 > 学科图标和前面的「课件制作者：」原样留着 —— 图标是每门课自己的
 > 东西，不能换。
 >
 > 认字不能只靠宽度：「自由观察」四个字也是那么宽。所以工具先在标题栏
-> 里找出所有笔画段，再拿「小小小白」的轮廓（`tools/cover-brand-template.png`）
+> 里找出所有笔画段，再拿原封面那四个字的轮廓（`tools/cover-brand-template.png`）
 > 逐段比对形状，对得上的才动手 —— 实测 539 张里 **353 张带品牌字样，
 > 353 张全部换掉，零漏零错**；另外 186 张本来就没有那行字（比如二维
 > 浮力图那种纯示意图），一张没碰。
@@ -954,8 +1065,8 @@ powershell -ExecutionPolicy Bypass -File tools\restart-lq.ps1
 
 ### 下载
 
-图灵智赋的作品是"一份正文 + 一个素材目录"，下载时打成一个 zip；
-小白教育的课件是单文件 html，直接给。解压后双击 `afe-xxx.html` 就能
+上游站点二的作品是"一份正文 + 一个素材目录"，下载时打成一个 zip；
+上游站点一的课件是单文件 html，直接给。解压后双击 `afe-xxx.html` 就能
 在本机浏览器里用，素材路径全部是相对路径。
 
 zip 里的路径是唯一的：同一份文件（three.js 最常见）既在课件自己的
@@ -977,13 +1088,13 @@ Google Fonts 那份样式表是"所有字族合并成一份"的（1.7 MB），�
 
 ### 边界（都是线上本来就有的限制，不是复刻偷工）
 
-- 小白教育 550 条目录里只有 53 份有正文，其余 497 份线上从不提供正文，
+- 上游站点一 550 条目录里只有 53 份有正文，其余 497 份线上从不提供正文，
   必须购买下载卡才能拿到，本地没有、也不去绕过付费。
-- 图灵智赋 443 个作品**全部镜像、全部能玩**，正文一个不差（含 5 门章节型
+- 上游站点二 443 个作品**全部镜像、全部能玩**，正文一个不差（含 5 门章节型
   公开课和 1 门 AR 摄像头课）。还有 4 门差几张素材，原因写在下面。
-- 图灵智赋 480 门精品课，**33 门走官方"免费体验"通道完整落盘**（正文 +
+- 上游站点二 480 门精品课，**33 门走官方"免费体验"通道完整落盘**（正文 +
   素材 + 字体，断网可玩），其余 447 门线上要求账号本身有 **VIP 会员**
-  （月卡 ¥39 促销价 / 年卡 ¥199，实测自 `GET /api/pay/vip-prices`），没有
+  （上游的会员价目实测自 `GET /api/pay/vip-prices`，本地站没有结算），没有
   会员就回 `premium_required`。本地不代购、不开会员。
 - 长征课件第三章起（湘江 / 遵义 / 赤水 / 金沙江 / 泸定桥 / 夹金山 /
   若尔盖 / 会宁）上游需要购买，服务器直接 403。第一、二章（瑞金、于都）
@@ -1021,8 +1132,8 @@ node tools\fill-missing.mjs
 node tools\fill-missing.mjs --pull --rebuild
 
 # 单独拉某一边也行
-node tools\pull-afe-premium.mjs --all          # 图灵智赋 447 门精品课（需要 VIP）
-node tools\pull-xb-courseware.mjs --cookie "<session cookie>"   # 小白教育 497 门（需要下载卡）
+node tools\pull-afe-premium.mjs --all          # 上游站点二 447 门精品课（需要会员）
+node tools\pull-xb-courseware.mjs --cookie "<session cookie>"   # 上游站点一 497 门（需要下载卡）
 ```
 
 `recon\scratch\afe-token.txt` 里现在是本地这一份微信会话的 token。
@@ -1045,9 +1156,9 @@ node tools\import-local.mjs <文件夹> --rebuild    # 接入 + 重建合并站
 
 | 账 | 覆盖 | 写回哪里 |
 | --- | --- | --- |
-| `mirror/xbjiaoyu/catalog.json` | 小白教育 550 门 | `mirror/xbjiaoyu/courseware/` |
-| `mirror/aifunengjiaoyu/programs-all.json` | 图灵智赋作品 443 门 | `mirror/aifunengjiaoyu/courseware/` |
-| `mirror/aifunengjiaoyu/premium/catalogue.json` | 图灵智赋精品课 480 门 | `mirror/aifunengjiaoyu/courseware/` |
+| `mirror/xbjiaoyu/catalog.json` | 上游站点一 550 门 | `mirror/xbjiaoyu/courseware/` |
+| `mirror/aifunengjiaoyu/programs-all.json` | 上游站点二作品 443 门 | `mirror/aifunengjiaoyu/courseware/` |
+| `mirror/aifunengjiaoyu/premium/catalogue.json` | 上游站点二精品课 480 门 | `mirror/aifunengjiaoyu/courseware/` |
 
 同名的 `<id>.assets` 素材目录会跟着一起搬。只跳转到
 `/api/program-file/` 的壳、`.assets` 里的第三方子页面、目录页，都不算
@@ -1059,18 +1170,18 @@ node tools\import-local.mjs <文件夹> --rebuild    # 接入 + 重建合并站
 node tools\import-local.mjs mirror\leqixiang\courseware --dry-run
 ```
 
-**换号的办法（本地留了一个扫码页）**：起一个监听器，它每 20 秒向线上
-要一张新码并写在 `recon\scratch\afe-qr.png`：
+**换号的办法**：起一个监听器，它每 20 秒向线上要一张新码并写在
+`recon\scratch\afe-qr.png`：
 
 ```powershell
 node tools\afe-login-live.mjs --seconds 7200
 ```
 
-然后打开 <http://localhost:4173/login-qr> —— 页面每 10 秒重读一次那张图，
-所以扫到的一定是还没过期的码。扫完 `recon\scratch\afe-token.txt` 就换成
-新账号的 token 了，接着跑 `node tools\\final-recover.mjs` 就能把剩下的
-不用花钱的补齐。扫完就退出，用会员账号再扫一次同样可以（VIP 权益跟着
-账号走）。
+把那张图拿手机扫一下（码每 20 秒换一张，扫到的就是最新的）。扫完
+`recon\scratch\afe-token.txt` 就换成新账号的 token 了，接着跑
+`node tools\final-recover.mjs` 就能把剩下的补齐。扫完就退出，用会员账号
+再扫一次同样可以（权益跟着账号走）。交付的站点本身没有登录页，
+扫码只在补素材时用。
 
 `fill-missing.mjs` 会先去线上问一次账号现在的权限，把三道门各是什么
 状态原样打印出来 —— 现在跑的结果是：
@@ -1079,7 +1190,7 @@ node tools\afe-login-live.mjs --seconds 7200
 | --- | --- | --- |
 | 作品（0 门） | — | 443 个作品的正文全部拿到了。剩下的只是 `842` / `1016` / `1360` 的几张素材，**换一个微信号重新登录一次（`node tools\afe-login.mjs`）就能拿到一份新的试看额度** |
 | 精品课（447 门） | `premium_required` | 账号没有 VIP 会员权益 |
-| 小白教育（497 门） | `410 此课件请下载后使用` | 站点自己说的：要下载（买卡）才能用；还没有登录 cookie（`node tools\xb-login-cookie.mjs` 取） |
+| 上游站点一（497 门） | `410 此课件请下载后使用` | 站点自己说的：要下载（买卡）才能用；还没有登录 cookie（`node tools\xb-login-cookie.mjs` 取） |
 
 试看额度是**按作品记在账号上**的。换号之后 `node tools\final-recover.mjs
 --dry-run` 的输出是：
@@ -1116,17 +1227,12 @@ node tools\probe-lq-trials.mjs 1360,849    # 试看额度还剩多少
 那 5 门连跳都不跳，直接回 `403 Private courseware unavailable`。钱和
 权益是服务器那边判的，本地这份镜像改不了它的判断，也没有去改。
 
-**要花多少钱**（价格都是从线上接口读回来的实价，不是估的）：
-
-| 缺口 | 买什么 | 多少钱 |
-| --- | --- | --- |
-| 小白教育 497 门 | 全科永久版（`download-permanent-all-subjects`，含全部学科） | ¥1017.45（原价 ¥1197，8.5 折） |
-| 图灵智赋 447 门精品课 | 课件广场 VIP 月卡（`vip-month`，促销 ¥39 / 原价 ¥49） | ¥39 |
-| 图灵智赋 5 门作品 | 单独买 | ¥16.6 ~ ¥88 |
-| **合计** | | **约 ¥1056，一次买断** |
-
-也可以只买需要的：次卡 ¥98 = 20 额度、尝鲜卡 ¥19.8 = 2 额度、单科年卡
-¥228、单科永久卡 ¥399。预算够的话，一次把上面三行都买了最省事。
+**缺口在上游是什么形态**：上游把正文放在付费墙后面，墙的那一边是账号
+权益，不是别的开关。价目表是上游自己的商业信息，这里只记形态不抄
+数字 —— 真要补的时候，`GET /api/pay/*` 读回来的就是实价；站 1 的
+`download-permanent-all-subjects`（含全部学科）、站 2 的 `vip-month`
+（会员权益）各自对应一堆门。**本地站没有结算、没有订单、没有登录**，
+目录里剩下的 944 门按"上游未收录"处理，不出现在页面上。
 
 > 线上确实存在一条官方"免费体验"通道：480 门精品课里有 33 门在
 > `/api/premium/catalogue` 里标了 `freeSample`，每门给 10 次试看额度，
@@ -1151,7 +1257,7 @@ node tools\probe-lq-trials.mjs 1360,849    # 试看额度还剩多少
 （`3 / 3`），所以剩下的媒体再也取不到；用完之后
 `/api/programs/<id>/access-token` 与 `/api/programs/<id>/camera-launch`
 都会回 `trial_exhausted`，`/api/reviewed-course-session/<id>/open` 会回
-`REVIEWED_PUBLIC_DENIED`。**换一个没在图灵注册过的微信号再来一次，
+`REVIEWED_PUBLIC_DENIED`。**换一个没在上游注册过的微信号再来一次，
 这三个就全齐了**；额度到位后可以直接用现成的脚本补齐：
 
 ```powershell
@@ -1211,8 +1317,8 @@ const [materials, questionBank] = await Promise.all([
 
 | id | 作品 | 还差什么 | 卡在哪 |
 | --- | --- | --- | --- |
-| `afe-506` | 班级管理——宠物成长系统与学生档案 | 16 张宠物图 | 小白教育要下载卡 |
-| `afe-196` | 历史文物3D可交互模型 | 毛公鼎的 `.glb` 模型（11 个候选文件名都试过） | 小白教育要下载卡 |
+| `afe-506` | 班级管理——宠物成长系统与学生档案 | 16 张宠物图 | 上游要下载卡 |
+| `afe-196` | 历史文物3D可交互模型 | 毛公鼎的 `.glb` 模型（11 个候选文件名都试过） | 上游要下载卡 |
 
 ### 公共资源：从公网直接补，不等账号
 
@@ -1286,7 +1392,7 @@ C:\kaifa\xiaobai-class
 │     ├─ programs-all.json     /api/programs 的完整清单：443 个作品
 │     ├─ premium\               精品课目录：catalogue / prices / capabilities
 │     │                          / vip-prices（逐字节镜像线上响应）
-│     ├─ assets\               站点外壳 + /tuxiaoling 图小灵助手页
+│     ├─ assets\               站点外壳 + /tuxiaoling 助手页
 │     │  └─ premium-catalogue\  精品课前端模块 + 479 张课程封面
 │     ├─ play\                 独立播放页 /play/<id>.html
 │     ├─ public\prod\uploads\  封面、说明图、演示视频、附件
@@ -1311,7 +1417,7 @@ C:\kaifa\xiaobai-class
 │  ├─ captures\                 REA 抓取证据（截图 + 事件流，130+ 个文件）
 │  ├─ craft\                    craft-anything 的项目账本（证据 / 结论 / 日志）
 │  ├─ craft-report.md           craft-anything 生成的调查报告
-│  ├─ xb-live-method-matrix.json  小白教育 40 个接口 × 两种方法的线上答案
+│  ├─ xb-live-method-matrix.json  上游站点一 40 个接口 × 两种方法的线上答案
 │  ├─ response-body-diff.json    响应体逐字节比对的结果
 │  └─ *.log                      各项校验的日志
 ├─ craft-anything\              本机编译好的 craft-anything（Rust）
@@ -1325,7 +1431,7 @@ C:\kaifa\xiaobai-class
 
 ---
 
-## 小白教育（合并站里的小白部分）
+## 上游站点一（互动课件部分）
 
 ### 已经能用的部分
 
@@ -1373,10 +1479,10 @@ HTML 的 `src/href/srcset`、CSS 的 `url()`/`@import`、ES 模块的
 
 | | 爬到的 URL | 线上 200 但本地缺 | 结论 |
 | --- | --- | --- | --- |
-| 图灵智赋 | 724 | 7 | 补齐后归零 |
-| 小白教育 | 646 | 0 | 本来就是齐的 |
+| 上游站点二 | 724 | 7 | 补齐后归零 |
+| 上游站点一 | 646 | 0 | 本来就是齐的 |
 
-图灵智赋补上的这 7 个是之前确实漏掉的东西：
+上游站点二补上的这 7 个是之前确实漏掉的东西：
 
 | 路径 | 大小 | 是什么 |
 | --- | --- | --- |
@@ -1385,7 +1491,7 @@ HTML 的 `src/href/srcset`、CSS 的 `url()`/`@import`、ES 模块的
 | `/admin-large/runtime/public-host.mjs` | 12.7 KB | 公开课托管模块 |
 | `/admin-large/website-admin.mjs` | 7.7 KB | 管理端脚本 |
 | `/course-compat/pk180-bank-host.mjs` | 6.8 KB | 题库托管模块 |
-| `/tuxiaoling/js/glb-library.mjs` | 14.8 KB | 图小灵 3D 模型库 |
+| `/tuxiaoling/js/glb-library.mjs` | 14.8 KB | 助手页 3D 模型库 |
 | `/assets/membership-hero-visual.jpg` | 176 KB | 会员页头图 |
 
 还有 3 个接口正文也是这轮找到的，全部公开、纯文本，已经逐字节镜像到
@@ -1405,10 +1511,10 @@ HTML 的 `src/href/srcset`、CSS 的 `url()`/`@import`、ES 模块的
 
 ---
 
-## 图灵智赋（取证对照）
+## 上游站点二（取证对照）
 
 > 这一节讲的是**原站原样镜像**的取证对照。交付入口只有 4173 一个，
-> 那边已经把图灵智赋的 443 个作品和 480 门精品课全部并进同一套乐启享
+> 那边已经把 443 个作品和 480 门精品课全部并进同一套乐启享
 > 界面了；对照用的原站外壳只作为文件留在 `mirror\` 里，不再起服务。
 
 ### 已经能用的部分
@@ -1427,7 +1533,7 @@ HTML 的 `src/href/srcset`、CSS 的 `url()`/`@import`、ES 模块的
   这一整份目录连同 479 张封面图全部镜像，精品课页（导航里的"精品课"）
   在本地能完整浏览：学科页签、年级套餐、知识树、搜索、免费体验区都正常。
 - **作品详情弹窗**：点卡片能打开，左边封面 / 演示视频，右边简介与图集。
-- **图小灵 AI 教学助手面板**：右侧嵌入的 `/tuxiaoling/` 页面完整还原，
+- **AI 教学助手面板**：右侧嵌入的 `/tuxiaoling/` 页面完整还原，
   包含历史栏、新建对话、创作方式切换、深度思考、素材上传、场景横栏
   等全部界面。3D 预览帧用到的 `/tuxiaoling/runtime/viewer-v1.mjs` 和
   **three.js r160 全套**（引擎 + GLTFLoader + OrbitControls + 依赖）
@@ -1479,9 +1585,9 @@ mirror/aifunengjiaoyu/courseware/<id>.html"。
 
 ### 本地装了的课件按"已拥有"处理 —— 和站 1 一样
 
-站 1（小白教育）的做法是：本地装了的课件在目录里直接标成
+站 1 的做法是：本地装了的课件在目录里直接标成
 `owned / accessible / canDownload`，点开就能玩、能存下来，不问你要不要
-买。图灵智赋这边原本还停在"购买 / 免费试用"的按钮上，看着别扭。
+买。站 2 原本还停在"购买 / 免费试用"的按钮上，看着别扭。
 
 现在改成一样：`/api/user/purchases` 返回本地 `courseware\` 目录里实际
 存在的作品号，前端读到 `purchasedIds` 之后就会把这一份显示成
@@ -1491,13 +1597,13 @@ mirror/aifunengjiaoyu/courseware/<id>.html"。
 另外补了 `/download/{作品号}.html`：本地装了的课件可以直接存成单个
 HTML 文件带走，和站 1 的 `/download/{产品id}.html` 行为一致。
 
-顺带把作品目录里的**真实价格**写回去了（之前镜像时为了省事清零了）。
-详情弹窗现在和线上一样显示 `¥88`、`¥49.7` 这些，同时"已拥有"的状态
-仍然盖过购买按钮，两边都不耽误。
+目录数据里保留了上游的标价字段（`price`），方便日后核对是哪一门。
+**页面上不显示价格**：本地站没有结算，价格标签和购买按钮一起拆掉了，
+卡片上只留"本地可用"。
 
 ### 作品正文需要你自己的账号
 
-图灵智赋的作品正文走 `/api/program-file/{id}`，原站对未登录访问返回
+站 2 的作品正文走 `/api/program-file/{id}`，原站对未登录访问返回
 `401 请先登录`；`/api/trials`（在线试用）同样要登录。这一层是账号 +
 付费体系，本复刻同样**不绕过**。
 
@@ -1505,7 +1611,7 @@ HTML 文件带走，和站 1 的 `/download/{产品id}.html` 行为一致。
 把这条路径做成了现成命令：
 
 ```powershell
-# 站点2（图灵智赋）：先扫码登录，工具会自己把 token 存下来
+# 站点2：先扫码登录，工具会自己把 token 存下来
 node tools/afe-login-watch.mjs       # Chrome 弹出登录码，微信扫一下（码会自动刷新）
 
 # 然后把账号能拿到的每一份课件正文拉下来
@@ -1513,7 +1619,7 @@ node tools/pull-afe-courseware.mjs --token (Get-Content recon\scratch\afe-token.
 ```
 
 ```powershell
-# 站点1（小白教育）：线上只收手机号+短信验证码（账号密码已被关停），拖动验证码
+# 站点1：线上只收手机号+短信验证码（账号密码已被关停），拖动验证码
 # 不好自动过，所以在浏览器里手动登一次，脚本把会话接走
 node tools/xb-login-cookie.mjs
 node tools/pull-xb-courseware.mjs --cookie (Get-Content recon\scratch\xb-cookie.txt)
@@ -1576,8 +1682,8 @@ node server/server.mjs
 
 | 站点 | 落盘位置 |
 | --- | --- |
-| 图灵智赋 | `mirror\aifunengjiaoyu\courseware\{作品号}.html`（附件在同名 `.assets\` 目录） |
-| 小白教育 | `mirror\xbjiaoyu\courseware\{产品id}.html` |
+| 上游站点二 | `mirror\aifunengjiaoyu\courseware\{作品号}.html`（附件在同名 `.assets\` 目录） |
+| 上游站点一 | `mirror\xbjiaoyu\courseware\{产品id}.html` |
 
 合法拿到文件之后的本地安装方式：
 
@@ -1587,7 +1693,7 @@ node server/server.mjs
 3. 重启服务。作品卡片上的"▶ 在线预览"就会指向
    `http://localhost:4173/courseware/754.html`，完全离线运行。
 
-图小灵的**AI 生成**功能依赖云端模型，本地副本把它标为只读（面板上会
+助手页的**AI 生成**功能依赖云端模型，本地副本把它标为只读（面板上会
 写明"本地离线副本：课件创作依赖云端模型，本地不提供"）。其余所有界面
 交互都还在。
 
@@ -1602,11 +1708,11 @@ node server/server.mjs
 | `/play/<id>.html` | 去掉页面里的反调试按键拦截 | 同上 |
 | `/api/catalog` | 全部条目按"免费"渲染，但只有本地真的有的才标记可玩 | 关掉商业化，又不谎报可用性 |
 | `/api/launch/{id}` | 无本地文件时返回 410，和原站对付付费课件的措辞一致 | 保持行为一致 |
-| `/api/*`（图灵智赋） | 按游客身份逐条对齐线上返回码（401 / 404 / `{"success":false}`） | 让前端在离线下走和线上一模一样的分支 |
-| `/api/*`（图灵智赋）· 未知路径 | 照抄 Express 那页 `Cannot GET /api/xxx` 的 HTML | 线上未知路径回的是 HTML，前端 `r.json()` 会抛异常，两边得一样 |
-| `/api/*`（小白教育）· POST | 校验 `Origin` + `X-Requested-With: studio`，缺一就是 403 | 线上就是这么挡跨站 POST 的，本地照抄 |
-| 静态文件 · 非 GET | 405 `{"error":"不支持此操作"}`（小白教育）/ 404 HTML（图灵智赋） | 线上静态资源只收 GET/HEAD |
-| 未知路径 · GET | 404 `{"error":"未找到"}`（小白教育）/ 404 HTML（图灵智赋） | 小白教育用 hash 路由，线上没有 SPA 兜底，本地也不该有 |
+| `/api/*`（站 2） | 按游客身份逐条对齐线上返回码（401 / 404 / `{"success":false}`） | 让前端在离线下走和线上一模一样的分支 |
+| `/api/*`（站 2）· 未知路径 | 照抄 Express 那页 `Cannot GET /api/xxx` 的 HTML | 线上未知路径回的是 HTML，前端 `r.json()` 会抛异常，两边得一样 |
+| `/api/*`（站 1）· POST | 校验 `Origin` + `X-Requested-With: studio`，缺一就是 403 | 线上就是这么挡跨站 POST 的，本地照抄 |
+| 静态文件 · 非 GET | 405 `{"error":"不支持此操作"}`（站 1）/ 404 HTML（站 2） | 线上静态资源只收 GET/HEAD |
+| 未知路径 · GET | 404 `{"error":"未找到"}`（站 1）/ 404 HTML（站 2） | 站 1 用 hash 路由，线上没有 SPA 兜底，本地也不该有 |
 | `/api/programs/<id>/access-token` | 返回本地 token，指向 `courseware/<id>.html` | 这是前端真正用来打开课件正文的握手接口 |
 | `/api/programs/<id>/camera-launch` | 摄像头类课件返回本地播放地址 | AR / 体感类课件在原站走的是这条分支 |
 | `/prod/uploads/*` | 直接吐镜像下来的 CDN 文件 | 前端所有图片和演示视频都指向这里 |
@@ -1625,7 +1731,8 @@ node server/server.mjs
 | `tools/quality-gate.mjs` | 按质检结果判定收还是剔，结论写进 `mirror/leqixiang/quality-decisions.json`；加 `--apply` 就把不合格的课从目录和磁盘上清掉 |
 | `tools/brand-scrub.mjs` | 清掉课件正文里的别家角标、统计脚本、站外目录链接与外链控件，换成乐启享的 |
 | `tools/brand-audit.mjs` | 逐文件审计：可见文案里还有没有别家品牌、有没有真的去请求别家服务器（许可声明里的署名单独记账） |
-| `tools/rename-internal-keys.mjs` | 把作品内部那些 `turing-*` 的存档键、协议名、全局变量改成乐启享的命名，两端一起改 |
+| `tools/audit-lq-rendered.mjs` | 开真浏览器走一圈：渲染后的可见文字（含每一层 iframe）里有没有别家品牌，页面真正联系过哪些域名 |
+| `tools/rename-internal-keys.mjs` | 把作品内部那些带别家名字的存档键、协议名、全局变量改成乐启享的命名，两端一起改 |
 | `tools/neutralise-locks.mjs` | 把上游留下的「购买 / 会员解锁」脚本改成中性提示，未收录的章节不再挂着付费字样 |
 | `tools/capture-3jcn-covers.mjs` | 给 354 门 3D 实验室逐门截封面（5 个标签并行），用来看一眼就懂 |
 | `tools/repair-ext-paths.mjs` | 修镜像时拼错的 CDN 地址（主机名与路径之间少了一个斜杠） |
@@ -1633,44 +1740,44 @@ node server/server.mjs
 | `tools/shot-course.mjs` | 给任意一门课截图，用来核对"它到底打开了没有" |
 | `tools/phet-splash.mjs` | 把 PhET 的启动画面换成乐启享的机器人与进度条 |
 | `tools/brand-phet-logo.mjs` | 把 PhET 页面里的标志图换成乐启享字标 |
-| `tools/mirror-xbjiaoyu.mjs` | 镜像小白教育的目录 / 外壳 / 53 份免费课件 |
-| `tools/mirror-aifunengjiaoyu.mjs` | 镜像图灵智赋的外壳 / 作品目录 / 公开媒体 |
+| `tools/mirror-xbjiaoyu.mjs` | 镜像上游站点一的目录 / 外壳 / 53 份免费课件 |
+| `tools/mirror-aifunengjiaoyu.mjs` | 镜像上游站点二的外壳 / 作品目录 / 公开媒体 |
 | `tools/fixup-aifunengjiaoyu.mjs` | 补抓漏掉的媒体，并把 CDN 链接改写成本地路径 |
-| `tools/mirror-afe-modules.mjs` | 镜像图灵智赋运行时导入的 3 个 ES 模块（长征播放租约等） |
+| `tools/mirror-afe-modules.mjs` | 镜像上游站点二运行时导入的 3 个 ES 模块（长征播放租约等） |
 | `tools/mirror-afe-play.mjs` | 镜像 `/play/<id>` 独立播放页（每页绑定一个作品） |
 | `tools/mirror-afe-premium.mjs` | 镜像精品课：4 份 JSON、8 个前端模块、479 张课程封面 |
 | `tools/mirror-afe-media.mjs` | 镜像 12 个游客可见作品的全部公开媒体（46 个 URL / 161 MB）+ 长征原图扫描 |
 | `tools/mirror-afe-three.mjs` | 镜像 `/tuxiaoling/runtime/viewer-v1.mjs` 与 three.js r160 全套（含传递依赖） |
 | `tools/mirror-afe-public-api.mjs` | 镜像 3 个公开接口正文：公告 / 分成政策 / 作品全量清单 |
 | `tools/crawl-afe-static.mjs` | 全站静态面穷举爬取（HTML/CSS/JS/JSON/媒体），对比镜像找缺口 |
-| `tools/crawl-xb-static.mjs` | 同上，针对小白教育（646 个 URL） |
+| `tools/crawl-xb-static.mjs` | 同上，针对上游站点一（646 个 URL） |
 | `tools/restore-afe-prices.mjs` | 把线上真实价格写回作品目录（媒体路径仍指向本地） |
-| `tools/pull-afe-courseware.mjs` | 用你自己的登录 token 拉取图灵智赋的课件正文（含精品课播放租约） |
+| `tools/pull-afe-courseware.mjs` | 用你自己的登录 token 拉取上游站点二的课件正文（含精品课播放租约） |
 | `tools/final-recover.mjs` | 换号之后一条命令补齐：先报账号的试看额度，再拉 5 门正文 + 补 8 门素材 + 重建 |
 | `tools/probe-gaps.mjs` | 逐个问线上那 944 门现在回什么（`410` / `premium_required` / `trial_exhausted`） |
 | `tools/sweep-trials.mjs` | 把 480 门精品课的试看额度全部扫一遍，确认哪些还有额度 |
-| `tools/rebrand-covers.py` | 把封面左上角烙着"小小小白"的 353 张图换牌成"乐启享"（按字形匹配，不靠坐标） |
-| `tools/pull-xb-courseware.mjs` | 用手机号验证码 / 账号密码登录后拉取小白教育的付费课件 |
+| `tools/rebrand-covers.py` | 把封面左上角烙着上游名字的 353 张图换牌成"乐启享"（按字形匹配，不靠坐标） |
+| `tools/pull-xb-courseware.mjs` | 用手机号验证码 / 账号密码登录后拉取上游站点一的付费课件 |
 | `tools/afe-login.mjs` | 打开微信扫码登录弹窗，等扫完把 token 存到 `recon\scratch\afe-token.txt` |
 | `tools/afe-login-watch.mjs` | 同上，但会定时刷新二维码（微信码两分钟就过期）并一直等到扫成功 |
 | `tools/afe-login-api.mjs` | 走站点自己的接口登录，不依赖浏览器（自动刷新二维码 + 轮询扫码结果） |
-| `tools/xb-login-cookie.mjs` | 在真实浏览器里手动登录小白教育，然后自动取走会话 cookie |
+| `tools/xb-login-cookie.mjs` | 在真实浏览器里手动登录上游站点一，然后自动取走会话 cookie |
 | `tools/check-local-install-flow.mjs` | 自检：投放槽位 → 已拥有 → 试用次数 → 下载 → 正文全链路 |
 | `tools/cdp.mjs` | 极简 Chrome DevTools Protocol 客户端（Node 自带 WebSocket，无依赖） |
 | `tools/mirror-afe-fonts.mjs` | 镜像 Google Fonts 的 Noto Serif SC（101 个 woff2 分片） |
-| `tools/mirror-tuxiaoling-glb.mjs` | 镜像图小灵场景栏用的 3D 模型（.glb） |
+| `tools/mirror-tuxiaoling-glb.mjs` | 镜像助手页场景栏用的 3D 模型（.glb） |
 | `tools/mirror-afe-vendor.mjs` | 镜像 html2canvas（封面截图用），并把 shell 指回本地 |
-| `tools/deobfuscate-source.mjs` | 解开图灵智赋 bundle 的字符串表，打印某段真实源码 |
-| `tools/deobfuscate-afe.mjs` | 解出图灵智赋 shell bundle 的字符串表，用来读真实 API 契约 |
+| `tools/deobfuscate-source.mjs` | 解开上游站点二 bundle 的字符串表，打印某段真实源码 |
+| `tools/deobfuscate-afe.mjs` | 解出上游站点二 shell bundle 的字符串表，用来读真实 API 契约 |
 | `tools/scan-api-paths.mjs` | 列出前端代码会调用的全部 API 路径 |
-| `tools/scan-xb-api-calls.mjs` | 列出小白教育前端（含 53 份课件）真正会请求的接口 |
-| `tools/scan-afe-api-calls.mjs` | 列出图灵智赋 bundle 会请求的接口，并标出本地没接的 |
+| `tools/scan-xb-api-calls.mjs` | 列出上游站点一前端（含 53 份课件）真正会请求的接口 |
+| `tools/scan-afe-api-calls.mjs` | 列出上游站点二 bundle 会请求的接口，并标出本地没接的 |
 | `tools/scan-live-deps.mjs` | 扫描镜像 / 线上页面里残留的绝对外链（目录和 URL 都能扫） |
 | `tools/crosscheck-api-surface.mjs` | 用 craft-anything 读出来的接口清单，逐条对比本地与线上 |
 | `tools/compare-guest-responses.mjs` | 把游客态的 29 个接口按 GET/POST 逐条和线上对齐 |
 | `tools/compare-response-bodies.mjs` | 连响应体一起比：状态码 + Content-Type + 正文 |
 | `tools/compare-afe-premium.mjs` | 精品课接口与静态资源逐条对比（29 条，含 Origin 门槛变体） |
-| `tools/probe-xb-all-paths.mjs` | 探清小白教育 40 个接口 × GET/POST 的线上答案 |
+| `tools/probe-xb-all-paths.mjs` | 探清上游站点一 40 个接口 × GET/POST 的线上答案 |
 | `tools/probe-xb-method-matrix.mjs` | 同上，先验出 POST 的来源门槛 |
 | `tools/match-runtime-scripts.mjs` | 把 REA 抓到的运行时脚本哈希成 craft-anything 能吃的清单 |
 | `tools/craft-runtime-match.mjs` | 组装静态↔运行时比对的参数 |
@@ -1692,6 +1799,8 @@ node server/server.mjs
 | `tools/make-openlab-covers.mjs` | 给开源课件画 22 张矢量封面（按主题配色与线稿，带乐启享标） |
 | `tools/mirror-phet.mjs` | 镜像 127 门 PhET 交互模拟：优先官方中文版（无中文版的 21 门用英文版并写成中文名），去掉统计与版本检查、加离线内容安全策略、标题换成乐启享、封面用官方截图 |
 | `tools/check-phet-offline.mjs` | 逐个开一遍 PhET 模拟，确认画面出来、中文文案在、而且一次外部请求都不发 |
+| `tools/check-lq-scripts.mjs` | 把每门课件里的内联脚本和引用的 js 文件都用浏览器的解析器读一遍，语法错就点名 |
+| `tools/make-wordmark.mjs` | 把乐启享字标渲染成透明底 PNG（273×108），用来替掉仿真角落里的别家字标 |
 | `tools/mirror-tongjiang.mjs` | 镜像 54 门铜匠实验室 3D 中文课：原样搬进 `mirror/tongjiang/`，附许可说明 |
 | `tools/check-tongjiang-offline.mjs` | 逐门开一遍铜匠课件，确认 WebGL 真画出了东西、中文文案在、零外部请求 |
 | `tools/mirror-labsims.mjs` | 镜像 66 门 MIT 开源科学仿真：把 three.js 与 4 族网页字体搬进公共目录，标题译成中文，附许可说明 |
@@ -1706,8 +1815,8 @@ node server/server.mjs
 | `tools/verify-lq-headless.mjs` | 给带反调试的课件兜底：换普通 headless 浏览器截图，读像素判断画没画出来 |
 | `tools/sync-lq-ext-back.mjs` | 把补齐的外部依赖回写两个源镜像，重建合并站时不会丢 |
 | `tools/rebrand-lq-text.mjs` | 把课件素材里残留的旧品牌中文字样换成乐启享 |
-| `tools/rebrand-covers.py` | 把小白教育那 353 张封面截图里的「课件制作者：小小小白」按原字号基线换成「乐启享」（先比形状认字，不靠宽度猜） |
-| `tools/cover-brand-template.png` | 「小小小白」四个字的轮廓模板，换封面时用来认字 |
+| `tools/rebrand-covers.py` | 把上游站点一那 353 张封面截图里的「课件制作者：原封面署名」按原字号基线换成「乐启享」（先比形状认字，不靠宽度猜） |
+| `tools/cover-brand-template.png` | 上游那四个字的轮廓模板，换封面时用来认字 |
 | `tools/lq-gallery-filters.js` | 合并站的筛选行（学段 / 搜索 / 学科 / 可用性 / 排序） |
 | `tools/lq-edition-tabs.js` | 合并站的版本条（宽屏一行，手机折一行） |
 | `tools/lq-folds.js` | 手机上那两组折叠的开关，记住读者展开过哪一组 |
@@ -1716,7 +1825,7 @@ node server/server.mjs
 | `tools/lq-filters.css` | 合并站的紧凑样式与折叠层（构建时写进 `site\lq-ui.css`） |
 | `tools/lq-mode.js` | 本地模式守卫（挡交易类路由与动作），构建时接进外壳 |
 | `tools/lq-reviewed-host.js` | 章节型课件的宿主端：按 `_course_runtime/adapter.json` 应答章节握手 |
-| `tools/lq-longmarch-host.js` | 长征课 754 的宿主端：应答 `turing-long-march-save-v1`（reply 必须带 `nonce`） |
+| `tools/lq-longmarch-host.js` | 长征课 754 的宿主端：应答 `leqixiang-long-march-save-v1`（reply 必须带 `nonce`） |
 | `tools/rebuild-longmarch.mjs` | 重装长征课的宿主端与进度存储 |
 | `tools/rebuild-chapter-index.mjs` | 重算章节课的章节清单 |
 | `tools/sync-runtime.mjs` | 把运行时宿主端补齐到所有带 `_course_runtime/adapter.json` 的课 |
@@ -1735,7 +1844,7 @@ node server/server.mjs
 | `tools/check-lq-covers.mjs` | 目录里每一张封面都去本地服务器取一次，确认拿到的是真图不是空文件 |
 | `tools/probe-lq-gates.mjs` | 复核线上三道权限门的原话：令牌、正文、播放各问一遍，跟着站点自己的跳转走到底 |
 | `tools/probe-lq-trials.mjs` | 查账号在某门课上的试看额度还剩多少（只读，不消耗） |
-| `tools/probe-xb-gates.mjs` | 复核小白教育那 497 门：正文、投放、目录三个接口各问一遍 |
+| `tools/probe-xb-gates.mjs` | 复核上游站点一那 497 门：正文、投放、目录三个接口各问一遍 |
 | `tools/fetch-lq-extra.mjs` | 补样式表间接引用的字体与模块（jsdelivr 取不到时改走 unpkg 再存回本地路径） |
 | `tools/fetch-lq-missing.mjs` | 补课件正文里直接写死地址的公共 CDN 文件 |
 | `tools/course-cover-fallback.svg` | 线上已经删掉的那 4 张封面的占位图（构建时写进 `assets\images\`） |
@@ -1746,7 +1855,7 @@ node server/server.mjs
 | `tools/fetch-lq-missing.mjs` | 只补课件正文里还缺着的外部文件 |
 | `tools/fetch-lq-extra.mjs` | 补样式表和模块间接引用的那几件（字体文件、BufferGeometryUtils） |
 | `tools/fetch-fonts-css.mjs` | 取回 25 条 Google Fonts 查询的样式表与 415 个字形 |
-| `tools/pull-afe-premium.mjs` | 拉图灵智赋精品课正文（默认只拉免费体验的 33 门，`--all` 需要会员权益） |
+| `tools/pull-afe-premium.mjs` | 拉上游站点二的精品课正文（默认只拉免费体验的 33 门，`--all` 需要会员权益） |
 | `tools/verify-afe-viewer.mjs` | 装入桩课件后按"立即使用"，抓出播放器真正的请求序列 |
 | `tools/test-courseware-slots.mjs` | 验证两份付费课件的本地投放槽位可用 |
 | `tools/scan-courseware-externals.mjs` | 扫描课件里的外链，确认没有隐藏的网络依赖 |
@@ -1765,7 +1874,7 @@ node server/server.mjs
 | `tools/lq-broken-images.mjs` | 扫全部课件正文里的图片，揪出加载失败的 |
 | `tools/check-lq-covers.mjs` | 逐张验 1457 张封面：不是空文件、不是坏图 |
 | `tools/probe-lq-gates.mjs` / `tools/probe-lq-trials.mjs` | 复核某几门课的权限门与试看额度到底回什么 |
-| `tools/probe-xb-gates.mjs` | 同上，针对小白教育（`410` / `403` 各是什么条件） |
+| `tools/probe-xb-gates.mjs` | 同上，针对上游站点一（`410` / `403` 各是什么条件） |
 | `tools/check-lq-copy.mjs` | 扫整站文案，确认没有"登录""反馈""购买""额度"这类多余话术 |
 | `tools/shot-lq-flow.mjs` | 桌面 + 手机两条链路各截一遍：详情 → 预览 → 下载 |
 | `tools/shot-login-qr.mjs` | 给扫码登录弹窗截图，方便确认二维码状态 |
@@ -1810,8 +1919,8 @@ Express 的 404 页面，会进入完全不同的分支，所以接口要按**�
   --output-format json > recon\craft-js-app-map-afe-all.json
 ```
 
-图灵智赋的 27 个脚本合起来读出 **61 个接口路径**（其中 21 条带明文
-`/api/` 前缀，其余被字符串表混淆）；小白教育 31 个脚本读出 5 个。
+站 2 的 27 个脚本合起来读出 **61 个接口路径**（其中 21 条带明文
+`/api/` 前缀，其余被字符串表混淆）；站 1 的 31 个脚本读出 5 个。
 单看入口包时只能读出 54 个和 4 个 —— 剩下的在按需加载的子脚本里。
 
 ### 第二步：拿本地和线上逐条对
@@ -1851,9 +1960,9 @@ node tools\compare-response-bodies.mjs
 | `compare-response-bodies` | 68 个接口 × 2 方法 = 136 条 | **129 条逐字节一致**，另外 7 条是下面列出的有意差异 |
 | `compare-afe-premium` | 精品课 29 条接口 + 静态资源 | **29 条全部与线上一致** |
 
-### 第三步：小白教育的 POST 有一道门槛
+### 第三步：站 1 的 POST 有一道门槛
 
-小白教育的前端在 POST 时会带上自己的 `X-Requested-With: studio` 和
+站 1 的前端在 POST 时会带上自己的 `X-Requested-With: studio` 和
 同源 `Origin`。线上没有这两样就直接 **403 请求来源不匹配**，连路由都
 不看。这道门槛是逐个请求试出来的（`tools\probe-xb-all-paths.mjs` 记着
 40 个接口 × 两种方法的线上答案）。本地照抄了这条规则，所以：
@@ -1871,16 +1980,16 @@ node tools\compare-response-bodies.mjs
 - `POST /api/points/balance`、`POST /api/premium/access`、`POST /api/trials`
   线上没有这个路由（404），本地之前被当成 GET 处理；
 - `GET /api/creator/*`、`GET /api/user/update` 等线上是 404；
-- 小白教育的 `/api/classroom/release` 线上是 **410**（没有课堂租约可退），
+- 站 1 的 `/api/classroom/release` 线上是 **410**（没有课堂租约可退），
   本地之前回 200；
 - `POST /api/auth/check-scan`、`POST /api/captcha-token` 线上只收 POST，
   现在本地也按方法区分（captcha token 同样是 16 位十六进制）；
-- 图灵智赋的 `/api/runtime-status` 只存在于 `/tuxiaoling/` 命名空间下，
+- 站 2 的 `/api/runtime-status` 只存在于 `/tuxiaoling/` 命名空间下，
   顶层那条线上是 404；`/tuxiaoling/api/materials` 只有 POST 是 401，
   GET 是 404 —— 本地现在也把这两个命名空间分开处理；
 - `GET /api/premium/access` 线上回 `{"error":"login_required"}`，
   本地原来写的是"请先登录"，现在改成和线上一样的字面量；
-- 小白教育的未知路径线上是 **404 {"error":"未找到"}**（不是 SPA 兜底），
+- 站 1 的未知路径线上是 **404 {"error":"未找到"}**（不是 SPA 兜底），
   静态文件用 POST 请求线上是 **405 {"error":"不支持此操作"}**；
 - `/course-compat/long-march-save-policy.json` 是运行时才会去取的配置，
   之前漏了，本地现在也镜像了一份（线上 1062 字节）。
@@ -1898,8 +2007,8 @@ node tools\compare-response-bodies.mjs
 | `/api/downloads/prepare`（POST） | 401 | 交出本地镜像的那份课件 | 本地没有"下载"这个动作，文件本来就在机器上 |
 | `/courseware/{id}.html` | 403 请从课件页面重新进入课堂 | 直接给文件 | 线上要课堂票据，本地没有票据系统 |
 | `/api/programs` | 商品有价格 | 价格记为 0 | 商业化关掉，但不谎报可用性 |
-| `/api/catalog`（小白教育） | 付费课要买 | 全部按"免费"渲染 | 同上 |
-| `/api/auth/phone/status`（小白教育） | 开启手机号登录 | `enabled:false` | 本地不登录，也不该弹手机号验证码 |
+| `/api/catalog`（站 1） | 付费课要买 | 全部按"免费"渲染 | 同上 |
+| `/api/auth/phone/status`（站 1） | 开启手机号登录 | `enabled:false` | 本地不登录，也不该弹手机号验证码 |
 | `/api/captcha-token` | 每次一个随机 token | 每次一个随机 token | 两边都是 16 位十六进制，只有值不同 |
 
 状态码在这些地方仍然一致，差别只在响应体。
@@ -1930,13 +2039,13 @@ node tools\compare-response-bodies.mjs
 
 | 站点 | 运行时脚本 | 静态模块 | digest 命中 | 镜像与响应体不一致 |
 | --- | --- | --- | --- | --- |
-| 小白教育 | 62 | 30 | **30 / 30** | **0** |
-| 图灵智赋 | 21 | 21 | **21 / 21** | **0** |
+| 站 1 | 62 | 30 | **30 / 30** | **0** |
+| 站 2 | 21 | 21 | **21 / 21** | **0** |
 
 也就是说：**浏览器拿到的每一个字节，都和镜像目录里的文件一模一样**，
 而静态分析读到的每一个模块，也都在运行时被原样加载过。
 
-图灵智赋还有 4 个模块（`admin-large/runtime/public-lease.mjs`、
+站 2 还有 4 个模块（`admin-large/runtime/public-lease.mjs`、
 两个长征播放宿主、`vendor/html2canvas.min.js`）在浏览页没被加载 —— 这
 是正常的，html2canvas 是导出图片时才按需加载的，另外三个属于管理端和
 播放页，游客页面不会打开。
@@ -1969,7 +2078,7 @@ craft-anything 的调查报告在 `recon\craft-report.md`，brief、四条结论
 | 原来指向 | 现在 | 为什么 |
 | --- | --- | --- |
 | `fonts.googleapis.com` | `/fonts/noto-serif-sc.css` + 101 个 woff2 分片 | 标题用的思源宋体，断网就掉回系统字体 |
-| `tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com` | `/tuxiaoling/models/*.glb` | 图小灵场景栏里的 3D 模型（大众 ID Buzz、苯分子、细胞、地球） |
+| `tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com` | `/tuxiaoling/models/*.glb` | 助手页场景栏里的 3D 模型（大众 ID Buzz、苯分子、细胞、地球） |
 | `cdn.jsdelivr.net`（html2canvas） | `/assets/vendor/html2canvas.min.js` | 从 HTML 生成封面图时用的截图库 |
 
 Cloudflare 的统计脚本（`static.cloudflareinsights.com`）本地没有对应物，
@@ -2007,12 +2116,12 @@ REA 负责"看清楚原站在干什么"这一段。它以 launch 模式拉起真
 
 | 场景 | 用途 |
 | --- | --- |
-| `scenario-xb-catalog-local.json` | 小白教育目录页的真实 DOM 与筛选行为 |
+| `scenario-xb-catalog-local.json` | 上游站点一目录页的真实 DOM 与筛选行为 |
 | `scenario-play-<id>.json` | 每份课件的课堂握手与 3D 场景渲染 |
-| `scenario-afe-browse.json` | 图灵智赋探索页的 12 个作品卡片 |
+| `scenario-afe-browse.json` | 上游站点二探索页的 12 个作品卡片 |
 | `scenario-afe-detail.json` | 作品详情弹窗（封面 / 演示视频 / 图集） |
 | `scenario-afe-launch.json` | "立即使用"点击后的请求序列 |
-| `scenario-afe-tuxiaoling.json` | 图小灵助手面板的完整界面 |
+| `scenario-afe-tuxiaoling.json` | 助手面板的完整界面 |
 | `scenario-afe-viewer-13.json` / `-469.json` | 摄像头类与常规类课件的播放器握手 |
 
 ### craft-anything —— 静态分析与报告
@@ -2114,36 +2223,36 @@ node tools\craft-runtime-match.mjs
 - 精品课的 480 门课在本地全是**目录级**复刻（标题、分类、封面、套餐都
   在）；其中 33 门有正文、其余 447 门要 VIP，买了会员之后用
   `tools\pull-afe-premium.mjs --all` 就能补齐。
-- 图灵智赋的云端 AI 生成、支付、提现等商业能力没有本地实现，因为它们
+- 上游的云端 AI 生成、支付、提现等商业能力没有本地实现，因为它们
   依赖服务端的真实账户体系 —— 这部分按"多余的机制不需要"处理。
 
 ### 每一类内容到底能拿到多少 —— 逐条核实过的结论
 
 | 内容 | 线上真实状态 | 本地现在有什么 |
 | --- | --- | --- |
-| 小白教育 · 550 份课件目录 | 公开 | **全部 550 份**（含 497 份付费目录） |
-| 小白教育 · 53 份免费课件正文 | 匿名可玩（走课堂握手） | **53 份全部可玩**，逐个开过、截过图 |
-| 小白教育 · 497 份付费正文 | `410 此课件请下载后使用` —— 线上**从不在线提供** | 目录里不显示（页面上只留打得开的）；用你的下载卡账号拉下来即可用 |
-| 图灵智赋 · 443 个作品目录 | 公开 | **全部 443 个**，含真实价格与使用量 |
-| 图灵智赋 · 443 个作品正文 | 登录后可试看，多数作品可取 | **443 个全部已镜像**并可玩（含 4 门章节课、1 门 AR 课） |
-| 图灵智赋 · 480 门精品课目录 | 公开 | **全部 480 门**（10 套餐 / 224 分类 / 479 封面） |
-| 图灵智赋 · 480 门精品课正文 | 33 门标了 `freeSample`，走官方试看通道；其余 447 门回 `403 premium_required` | **33 门完整落盘**，447 门要 VIP |
+| 站 1 · 550 份课件目录 | 公开 | **全部 550 份**（含 497 份付费目录） |
+| 站 1 · 53 份免费课件正文 | 匿名可玩（走课堂握手） | **53 份全部可玩**，逐个开过、截过图 |
+| 站 1 · 497 份付费正文 | `410 此课件请下载后使用` —— 线上**从不在线提供** | 目录里不显示（页面上只留打得开的）；用你的下载卡账号拉下来即可用 |
+| 站 2 · 443 个作品目录 | 公开 | **全部 443 个**，含真实价格与使用量 |
+| 站 2 · 443 个作品正文 | 登录后可试看，多数作品可取 | **443 个全部已镜像**并可玩（含 4 门章节课、1 门 AR 课） |
+| 站 2 · 480 门精品课目录 | 公开 | **全部 480 门**（10 套餐 / 224 分类 / 479 封面） |
+| 站 2 · 480 门精品课正文 | 33 门标了 `freeSample`，走官方试看通道；其余 447 门回 `403 premium_required` | **33 门完整落盘**，447 门要会员权益 |
 | MIT 开源物理课 | 公开（GitHub，MIT） | **22 门全部可玩**，逐门开过 |
 | PhET 交互模拟（官方中文版为主） | 公开（CC BY-NC 4.0） | **127 门全部可玩**，逐门开过、零外部请求 |
 | 铜匠实验室 3D 中文课 | 公开（GitHub，CC BY-NC 4.0） | **54 门全部可玩**，逐门开过、零外部请求 |
 | MIT 开源科学仿真 | 公开（GitHub，MIT） | **66 门全部可玩**，含 31 门 3D |
 | The Physics Aviary 物理实验室 | 公开（作者声明供教学免费使用） | **267 门全部可玩**（351 门练习卷已剔除），脚本 / 样式 / 图片全部内嵌，逐门开过、零外部请求 |
 | Blockly Games 积木编程课 | 公开（Google，Apache 2.0） | **8 门全部可玩**，官方简体中文语言包，逐门开过、零外部请求 |
-| 两站全部前端资源 | 公开 | **一个不差**（穷举爬取验证：图灵智赋 724 个 URL、小白教育 646 个 URL，缺口归零） |
+| 两站全部前端资源 | 公开 | **一个不差**（穷举爬取验证：站 2 共 724 个 URL、站 1 共 646 个 URL，缺口归零） |
 
 两点需要说清楚：
 
-1. **图灵智赋那 480 门精品课，线上只有 33 门是开着的。** 这 33 门在
+1. **站 2 那 480 门精品课，线上只有 33 门是开着的。** 这 33 门在
    `/api/premium/catalogue` 里标着 `freeSample`，每门给 10 次试看额度，
    走 `POST /api/premium/playback/launch` → `GET /api/program-file/<id>/body`
    就能拿到正文，已经全部落盘。另外 447 门试了同样的接口，线上一律回
    `403 premium_required`，要会员才有。
-2. **小白教育那 497 份付费正文线上也不在线提供**，只在你买的下载卡
+2. **站 1 那 497 份付费正文线上也不在线提供**，只在你买的下载卡
    名下通过 `POST /api/downloads/prepare` 发文件，而且文件里带账号指纹
    （站点原话："此资源含有与下载账号关联的专属授权指纹，仅限您本人
    教学使用，禁止转发、共享或二次售卖"）。用**你自己的**下载卡账号
@@ -2152,12 +2261,12 @@ node tools\craft-runtime-match.mjs
 所以能补齐的最后一公里，只差你的两个登录态：
 
 ```powershell
-# 图灵智赋：微信扫一下码（工具每分钟自动刷新二维码）
+# 站 2：微信扫一下码（工具每分钟自动刷新二维码）
 node tools/afe-login-api.mjs
 # 扫完就会写出 recon\scratch\afe-token.txt，然后：
 node tools/pull-afe-courseware.mjs --token (Get-Content recon\scratch\afe-token.txt)
 
-# 小白教育：线上只收手机号+短信验证码（账号密码登录已被关掉，
+# 站 1：线上只收手机号+短信验证码（账号密码登录已被关掉，
 # 返回 403「请使用手机号验证码登录」），拖动验证码不好自动过，
 # 所以在浏览器里手动登一次，再把会话拿走：
 node tools/xb-login-cookie.mjs

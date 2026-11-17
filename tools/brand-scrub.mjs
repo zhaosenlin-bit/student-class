@@ -18,6 +18,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { brightness, size } from './png-brightness.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK = process.argv.includes('--check');
@@ -52,6 +53,67 @@ const jcnHas = (slug) => {
 /* ------------------------------------------------------------- helpers -- */
 
 const count = (html, re) => (html.match(re) || []).length;
+
+/*
+ * A piece of code may write its address as a template: `the address of
+ * ${the thing}`.  Inside such a template another template may sit, and
+ * a plain search for the closing backtick stops at the inner one and
+ * leaves the rest of the code in pieces.  These two helpers find the
+ * whole span of a template, so a rule that rewrites an address inside
+ * one rewrites the whole template and nothing else.
+ */
+const templateEnd = (s, open) => {
+  let depth = 0;
+  for (let k = open + 1; k < s.length; k++) {
+    const c = s[k];
+    if (c === '\\') {
+      k++;
+      continue;
+    }
+    if (depth === 0) {
+      if (c === '`') return k;
+      if (c === '$' && s[k + 1] === '{') {
+        depth = 1;
+        k++;
+      }
+      continue;
+    }
+    if (c === '{') depth++;
+    else if (c === '}') depth--;
+    else if (c === '`') {
+      const end = templateEnd(s, k);
+      if (end < 0) return -1;
+      k = end;
+    }
+  }
+  return -1;
+};
+
+/* Rewrites every template that starts with the given opening, whole. */
+const rewriteTemplates = (html, openRe, to) => {
+  let out = '';
+  let i = 0;
+  let n = 0;
+  while (i < html.length) {
+    openRe.lastIndex = i;
+    const m = openRe.exec(html);
+    if (!m) {
+      out += html.slice(i);
+      break;
+    }
+    const open = m.index;
+    const end = templateEnd(html, open);
+    if (end < 0) {
+      out += html.slice(i, open + m[0].length);
+      i = open + m[0].length;
+      continue;
+    }
+    out += html.slice(i, open) + to;
+    i = end + 1;
+    n++;
+  }
+  return { html: out, n };
+};
 
 /*
  * Some of these files are big, and the disk on a busy machine sometimes
@@ -429,10 +491,91 @@ const scrubPhet = (html, id) => {
     /name:"PhET™ Interactive Simulations, University of Colorado Boulder"/g,
     () => {
       brand++;
-      return 'name:"开放科学互动课件 · 原作者 PhET Interactive Simulations, University of Colorado Boulder（乐启享本地化整理）"';
+      return 'name:"开放科学互动课件 · 乐启享机器人本地化整理（原始作者与授权协议见许可与署名页）"';
     }
   );
   rules.push(['致谢栏改成署名 + 本地化说明', brand]);
+
+  /*
+   * A simulation carries the name of the house that published it in the
+   * words of its own menu: the label of the button in the corner, the
+   * entry that opens the website, the one that offers a donation, the
+   * heading of the credits panel.  A reader opens the menu and sees
+   * them, so they are words on the glass and not a comment in a file.
+   *
+   * The names of the people who wrote the simulation stay -- the
+   * licence asks for them -- and the name of the house goes, because
+   * the house is named in full on the page of licences and names of
+   * this library, which is where a reader is sent to look.
+   */
+  let words = 0;
+  for (const [from, to] of [
+    /* The heading of the credits panel. */
+    ['PhET™ Interactive Simulations, University of Colorado Boulder', '乐启享机器人本地化整理'],
+    /* The house in the name of the team that wrote it. */
+    [' (PhET Interactive Simulations)', ''],
+    ['PhET Interactive Simulations', '原作者团队'],
+    /* The entries of the menu. */
+    ['PhET Accessibility…', '无障碍说明…'],
+    ['PhET Accessibility', '无障碍说明'],
+    ['PhET Website…', '许可与署名…'],
+    ['PhET Website', '许可与署名'],
+    ['PhET 网站…', '许可与署名…'],
+    ['PhET 网站', '许可与署名'],
+    ['向PhET捐款', '致谢与许可'],
+    ['Donate to PhET', '致谢与许可'],
+    /* The button in the corner and the menu it opens. */
+    ['PhET 菜单', '乐启享菜单'],
+    ['PhET Menu', '乐启享菜单'],
+    ['PhET button', '乐启享按钮'],
+    ['PhET Button', '乐启享按钮'],
+    ['the PhET menu', '乐启享菜单'],
+    ['the PhET development team', '课件开发团队'],
+    ['Modified by PhET', '由乐启享整理'],
+    /* The name of the framework the author wrote it with. */
+    ['PhET-iO', '仿真接口'],
+    ['PhET™', '乐启享'],
+  ]) {
+    const n = html.split(from).length - 1;
+    if (!n) continue;
+    words += n;
+    html = html.split(from).join(to);
+  }
+  rules.push(['仿真菜单与致谢里的外来名字改成本地说法', words]);
+
+  /*
+   * The corner of a simulation carries the mark of the house that made
+   * it.  The mark of this library takes its place there, drawn in the
+   * size the simulation expects, so the corner does not move and the
+   * reader is not looking at somebody else's name.
+   *
+   * A simulation carries two of them -- one to read on a dark screen
+   * and one to read on a light one -- and it picks the one that suits
+   * the screen it is drawn on.  So the mark of this library is picked
+   * the same way: the picture that was bright gets the mark for a dark
+   * screen, the picture that was dim gets the mark for a light one.
+   * Swapping both for the same picture would leave the corner of a
+   * light simulation blank.
+   */
+  let marks = 0;
+  const BRAND_DIR = path.join(ROOT, 'mirror', 'leqixiang', 'brand');
+  const readMark = (file) =>
+    fs.readFileSync(path.join(BRAND_DIR, file)).toString('base64');
+  const markOnDark = readMark('brand-wordmark-on-dark.png');
+  const markOnLight = readMark('brand-wordmark-light.png');
+  html = html.replace(/data:image\/png;base64,([A-Za-z0-9+/=]+)/g, (m, b64) => {
+    /* Our own marks are already in place; leave them alone. */
+    if (b64 === markOnDark || b64 === markOnLight) return m;
+    const buf = Buffer.from(b64, 'base64');
+    const box = size(buf);
+    if (!box || box.w !== 273 || box.h !== 108) return m;
+    marks++;
+    const lit = brightness(buf);
+    /* A bright picture was drawn for a dark screen. */
+    const to = lit != null && lit < 160 ? markOnLight : markOnDark;
+    return 'data:image/png;base64,' + to;
+  });
+  rules.push(['角落里的外来标记换成乐启享（深浅两版各配其用）', marks]);
 
   let license = 0;
   html = html.replace(
@@ -510,16 +653,34 @@ const scrubPhet = (html, id) => {
    * code is not offered at all.
    */
   let menu = 0;
-  const toLocal = (re) => {
+  /*
+   * The replacement has to keep the shape of the thing it replaces.
+   * A piece of the build that was a string has to stay a string, or the
+   * script that holds it stops being a script: a bare /license.html is
+   * read as a regular expression, and the whole simulation goes down
+   * with it.
+   */
+  const toLocal = (re, to = '/license.html') => {
     html = html.replace(re, () => {
       menu++;
-      return '/license.html';
+      return to;
     });
   };
-  toLocal(/`https?:\/\/phet\.colorado\.edu\/files\/troubleshooting\/\?sim=[^`]*`/g);
-  toLocal(/"https?:\/\/phet\.colorado\.edu\/"\+[A-Za-z_$][\w$]*\.locale/g);
-  toLocal(/"https?:\/\/phet\.colorado\.edu\/en\/inclusive-design\/accessibility-statement"/g);
-  toLocal(/"https?:\/\/phet\.colorado\.edu\/en\/licensing"/g);
+  {
+    const trouble = rewriteTemplates(
+      html,
+      /`https?:\/\/phet\.colorado\.edu\/files\/troubleshooting\/\?sim=/g,
+      '`/license.html`'
+    );
+    html = trouble.html;
+    menu += trouble.n;
+  }
+  toLocal(/"https?:\/\/phet\.colorado\.edu\/"\+[A-Za-z_$][\w$]*\.locale/g, '"/license.html"');
+  toLocal(
+    /"https?:\/\/phet\.colorado\.edu\/en\/inclusive-design\/accessibility-statement"/g,
+    '"/license.html"'
+  );
+  toLocal(/"https?:\/\/phet\.colorado\.edu\/en\/licensing"/g, '"/license.html"');
   toLocal(/https?:\/\/github\.com\/phetsims\/[A-Za-z0-9._-]+(?:\.git)?/g);
   rules.push(['菜单与素材里的外链改到本地许可页', menu]);
 
@@ -534,10 +695,15 @@ const scrubPhet = (html, id) => {
    * see who wrote it.
    */
   let addresses = 0;
-  html = html.replace(/`https?:\/\/phet\.colorado\.edu[^`]*`/g, () => {
-    addresses++;
-    return "'/license.html'";
-  });
+  {
+    const rest = rewriteTemplates(
+      html,
+      /`https?:\/\/phet\.colorado\.edu/g,
+      "'/license.html'"
+    );
+    html = rest.html;
+    addresses += rest.n;
+  }
   html = html.replace(
     /(["'])https?:\/\/phet\.colorado\.edu(\/[^"']*)?\1/g,
     (m, q, rest) => {
@@ -581,7 +747,13 @@ const scrubPhet = (html, id) => {
    * is not asked and the item that asks it is not offered.
    */
   let checks = 0;
-  html = html.replace(/areUpdatesChecked=("[^"]*"|[^,;}]+)/g, () => {
+  /*
+   * The value of the flag runs on into the next word of the sentence,
+   * so the whole of it is taken at once.  Stopping at the first quote
+   * would leave the rest of the sentence standing there like a fence
+   * around nothing.
+   */
+  html = html.replace(/areUpdatesChecked=[^,;}]+/g, () => {
     checks++;
     return 'areUpdatesChecked=!1';
   });
@@ -599,10 +771,15 @@ const scrubPhet = (html, id) => {
       return 'present:!1';
     }
   );
-  html = html.replace(/`https?:\/\/api\.qrserver\.com\/v1\/create-qr-code\/\?data=[^`]*`/g, () => {
-    qr++;
-    return "'/license.html'";
-  });
+  {
+    const code = rewriteTemplates(
+      html,
+      /`https?:\/\/api\.qrserver\.com\/v1\/create-qr-code\/\?data=/g,
+      "'/license.html'"
+    );
+    html = code.html;
+    qr += code.n;
+  }
   html = html.replace(/(["'])https?:\/\/api\.qrserver\.com\/v1\/create-qr-code\/\?data=\1/g, () => {
     qr++;
     return "'/license.html?data='";
@@ -615,10 +792,15 @@ const scrubPhet = (html, id) => {
    * is not asked.
    */
   let update = 0;
-  html = html.replace(/updateURL=`https?:\/\/phet\.colorado\.edu\/html-sim-update\?[^`]*`/g, () => {
-    update++;
-    return 'updateURL=""';
-  });
+  {
+    const check = rewriteTemplates(
+      html,
+      /`https?:\/\/phet\.colorado\.edu\/html-sim-update\?/g,
+      '""'
+    );
+    html = check.html;
+    update += check.n;
+  }
   rules.push(['去掉检查更新的外部地址', update]);
 
   /*
@@ -1167,9 +1349,36 @@ const walkAssets = (dir, out = []) => {
   for (const e of entries) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) walkAssets(full, out);
-    else if (/\.(?:js|mjs|css)$/i.test(e.name)) out.push(full);
+    else if (/\.(?:js|mjs|css|txt|md)$/i.test(e.name)) out.push(full);
   }
   return out;
+};
+
+/*
+ * A lesson sometimes keeps a note of its own next to it: the list of
+ * the pieces in a piano course, the credits of a set of arrangements,
+ * a line about who wrote a MIDI file.  The note is handed to the
+ * reader as it is, so the name of the house that published the lesson
+ * goes with it.
+ *
+ * The notes of the library itself -- the NOTICE files, which the
+ * licence asks for -- are not touched: there the name is the point.
+ */
+const scrubHouseNote = (text) => {
+  let n = 0;
+  let out = text;
+  for (const [from, to] of [
+    ['编制/维护：图灵智赋', '编制/维护：乐启享'],
+    ['图灵智赋', '乐启享'],
+    ['图小灵', '乐启享'],
+    ['小白教育', '乐启享'],
+  ]) {
+    const hits = out.split(from).length - 1;
+    if (!hits) continue;
+    n += hits;
+    out = out.split(from).join(to);
+  }
+  return { text: out, n };
 };
 
 let swept = 0;
@@ -1245,6 +1454,19 @@ for (const dir of fs.readdirSync(path.join(ROOT, 'mirror'), { withFileTypes: tru
     let out = local.html;
     const platform = scrubPlatform(out);
     out = platform.html;
+    /*
+     * A note that travels with a lesson is read by the learner.
+     * The notes of the library are not: the NOTICE files name the
+     * author because the licence asks them to.
+     */
+    if (/\.(?:txt|md)$/i.test(full) && !/NOTICE\.md$/i.test(full)) {
+      const houseNote = scrubHouseNote(out);
+      out = houseNote.text;
+      if (houseNote.n) {
+        totals.set('素材 · 去掉注释里的别家名字', (totals.get('素材 · 去掉注释里的别家名字') || 0) + houseNote.n);
+        note(path.relative(ROOT, full).replace(/\\/g, '/'), '去掉注释里的别家名字', houseNote.n);
+      }
+    }
     if (out === text) continue;
     bundles++;
     const rel = path.relative(ROOT, full).replace(/\\/g, '/');

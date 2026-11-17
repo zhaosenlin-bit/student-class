@@ -2,8 +2,8 @@
 /*
  * Build the 乐启享 courseware library: one site, both courseware sources.
  *
- *   mirror/leqixiang/site/        the 小白教育 shell, rebranded
- *   mirror/leqixiang/courseware/  every playable body (小白教育 + 图灵智赋)
+ *   mirror/leqixiang/site/        the shell of the upstream site, rebranded
+ *   mirror/leqixiang/courseware/  every playable body (both sources)
  *   mirror/leqixiang/catalog.json the merged catalogue
  *   mirror/leqixiang/brand/       the logo and favicon taken from codebn.cn
  *
@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { spawnSync } from 'node:child_process';
+import { translate3jcnTitle } from './3jcn-titles.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const XB = path.join(ROOT, 'mirror', 'xbjiaoyu');
@@ -2261,7 +2262,7 @@ for (const lesson of aviaryCatalog) {
     stages,
     stage: stages[0],
     stageSubjects,
-    tagline: lesson.titleEn,
+    tagline: lesson.titleEn || lesson.title,
     description: lesson.description,
     features,
     kind: lesson.kind || '课件',
@@ -2311,13 +2312,19 @@ for (const lesson of jcnCatalog) {
   const features = [lesson.subject, stages.join(' · '), '3D 交互仿真', '可离线运行'];
   products.push({
     id,
-    title: lesson.title,
+    /*
+     * The name on the original site is written in English.  The
+     * library is read in Chinese, so the name is carried over from
+     * the hand-made table; the English one stays in the catalogue
+     * beside it, so nothing is ever lost.
+     */
+    title: translate3jcnTitle(lesson.title),
     subject: lesson.subject,
     subjectKey: lesson.subject,
     stages,
     stage: stages[0],
     stageSubjects,
-    tagline: lesson.titleEn,
+    tagline: lesson.titleEn || lesson.title,
     description: lesson.description,
     features,
     kind: lesson.kind || '课件',
@@ -2547,6 +2554,134 @@ write(path.join(LQ, 'catalog.json'), JSON.stringify(merged));
   }
   if (bad.length) {
     throw new Error('外壳里留着敏感信息，先清掉再构建：' + bad.join('；'));
+  }
+}
+
+/*
+ * The lessons are read by a learner, so the same rule applies to
+ * them: the name of another house may not stand on the screen, and
+ * the address of another site may not be written in a file the lesson
+ * hands over.
+ *
+ * The names of the open collections -- PhET, the physics aviary, the
+ * 3D laboratories -- are not in this list.  Their licence asks for
+ * the credit, and the credit is written into the lesson.
+ */
+{
+  const courseware = path.join(LQ, 'courseware');
+  const houses = [
+    ['图灵', /图灵/g],
+    ['图小灵', /图小灵/g],
+    ['小白教育', /小白教育/g],
+    ['学乐', /学乐(?!园)/g],
+    ['学科网', /学科网/g],
+    ['课本网', /课本网/g],
+    ['学科晓', /学科晓/g],
+    ['3j.cn', /3j\.cn/gi],
+    ['new3jcn', /new3jcn/gi],
+    ['thephysicsaviary', /thephysicsaviary/gi],
+    ['phet.colorado.edu', /phet\.colorado\.edu/gi],
+    ['aifunengjiaoyu', /aifunengjiaoyu/gi],
+    ['xbjiaoyu', /xbjiaoyu/gi],
+  ];
+  const visibleOf = (raw, isHtml) =>
+    isHtml
+      ? raw
+          .replace(/<!--[\s\S]*?-->/g, ' ')
+          .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+          .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<[^>]+>/g, ' ')
+      : raw;
+  const bad = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(?:html?|js|mjs|txt|md)$/i.test(entry.name)) continue;
+      const raw = fs.readFileSync(full, 'utf8');
+      const text = visibleOf(raw, /\.html?$/i.test(entry.name));
+      for (const [name, re] of houses) {
+        re.lastIndex = 0;
+        const hits = text.match(re);
+        if (hits?.length) {
+          bad.push(
+            path.relative(ROOT, full).replace(/\\/g, '/') +
+              ' · ' +
+              name +
+              ' ×' +
+              hits.length
+          );
+        }
+      }
+    }
+  };
+  if (fs.existsSync(courseware)) walk(courseware);
+  /* The shell of the library is read the same way. */
+  for (const name of fs.readdirSync(SITE)) {
+    if (!/\.(html?|js|mjs|css|txt|md)$/i.test(name)) continue;
+    const full = path.join(SITE, name);
+    const raw = fs.readFileSync(full, 'utf8');
+    const text = visibleOf(raw, /\.html?$/i.test(name));
+    for (const [house, re] of houses) {
+      re.lastIndex = 0;
+      const hits = text.match(re);
+      if (hits?.length) {
+        bad.push(path.relative(ROOT, full).replace(/\\/g, '/') + ' · ' + house + ' ×' + hits.length);
+      }
+    }
+  }
+  /*
+   * The catalogue is the directory a learner reads.  Its ids, its
+   * paths and its attribution columns keep the inner names of the
+   * works; the words on the card may not.
+   */
+  {
+    const file = path.join(LQ, 'catalog.json');
+    const data = JSON.parse(read(file));
+    const words = [];
+    for (const p of data.products || []) {
+      for (const value of [
+        p.title,
+        p.tagline,
+        p.description,
+        p.subject,
+        p.kind,
+        p.format,
+        p.device,
+        p.creatorName,
+      ]) {
+        if (typeof value === 'string' && value.trim()) words.push(value);
+      }
+      for (const s of p.stages || []) words.push(s);
+      for (const f of p.features || []) words.push(f);
+      for (const m of p.modules || []) {
+        if (m.title) words.push(m.title);
+        if (m.description) words.push(m.description);
+      }
+      for (const t of p.taxonomy || []) {
+        if (t.domain) words.push(t.domain);
+        if (t.chapter) words.push(t.chapter);
+        for (const topic of t.topics || []) words.push(topic);
+      }
+    }
+    for (const [house, re] of houses) {
+      re.lastIndex = 0;
+      const hits = words.filter((w) => {
+        re.lastIndex = 0;
+        return re.test(w);
+      });
+      if (hits.length) {
+        bad.push('mirror/leqixiang/catalog.json · ' + house + ' ×' + hits.length);
+      }
+    }
+  }
+  if (bad.length) {
+    throw new Error(
+      '课件里留着别家的名字，先洗掉再构建：' + bad.slice(0, 8).join('；')
+    );
   }
 }
 

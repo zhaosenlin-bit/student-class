@@ -25,16 +25,18 @@ export async function connect(port = 9222) {
   const raw = (method, params = {}, sessionId) =>
     new Promise((resolve, reject) => {
       const id = ++seq;
-      pending.set(id, { resolve, reject });
       const msg = { id, method, params };
       if (sessionId) msg.sessionId = sessionId;
       ws.send(JSON.stringify(msg));
-      setTimeout(() => {
+      /* The timer is cleared when the answer comes; a timer that keeps
+         running after the walk is over holds the process open. */
+      const timer = setTimeout(() => {
         if (pending.has(id)) {
           pending.delete(id);
           reject(new Error('timeout ' + method));
         }
       }, 60000);
+      pending.set(id, { resolve, reject, timer });
     });
 
   ws.addEventListener('message', (e) => {
@@ -42,6 +44,7 @@ export async function connect(port = 9222) {
     if (m.id && pending.has(m.id)) {
       const p = pending.get(m.id);
       pending.delete(m.id);
+      clearTimeout(p.timer);
       m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result);
       return;
     }
@@ -52,14 +55,16 @@ export async function connect(port = 9222) {
       sessions.set(sessionId, { targetInfo, parent: m.sessionId });
       /* The frame is paused until these domains are on, so nothing is lost.
          A frame target has no Page domain, so each step has to stand on its
-         own — and the frame must be released either way. */
+         own — and the frame must be released either way.
+         The release comes first: asking a paused frame to turn on a domain
+         can wait for the very renderer that is waiting to be released. */
       (async () => {
-        await raw('Runtime.enable', {}, sessionId).catch(() => {});
-        await raw('Page.enable', {}, sessionId).catch(() => {});
-        await raw('Network.enable', {}, sessionId).catch(() => {});
         await raw('Runtime.runIfWaitingForDebugger', {}, sessionId).catch((e) => {
           if (process.env.CDP_DEBUG) console.log('resume failed', sessionId, e.message);
         });
+        await raw('Runtime.enable', {}, sessionId).catch(() => {});
+        await raw('Page.enable', {}, sessionId).catch(() => {});
+        await raw('Network.enable', {}, sessionId).catch(() => {});
       })();
     }
     if (m.method === 'Runtime.executionContextCreated') {
@@ -128,7 +133,16 @@ export async function connect(port = 9222) {
   };
 
   const goto = async (url) => {
-    await raw('Page.navigate', { url }, pageSession);
+    /*
+     * A page that is busy with somebody else's course can keep the
+     * renderer from answering the first request.  The walk still wants
+     * to read the page, so the failure is remembered, not thrown.
+     */
+    try {
+      await raw('Page.navigate', { url }, pageSession);
+    } catch {
+      /* Tried; the checks below will say whether the page is there. */
+    }
     await new Promise((r) => setTimeout(r, 1200));
     const want = url.split('#')[0];
     for (let i = 0; i < 4; i++) {
@@ -152,8 +166,18 @@ export async function connect(port = 9222) {
   };
 
   const close = async () => {
+    /*
+     * A course that keeps its own frames alive can hold the renderer, and
+     * then the browser never answers the request to close the tab.  The
+     * walk has already read what it came for, so give the tab a moment
+     * and then let go of the socket instead of waiting on a page that is
+     * busy being a course.
+     */
     try {
-      await raw('Target.closeTarget', { targetId: created.targetId });
+      await Promise.race([
+        raw('Target.closeTarget', { targetId: created.targetId }),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
     } catch {}
     try {
       ws.close();

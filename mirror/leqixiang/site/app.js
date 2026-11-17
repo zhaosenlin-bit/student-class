@@ -1,5 +1,5 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611171825';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611171825';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611172043';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611172043';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
 const classroomReply=async()=>{};const isClassroomRequest=()=>false;

@@ -2,11 +2,12 @@
 import { connect, sleep } from './cdp2.mjs';
 
 const PORT = Number(process.env.LQ_PORT || 4173);
+const CDP = Number(process.env.CDP_PORT || 9222);
 const id = process.argv[2];
 const wait = Number(process.argv[3] || 9000);
 const tag = process.argv[4] || 'course';
 
-const browser = await connect(9222);
+const browser = await connect(CDP);
 await browser.goto(`http://localhost:${PORT}/#course/${id}`);
 await sleep(1500);
 const clicked = await browser.evaluate(`(() => {

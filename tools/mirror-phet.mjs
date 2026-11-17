@@ -73,10 +73,12 @@ const ENGLISH_NAMES = {
   'buoyancy-basics': '浮力基础',
   'calculus-grapher': '微积分绘图器',
   'center-and-variability': '中心与变异',
+  'circuit-construction-kit-ac': '电路搭建工具包 · 交流电',
   'double-wells-and-covalent-bonds': '双势阱与共价键',
   'fourier-making-waves': '傅里叶造波',
   'mean-share-and-balance': '平均数 · 占比与平衡',
   'number-pairs': '数的配对',
+  'number-compare': '数字比较',
   'particle-in-a-box': '箱中粒子',
   'projectile-data-lab': '抛射运动数据实验室',
   'projectile-sampling-distributions': '抛射运动抽样分布',
@@ -280,9 +282,15 @@ for (const project of meta.projects) {
     /* A simulation with a Chinese build keeps it; one without is mirrored
        in English and named in Chinese by the table above. */
     const lang = zh ? 'zh_CN' : 'en';
-    const title = zh
+    const raw = zh
       ? String(zh.title || '').split('_').pop().trim() || sim.name
-      : ENGLISH_NAMES[sim.name] || String(english.title || '').trim() || sim.name;
+      : String(english.title || '').trim() || sim.name;
+    /*
+     * A few of the simulations are published with an English name even
+     * in their Chinese build.  The library is Chinese, so those few are
+     * named here instead.
+     */
+    const title = /[\u4e00-\u9fff]/.test(raw) ? raw : ENGLISH_NAMES[sim.name] || raw;
     const order = ['物理', '化学', '生物', '数学', '地理', '科学'];
     const subjects = [...new Set((sim.subjects || []).map((id) => SUBJECTS[id]).filter(Boolean))].sort(
       (a, b) => order.indexOf(a) - order.indexOf(b)

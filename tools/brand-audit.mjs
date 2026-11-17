@@ -35,13 +35,41 @@ const BRANDS = [
   ['szxuexiao', /szxuexiao/gi],
   ['学乐', /学乐(?!园)/g],
   ['图灵', /图灵/g],
+  ['图小灵', /图小灵/g],
   ['Turing', /\bturing\b/gi],
   ['小白', /小白(?!教育)/g],
+  ['小白教育', /小白教育/g],
   ['Y(^|ue)xiang', /yuexiang/gi],
 ];
 
 /* Words that carry the name without meaning to. */
 const ALLOWED = [/公子小白/g, /小白在莒/g];
+
+/*
+ * A script is read by the browser and not by a reader, but a module
+ * that writes HTML strings is read by both: the string it writes ends
+ * up on the screen.  So the names that carry a house are looked for in
+ * the scripts as well.
+ *
+ * The names that also live in the address of a course -- phet-, aviary-,
+ * lab- and the rest -- are internal handles, not badges, and a script
+ * that mentions one of them says nothing to a reader.
+ */
+const BRANDS_IN_CODE = [
+  ['图灵', /图灵/g],
+  ['图小灵', /图小灵/g],
+  ['小白教育', /小白教育/g],
+  ['学乐', /学乐(?!园)/g],
+  ['学科网', /学科网/g],
+  ['课本网', /课本网/g],
+  ['学科晓', /学科晓/g],
+  ['3j.cn', /3j\.cn/gi],
+  ['new3jcn.com', /new3jcn\.com/gi],
+  ['thephysicsaviary.com', /thephysicsaviary\.com/gi],
+  ['phet.colorado.edu', /phet\.colorado\.edu/gi],
+  ['aifunengjiaoyu', /aifunengjiaoyu/gi],
+  ['xbjiaoyu', /xbjiaoyu/gi],
+];
 
 /*
  * The pages that write the names down on purpose: the page of
@@ -92,7 +120,7 @@ const walk = (dir, out = []) => {
   for (const e of entries) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) walk(full, out);
-    else if (/\.(html?|js|mjs|css|json|svg)$/i.test(e.name)) out.push(full);
+    else if (/\.(html?|js|mjs|css|json|svg|txt|md)$/i.test(e.name)) out.push(full);
   }
   return out;
 };
@@ -134,6 +162,28 @@ for (const file of targets) {
         const lines = text
           .split(/\s{2,}|\n/)
           .filter((l) => new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(l))
+          .slice(0, 4);
+        for (const l of lines) console.log(`      ${l.trim().slice(0, 160)}`);
+      }
+    }
+  }
+  /*
+   * A module that writes HTML strings is read by the reader as well as
+   * by the browser, so the names of a house are looked for in the
+   * scripts too.  The handles that name a course -- phet-, aviary-,
+   * lab- and the rest -- are internal and are not names a reader ever
+   * meets, so they are not part of this list.
+   */
+  if (/\.(?:js|mjs)$/i.test(file)) {
+    for (const [name, re] of BRANDS_IN_CODE) {
+      re.lastIndex = 0;
+      const hits = raw.match(re);
+      if (!hits?.length) continue;
+      findings.push({ rel, kind: 'code-visible', name, n: hits.length });
+      if (VERBOSE) {
+        const lines = raw
+          .split('\n')
+          .filter((l) => re.test(l))
           .slice(0, 4);
         for (const l of lines) console.log(`      ${l.trim().slice(0, 160)}`);
       }
@@ -258,6 +308,7 @@ for (const file of targets) {
 const visible = findings.filter((f) => f.kind === 'visible');
 const hosts = findings.filter((f) => f.kind === 'host');
 const code = findings.filter((f) => f.kind === 'code');
+const codeVisible = findings.filter((f) => f.kind === 'code-visible');
 const notes = findings.filter((f) => f.kind === 'note');
 
 const byName = new Map();
@@ -279,5 +330,9 @@ for (const f of hosts.slice(0, 12)) console.log(`  ${f.rel}  ${f.name} ×${f.n}`
 console.log(`只写在许可声明里的署名：${notes.length ? '有' : '没有'}（按许可要求保留）`);
 console.log(`脚本里的别家标识（不可见，仅记录）：${code.length ? '有' : '没有'}`);
 for (const f of code.slice(0, 10)) console.log(`  ${f.rel}  ${f.name} ×${f.n}`);
+console.log(
+  `脚本里会写到屏幕上的别家品牌：${codeVisible.length ? '有' : '没有'}`
+);
+for (const f of codeVisible.slice(0, 12)) console.log(`  ${f.rel}  ${f.name} ×${f.n}`);
 
-if (visible.length || hosts.length) process.exitCode = 1;
+if (visible.length || hosts.length || codeVisible.length) process.exitCode = 1;

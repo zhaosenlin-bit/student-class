@@ -134,6 +134,19 @@ client.on(async (e) => {
 
 let errors = [];
 let failed = [];
+/*
+ * A few mirrored pages carry their own console noise: PhET's bundle
+ * falls back from the webpack build to the plain one and says so, and
+ * one of its helpers is written with a regular expression the browser
+ * refuses.  Neither keeps the page from working, so they are counted
+ * apart from the errors that do.
+ */
+const HARMLESS = [
+  /Invalid regular expression flags/i,
+  /phet\.chipper\.runWebpack is not a function/i,
+  /runWebpack is not a function/i,
+];
+const isHarmless = (text) => HARMLESS.some((re) => re.test(text || ''));
 client.on((e) => {
   if (e.method === 'Runtime.exceptionThrown') {
     errors.push(
@@ -160,32 +173,42 @@ for (const id of run) {
   const res = await fetch(`http://127.0.0.1:${PORT}/api/downloads/file/${id}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const isZip = buffer.slice(0, 2).toString() === 'PK';
-  if (!isZip) {
-    results.push({ id, ok: false, why: `not a zip (${res.status})` });
-    continue;
-  }
-  const dir = path.join(OUT, id);
-  fs.mkdirSync(dir, { recursive: true });
-  const zip = path.join(OUT, `${id}.zip`);
-  fs.writeFileSync(zip, buffer);
-  /* Unpacking by hand: the archive holds few files and no folders. */
-  const { execFileSync } = await import('node:child_process');
-  try {
-    execFileSync('powershell', [
-      '-NoProfile',
-      '-Command',
-      `Expand-Archive -LiteralPath '${zip.replace(/'/g, "''")}' -DestinationPath '${dir.replace(/'/g, "''")}' -Force`,
-    ]);
-  } catch (err) {
-    results.push({ id, ok: false, why: 'unpack failed' });
-    continue;
-  }
-  const html = fs
-    .readdirSync(dir)
-    .find((f) => f.endsWith('.html'));
-  if (!html) {
-    results.push({ id, ok: false, why: 'no html inside' });
-    continue;
+  /*
+   * A work that is one document is handed over as one document, and a
+   * work that is more than one file is handed over as a zip.  Both are
+   * opened the same way here: the file is put on a small local server
+   * and read the way a teacher would read it.
+   */
+  let dir = path.join(OUT, id);
+  let html = '';
+  if (isZip) {
+    fs.mkdirSync(dir, { recursive: true });
+    const zip = path.join(OUT, `${id}.zip`);
+    fs.writeFileSync(zip, buffer);
+    /* Unpacking by hand: the archive holds few files and no folders. */
+    const { execFileSync } = await import('node:child_process');
+    try {
+      execFileSync('powershell', [
+        '-NoProfile',
+        '-Command',
+        `Expand-Archive -LiteralPath '${zip.replace(/'/g, "''")}' -DestinationPath '${dir.replace(/'/g, "''")}' -Force`,
+      ]);
+    } catch (err) {
+      results.push({ id, ok: false, why: 'unpack failed' });
+      continue;
+    }
+    html = fs
+      .readdirSync(dir)
+      .find((f) => f.endsWith('.html'));
+    if (!html) {
+      results.push({ id, ok: false, why: 'no html inside' });
+      continue;
+    }
+  } else {
+    /* One document: it is saved under the name it is opened with. */
+    fs.mkdirSync(dir, { recursive: true });
+    html = `${id}.html`;
+    fs.writeFileSync(path.join(dir, html), buffer);
   }
   errors = [];
   failed = [];
@@ -229,14 +252,17 @@ for (const id of run) {
   /*
    * A course that draws on a canvas is whole when the canvas is painted;
    * a course that works with sliders and text is whole when it says
-   * something.  What is not allowed either way is an error, or a file
-   * of the archive that could not be read.
+   * something; a course that draws with letters — the simulation
+   * laboratories do — is whole when its page carries a real tree of
+   * elements.  What is not allowed either way is an error that matters,
+   * or a file of the archive that could not be read.
    */
+  const real = errors.filter((e) => !isHarmless(e));
   const ok = !!(
     parts.length &&
-    (sized > 0 || textLen > 60) &&
+    (sized > 0 || textLen > 60 || nodes > 40) &&
     nodes > 20 &&
-    !errors.length &&
+    !real.length &&
     !failed.length
   );
   results.push({
@@ -248,6 +274,7 @@ for (const id of run) {
     textLen,
     nodes,
     errors: errors.slice(0, 3),
+    harmless: errors.length - real.length,
     failed: [...new Set(failed)].slice(0, 4),
     blocked: [...new Set(blockedUrls)].slice(0, 3),
   });
