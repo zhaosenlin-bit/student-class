@@ -91,9 +91,9 @@ await read('about', `(() => {
   const text = dialog ? dialog.innerText : '';
   return {
     open: !!dialog,
-    text: text.replace(/\s+/g, ' ').trim().slice(0, 300),
-    phones: text.match(/(?<![\w.-])1[3-9]\d{9}(?![\w.-])/g) || [],
-    emails: text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [],
+    text: text.replace(/\\s+/g, ' ').trim().slice(0, 300),
+    phones: text.match(/(?<![\\w.-])1[3-9]\\d{9}(?![\\w.-])/g) || [],
+    emails: text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g) || [],
     namesUs: /乐启享/.test(text),
     linksToSite: [...document.querySelectorAll('.dialog-content a')].map((a) => a.href),
   };

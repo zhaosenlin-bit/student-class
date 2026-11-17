@@ -15,6 +15,17 @@ try {
   process.exit(1);
 }
 console.log('status', r.status, 'bytes', body.length, 'keys', Object.keys(data));
-const list = data.sims || data.simulations || [];
+// 上游把平铺的 simulations 列表改成了 projects[].simulations[]。
+const list =
+  data.sims ||
+  data.simulations ||
+  (Array.isArray(data.projects)
+    ? data.projects.flatMap((project) =>
+        (project.simulations || []).map((sim) => ({ ...sim, project: project.name })))
+    : []);
 console.log('entries', list.length);
-console.log(JSON.stringify(list[0], null, 2).slice(0, 3000));
+console.log(JSON.stringify(list[0] || {}, null, 2).slice(0, 3000));
+
+// 中文本地化是这批课件能不能直接用的关键，单独数一遍。
+const zh = list.filter((sim) => (sim.localizedSimulations || {}).zh_CN);
+console.log('有中文本地化：', zh.length, '/', list.length);

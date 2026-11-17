@@ -304,6 +304,8 @@ node tools\check-lq-runtime.mjs       # 逐条路由在真浏览器里跑一遍�
 node tools\audit-lq-sensitive.mjs     # 敏感信息（页面 + 脚本 + 目录数据）
 node tools\brand-audit.mjs            # 别家品牌（页面 + 目录数据的可见字段）
 node tools\audit-lq-rendered.mjs      # 渲染后的可见文字 + 页面真正联系的域名
+node tools\check-lq-scripts.mjs       # 1427 门课件里的 8234 段脚本，逐段读一遍
+node tools\check-template-escapes.mjs # 模板字面量里被吃掉的反斜杠（正则会悄悄变义）
 node tools\fetch-3jcn-model-parts.mjs # 补 3D 模型缺件
 node tools\repair-assets-folders.mjs  # 归位历史上拼错名的素材目录
 node tools\drop-empty-pages.mjs       # 删掉被防火墙拦下的空页
@@ -315,6 +317,11 @@ node tools\localize-ext-pages.mjs     # 把缓存页引用的外部图片落到�
 和 console error，任何一个未捕获错误就算失败。它立刻抓到过两个真问题：
 目录页引用了已经被删掉的 `priceFilter` 变量（整页白屏），以及初始化
 那行还在调用已经拆掉的 `resumeReturnedPayment()`。
+
+`check-template-escapes.mjs` 补的是另一类盲区：模板字面量里 `\s` 这样的
+转义会被吃掉，`/\s+/g` 会变成 `/s+/g`，页面上每个字母 s 都被换成空格。
+它自己带一个词法分析器（不依赖第三方包），能报出被吃掉的位置，
+加 `--fix` 可以直接改。
 
 ### 审计的两个盲区（这一版补上）
 

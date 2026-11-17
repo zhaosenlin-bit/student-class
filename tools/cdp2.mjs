@@ -179,9 +179,28 @@ export async function connect(port = 9222) {
         new Promise((r) => setTimeout(r, 3000)),
       ]);
     } catch {}
+    /*
+     * A request the browser never answered still has a timer on it, and a
+     * timer keeps the process alive. The walk is over, so let them go.
+     */
+    for (const [, p] of pending) {
+      clearTimeout(p.timer);
+      p.reject(new Error('browser closed'));
+    }
+    pending.clear();
     try {
       ws.close();
     } catch {}
+    /*
+     * Some browsers never finish the closing handshake, and the socket then
+     * keeps the process alive for good. Every caller of close() has already
+     * read what it came for, so give the socket a moment and then let the
+     * process go. The write is flushed first so that nothing is lost.
+     */
+    const timer = setTimeout(() => {
+      process.stdout.write('', () => process.exit(0));
+    }, 500);
+    timer.unref();
   };
 
   return {
