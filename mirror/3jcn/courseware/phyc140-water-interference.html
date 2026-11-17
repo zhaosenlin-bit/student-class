@@ -1,0 +1,284 @@
+ <!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>乐启享 · 物理实验</title>
+		<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc140-water-interference.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Organization",
+		    "name": "Example Organization"
+		  }
+		}
+		</script>
+  		<link rel="icon" href="/brand/favicon.ico">
+		<link rel="stylesheet" href="/api/program-assets/3jcn-phyc140-water-interference/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<meta name="twitter:card" content="summary_large_image">
+		<meta name="twitter:title" content="Best Physics Simulations for Education">
+		<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+		<meta name="twitter:image" content="/api/program-assets/3jcn-phyc140-water-interference/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:title" content="Best Physics Simulations for Education">
+		<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+		<meta property="og:image" content="/api/program-assets/3jcn-phyc140-water-interference/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:url" content="/courseware/phyc140-water-interference">
+		<meta name="robots" content="index, follow">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<meta charset="utf-8">
+		<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc140-water-interference/_ext/vendor/css/main3.css">
+		<!--script src="../js/three.js"/script-->
+		<script src="/api/program-assets/3jcn-phyc140-water-interference/_ext/vendor/js/ParticleEngine.js"></script>
+	</head>
+	<body>
+
+		<div id="info">
+			<h1 style="color: red;">WATER WAVES & INTERFERENCE</h1>
+			<button class="btn btn-danger" id="onoff" style="background-color: green">One waterdrop Spot On/Off</button>
+			<button class="btn btn-danger" id="onoff2" style="background-color: brown">Two Spots On/Off</button><br>
+		</div>
+
+
+		<!--    Author: Thomas Nguyen https://www.new3jcn.com
+			Oct 15, 2020
+			Based on works:  /api/program-assets/3jcn-phyc140-water-interference/_ext/threejs.org/examples// 
+		-->
+		
+		<script id="heightmapFragmentShader" type="x-shader/x-fragment">
+
+			#include <common>
+
+			uniform vec2 mousePos;
+			uniform float mouseSize;
+			uniform float viscosityConstant;
+			uniform float heightCompensation;
+
+			void main()	{
+
+				vec2 cellSize = 1.0 / resolution.xy;
+
+				vec2 uv = gl_FragCoord.xy * cellSize;
+
+				// heightmapValue.x == height from previous frame
+				// heightmapValue.y == height from penultimate frame
+				// heightmapValue.z, heightmapValue.w not used
+				vec4 heightmapValue = texture2D( heightmap, uv );
+
+				// Get neighbours
+				vec4 north = texture2D( heightmap, uv + vec2( 0.0, cellSize.y ) );
+				vec4 south = texture2D( heightmap, uv + vec2( 0.0, - cellSize.y ) );
+				vec4 east = texture2D( heightmap, uv + vec2( cellSize.x, 0.0 ) );
+				vec4 west = texture2D( heightmap, uv + vec2( - cellSize.x, 0.0 ) );
+
+				// https://web.archive.org/web/20080618181901/http://freespace.virgin.net/hugo.elias/graphics/x_water.htm
+
+				float newHeight = ( ( north.x + south.x + east.x + west.x ) * 0.5 - heightmapValue.y ) * viscosityConstant;
+
+				// Mouse influence
+				float mousePhase = clamp( length( ( uv - vec2( 0.5 ) ) * BOUNDS - vec2( mousePos.x, - mousePos.y ) ) * PI / mouseSize, 0.0, PI );
+				newHeight += ( cos( mousePhase ) + 1.0 ) * 0.5;    // 0.28
+
+				heightmapValue.y = heightmapValue.x;
+				heightmapValue.x = newHeight;
+
+				gl_FragColor = heightmapValue;
+
+			}
+
+		</script>
+
+		<!-- This is just a smoothing 'compute shader' for using manually: -->
+		<script id="smoothFragmentShader" type="x-shader/x-fragment">
+
+			uniform sampler2D smoothTexture;
+
+			void main()	{
+
+				vec2 cellSize = 1.0 / resolution.xy;
+
+				vec2 uv = gl_FragCoord.xy * cellSize;
+
+				// Computes the mean of texel and 4 neighbours
+				vec4 textureValue = texture2D( smoothTexture, uv );
+				textureValue += texture2D( smoothTexture, uv + vec2( 0.0, cellSize.y ) );
+				textureValue += texture2D( smoothTexture, uv + vec2( 0.0, - cellSize.y ) );
+				textureValue += texture2D( smoothTexture, uv + vec2( cellSize.x, 0.0 ) );
+				textureValue += texture2D( smoothTexture, uv + vec2( - cellSize.x, 0.0 ) );
+
+				textureValue /= 5.0;
+
+				gl_FragColor = textureValue;
+
+			}
+
+		</script>
+
+		<!-- This is a 'compute shader' to read the current level and normal of water at a point -->
+		<!-- It is used with a variable of size 1x1 -->
+		<script id="readWaterLevelFragmentShader" type="x-shader/x-fragment">
+
+			uniform vec2 point1;
+
+			uniform sampler2D levelTexture;
+
+			// Integer to float conversion from https://stackoverflow.com/questions/17981163/webgl-read-pixels-from-floating-point-render-target
+
+			float shift_right( float v, float amt ) {
+
+				v = floor( v ) + 0.5;
+				return floor( v / exp2( amt ) );
+
+			}
+
+			float shift_left( float v, float amt ) {
+
+				return floor( v * exp2( amt ) + 0.5 );
+
+			}
+
+			float mask_last( float v, float bits ) {
+
+				return mod( v, shift_left( 1.0, bits ) );
+
+			}
+
+			float extract_bits( float num, float from, float to ) {
+
+				from = floor( from + 0.5 ); to = floor( to + 0.5 );
+				return mask_last( shift_right( num, from ), to - from );
+
+			}
+
+			vec4 encode_float( float val ) {
+				if ( val == 0.0 ) return vec4( 0, 0, 0, 0 );
+				float sign = val > 0.0 ? 0.0 : 1.0;
+				val = abs( val );
+				float exponent = floor( log2( val ) );
+				float biased_exponent = exponent + 127.0;
+				float fraction = ( ( val / exp2( exponent ) ) - 1.0 ) * 8388608.0;
+				float t = biased_exponent / 2.0;
+				float last_bit_of_biased_exponent = fract( t ) * 2.0;
+				float remaining_bits_of_biased_exponent = floor( t );
+				float byte4 = extract_bits( fraction, 0.0, 8.0 ) / 255.0;
+				float byte3 = extract_bits( fraction, 8.0, 16.0 ) / 255.0;
+				float byte2 = ( last_bit_of_biased_exponent * 128.0 + extract_bits( fraction, 16.0, 23.0 ) ) / 255.0;
+				float byte1 = ( sign * 128.0 + remaining_bits_of_biased_exponent ) / 255.0;
+				return vec4( byte4, byte3, byte2, byte1 );
+			}
+
+			void main()	{
+
+				vec2 cellSize = 1.0 / resolution.xy;
+
+				float waterLevel = texture2D( levelTexture, point1 ).x;
+
+				vec2 normal = vec2(
+					( texture2D( levelTexture, point1 + vec2( - cellSize.x, 0 ) ).x - texture2D( levelTexture, point1 + vec2( cellSize.x, 0 ) ).x ) * WIDTH / BOUNDS,
+					( texture2D( levelTexture, point1 + vec2( 0, - cellSize.y ) ).x - texture2D( levelTexture, point1 + vec2( 0, cellSize.y ) ).x ) * WIDTH / BOUNDS );
+
+				if ( gl_FragCoord.x < 1.5 ) {
+
+					gl_FragColor = encode_float( waterLevel );
+
+				} else if ( gl_FragCoord.x < 2.5 ) {
+
+					gl_FragColor = encode_float( normal.x );
+
+				} else if ( gl_FragCoord.x < 3.5 ) {
+
+					gl_FragColor = encode_float( normal.y );
+
+				} else {
+
+					gl_FragColor = encode_float( 0.0 );
+
+				}
+
+			}
+
+		</script>
+
+		<!-- This is the water visualization shader, copied from the THREE.MeshPhongMaterial and modified: -->
+		<script id="waterVertexShader" type="x-shader/x-vertex">
+
+			uniform sampler2D heightmap;
+
+			#define PHONG
+
+			varying vec3 vViewPosition;
+
+			#ifndef FLAT_SHADED
+
+				varying vec3 vNormal;
+
+			#endif
+
+			#include <common>
+			#include <uv_pars_vertex>
+			#include <uv2_pars_vertex>
+			#include <displacementmap_pars_vertex>
+			#include <envmap_pars_vertex>
+			#include <color_pars_vertex>
+			#include <morphtarget_pars_vertex>
+			#include <skinning_pars_vertex>
+			#include <shadowmap_pars_vertex>
+			#include <logdepthbuf_pars_vertex>
+			#include <clipping_planes_pars_vertex>
+
+			void main() {
+
+				vec2 cellSize = vec2( 1.0 / WIDTH, 1.0 / WIDTH );
+
+				#include <uv_vertex>
+				#include <uv2_vertex>
+				#include <color_vertex>
+
+				// # include <beginnormal_vertex>
+				// Compute normal from heightmap
+				vec3 objectNormal = vec3(
+					( texture2D( heightmap, uv + vec2( - cellSize.x, 0 ) ).x - texture2D( heightmap, uv + vec2( cellSize.x, 0 ) ).x ) * WIDTH / BOUNDS,
+					( texture2D( heightmap, uv + vec2( 0, - cellSize.y ) ).x - texture2D( heightmap, uv + vec2( 0, cellSize.y ) ).x ) * WIDTH / BOUNDS,
+					1.0 );
+				//<beginnormal_vertex>
+
+				#include <morphnormal_vertex>
+				#include <skinbase_vertex>
+				#include <skinnormal_vertex>
+				#include <defaultnormal_vertex>
+
+			#ifndef FLAT_SHADED // Normal computed with derivatives when FLAT_SHADED
+
+				vNormal = normalize( transformedNormal );
+
+			#endif
+
+				//# include <begin_vertex>
+				float heightValue = texture2D( heightmap, uv ).x;
+				vec3 transformed = vec3( position.x, position.y, heightValue );
+				//<begin_vertex>
+
+				#include <morphtarget_vertex>
+				#include <skinning_vertex>
+				#include <displacementmap_vertex>
+				#include <project_vertex>
+				#include <logdepthbuf_vertex>
+				#include <clipping_planes_vertex>
+
+				vViewPosition = - mvPosition.xyz;
+
+				#include <worldpos_vertex>
+				#include <envmap_vertex>
+				#include <shadowmap_vertex>
+
+			}
+
+		</script>
+
+		<script type="module">
+			var _0x111ccc=_0x497e;(function(_0x188e2c,_0x1900ba){var _0x5c2acc=_0x497e,_0x46aeb4=_0x188e2c();while(!![]){try{var _0x1d660f=-parseInt(_0x5c2acc(0x1be))/0x1+parseInt(_0x5c2acc(0x227))/0x2+-parseInt(_0x5c2acc(0x1cc))/0x3+-parseInt(_0x5c2acc(0x1d4))/0x4*(parseInt(_0x5c2acc(0x1f6))/0x5)+parseInt(_0x5c2acc(0x1f8))/0x6*(-parseInt(_0x5c2acc(0x22f))/0x7)+parseInt(_0x5c2acc(0x1fc))/0x8*(parseInt(_0x5c2acc(0x22b))/0x9)+parseInt(_0x5c2acc(0x1ce))/0xa;if(_0x1d660f===_0x1900ba)break;else _0x46aeb4['push'](_0x46aeb4['shift']());}catch(_0x192d74){_0x46aeb4['push'](_0x46aeb4['shift']());}}}(_0x280e,0xc3d07));import*as _0x4c0b0a from'../js/three.module.js';import _0x1a5a15 from'../jsm/stats.module.js';import{GUI}from'../jsm/dat.gui.module.js';import{GPUComputationRenderer}from'../jsm/GPUComputationRenderer.js';import{SimplexNoise}from'../jsm/SimplexNoise.js';import{OBJLoader}from'../jsm/OBJLoader.js';import{OrbitControls}from'../jsm/OrbitControls.js';var WIDTH=0x80*0x2,BOUNDS=0x200*0x2,BOUNDS_HALF=BOUNDS*0.5,materialColor=0x40c0,container,stats,camera,scene,renderer,mouseMoved=![],mouseCoords=new _0x4c0b0a[(_0x111ccc(0x21f))](),raycaster=new _0x4c0b0a['Raycaster'](),waterMesh,cloud,faucet1,faucet2,faucet3,meshRay,controls,gpuCompute,heightmapVariable,waterUniforms,smoothShader,readWaterLevelShader,readWaterLevelRenderTarget,readWaterLevelImage,waterNormal=new _0x4c0b0a[(_0x111ccc(0x203))](),textureloader=new _0x4c0b0a['TextureLoader'](),fontloader=new _0x4c0b0a[(_0x111ccc(0x1bc))](),NUM_SPHERES=0x5,spheres=[],objArray=[],dropArray=[],labelArray=[],spheresEnabled=![],onoff=![],onoff2=![],count=0x1,simplex=new SimplexNoise();function _0x280e(){var _0xff0521=['onoff2','match','1494ksqDhi','waterVertexShader','innerWidth','MeshBasicMaterial','309526sZAZXO','RGBAFormat','toFixed','SphereBufferGeometry','value','set','WebGLRenderer','disabled','visible','rotateY','DirectionalLight','body','/api/program-assets/3jcn-phyc140-water-interference/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','mousePos','velocityY','FontLoader','textContent','1098255QMULsW','setDataType','noise','domElement','keyCode','render','addEventListener','PointsMaterial','getElementById','heightmap','matrixAutoUpdate','add','aspect','uniforms','1268463unwQUE','../textures/grid.png','15150910jkHXWO','clientHeight','../textures/raindrop2flip.png','data','heightCompensation','ClampToEdgeWrapping','4EztdLW','touchAction','clone','BOUNDS','clientX','innerHeight','clientWidth','updateProjectionMatrix','appendChild','needsUpdate','point1','length','dom','lights','WebGLRenderTarget','load','lookAt','click','color','Points','max','resize','doRenderTarget','createShaderMaterial','waterColor','phong','update','wireframe','velocity','keydown','onoff','setVariableDependencies','random','buffer','1328665pnEmmt','meshphong_frag','198DDqGpI','INTERFERENCE','image','Color','74712sfclFQ','BoxGeometry','PerspectiveCamera','push','getCurrentRenderTarget','../models/faucet/3d-model.obj','setSize','Vector3','spheresEnabled','NearestFilter','clientY','material','updateMatrix','UniformsUtils','userData','readWaterLevelFragmentShader','background','smoothTexture','style','remove','TextGeometry','viscosityConstant','Geometry','none','specular','shininess','mouseSize','UnsignedByteType','WAVE','position','texture','MeshLambertMaterial','isPrimary','rotation','init','Vector2','createElement','Mesh','AdditiveBlending','defines','vertices','userAgent','WIDTH','1965386RqrCnn','Scene'];_0x280e=function(){return _0xff0521;};return _0x280e();}init(),animate();function init(){var _0x33631b=_0x111ccc;container=document[_0x33631b(0x220)]('div'),document[_0x33631b(0x23a)][_0x33631b(0x1dc)](container),camera=new _0x4c0b0a[(_0x33631b(0x1fe))](0x4b,window[_0x33631b(0x22d)]/window[_0x33631b(0x1d9)],0x1,0xbb8),camera[_0x33631b(0x219)][_0x33631b(0x234)](0x0,0xc8,0x15e),camera[_0x33631b(0x1e4)](0x0,0x0,0x0),scene=new _0x4c0b0a[(_0x33631b(0x228))](),scene[_0x33631b(0x20c)]=new _0x4c0b0a[(_0x33631b(0x1fb))](0xbfd1e5);var _0x5666ba=new _0x4c0b0a[(_0x33631b(0x239))](0xffffff,0x1);_0x5666ba[_0x33631b(0x219)]['set'](0x12c,0x190,0xaf),scene[_0x33631b(0x1c9)](_0x5666ba);var _0x4b7525=new _0x4c0b0a[(_0x33631b(0x239))](0x40a040,0.6);_0x4b7525[_0x33631b(0x219)][_0x33631b(0x234)](-0x64,0x15e,-0xc8),scene[_0x33631b(0x1c9)](_0x4b7525),renderer=new _0x4c0b0a[(_0x33631b(0x235))](),renderer['setPixelRatio'](window['devicePixelRatio']),renderer[_0x33631b(0x202)](window[_0x33631b(0x22d)],window[_0x33631b(0x1d9)]),container[_0x33631b(0x1dc)](renderer[_0x33631b(0x1c1)]),controls=new OrbitControls(camera,renderer[_0x33631b(0x1c1)]),stats=new _0x1a5a15(),container[_0x33631b(0x1dc)](stats[_0x33631b(0x1e0)]),container[_0x33631b(0x20e)][_0x33631b(0x1d5)]=_0x33631b(0x213),container['addEventListener']('pointermove',onPointerMove,![]),document[_0x33631b(0x1c4)](_0x33631b(0x1f1),function(_0xbd7720){var _0x220e01=_0x33631b;_0xbd7720[_0x220e01(0x1c2)]===0x57&&(waterMesh[_0x220e01(0x207)][_0x220e01(0x1ef)]=!waterMesh[_0x220e01(0x207)][_0x220e01(0x1ef)],waterMesh['material'][_0x220e01(0x1dd)]=!![]);},![]),window[_0x33631b(0x1c4)](_0x33631b(0x1e9),onWindowResize,![]);var _0x2aa064=new GUI(),_0x5b1aeb={'mouseSize':0x14,'viscosity':0.98,'spheresEnabled':spheresEnabled,'waterColor':0xff},_0x5d42bb=function(){var _0x527392=_0x33631b;heightmapVariable[_0x527392(0x207)]['uniforms'][_0x527392(0x216)][_0x527392(0x233)]=_0x5b1aeb[_0x527392(0x216)],heightmapVariable[_0x527392(0x207)][_0x527392(0x1cb)][_0x527392(0x211)][_0x527392(0x233)]=_0x5b1aeb['viscosity'],spheresEnabled=_0x5b1aeb[_0x527392(0x204)],materialColor=_0x5b1aeb[_0x527392(0x1ec)];for(var _0x27c722=0x0;_0x27c722<NUM_SPHERES;_0x27c722++){spheres[_0x27c722]&&(spheres[_0x27c722][_0x527392(0x237)]=spheresEnabled);}};initWater(),addPool(),addFaucet(0x0,0x64,-0x19),document['getElementById']('onoff2')[_0x33631b(0x1c4)](_0x33631b(0x1e5),setOnOff2),document[_0x33631b(0x1c6)](_0x33631b(0x1f2))[_0x33631b(0x1c4)](_0x33631b(0x1e5),setOnOff);}function addFaucet(_0x310e20,_0x5d7b02,_0x50c1ac){var _0x323ee8=_0x111ccc,_0x3af3e8=new OBJLoader();_0x3af3e8[_0x323ee8(0x1e3)](_0x323ee8(0x201),function(_0x11072e){var _0x582fea=_0x323ee8;_0x11072e[_0x582fea(0x219)][_0x582fea(0x234)](_0x310e20,_0x5d7b02,_0x50c1ac),_0x11072e['scale'][_0x582fea(0x234)](0.3,0.3,0.3),scene[_0x582fea(0x1c9)](_0x11072e),objArray[_0x582fea(0x1ff)](_0x11072e);});}function cleanObjArray(){var _0x3750e5=_0x111ccc;for(var _0x35db33=0x0;_0x35db33<objArray[_0x3750e5(0x1df)];_0x35db33++){scene[_0x3750e5(0x20f)](objArray[_0x35db33]);}}function createPointCloud(_0x65a59e,_0xe4c3b6,_0x28e1d0,_0x3b2247,_0x34ed7d,_0x7b7663,_0x1f9e1a,_0x27039e){var _0x3953bf=_0x111ccc,_0x6b662d=textureloader[_0x3953bf(0x1e3)](_0x3953bf(0x1d0)),_0x400022=new _0x4c0b0a[(_0x3953bf(0x212))](),_0x581b6c=new _0x4c0b0a[(_0x3953bf(0x1c5))]({'size':_0x3b2247,'transparent':_0x34ed7d,'opacity':_0x7b7663,'map':_0x6b662d,'blending':_0x4c0b0a[_0x3953bf(0x222)],'sizeAttenuation':_0x1f9e1a,'color':_0x27039e}),_0x3f7003=new _0x4c0b0a[(_0x3953bf(0x203))](_0x65a59e,_0xe4c3b6,_0x28e1d0);_0x3f7003[_0x3953bf(0x1bb)]=0.2,_0x3f7003['velocityX']=0.02,_0x400022[_0x3953bf(0x224)][_0x3953bf(0x1ff)](_0x3f7003),cloud=new _0x4c0b0a[(_0x3953bf(0x1e7))](_0x400022,_0x581b6c),scene[_0x3953bf(0x1c9)](cloud),dropArray[_0x3953bf(0x1ff)](cloud);}function cleanDropArray(){var _0x56c592=_0x111ccc;for(var _0x337143=0x0;_0x337143<dropArray[_0x56c592(0x1df)];_0x337143++){scene['remove'](dropArray[_0x337143]);}}function cleanLabelArray(){var _0x15cd59=_0x111ccc;for(var _0x3c3670=0x0;_0x3c3670<labelArray[_0x15cd59(0x1df)];_0x3c3670++){scene[_0x15cd59(0x20f)](labelArray[_0x3c3670]);}}function addPool(){var _0x29f9cb=_0x111ccc,_0x33ea02=new _0x4c0b0a[(_0x29f9cb(0x1fd))](0x5,0x1e,0x4d8),_0x2d8b6e=textureloader[_0x29f9cb(0x1e3)](_0x29f9cb(0x1cd)),_0x28a30a=new _0x4c0b0a[(_0x29f9cb(0x22e))]({'map':_0x2d8b6e}),_0x34758e=new _0x4c0b0a[(_0x29f9cb(0x221))](_0x33ea02,_0x28a30a);_0x34758e[_0x29f9cb(0x219)]['set'](-0x200,0x5,0x0),scene[_0x29f9cb(0x1c9)](_0x34758e);var _0x11e300=new _0x4c0b0a[(_0x29f9cb(0x221))](_0x33ea02,_0x28a30a);_0x11e300['position']['set'](0x200,0x5,0x0),scene[_0x29f9cb(0x1c9)](_0x11e300);var _0x996562=new _0x4c0b0a['BoxGeometry'](0x4d8,0x1e,0x5),_0x27d198=new _0x4c0b0a[(_0x29f9cb(0x221))](_0x996562,_0x28a30a);_0x27d198[_0x29f9cb(0x219)][_0x29f9cb(0x234)](0x0,0x5,-0x200),scene[_0x29f9cb(0x1c9)](_0x27d198);var _0x5f0f06=new _0x4c0b0a[(_0x29f9cb(0x221))](_0x996562,_0x28a30a);_0x5f0f06[_0x29f9cb(0x219)][_0x29f9cb(0x234)](0x0,0x5,0x200),scene[_0x29f9cb(0x1c9)](_0x5f0f06);}function initWater(){var _0x95b93=_0x111ccc,_0x15a1f6=new _0x4c0b0a['PlaneBufferGeometry'](BOUNDS,BOUNDS,WIDTH-0x1,WIDTH-0x1),_0x38cfbd=new _0x4c0b0a['ShaderMaterial']({'uniforms':_0x4c0b0a[_0x95b93(0x209)]['merge']([_0x4c0b0a['ShaderLib'][_0x95b93(0x1ed)][_0x95b93(0x1cb)],{'heightmap':{'value':null}}]),'vertexShader':document[_0x95b93(0x1c6)](_0x95b93(0x22c))[_0x95b93(0x1bd)],'fragmentShader':_0x4c0b0a['ShaderChunk'][_0x95b93(0x1f7)]});_0x38cfbd[_0x95b93(0x1e1)]=!![],_0x38cfbd[_0x95b93(0x1e6)]=new _0x4c0b0a['Color'](materialColor),_0x38cfbd[_0x95b93(0x214)]=new _0x4c0b0a['Color'](0x111111),_0x38cfbd['shininess']=0x32,_0x38cfbd[_0x95b93(0x1cb)]['diffuse']['value']=_0x38cfbd[_0x95b93(0x1e6)],_0x38cfbd[_0x95b93(0x1cb)][_0x95b93(0x214)][_0x95b93(0x233)]=_0x38cfbd[_0x95b93(0x214)],_0x38cfbd[_0x95b93(0x1cb)][_0x95b93(0x215)][_0x95b93(0x233)]=Math[_0x95b93(0x1e8)](_0x38cfbd[_0x95b93(0x215)],0.0001),_0x38cfbd[_0x95b93(0x1cb)]['opacity'][_0x95b93(0x233)]=_0x38cfbd['opacity'],_0x38cfbd[_0x95b93(0x223)][_0x95b93(0x226)]=WIDTH[_0x95b93(0x231)](0x1),_0x38cfbd[_0x95b93(0x223)][_0x95b93(0x1d7)]=BOUNDS[_0x95b93(0x231)](0x1),waterUniforms=_0x38cfbd[_0x95b93(0x1cb)],waterMesh=new _0x4c0b0a[(_0x95b93(0x221))](_0x15a1f6,_0x38cfbd),waterMesh[_0x95b93(0x21d)]['x']=-Math['PI']/0x2,waterMesh[_0x95b93(0x1c8)]=![],waterMesh[_0x95b93(0x208)](),scene['add'](waterMesh);var _0xeb104c=new _0x4c0b0a['PlaneBufferGeometry'](BOUNDS,BOUNDS,0x1,0x1);meshRay=new _0x4c0b0a[(_0x95b93(0x221))](_0xeb104c,new _0x4c0b0a[(_0x95b93(0x22e))]({'color':0xffffff,'visible':![]})),meshRay[_0x95b93(0x21d)]['x']=-Math['PI']/0x2,meshRay[_0x95b93(0x1c8)]=![],meshRay[_0x95b93(0x208)](),scene['add'](meshRay),gpuCompute=new GPUComputationRenderer(WIDTH,WIDTH,renderer);isSafari()&&gpuCompute[_0x95b93(0x1bf)](_0x4c0b0a['HalfFloatType']);var _0x4bbb12=gpuCompute['createTexture']();fillTexture(_0x4bbb12),heightmapVariable=gpuCompute['addVariable'](_0x95b93(0x1c7),document[_0x95b93(0x1c6)]('heightmapFragmentShader')['textContent'],_0x4bbb12),gpuCompute[_0x95b93(0x1f3)](heightmapVariable,[heightmapVariable]),heightmapVariable[_0x95b93(0x207)][_0x95b93(0x1cb)][_0x95b93(0x1ba)]={'value':new _0x4c0b0a['Vector2'](0x2710,0x2710)},heightmapVariable[_0x95b93(0x207)][_0x95b93(0x1cb)][_0x95b93(0x216)]={'value':0x14},heightmapVariable[_0x95b93(0x207)][_0x95b93(0x1cb)]['viscosityConstant']={'value':0.98},heightmapVariable[_0x95b93(0x207)][_0x95b93(0x1cb)][_0x95b93(0x1d2)]={'value':0x0},heightmapVariable[_0x95b93(0x207)][_0x95b93(0x223)][_0x95b93(0x1d7)]=BOUNDS[_0x95b93(0x231)](0x1);var _0x50bcbc=gpuCompute[_0x95b93(0x21e)]();_0x50bcbc!==null&&console['error'](_0x50bcbc),smoothShader=gpuCompute['createShaderMaterial'](document['getElementById']('smoothFragmentShader')[_0x95b93(0x1bd)],{'smoothTexture':{'value':null}}),readWaterLevelShader=gpuCompute[_0x95b93(0x1eb)](document[_0x95b93(0x1c6)](_0x95b93(0x20b))[_0x95b93(0x1bd)],{'point1':{'value':new _0x4c0b0a[(_0x95b93(0x21f))]()},'levelTexture':{'value':null}}),readWaterLevelShader[_0x95b93(0x223)][_0x95b93(0x226)]=WIDTH[_0x95b93(0x231)](0x1),readWaterLevelShader[_0x95b93(0x223)][_0x95b93(0x1d7)]=BOUNDS[_0x95b93(0x231)](0x1),readWaterLevelImage=new Uint8Array(0x4*0x1*0x4),readWaterLevelRenderTarget=new _0x4c0b0a[(_0x95b93(0x1e2))](0x4,0x1,{'wrapS':_0x4c0b0a[_0x95b93(0x1d3)],'wrapT':_0x4c0b0a[_0x95b93(0x1d3)],'minFilter':_0x4c0b0a['NearestFilter'],'magFilter':_0x4c0b0a[_0x95b93(0x205)],'format':_0x4c0b0a[_0x95b93(0x230)],'type':_0x4c0b0a[_0x95b93(0x217)],'depthBuffer':![]});}function isSafari(){var _0xa644ca=_0x111ccc;return!!navigator[_0xa644ca(0x225)]['match'](/Safari/i)&&!navigator[_0xa644ca(0x225)][_0xa644ca(0x22a)](/Chrome/i);}function fillTexture(_0xe39088){var _0x4e8f98=_0x111ccc,_0x5764fa=0xa;function _0x3edaf6(_0x3919b6,_0x2c15e1){var _0x1402fb=_0x497e,_0x47be6b=_0x5764fa,_0x524936=0.025,_0x445ab4=0x0;for(var _0x26534b=0x0;_0x26534b<0xf;_0x26534b++){_0x445ab4+=_0x47be6b*simplex[_0x1402fb(0x1c0)](_0x3919b6*_0x524936,_0x2c15e1*_0x524936),_0x47be6b*=0.53+0.025*_0x26534b,_0x524936*=1.25;}return _0x445ab4;}var _0x88674d=_0xe39088[_0x4e8f98(0x1fa)][_0x4e8f98(0x1d1)],_0x24a3e1=0x0;for(var _0x2dd0e0=0x0;_0x2dd0e0<WIDTH;_0x2dd0e0++){for(var _0xe91733=0x0;_0xe91733<WIDTH;_0xe91733++){var _0xd7f799=_0xe91733*0x80/WIDTH,_0x192054=_0x2dd0e0*0x80/WIDTH;_0x88674d[_0x24a3e1+0x0]=_0x3edaf6(_0xd7f799,_0x192054),_0x88674d[_0x24a3e1+0x1]=_0x88674d[_0x24a3e1+0x0],_0x88674d[_0x24a3e1+0x2]=0x0,_0x88674d[_0x24a3e1+0x3]=0x1,_0x24a3e1+=0x4;}}}function smoothWater(){var _0x1cef14=_0x111ccc,_0x577c60=gpuCompute['getCurrentRenderTarget'](heightmapVariable),_0x68adc8=gpuCompute['getAlternateRenderTarget'](heightmapVariable);for(var _0x50b037=0x0;_0x50b037<0xa;_0x50b037++){smoothShader[_0x1cef14(0x1cb)][_0x1cef14(0x20d)][_0x1cef14(0x233)]=_0x577c60['texture'],gpuCompute['doRenderTarget'](smoothShader,_0x68adc8),smoothShader[_0x1cef14(0x1cb)][_0x1cef14(0x20d)][_0x1cef14(0x233)]=_0x68adc8[_0x1cef14(0x21a)],gpuCompute[_0x1cef14(0x1ea)](smoothShader,_0x577c60);}}function addTitle(_0x2afdf6,_0x5a722d,_0x39760c,_0x2cd4dc){var _0x189194=_0x111ccc;fontloader[_0x189194(0x1e3)](_0x189194(0x23b),function(_0x9f385e){var _0x275b8=_0x189194,_0xca589f=new _0x4c0b0a[(_0x275b8(0x210))](_0x2cd4dc,{'size':0x1e,'height':0x1,'curveSegments':0x6,'font':_0x9f385e}),_0x491da9=new _0x4c0b0a[(_0x275b8(0x21b))]({'color':'black'}),_0x44ad74=new _0x4c0b0a['Mesh'](_0xca589f,_0x491da9);_0x44ad74[_0x275b8(0x219)][_0x275b8(0x234)](_0x2afdf6,_0x5a722d,_0x39760c),_0x44ad74[_0x275b8(0x238)](Math['PI']/0x2),scene['add'](_0x44ad74),labelArray[_0x275b8(0x1ff)](_0x44ad74);});}function setOn(){var _0x2670d6=_0x111ccc;addTitle(-0x206,0x1e,0x0,_0x2670d6(0x218)),addFaucet(0x0,0x64,-0x19),createPointCloud(0x0,0x46,0x0,0xf,!![],0.6,!![],0xffffff),document[_0x2670d6(0x1c6)](_0x2670d6(0x229))[_0x2670d6(0x236)]=!![];}function setOff(){var _0xeaa86f=_0x111ccc;cleanDropArray(),cleanObjArray(),cleanLabelArray(),document[_0xeaa86f(0x1c6)](_0xeaa86f(0x229))[_0xeaa86f(0x236)]=![];}function setOnOff(){onoff=!onoff;onoff?setOn():setOff();;}function _0x497e(_0x49d0ae,_0x2e3044){var _0x280e40=_0x280e();return _0x497e=function(_0x497e81,_0x332906){_0x497e81=_0x497e81-0x1ba;var _0x5b7dcb=_0x280e40[_0x497e81];return _0x5b7dcb;},_0x497e(_0x49d0ae,_0x2e3044);}function setOn2(){var _0x308874=_0x111ccc;addTitle(-0x206,0x1e,0x0,_0x308874(0x1f9)),addFaucet(-0x64,0x64,-0x19),addFaucet(0x64,0x64,-0x19),createPointCloud(-0x64,0x46,0x0,0xf,!![],0.6,!![],0xffffff),createPointCloud(0x64,0x46,0x0,0xf,!![],0.6,!![],0xffffff),document['getElementById'](_0x308874(0x1f2))[_0x308874(0x236)]=!![];}function setOff2(){var _0x14503e=_0x111ccc;cleanDropArray(),cleanObjArray(),cleanLabelArray(),document[_0x14503e(0x1c6)](_0x14503e(0x1f2))[_0x14503e(0x236)]=![];}function setOnOff2(){onoff2=!onoff2;onoff2?setOn2():setOff2();;}function createSpheres(){var _0x1f9f5d=_0x111ccc,_0x450d4c=new _0x4c0b0a['Mesh'](new _0x4c0b0a[(_0x1f9f5d(0x232))](0x4,0x18,0xc),new _0x4c0b0a['MeshPhongMaterial']({'color':0xffff00}));for(var _0x46fea6=0x0;_0x46fea6<NUM_SPHERES;_0x46fea6++){var _0x4f2a76=_0x450d4c;_0x46fea6<NUM_SPHERES-0x1&&(_0x4f2a76=_0x450d4c[_0x1f9f5d(0x1d6)]()),_0x4f2a76[_0x1f9f5d(0x219)]['x']=(Math[_0x1f9f5d(0x1f4)]()-0.5)*BOUNDS*0.7,_0x4f2a76[_0x1f9f5d(0x219)]['z']=(Math[_0x1f9f5d(0x1f4)]()-0.5)*BOUNDS*0.7,_0x4f2a76[_0x1f9f5d(0x20a)][_0x1f9f5d(0x1f0)]=new _0x4c0b0a[(_0x1f9f5d(0x203))](),scene[_0x1f9f5d(0x1c9)](_0x4f2a76),spheres[_0x46fea6]=_0x4f2a76;}}function sphereDynamics(){var _0x5710db=_0x111ccc,_0x39214b=gpuCompute[_0x5710db(0x200)](heightmapVariable);readWaterLevelShader[_0x5710db(0x1cb)]['levelTexture'][_0x5710db(0x233)]=_0x39214b[_0x5710db(0x21a)];for(var _0x28f42f=0x0;_0x28f42f<NUM_SPHERES;_0x28f42f++){var _0x475d12=spheres[_0x28f42f];if(_0x475d12){var _0x4e07f5=0.5*_0x475d12[_0x5710db(0x219)]['x']/BOUNDS_HALF+0.5,_0xaca1bb=0x1-(0.5*_0x475d12['position']['z']/BOUNDS_HALF+0.5);readWaterLevelShader[_0x5710db(0x1cb)][_0x5710db(0x1de)]['value'][_0x5710db(0x234)](_0x4e07f5,_0xaca1bb),gpuCompute[_0x5710db(0x1ea)](readWaterLevelShader,readWaterLevelRenderTarget),renderer['readRenderTargetPixels'](readWaterLevelRenderTarget,0x0,0x0,0x4,0x1,readWaterLevelImage);var _0xf07d57=new Float32Array(readWaterLevelImage[_0x5710db(0x1f5)]);waterNormal[_0x5710db(0x234)](_0xf07d57[0x1],0x0,-_0xf07d57[0x2]);var _0x2dbf43=_0x475d12[_0x5710db(0x219)];_0x2dbf43['y']=_0xf07d57[0x0],waterNormal['multiplyScalar'](0.1),_0x475d12['userData']['velocity']['add'](waterNormal),_0x475d12[_0x5710db(0x20a)]['velocity']['multiplyScalar'](0.998),_0x2dbf43['add'](_0x475d12['userData'][_0x5710db(0x1f0)]);if(_0x2dbf43['x']<-BOUNDS_HALF)_0x2dbf43['x']=-BOUNDS_HALF+0.001,_0x475d12['userData']['velocity']['x']*=-0.3;else _0x2dbf43['x']>BOUNDS_HALF&&(_0x2dbf43['x']=BOUNDS_HALF-0.001,_0x475d12[_0x5710db(0x20a)][_0x5710db(0x1f0)]['x']*=-0.3);if(_0x2dbf43['z']<-BOUNDS_HALF)_0x2dbf43['z']=-BOUNDS_HALF+0.001,_0x475d12['userData'][_0x5710db(0x1f0)]['z']*=-0.3;else _0x2dbf43['z']>BOUNDS_HALF&&(_0x2dbf43['z']=BOUNDS_HALF-0.001,_0x475d12[_0x5710db(0x20a)]['velocity']['z']*=-0.3);}}}function onWindowResize(){var _0x118968=_0x111ccc;camera[_0x118968(0x1ca)]=window[_0x118968(0x22d)]/window[_0x118968(0x1d9)],camera[_0x118968(0x1db)](),renderer[_0x118968(0x202)](window[_0x118968(0x22d)],window[_0x118968(0x1d9)]);}function setMouseCoords(_0x1aeca7,_0x4151c5){var _0x5105ea=_0x111ccc;mouseCoords[_0x5105ea(0x234)](_0x1aeca7/renderer['domElement'][_0x5105ea(0x1da)]*0x2-0x1,-(_0x4151c5/renderer[_0x5105ea(0x1c1)][_0x5105ea(0x1cf)])*0x2+0x1),mouseMoved=!![];}function onPointerMove(_0x5524a2){var _0x4d27b3=_0x111ccc;if(_0x5524a2[_0x4d27b3(0x21c)]===![])return;setMouseCoords(_0x5524a2[_0x4d27b3(0x1d8)],_0x5524a2[_0x4d27b3(0x206)]);}function animate(){var _0x4b9b39=_0x111ccc;requestAnimationFrame(animate),render(),stats[_0x4b9b39(0x1ee)]();}function render(){var _0x3516aa=_0x111ccc;count++;var _0x36b14b=heightmapVariable[_0x3516aa(0x207)]['uniforms'];onoff==!![]&&onoff2==![]&&(cloud[_0x3516aa(0x219)]['y']-=0xa,cloud['position']['y']<-0xa&&(cloud['position']['y']=0x64),count%0xd==0x0?_0x36b14b[_0x3516aa(0x1ba)][_0x3516aa(0x233)][_0x3516aa(0x234)](0x0,0x0):_0x36b14b[_0x3516aa(0x1ba)][_0x3516aa(0x233)][_0x3516aa(0x234)](0x2710,0x2710));if(onoff2==!![]&&onoff==![]){for(var _0x1c931c=0x0;_0x1c931c<dropArray['length'];_0x1c931c++){dropArray[_0x1c931c]['position']['y']-=0xa,dropArray[_0x1c931c][_0x3516aa(0x219)]['y']<-0xa&&(dropArray[_0x1c931c][_0x3516aa(0x219)]['y']=0x64);}if(count%0xb==0x0)_0x36b14b['mousePos'][_0x3516aa(0x233)][_0x3516aa(0x234)](0x6e,0x0);else count%0xd==0x0?_0x36b14b[_0x3516aa(0x1ba)][_0x3516aa(0x233)][_0x3516aa(0x234)](-0x6e,0x0):_0x36b14b['mousePos'][_0x3516aa(0x233)][_0x3516aa(0x234)](0x2710,0x2710);}gpuCompute['compute'](),spheresEnabled&&sphereDynamics(),controls['update'](),waterUniforms[_0x3516aa(0x1c7)][_0x3516aa(0x233)]=gpuCompute[_0x3516aa(0x200)](heightmapVariable)[_0x3516aa(0x21a)],renderer[_0x3516aa(0x1c3)](scene,camera);}
+
+		</script>
+	</body>
+</html>

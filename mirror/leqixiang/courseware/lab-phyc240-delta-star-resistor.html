@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv='pragma' content='no-cache'>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc240-delta-star-resistor/_ext/vendor/css/main3.css">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc240-delta-star-resistor/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc240-delta-star-resistor/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc240-delta-star-resistor/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/api/program-assets/lab-phyc240-delta-star-resistor/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+<style>
+  body{
+    margin:0;
+    overflow:hidden;
+    color:black;
+    font-family: Arial, sans-serif;
+  }
+
+  #leftPanel{
+    position:absolute;
+    top:300px;
+    left:40px;
+    width:340px;
+    padding:18px 18px 16px 18px;
+    background:rgba(0, 50, 60, 0.92);
+    color:white;
+    border-radius:0;
+    box-shadow:none;
+    z-index:20;
+  }
+
+  #leftPanel .intro{
+    font-size:14px;
+    line-height:1.45;
+    margin-bottom:18px;
+  }
+
+  .controlGroup{
+    margin-bottom:18px;
+  }
+
+  .controlLabel{
+    display:block;
+    font-size:16px;
+    margin-bottom:6px;
+    color:white;
+  }
+
+  .sliderRow{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .sliderRow input[type="range"]{
+    flex:1;
+    accent-color:#1e73ff;
+  }
+
+  .valueBox{
+    width:74px;
+    height:28px;
+    border:1px solid #999;
+    background:#f8f8f8;
+    color:#333;
+    text-align:center;
+    font-weight:bold;
+    padding:2px 4px;
+  }
+
+  .homeBtn{
+    margin-top:6px;
+    background:#28a745 !important;
+    border-color:#1f7f35 !important;
+    color:white !important;
+    font-weight:bold;
+  }
+
+  #circuitInfo{
+    position:absolute;
+    top:300px;
+    right:40px;
+    padding:40px;
+    background-color:rgba(0, 50, 60, 0.92);
+    color:white;
+    font-family:Arial, sans-serif;
+    font-size:14px;
+    max-width:340px;
+    z-index:20;
+  }
+</style>
+	
+<script type="module">
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { FontLoader } from '../jsm/FontLoader.js';
+import { TextGeometry } from '../jsm/TextGeometry.js';
+
+/** author: Thomas Nguyen "3jcn.com"
+ ** updated with dynamic resistor bands **/
+
+let renderer, scene, light, camera, controls;
+let textureloader = new THREE.TextureLoader();
+let fontloader = new FontLoader();
+
+let titleMesh, billboard;
+
+// values
+let R1 = 100, R2 = 120, R3 = 150;
+let Ra = 0, Rb = 0, Rc = 0;
+
+// dynamic resistor references
+let deltaRes1, deltaRes2, deltaRes3;
+let starResA, starResB, starResC;
+
+// ----------------------------
+// helper: dispose mesh/group
+// ----------------------------
+function disposeMesh(m){if(!m)return;if(m['\u0070\u0061\u0072\u0065\u006E\u0074'])m['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065'](m);m['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065']?.(obj=>{if(obj['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])obj['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']){if(Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']))obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](mat=>mat['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();}});if(m['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])m['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']?.();if(m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']){if(Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']))m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](mat=>mat['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']?.();}}function createResistor({'\u0062\u006F\u0064\u0079\u0052\u0061\u0064\u0069\u0075\u0073':bodyRadius=486092^486093,'\u0062\u006F\u0064\u0079\u004C\u0065\u006E\u0067\u0074\u0068':bodyLength=257358^257352,"leadRadius":leadRadius=0.10,"leadLength":leadLength=2.2,"bandThickness":bandThickness=0.55,'\u0062\u0061\u006E\u0064\u0047\u0061\u0070':bandGap=1.1,'\u006F\u0068\u006D\u0073':ohms=175782^175810,"tolerance":tolerance="dlog".split("").reverse().join("")}={},_0x240f,_0x6db4d,_0x786g4a,_0x1g5e){var _0x_0x754=(896523^896520)+(142452^142451);const g=new THREE['\u0047\u0072\u006F\u0075\u0070']();_0x_0x754=224892^224884;const _0xfc8c=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xf2e1c2});_0x240f="nfobni".split("").reverse().join("");const _0x2_0x737=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x777777});const _0xeb75eg=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](bodyRadius,bodyRadius,bodyLength,878164^878196);const _0x4e959d=new THREE['\u004D\u0065\u0073\u0068'](_0xeb75eg,_0xfc8c);_0x6db4d=269230^269225;g['\u0061\u0064\u0064'](_0x4e959d);const _0x79fcb=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](leadRadius,leadRadius,leadLength,778990^779006);_0x786g4a=927226^927231;const _0x338gg=new THREE['\u004D\u0065\u0073\u0068'](_0x79fcb,_0x2_0x737);var _0x7fb6ba=(779452^779444)+(651652^651655);const _0x6fdd=new THREE['\u004D\u0065\u0073\u0068'](_0x79fcb,_0x2_0x737);_0x7fb6ba="iinkmf".split("").reverse().join("");_0x338gg['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-(bodyLength/(788226^788224)+leadLength/(978211^978209));_0x6fdd['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=+(bodyLength/(343681^343683)+leadLength/(207451^207449));g['\u0061\u0064\u0064'](_0x338gg,_0x6fdd);const _0xgd54e=[239247^239247,0x8b4513,0xff0000,0xffa500,0xffff00,366884^353828,398804^398635,0x8a2be2,0x808080,0xffffff];const _0x1g_0x4d7={"\u002D\u0032":0xc0c0c0,"-1":0xffd700,"\u0030":0x000000,"\u0031":0x8b4513,"\u0032":0xff0000,"\u0033":0xffa500,"\u0034":0xffff00,"\u0035":0x00ff00,"\u0036":0x0000ff,"\u0037":0x8a2be2,"\u0038":0x808080,"\u0039":0xffffff};const _0xa2844c={"gold":0xffd700,"silver":0xc0c0c0,'\u0062\u0072\u006F\u0077\u006E':0x8b4513,'\u0072\u0065\u0064':0xff0000,"green":0x00ff00,"blue":0x0000ff};function _0xe7e33b(R){R=Math['\u006D\u0061\u0078'](999809^999808,Math['\u0072\u006F\u0075\u006E\u0064'](R));var _0x28381a=(223254^223255)+(873823^873817);const _0xedeb=Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u006C\u006F\u0067\u0031\u0030'](R));_0x28381a=780795^780794;var _0xfbf9e=(332521^332520)+(445656^445657);let _0x326e=Math['\u0072\u006F\u0075\u006E\u0064'](R/Math['\u0070\u006F\u0077'](404264^404258,_0xedeb-(242665^242664)));_0xfbf9e='\u006E\u0070\u0068\u006C\u0067\u0063';if(_0x326e>=(601704^601612))_0x326e=347024^347123;var _0x7gcdb=(266709^266707)+(358869^358865);let _0xa5c6bg=Math['\u0066\u006C\u006F\u006F\u0072'](_0x326e/(254329^254323));_0x7gcdb='\u0066\u0070\u0069\u006D\u0063\u0068';let _0x4be7f=_0x326e%(235942^235948);var _0x0dd=(428234^428237)+(865620^865628);let _0x6cfbb=_0xedeb-(989343^989342);_0x0dd=(822567^822564)+(275981^275979);_0xa5c6bg=Math['\u006D\u0069\u006E'](Math['\u006D\u0061\u0078'](_0xa5c6bg,203303^203303),877157^877164);_0x4be7f=Math['\u006D\u0069\u006E'](Math['\u006D\u0061\u0078'](_0x4be7f,855201^855201),750869^750876);return[_0xa5c6bg,_0x4be7f,_0x6cfbb,tolerance];}const _0x3d4ed=bodyRadius*1.03;_0x1g5e=794269^794261;const _0x3b2g8b=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x3d4ed,_0x3d4ed,bandThickness,692373^692365);function _0x7ccae(color,yPos){const _0xef0bad=new THREE['\u004D\u0065\u0073\u0068'](_0x3b2g8b,new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':color}));_0xef0bad['\u006E\u0061\u006D\u0065']="\u0062\u0061\u006E\u0064\u005F";_0xef0bad['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=yPos;g['\u0061\u0064\u0064'](_0xef0bad);}function _0x64ffc(){for(let i=g['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']-(518997^518996);i>=(147914^147914);i--){let _0x4a2e;const _0xdb7ab=g['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E'][i];_0x4a2e=507024^507024;if(_0xdb7ab['\u006E\u0061\u006D\u0065']==="_dnab".split("").reverse().join("")){g['\u0072\u0065\u006D\u006F\u0076\u0065'](_0xdb7ab);if(_0xdb7ab['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])_0xdb7ab['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(_0xdb7ab['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])_0xdb7ab['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();}}}function _0x5f83d(newOhms,_0xeca87e){_0x64ffc();const[d1,d2,mult,tol]=_0xe7e33b(newOhms);var _0x4c9e=(772827^772830)+(134949^134947);const _0x8fade=[_0xgd54e[d1],_0xgd54e[d2],_0x1g_0x4d7[String(mult)]??222200^222200,_0xa2844c[tol]??0xffd700];_0x4c9e=(313306^313309)+(239818^239810);const _0xe2ce=-bodyLength/(944638^944636)+1.3;_0xeca87e=(112846^112847)+(294030^294024);const _0x0c178d=[_0xe2ce,_0xe2ce+bandGap,_0xe2ce+(565659^565657)*bandGap,bodyLength/(772730^772728)-1.3];for(let i=356532^356532;i<(523164^523160);i++)_0x7ccae(_0x8fade[i],_0x0c178d[i]);}_0x5f83d(ohms);g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0065\u0074\u004F\u0068\u006D\u0073']=_0x5f83d;return g;}function addSphere(x,y,z,_0xa_0xg78){const _0x87a=new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.5,351773^351805,766106^766082);_0xa_0xg78=856222^856223;var _0x2652g=(540663^540658)+(474790^474785);const _0xf7118b=new THREE['\u004D\u0065\u0073\u0068'](_0x87a,new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0077\u0068\u0069\u0074\u0065"}));_0x2652g=422951^422951;_0xf7118b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](_0xf7118b);return _0xf7118b;}function addText(x,y,z,t,theta=411077^411077,colo="kcalb".split("").reverse().join("")){fontloader['\u006C\u006F\u0061\u0064']("nosj.ecafepyt.dlob_fires_diord/diord/stnof/selpmaxe/gro.sjeerht//:sptth".split("").reverse().join(""),function(tex,_0xe017f){const _0x49b7dc=new TextGeometry(t,{'\u0073\u0069\u007A\u0065':1.5,'\u0068\u0065\u0069\u0067\u0068\u0074':0.1,"curveSegments":6,"font":tex});const _0x6cd=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":colo});_0xe017f=(489954^489954)+(593789^593784);const _0x9d69a=new THREE['\u004D\u0065\u0073\u0068'](_0x49b7dc,_0x6cd);_0x9d69a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);_0x9d69a['\u0072\u006F\u0074\u0061\u0074\u0065\u0059'](theta);scene['\u0061\u0064\u0064'](_0x9d69a);});}function addTitle(x,y,z,t,s){fontloader['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0064\u0072\u006F\u0069\u0064\u002F\u0064\u0072\u006F\u0069\u0064\u005F\u0073\u0065\u0072\u0069\u0066\u005F\u0062\u006F\u006C\u0064\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E",function(tex){const _0x34325f=new TextGeometry(t,{"size":s,'\u0068\u0065\u0069\u0067\u0068\u0074':s/(640766^640761),'\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073':6,'\u0066\u006F\u006E\u0074':tex});var _0x8be=(317535^317534)+(943081^943086);const _0xccge=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0062\u0072\u006F\u0077\u006E"});_0x8be=343789^343780;titleMesh=new THREE['\u004D\u0065\u0073\u0068'](_0x34325f,_0xccge);titleMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](titleMesh);});}function createRedArrow(position={'\u0078':0,'\u0079':0,'\u007A':0},length=634160^634148,shaftRadius=0.5,headLength=962670^962667,headRadius=765592^765593,_0x9b3b,_0x74db,_0xab95eg){const _0xa8c3d=new THREE['\u0047\u0072\u006F\u0075\u0070']();_0x9b3b='\u0063\u0068\u006E\u0070\u006D\u006A';const _0xd3a5f=length-headLength;_0x74db=860677^860677;var _0x52245f=(301246^301243)+(848095^848090);const _0x27921b=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](shaftRadius,shaftRadius,_0xd3a5f,467692^467660);_0x52245f='\u0069\u0067\u0068\u0068\u006C\u0064';var _0x233f=(638216^638222)+(215052^215055);const _0x6_0xc2d=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xff0000});_0x233f="dcgbif".split("").reverse().join("");const _0xd65a=new THREE['\u004D\u0065\u0073\u0068'](_0x27921b,_0x6_0xc2d);_0xd65a['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=Math['\u0050\u0049']/(141665^141667);_0xd65a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']=_0xd3a5f/(552043^552041);_0xa8c3d['\u0061\u0064\u0064'](_0xd65a);const _0x5fbee=new THREE['\u0043\u006F\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](headRadius,headLength,741624^741592);_0xab95eg=(553324^553323)+(476905^476911);var _0xc33ccb=(170695^170691)+(421148^421141);const _0xf1e=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xff0000});_0xc33ccb=(919715^919713)+(964948^964945);const _0xf83fdc=new THREE['\u004D\u0065\u0073\u0068'](_0x5fbee,_0xf1e);_0xf83fdc['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=-Math['\u0050\u0049']/(428360^428362);_0xf83fdc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']=_0xd3a5f+headLength/(186073^186075);_0xa8c3d['\u0061\u0064\u0064'](_0xf83fdc);_0xa8c3d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](position['\u0078'],position['\u0079'],position['\u007A']);return _0xa8c3d;}function addWire(x1,y1,z1,x2,y2,z2,_0xc993a,_0xf5bce,_0x1dc){var _0xbfc=(295110^295106)+(932167^932164);const _0x266bba=[new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x1,y1,z1),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x2,y2,z2)];_0xbfc=(767352^767345)+(891210^891210);const _0x1e0a=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0062\u006C\u0061\u0063\u006B"});const _0xbaee=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x266bba);_0xc993a=(705582^705579)+(924716^924717);const _0x67ed=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xbaee,508067^508103,0.08,201703^201727,false);_0xf5bce="dhjicm".split("").reverse().join("");const _0x34fa3f=new THREE['\u004D\u0065\u0073\u0068'](_0x67ed,_0x1e0a);_0x1dc=339570^339571;scene['\u0061\u0064\u0064'](_0x34fa3f);return _0x34fa3f;}function addBillboard1(){var _0xd_0x277=(517234^517236)+(933961^933960);const _0x4eb=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u006D\u0061\u0070':textureloader['\u006C\u006F\u0061\u0064']("gnp.rotsiser_rats_atled/serutxet".split("").reverse().join(""))});_0xd_0x277='\u006D\u006E\u0067\u0070\u0068\u006C';billboard=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](709478^709445,776530^776523,0.2),_0x4eb);billboard['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](728708^728708,-(342560^342577),842733^842733);scene['\u0061\u0064\u0064'](billboard);}function placeDynamicResistorLikeOldCode(ohms,x,y,z,theta){const r=createResistor({"ohms":ohms});r['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](452671^452671,793178^793178,997891^997891);r['\u0072\u006F\u0074\u0061\u0074\u0065\u005A'](theta);r['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](r);return r;}function makeDynamicResistor(ohms,x,y,z,angleZ){const r=createResistor({"ohms":ohms});r['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);r['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=Math['\u0050\u0049']/(335476^335478);r['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=angleZ;scene['\u0061\u0064\u0064'](r);return r;}function rebuildAllResistors(_0x2d5eb){disposeMesh(deltaRes1);disposeMesh(deltaRes2);disposeMesh(deltaRes3);disposeMesh(starResA);disposeMesh(starResB);disposeMesh(starResC);const _0x9b_0xe3e=R1+R2+R3;_0x2d5eb='\u0071\u0062\u006C\u0065\u006B\u0063';Ra=R1*R3/_0x9b_0xe3e;Rb=R1*R2/_0x9b_0xe3e;Rc=R2*R3/_0x9b_0xe3e;deltaRes2=placeDynamicResistorLikeOldCode(R2,-12.5,12.5,980405^980405,Math['\u0050\u0049']/(684052^684048));deltaRes1=placeDynamicResistorLikeOldCode(R1,-27.5,12.5,294791^294791,-Math['\u0050\u0049']/(208490^208494));deltaRes3=placeDynamicResistorLikeOldCode(R3,-(281368^281357),228392^228397,871700^871700,Math['\u0050\u0049']/(670604^670606));starResA=placeDynamicResistorLikeOldCode(Ra,12.5,7.5,558306^558306,-Math['\u0050\u0049']/2.5);starResC=placeDynamicResistorLikeOldCode(Rc,27.5,7.5,407078^407078,Math['\u0050\u0049']/2.5);starResB=placeDynamicResistorLikeOldCode(Rb,482117^482129,918908^918899,934905^934905,350947^350947);}function displayCircuitInfo(){var _0xf2g0ed=(741092^741090)+(826956^826959);let _0xg6c9a=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0069\u0072\u0063\u0075\u0069\u0074\u0049\u006E\u0066\u006F");_0xf2g0ed=(142320^142323)+(431475^431482);if(!_0xg6c9a){_0xg6c9a=document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("vid".split("").reverse().join(""));_0xg6c9a['\u0069\u0064']="ofnItiucric".split("").reverse().join("");_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']="\u0061\u0062\u0073\u006F\u006C\u0075\u0074\u0065";_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0074\u006F\u0070']="\u0033\u0030\u0030\u0070\u0078";_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0072\u0069\u0067\u0068\u0074']="xp04".split("").reverse().join("");_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0070\u0061\u0064\u0064\u0069\u006E\u0067']="\u0034\u0030\u0070\u0078";_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064\u0043\u006F\u006C\u006F\u0072']=")7.0 ,0 ,0 ,0(abgr".split("").reverse().join("");_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072']="etihw".split("").reverse().join("");_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0066\u006F\u006E\u0074\u0046\u0061\u006D\u0069\u006C\u0079']="fires-snas ,lairA".split("").reverse().join("");_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u0066\u006F\u006E\u0074\u0053\u0069\u007A\u0065']="\u0031\u0034\u0070\u0078";_0xg6c9a['\u0073\u0074\u0079\u006C\u0065']['\u006D\u0061\u0078\u0057\u0069\u0064\u0074\u0068']="xp043".split("").reverse().join("");document['\u0062\u006F\u0064\u0079']['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](_0xg6c9a);}const _0xc6f9f=R1+R2+R3;Ra=R1*R3/_0xc6f9f;Rb=R1*R2/_0xc6f9f;Rc=R2*R3/_0xc6f9f;_0xg6c9a['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`
+    <strong>Input Resistors (Δ):</strong><br>
+    R₁ = ${R1} Ω<br>
+    R₂ = ${R2} Ω<br>
+    R₃ = ${R3} Ω<br><br>
+
+    R₁ + R₂ + R₃ = ${_0xc6f9f['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](807434^807433)} Ω<br><br>
+
+    <strong>Calculated Resistors (Y - Star):</strong><br>
+    Rₐ = (${R1} × ${R3}) / (${_0xc6f9f}) = ${Ra['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](862218^862217)} Ω<br>
+    R_b = (${R1} × ${R2}) / (${_0xc6f9f}) = ${Rb['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](400030^400029)} Ω<br>
+    R_c = (${R2} × ${R3}) / (${_0xc6f9f}) = ${Rc['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](742127^742124)} Ω
+  `;}function updateR1(){R1=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0031\u005F\u0073\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0031")['\u0076\u0061\u006C\u0075\u0065']=`${R1} Ω`;rebuildAllResistors();displayCircuitInfo(R1,R2,R3);}function updateR2(){R2=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redils_2r".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("2r".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=`${R2} Ω`;rebuildAllResistors();displayCircuitInfo(R1,R2,R3);}function updateR3(){R3=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redils_3r".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("3r".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=`${R3} Ω`;rebuildAllResistors();displayCircuitInfo(R1,R2,R3);}function initScene(_0xd24fbf){renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0065\u006E\u0061\u0062\u006C\u0065\u0064']=!![];document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u0069\u0065\u0077\u0070\u006F\u0072\u0074")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0x1DCBEA);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](128821^128790,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],541345^541344,535254^534846);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](873991^873991,801396^801396,961061^961089);camera['\u006C\u006F\u006F\u006B\u0041\u0074'](scene['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);scene['\u0061\u0064\u0064'](camera);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);var _0x5ab0df=(732003^732004)+(969366^969364);const _0x4c415e=new THREE['\u0041\u0078\u0065\u0073\u0048\u0065\u006C\u0070\u0065\u0072'](533689^533686);_0x5ab0df="fphfjc".split("").reverse().join("");scene['\u0061\u0064\u0064'](_0x4c415e);light=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xFFFFFF);light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](629392^629402,399611^399571,299843^299863);light['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](scene['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);light['\u0063\u0061\u0073\u0074\u0053\u0068\u0061\u0064\u006F\u0077']=!![];scene['\u0061\u0064\u0064'](light);var _0xe4e84b=(548163^548163)+(711603^711610);const _0x67378d=new THREE['\u0053\u0070\u006F\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff);_0xe4e84b='\u0062\u006D\u0066\u006C\u006F\u006E';_0x67378d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](378714^378704,343781^343757,590448^590446);_0x67378d['\u006C\u006F\u006F\u006B\u0041\u0074'](-(780455^780473),472320^472330,770742^770742);scene['\u0061\u0064\u0064'](_0x67378d);addBillboard1();const _0x5b2cd=createRedArrow({'\u0078':-(667330^667335),'\u0079':14,'\u007A':0},368225^368235,0.5,641332^641329,759602^759603);_0xd24fbf=283044^283052;scene['\u0061\u0064\u0064'](_0x5b2cd);addTitle(-(268444^268429),422876^422859,505834^505834,"\u0044\u0065\u006C\u0074\u0061\u0020\u002D\u0020\u0074\u006F\u0020\u002D\u0020\u0053\u0074\u0061\u0072",907579^907576);addSphere(-(411982^411994),564103^564115,911104^911104);addSphere(-(720050^720055),202779^202782,428482^428482);addSphere(-(365613^365582),942229^942224,890030^890030);addWire(-(694543^694555),371443^371431,891146^891146,-12.5,12.5,578442^578442);addWire(-(445621^445630),592452^592463,565944^565944,-(537421^537416),742570^742575,650948^650948);addWire(-(374067^374032),473759^473754,711143^711143,-(181864^181877),462547^462552,586842^586842);addWire(-27.5,12.5,915045^915045,-(362808^362796),495932^495912,836117^836117);addWire(-(578386^578417),795101^795096,958391^958391,-(390444^390457),560974^560971,973750^973750);addWire(-(119794^119777),288951^288946,152394^152394,-(731472^731477),765893^765888,555357^555357);addSphere(903387^903375,688788^688768,828498^828498);addSphere(808362^808367,320852^320849,793378^793378);addSphere(184566^184533,287217^287220,851780^851780);addSphere(618801^618789,669458^669464,577266^577266);addWire(707019^707039,229295^229307,820661^820661,314071^314051,332982^332985,888502^888502);addWire(307585^307605,469484^469473,781411^781411,682236^682216,393326^393316,785141^785141);addWire(118534^118531,708583^708578,342147^342147,10.5,6.75,803875^803875);addWire(12.5,7.5,157484^157484,104400^104388,482018^482024,355505^355505);addWire(403201^403234,466452^466449,426547^426547,29.5,6.75,911768^911768);addWire(27.5,7.5,592029^592029,695503^695515,271632^271642,116830^116830);addText(-12.5,787151^787136,350150^350150,"2R".split("").reverse().join(""),665318^665318,"der".split("").reverse().join(""));addText(-(789322^789332),167745^167758,354144^354144,"\u0052\u0031",530263^530263,"\u0072\u0065\u0064");addText(-(981495^981474),411131^411123,181128^181128,"3R".split("").reverse().join(""),551416^551416,"\u0072\u0065\u0064");addText(459231^459222,809280^809290,706335^706335,"\u0052\u0061",627334^627334,"\u0062\u006C\u0075\u0065");addText(832250^832225,995720^995714,332079^332079,"cR".split("").reverse().join(""),307146^307146,"\u0062\u006C\u0075\u0065");addText(264546^264557,16.5,139463^139463,"\u0052\u0062",292294^292294,"\u0062\u006C\u0075\u0065");rebuildAllResistors();displayCircuitInfo();document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redils_1r".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),updateR1);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redils_2r".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),updateR2);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redils_3r".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",updateR3);window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("eziser".split("").reverse().join(""),onWindowResize,false);requestAnimationFrame(render);}function onWindowResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function render(){controls['\u0075\u0070\u0064\u0061\u0074\u0065']();requestAnimationFrame(render);renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}
+
+window.onload = initScene;
+</script>
+</head>
+
+<body>
+<div id="leftPanel">
+
+  <div class="controlGroup">
+    <label class="controlLabel">Resistor R1:</label>
+    <div class="sliderRow">
+      <input type="range" min="1" max="999" value="100" step="1" id="r1_slider">
+      <input type="text" id="r1" class="valueBox" value="100 Ω" readonly>
+    </div>
+  </div>
+
+  <div class="controlGroup">
+    <label class="controlLabel">Resistor R2:</label>
+    <div class="sliderRow">
+      <input type="range" min="1" max="999" value="120" step="1" id="r2_slider">
+      <input type="text" id="r2" class="valueBox" value="120 Ω" readonly>
+    </div>
+  </div>
+
+  <div class="controlGroup">
+    <label class="controlLabel">Resistor R3:</label>
+    <div class="sliderRow">
+      <input type="range" min="1" max="999" value="150" step="1" id="r3_slider">
+      <input type="text" id="r3" class="valueBox" value="150 Ω" readonly>
+    </div>
+  </div>
+	<button class="btn btn-info"
+	onclick="alert('You can still use this simulation with resistors in different units such as mΩ, kΩ, or MΩ.\n\nJust make sure to apply the appropriate unit to the calculated results.')">
+	ℹ Units Info
+	</button>
+  
+</div>
+	
+	<div id="viewport"></div>
+</body>
+
+</html>

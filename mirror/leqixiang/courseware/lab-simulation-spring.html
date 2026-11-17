@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>乐启享 · 物理实验</title>
+
+  <link rel="icon" href="/brand/favicon.ico">
+  <link rel="stylesheet" href="/api/program-assets/lab-simulation-spring/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/lab-simulation-spring/_ext/vendor/css/main3.css">
+
+  <script src="/api/program-assets/lab-simulation-spring/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="/api/program-assets/lab-simulation-spring/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+  <script src="/api/program-assets/lab-simulation-spring/_ext/cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/api/program-assets/lab-simulation-spring/_ext/vendor/Physijs/three.min.js"></script>
+  <script src="/api/program-assets/lab-simulation-spring/_ext/vendor/Physijs/physi.js"></script>
+  <script src="/api/program-assets/lab-simulation-spring/_ext/vendor/js/OrbitControls.js"></script>
+
+  <style>
+    body{ margin:0; overflow:hidden; font-family: Arial, sans-serif; color:#111; }
+    #viewport{ position:fixed; inset:0; }
+
+    /* top title strip */
+    #topbar{
+      position:fixed; left:0; right:0; top:0;
+      padding:10px 16px;
+      text-align:center;
+      z-index:10;
+      pointer-events:none;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    }
+    #topbar h2{ margin:0; font-size:26px; font-weight:700; }
+    #problemText{
+      margin-top:6px;
+      font-size:13px;
+      opacity:0.9;
+    }
+
+    /* panels */
+    .panelBox{
+      position:fixed;
+      top:90px;
+      width:260px;
+      background: rgba(245,245,245,0.95);
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      z-index: 20;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+      backdrop-filter: blur(2px);
+    }
+    #leftPanel{ left:16px; }
+    #rightPanel{ right:16px; width:280px; }
+
+    .panelTitle{
+      font-size:14px;
+      font-weight:700;
+      margin:0 0 10px;
+      text-align:left;
+    }
+
+    .rowItem{ margin:10px 0 14px; }
+    .rowTop{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:10px;
+      font-size:12px;
+      font-weight:700;
+    }
+    .valueTag{
+      font-weight:700;
+      color:#0b57d0;
+      min-width:86px;
+      text-align:right;
+    }
+
+    input[type="range"]{ width:100%; accent-color:#0b57d0; }
+
+    .smallNote{ font-size:12px; opacity:0.85; margin-top:8px; }
+
+    /* right panel layout */
+    .fieldLine{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .fieldLine label{ font-size:12px; font-weight:700; margin:0; white-space:nowrap; }
+    #studentName{
+      flex:1;
+      height:28px;
+      border:1px solid #bbb;
+      border-radius:8px;
+      padding:0 10px;
+      font-size:12px;
+      background:#fff;
+    }
+
+    .btn-Row{ display:flex; gap:8px; justify-content:center; margin:10px 0 8px; }
+    .btnRow .btn{ min-width:110px; border-radius:8px; }
+
+    .answerRow{
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      font-size:12px; margin:8px 0 6px;
+    }
+    #answer{
+      width:70px;
+      height:28px;
+      border:1px solid #bbb;
+      border-radius:8px;
+      padding:0 8px;
+      font-size:12px;
+      text-align:center;
+    }
+
+    #resultMsg{ font-size:12px; font-weight:700; text-align:center; margin-top:6px; min-height:18px; }
+    #homeBtn{ display:block; margin:10px auto 0; width:100%; border-radius:8px; }
+
+    /* responsive */
+    @media (max-width: 900px){
+      .panelBox{ top:auto; bottom:14px; }
+      #leftPanel{ left:14px; }
+      #rightPanel{ right:14px; }
+      #topbar{ position:fixed; top:0; }
+    }
+  </style>
+
+  <script>
+  'use strict';
+  Physijs.scripts.worker = '../Physijs/physijs_worker.js';
+  Physijs.scripts.ammo   = '../Physijs/ammo.js';
+
+  // ---------- scene objects ----------
+  let renderer, scene, camera, controls, light, ground, ground_material;
+  let loader = new THREE.TextureLoader();
+  let springMesh, box;
+  const K_MIN = 50, K_MAX = 1200;      // same as slider
+  const SPRING_R_MIN = 0.12;           // thin spring
+  const SPRING_R_MAX = 0.45;           // thick spring
+  
+  function springThicknessFromK(k){
+    const t = Math.max(0, Math.min(1, (k - K_MIN) / (K_MAX - K_MIN)));
+    return SPRING_R_MIN + t * (SPRING_R_MAX - SPRING_R_MIN);
+  }
+
+  // ---------- audio ----------
+  const audio2 = new Audio('../Audio/correct.mp3');
+  const audio3 = new Audio('../Audio/wrong.mp3');
+
+  // ---------- parameters ----------
+  let mKg = 2.0, v0 = 10.0, kN = 400.0;
+
+  const MASS_SCALE = 1400;          // 2kg -> 2800
+  const UNITS_PER_METER = 22.6;
+  const springStartX = -6;
+
+  const BOX_W = 12, BOX_D = 7;
+  const BASE_MASS = 2.0, BASE_H = 8;
+  const FLOOR_Y = 0.5;
+
+  // motion state
+  const X_LEFT = -40;               // stop here
+  let x = X_LEFT;
+  let phase = 'idle';               // idle | approach | compress | return
+  let running = false; 
+
+  var _0x99825c=(970326^970323)+(999558^999566);let compressEndX=178605^178599;_0x99825c=(290993^290999)+(315147^315144);let lastTime=888045^888045;function xmaxMeters(){return v0*Math['\u0073\u0071\u0072\u0074'](mKg/kN);}function $(id){return document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);}function updateProblemText(){var _0xc6319c=(449531^449530)+(735518^735514);const _0xfdfc6c=xmaxMeters();_0xc6319c=(973615^973608)+(528173^528172);compressEndX=springStartX+_0xfdfc6c*UNITS_PER_METER;$("laVm".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=mKg['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](857836^857837);$("\u0076\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=v0['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](768140^768141);$("\u006B\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=Math['\u0072\u006F\u0075\u006E\u0064'](kN);$("\u0070\u0072\u006F\u0062\u006C\u0065\u006D\u0054\u0065\u0078\u0074")['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`A <b>${mKg['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](917407^917406)} kg</b> block with speed <b>v = ${v0['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](778214^778215)} m/s</b> pushes against <br> a spring `+`with force constant <b>k = ${Math['\u0072\u006F\u0075\u006E\u0064'](kN)} N/m</b> on a frictionless horizontal surface.<br>`+`Compute the spring’s maximum compression distance <b>x<sub>max</sub></b>.`;}function rebuildBox(){if(!scene)return;if(box)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](box);let _0xa1b4ec=Math['\u0063\u0062\u0072\u0074'](mKg/BASE_MASS);_0xa1b4ec=Math['\u006D\u0061\u0078'](0.6,Math['\u006D\u0069\u006E'](688935^688933,_0xa1b4ec));const h=BASE_H*_0xa1b4ec;var _0xc53fdb=(391123^391120)+(355048^355055);const _0x44cd=Physijs['\u0063\u0072\u0065\u0061\u0074\u0065\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'](new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xff6666}),0.4,0.2);_0xc53fdb=(861588^861584)+(230494^230488);box=new Physijs['\u0042\u006F\u0078\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](BOX_W,h,BOX_D),_0x44cd,mKg*MASS_SCALE);box['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,FLOOR_Y+h/(959310^959308),936337^936337);box['\u005F\u005F\u0064\u0069\u0072\u0074\u0079\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E']=!![];box['\u0073\u0065\u0074\u004C\u0069\u006E\u0065\u0061\u0072\u0056\u0065\u006C\u006F\u0063\u0069\u0074\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](853053^853053,204293^204293,646578^646578));box['\u0073\u0065\u0074\u0041\u006E\u0067\u0075\u006C\u0061\u0072\u0056\u0065\u006C\u006F\u0063\u0069\u0074\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](487451^487451,554816^554816,853890^853890));scene['\u0061\u0064\u0064'](box);}function createSpring(posX,posY,posZ,_0x35f3a,_0x8d_0x5fa,_0x44d5b,n){if(springMesh)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](springMesh);const _0x9b667c=Math['\u0050\u0049']*(345227^345225);_0x35f3a=827754^827753;_0x8d_0x5fa=139934^139914;const _0xb911c=Math['\u0050\u0049']/(148379^148381);const _0xb42fe=(817761^817750)-posX;var _0x1539g=(395301^395300)+(145744^145753);const _0xb1b3b=(576611^576593)-_0xb42fe*0.5;_0x1539g=972702^972703;let _0x764aed=_0xb42fe/(524325^524327);var _0x95f50a=(262980^262978)+(373084^373081);_0x44d5b=1.7;_0x95f50a=658565^658564;var _0x15b6ee=(416454^416452)+(775158^775157);n=335304^335304;_0x15b6ee=(518208^518209)+(352600^352601);var _0x531afd=(839221^839220)+(388130^388133);const _0xb13de=_0xb42fe/(_0x9b667c/_0xb911c*_0x8d_0x5fa);_0x531afd=704363^704364;var _0xa2f=(601889^601896)+(893311^893304);const _0xc5ad=[];_0xa2f=250809^250801;var _0xdf67c=(484688^484695)+(792507^792511);const _0x4443c=new THREE['\u004D\u0065\u0073\u0068\u004E\u006F\u0072\u006D\u0061\u006C\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']();_0xdf67c=(494011^494008)+(242699^242690);for(let _0xe4df=925659^925659;_0xe4df<=_0x9b667c*_0x8d_0x5fa;_0xe4df+=_0xb911c){_0x764aed-=_0xb13de;_0xc5ad['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](_0x764aed,posY+Math['\u0063\u006F\u0073'](_0xe4df)*_0x44d5b,posZ+Math['\u0073\u0069\u006E'](_0xe4df)*_0x44d5b));n++;}const _0xfeaa4e=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0xc5ad);var _0xe1f=(665039^665030)+(244052^244053);const _0x22308b=springThicknessFromK(kN);_0xe1f='\u006A\u006D\u0061\u0065\u006A\u006B';const _0x195f=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xfeaa4e,n,_0x22308b,360420^360430,false);springMesh=new THREE['\u004D\u0065\u0073\u0068'](_0x195f,_0x4443c);springMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](_0xb1b3b,posY,posZ);scene['\u0061\u0064\u0064'](springMesh);}function hookUI(_0x9cd){const _0x4ad=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("egnaRm".split("").reverse().join(""));_0x9cd='\u0070\u0066\u006B\u0062\u006B\u006B';var _0x21e65d=(103977^103979)+(349397^349399);const _0xgc_0x138=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("egnaRv".split("").reverse().join(""));_0x21e65d=(393151^393149)+(743586^743589);const _0x0ac6b=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006B\u0052\u0061\u006E\u0067\u0065");function _0xb15aba(){mKg=parseFloat(_0x4ad['\u0076\u0061\u006C\u0075\u0065']);v0=parseFloat(_0xgc_0x138['\u0076\u0061\u006C\u0075\u0065']);kN=parseFloat(_0x0ac6b['\u0076\u0061\u006C\u0075\u0065']);updateProblemText();rebuildBox();stopAndReset();createSpring(483093^483091,652470^652468,458196^458196);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("gsMtluser".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="";}_0x4ad['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),_0xb15aba);_0xgc_0x138['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),_0xb15aba);_0x0ac6b['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",_0xb15aba);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0074\u0075\u0064\u0065\u006E\u0074\u004E\u0061\u006D\u0065")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",()=>{});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0074\u0061\u0072\u0074\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",()=>{running=!![];phase="hcaorppa".split("").reverse().join("");document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("gsMtluser".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="";});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),()=>{running=!running;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("ntBesuap".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=running?"\u0050\u0061\u0075\u0073\u0065":"emuseR".split("").reverse().join("");});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("kcehc".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),()=>{let _0x1571f;const _0x8aeccb=(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0074\u0075\u0064\u0065\u006E\u0074\u004E\u0061\u006D\u0065")['\u0076\u0061\u006C\u0075\u0065']||'')['\u0074\u0072\u0069\u006D']();_0x1571f=(990282^990282)+(322536^322540);const _0x426b=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("rewsna".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);if(!isFinite(_0x426b)){document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0075\u006C\u0074\u004D\u0073\u0067")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=".rebmun a retne esaelP".split("").reverse().join("");audio3['\u0070\u006C\u0061\u0079']();return;}const _0xb31ege=xmaxMeters();const _0x7ac2d=0.05;var _0x266c=(173617^173620)+(208319^208312);const _0x7g_0x3e3=Math['\u0061\u0062\u0073'](_0x426b-_0xb31ege)<=_0x7ac2d;_0x266c=(720314^720307)+(874394^874398);if(_0x7g_0x3e3){audio2['\u0070\u006C\u0061\u0079']();document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0075\u006C\u0074\u004D\u0073\u0067")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=(_0x8aeccb?_0x8aeccb+" :".split("").reverse().join(""):"")+"\u0043\u006F\u0072\u0072\u0065\u0063\u0074\u0021\u0020\u0020\u0078\u005F\u006D\u0061\u0078\u0020\u003D\u0020"+_0xb31ege['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](740278^740276)+"\u0020\u006D";}else{audio3['\u0070\u006C\u0061\u0079']();document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("gsMtluser".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=(_0x8aeccb?_0x8aeccb+" :".split("").reverse().join(""):"")+"\u004E\u006F\u0074\u0020\u0079\u0065\u0074\u002E\u0020\u0054\u0072\u0079\u0020\u0061\u0067\u0061\u0069\u006E\u0020\u0070\u006C\u0065\u0061\u0073\u0065\u002E";}});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0065\u0074\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),()=>{running=false;phase="\u0069\u0064\u006C\u0065";mKg=349698^349696;v0=387930^387920;kN=651651^651283;_0x4ad['\u0076\u0061\u006C\u0075\u0065']=mKg;_0xgc_0x138['\u0076\u0061\u006C\u0075\u0065']=v0;_0x0ac6b['\u0076\u0061\u006C\u0075\u0065']=kN;updateProblemText();x=X_LEFT;rebuildBox();createSpring(774387^774389,855231^855229,620806^620806);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0075\u006C\u0074\u004D\u0073\u0067")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']='';document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="esuaP".split("").reverse().join("");});_0xb15aba();}function stopAndReset(){running=false;phase="eldi".split("").reverse().join("");x=X_LEFT;if(box){box['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']=x;box['\u005F\u005F\u0064\u0069\u0072\u0074\u0079\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E']=!![];box['\u0073\u0065\u0074\u004C\u0069\u006E\u0065\u0061\u0072\u0056\u0065\u006C\u006F\u0063\u0069\u0074\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](220198^220198,420278^420278,330708^330708));box['\u0073\u0065\u0074\u0041\u006E\u0067\u0075\u006C\u0061\u0072\u0056\u0065\u006C\u006F\u0063\u0069\u0074\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](333344^333344,240980^240980,186293^186293));}createSpring(220109^220107,568999^568997,414848^414848);}function initScene(){renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0065\u006E\u0061\u0062\u006C\u0065\u0064']=!![];document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u0069\u0065\u0077\u0070\u006F\u0072\u0074")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new Physijs['\u0053\u0063\u0065\u006E\u0065']();scene['\u0073\u0065\u0074\u0047\u0072\u0061\u0076\u0069\u0074\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](792138^792138,-(983133^983107),325381^325381));scene['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("etadpu".split("").reverse().join(""),function(){scene['\u0073\u0069\u006D\u0075\u006C\u0061\u0074\u0065'](undefined,759283^759281);});camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](559467^559432,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],207861^207860,232529^233401);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](387536^387564,453157^453143,288789^288809);scene['\u0072\u006F\u0074\u0061\u0074\u0065\u0059'](Math['\u0050\u0049']/(938429^938431));scene['\u0061\u0064\u0064'](camera);camera['\u006C\u006F\u006F\u006B\u0041\u0074'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](786048^786048,-(995028^995014),809845^809845));controls=new THREE['\u004F\u0072\u0062\u0069\u0074\u0043\u006F\u006E\u0074\u0072\u006F\u006C\u0073'](camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls['\u0075\u0070\u0064\u0061\u0074\u0065']();light=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,703870^703871);light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](329557^329537,267973^268013,-(483507^483516));light['\u0063\u0061\u0073\u0074\u0053\u0068\u0061\u0064\u006F\u0077']=!![];scene['\u0061\u0064\u0064'](light);scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xaaaaaa));ground_material=Physijs['\u0063\u0072\u0065\u0061\u0074\u0065\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'](new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"map":loader['\u006C\u006F\u0061\u0064']("gpj.ssalg/serutcip/..".split("").reverse().join(""))}),0.8,0.4);ground_material['\u006D\u0061\u0070']['\u0077\u0072\u0061\u0070\u0053']=ground_material['\u006D\u0061\u0070']['\u0077\u0072\u0061\u0070\u0054']=THREE['\u0052\u0065\u0070\u0065\u0061\u0074\u0057\u0072\u0061\u0070\u0070\u0069\u006E\u0067'];ground_material['\u006D\u0061\u0070']['\u0072\u0065\u0070\u0065\u0061\u0074']['\u0073\u0065\u0074'](959678^959674,795056^795060);ground=new Physijs['\u0042\u006F\u0078\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](124548^124464,195443^195442,738886^739058),ground_material,696148^696148);ground['\u0072\u0065\u0063\u0065\u0069\u0076\u0065\u0053\u0068\u0061\u0064\u006F\u0077']=!![];scene['\u0061\u0064\u0064'](ground);const _0x1g771c=new Physijs['\u0042\u006F\u0078\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](216506^216498,816508^816502,628601^628595),ground_material,414219^414219);_0x1g771c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](877223^877205,5.5,567483^567483);scene['\u0061\u0064\u0064'](_0x1g771c);x=X_LEFT;rebuildBox();createSpring(238783^238777,731352^731354,236705^236705);hookUI();window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065",onResize,false);requestAnimationFrame(animate);scene['\u0073\u0069\u006D\u0075\u006C\u0061\u0074\u0065']();}function onResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function animate(t){requestAnimationFrame(animate);if(!lastTime)lastTime=t;let _0x236cd=(t-lastTime)/(921337^920849);_0x236cd=Math['\u006D\u0069\u006E'](_0x236cd,0.03);lastTime=t;if(running&&box){var _0x4ed=(794449^794453)+(296792^296797);const _0x86bf8d=v0*1.3;_0x4ed='\u0067\u0069\u006B\u0068\u006B\u0063';var _0x7bd65c=(794553^794554)+(847513^847517);const _0x8ceaef=_0x86bf8d*_0x236cd;_0x7bd65c=632437^632438;if(phase==="\u0061\u0070\u0070\u0072\u006F\u0061\u0063\u0068"){x+=_0x8ceaef;if(x>=springStartX)phase="\u0063\u006F\u006D\u0070\u0072\u0065\u0073\u0073";}else if(phase==="\u0063\u006F\u006D\u0070\u0072\u0065\u0073\u0073"){x+=_0x8ceaef;createSpring(x+BOX_W,998028^998030,644680^644680);if(x>=compressEndX)phase="\u0072\u0065\u0074\u0075\u0072\u006E";}else if(phase==="\u0072\u0065\u0074\u0075\u0072\u006E"){x-=_0x8ceaef;if(x>=springStartX){createSpring(x+BOX_W,236459^236457,283416^283416);}if(x<=X_LEFT){x=X_LEFT;running=false;phase="\u0069\u0064\u006C\u0065";createSpring(420873^420879,718624^718626,928182^928182);}}box['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']=x;box['\u005F\u005F\u0064\u0069\u0072\u0074\u0079\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E']=!![];box['\u0073\u0065\u0074\u004C\u0069\u006E\u0065\u0061\u0072\u0056\u0065\u006C\u006F\u0063\u0069\u0074\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](340069^340069,377843^377843,758339^758339));box['\u0073\u0065\u0074\u0041\u006E\u0067\u0075\u006C\u0061\u0072\u0056\u0065\u006C\u006F\u0063\u0069\u0074\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](910711^910711,163177^163177,264524^264524));}renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);controls['\u0075\u0070\u0064\u0061\u0074\u0065']();}
+
+  window.onload = initScene;
+
+  </script>
+</head>
+
+<body>
+  <div id="topbar">
+    <h1>Kinetic & Elastic Energy</h1>
+    <div id="problemText"></div>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <div id="leftPanel" class="panelBox">
+    <div class="panelTitle">Parameters</div>
+
+    <div class="rowItem">
+      <div class="rowTop"><span>Mass m</span><span class="valueTag"><span id="mVal">2.0</span> kg</span></div>
+      <input id="mRange" type="range" min="0.5" max="5" step="0.1" value="2">
+    </div>
+
+    <div class="rowItem">
+      <div class="rowTop"><span>Speed v</span><span class="valueTag"><span id="vVal">10.0</span> m/s</span></div>
+      <input id="vRange" type="range" min="1" max="12" step="0.5" value="10">
+    </div>
+
+    <div class="rowItem" style="margin-bottom:6px;">
+      <div class="rowTop"><span>Spring k</span><span class="valueTag"><span id="kVal">400</span> N/m</span></div>
+      <input id="kRange" type="range" min="200" max="1200" step="10" value="400">
+    </div>
+
+    <div class="smallNote">
+      Tip: Change parameters, then press <b>Move Block</b>.
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="rightPanel" class="panelBox">
+    <div class="panelTitle">Student & Answer</div>
+
+    <div class="fieldLine">
+      <label>Student Name:</label>
+      <input id="studentName" type="text" placeholder="Your name">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-success" id="startBtn">Start</button>
+      <button class="btn btn-danger" id="pauseBtn">Pause</button>
+      <button class="btn btn-warning" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="answerRow">
+      <span>Answer:</span>
+      <input id="answer" type="text" value="">
+      <span>m</span>
+    </div>
+
+    <button class="btn btn-primary" id="check" style="width:100%; border-radius:8px;">Check Solution</button>
+
+    <div id="resultMsg"></div>
+
+    
+  </div>
+
+  <div id="viewport"></div>
+</body>
+</html>

@@ -20,8 +20,8 @@ import { prepareReviewedSession } from '%%RUNTIME%%reviewed-session.mjs';
 
 const PROGRAM = '%%PROGRAM%%';
 const select = document.getElementById('chapter');
-const frame = document.getElementById('frame');
 const openButton = document.getElementById('open');
+const stage = document.getElementById('stage');
 
 /* A short trace of the handshake, for when the bridge misbehaves. */
 const debug = new URLSearchParams(location.search).has('lqdebug');
@@ -32,7 +32,6 @@ if (debug) {
   window.addEventListener('message', (event) => {
     trace('message', event.data && event.data.type, event.data && event.data.v);
   });
-  frame.addEventListener('load', () => trace('frame load', Math.round(performance.now())));
 }
 
 /* The adapter names every chapter of the course and where it lives. */
@@ -66,12 +65,49 @@ const revision = /^[a-zA-Z0-9_.:-]{1,96}$/.test(digest) ? digest.slice(0, 64) : 
 
 let host = null;
 let opening = null;
+let session = null;
+
+/*
+ * The frame is built again for every chapter.
+ *
+ * A frame that already sits in the page starts on about:blank, and the
+ * bridge spends its single handshake on the first load event — which is
+ * that empty document, not the course.  The course then waits for an
+ * answer that never comes and the screen stays black.  A frame that is
+ * not in the page yet has no load event at all, so the handshake is spent
+ * on the document that matters.  This is the order the published site
+ * uses: build it, let it in, point it at the chapter, then show it.
+ */
+function freshFrame() {
+  const element = document.createElement('iframe');
+  element.id = 'frame';
+  element.title = '课件画面';
+  element.allow = 'autoplay; fullscreen';
+  if (debug) {
+    element.addEventListener('load', () =>
+      trace('frame load', Math.round(performance.now()))
+    );
+  }
+  return element;
+}
+
+/* Let go of the chapter that is on screen. */
+function retire() {
+  if (host) {
+    host.close();
+    host = null;
+  }
+  if (session) {
+    session.close();
+    session = null;
+  }
+  stage.replaceChildren();
+}
 
 /* Answer the frame that asks to be let in, and keep its progress here. */
-async function prepare(chapter) {
-  const previous = host;
+async function prepare(chapter, element) {
   trace('prepare', chapter.id, Math.round(performance.now()));
-  const session = await prepareReviewedSession({
+  const prepared = await prepareReviewedSession({
     declaration,
     context: {
       environment: 'local',
@@ -91,13 +127,8 @@ async function prepare(chapter) {
       await show(`/api/program-assets/${PROGRAM}/${target.path}`);
     },
   });
-  host = registerFrame(window, frame, {
-    ...session.hostOptions,
-    onSession: () => {
-      /* The old frame has been replaced; let go of its port. */
-      if (previous && previous !== host) previous.close();
-    },
-  });
+  session = prepared;
+  host = registerFrame(window, element, { ...prepared.hostOptions });
   trace('prepared', chapter.id, Math.round(performance.now()));
 }
 
@@ -107,15 +138,23 @@ async function show(url) {
   const rel = url.replace(/^.*\/api\/program-assets\/[^/]+\//, '');
   const chapter = byPath.get(rel);
   if (!chapter) {
-    frame.src = url;
+    retire();
+    const element = freshFrame();
+    element.src = url;
+    stage.replaceChildren(element);
     return;
   }
+  const element = freshFrame();
   opening = (opening || Promise.resolve())
-    .then(() => prepare(chapter))
+    .then(() => {
+      retire();
+      return prepare(chapter, element);
+    })
     .catch(() => {})
     .then(() => {
       trace('set src', url, Math.round(performance.now()));
-      frame.src = url;
+      element.src = url;
+      stage.replaceChildren(element);
     });
   return opening;
 }

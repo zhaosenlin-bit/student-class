@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>乐启享 · 物理实验</title> 
+	<script type="application/ld+json">
+	{
+	  "@context": "http://schema.org",
+	  "@type": "WebSite",
+	  "@id":"/courseware/lab-phyc140-relative-velocity-two.html",
+	  "name": "Best Physics Simulations for Education",
+	  "description": "Free interactive tools for students and teachers.",
+	  "publisher": {
+	    "@type": "Education",
+	    "name": "3JCN"
+	  }
+	}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/vendor/css/main3.css">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations for Education">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations for Education">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/phyc140-relative-velocity-two">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<style>
+		input[type='number']{
+		    width: 80px; color: black;
+		} 
+		input {
+			text-align: center;
+			color: black;
+		}
+		body {color: white;}
+		h1 {color: white;}
+	</style>
+</head>
+
+<body>
+	<div id="info">
+		<h1>RELATIVE VELOCITY 2 DIMENSIONAL PROBLEM</h1>
+		A red car is moving west at 40 km/h, while a blue car is traveling at 30 km/h at an angle of 30 degrees south of east. 
+		What is the magnitude of the blue car's velocity relative to the red car?<br>
+		<button class="btn btn-primary" id="start">Start Simulation</button>
+		Student's name: <input type="text" id="studentname" value="">
+		Enter your answer:
+		<input type="number" id="answer" size="4" value="0.0" >
+		<button type="button" class="btn btn-success" id="check" >Check Answer</button>
+		<input type="text" id="result" value="">
+		<input type="checkbox" name="check-box" id="check-box"><br>
+		<button class="btn btn-danger" id="pause">Pause</button>
+		<button class="btn btn-danger" id="reset">Reset</button>
+		
+	</div>
+	<div id="container"></div>
+
+<script type="module">   
+    
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';	
+	import { GLTFLoader } from '../jsm/GLTFLoaderB.js';
+	import { DRACOLoader } from '../jsm/DRACOLoader.js';
+	import { RGBELoader } from '../jsm/RGBELoader.js';
+
+	let container, camera, scene, world, renderer, controls;
+	let isPaused = false; 
+	var is_start = false, is_stop = false;
+	const textureloader = new THREE.TextureLoader();
+	var lasttime = performance.now()*0.001 ;
+	var audio1 = new Audio('/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/vendor/Audio/correct.mp3');
+	var audio2 = new Audio('/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/vendor/Audio/wrong.mp3');
+
+
+	let grid; 
+	let carModel, carModelB;
+	const wheels = [];
+
+	
+	init();
+	animate();
+
+	function init() {
+		container = document.getElementById('container');
+		renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		container.appendChild(renderer.domElement);
+		 
+		camera = new THREE.PerspectiveCamera( 100, window.innerWidth / window.innerHeight, 0.1, 100 );
+		camera.position.set( 0, 30, 30 ); 
+
+		controls = new OrbitControls(camera, renderer.domElement);
+
+		scene = new THREE.Scene();
+		
+		const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Soft white light
+		scene.add(ambientLight);
+		
+		// Add Directional Light (simulates sunlight)
+		const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+		directionalLight.position.set(100, 100, 100); // Position the light source
+		scene.add(directionalLight);
+		
+		// add Grid
+		addGrid();
+		addRoad1();
+		addRoad2();
+		
+		// materials
+		const bodyMaterial = new THREE.MeshPhysicalMaterial( {
+			color: 0xff0000, metalness: 1.0, roughness: 0.5, clearcoat: 1.0, clearcoatRoughness: 0.03
+		} );
+		const bodyMaterialB = new THREE.MeshPhysicalMaterial( {
+			color: 0x0000ff, metalness: 1.0, roughness: 0.5, clearcoat: 1.0, clearcoatRoughness: 0.03
+		} );
+		const detailsMaterial = new THREE.MeshStandardMaterial( {
+			color: 0xffffff, metalness: 1.0, roughness: 0.5
+		} );
+		const glassMaterial = new THREE.MeshPhysicalMaterial( {
+			color: 0xffffff, metalness: 0.25, roughness: 0, transmission: 1.0
+		} );
+		
+		// Car
+
+		const dracoLoader = new DRACOLoader();
+		dracoLoader.setDecoderPath( '/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/threejs.org/examples/jsm/libs/draco/gltf/' );
+
+		const loader = new GLTFLoader();
+		loader.setDRACOLoader( dracoLoader );
+
+		loader.load( '/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/threejs.org/examples/models/gltf/ferrari.glb', function ( gltf ) {
+			carModel = gltf.scene.children[ 0 ];
+			carModel.getObjectByName( 'body' ).material = bodyMaterial;
+
+			carModel.getObjectByName( 'rim_fl' ).material = detailsMaterial;
+			carModel.getObjectByName( 'rim_fr' ).material = detailsMaterial;
+			carModel.getObjectByName( 'rim_rr' ).material = detailsMaterial;
+			carModel.getObjectByName( 'rim_rl' ).material = detailsMaterial;
+			carModel.getObjectByName( 'trim' ).material = detailsMaterial;
+
+			carModel.getObjectByName( 'glass' ).material = glassMaterial;
+
+			wheels.push(
+				carModel.getObjectByName( 'wheel_fl' ),
+				carModel.getObjectByName( 'wheel_fr' ),
+				carModel.getObjectByName( 'wheel_rl' ),
+				carModel.getObjectByName( 'wheel_rr' )
+			);
+			carModel.rotation.y = Math.PI/2;	
+			carModel.position.set(52,0,-11.5);
+			scene.add( carModel );
+		} );
+		
+		loader.load( '/api/program-assets/3jcn-phyc140-relative-velocity-two/_ext/threejs.org/examples/models/gltf/ferrari.glb', function ( gltf ) {
+			carModelB = gltf.scene.children[ 0 ];
+			carModelB.getObjectByName( 'body' ).material = bodyMaterialB;
+
+			carModelB.getObjectByName( 'rim_fl' ).material = detailsMaterial;
+			carModelB.getObjectByName( 'rim_fr' ).material = detailsMaterial;
+			carModelB.getObjectByName( 'rim_rr' ).material = detailsMaterial;
+			carModelB.getObjectByName( 'rim_rl' ).material = detailsMaterial;
+			carModelB.getObjectByName( 'trim' ).material = detailsMaterial;
+
+			carModelB.getObjectByName( 'glass' ).material = glassMaterial;
+
+			wheels.push(
+				carModelB.getObjectByName( 'wheel_fl' ),
+				carModelB.getObjectByName( 'wheel_fr' ),
+				carModelB.getObjectByName( 'wheel_rl' ),
+				carModelB.getObjectByName( 'wheel_rr' )
+			);
+			carModelB.rotation.y = - (Math.PI/2 + Math.PI/6);
+			carModelB.position.set(-37,0,0.8);
+			scene.add( carModelB );
+		} );	
+		
+		document.getElementById("reset").addEventListener('click', function(){location.reload();});
+    		document.getElementById("pause").addEventListener('click', togglePause);
+		document.getElementById("start").addEventListener('click', startFunction);
+		
+		document.getElementById('check').addEventListener('click', function(){
+			if(Math.abs(document.getElementById('answer').value - 67.7) < 0.4){
+				audio1.play();
+				document.getElementById("check-box").checked = true;
+				document.getElementById("result").value = document.getElementById("studentname").value
+						+ " passed the test";
+			}else{
+				audio2.play();
+				document.getElementById("check-box").checked = false;
+				document.getElementById("result").value = document.getElementById("studentname").value
+						+ " failed the test.";
+			}
+		});
+		window.addEventListener( 'resize', onWindowResize );
+	}
+	function togglePause() {
+	    // Check if the simulation is currently paused
+	    if (isPaused) {
+	        // Resume the simulation
+	        isPaused = false;
+	        document.getElementById("pause").innerText = "Pause"; // Change button text to "Pause"
+	    } else {
+	        // Pause the simulation
+	        isPaused = true;
+	        document.getElementById("pause").innerText = "Resume"; // Change button text to "Resume"
+	    }
+	}
+
+	function addGrid(){
+		grid = new THREE.GridHelper( 120, 60, 0xffffff, 0xffffff );
+		grid.material.opacity = 0.2;
+		grid.material.depthWrite = false;
+		grid.material.transparent = true;
+		scene.add( grid );
+	}
+	function addRoad1(){
+		const geometry = new THREE.PlaneGeometry( 120, 10 );
+		const texture = new THREE.TextureLoader().load('texture/road.png' ); 
+		const material = new THREE.MeshBasicMaterial( { map:texture } );
+		const plane = new THREE.Mesh( geometry, material );
+		plane.rotation.x = -Math.PI / 2;
+		plane.position.set(0,0,-10);
+		grid.add( plane );
+	}
+	function addRoad2(){
+		const geometry = new THREE.PlaneGeometry( 120, 10 );
+		const texture = new THREE.TextureLoader().load('texture/road.png' ); 
+		const material = new THREE.MeshBasicMaterial( { map:texture } );
+		const road = new THREE.Mesh( geometry, material );
+		road.rotation.x = -Math.PI / 2;
+		road.rotation.z = -Math.PI/6;
+		road.position.set(0,0,20);
+		grid.add( road );
+	}
+	function addVelocityVectors() {
+	    // Red car velocity vector (40 km/h West)
+	    var redCarPosition = new THREE.Vector3(30, 0, 6); // Position of the red car
+	    var redCarDirection = new THREE.Vector3(-1, 0, 0); // Pointing west (-x direction)
+	    var redCarLength = 20; // Scale the vector for better visibility (corresponding to 40 km/h)
+	    addVector(redCarPosition, redCarDirection.normalize(), redCarLength, 0xff0000, "Vrg"); 
+	
+	    // Blue car velocity vector (30 km/h, 30 degrees south of east)
+	    var blueCarPosition = new THREE.Vector3(10, 0, 6); // Position of the blue car
+	    var angleB = Math.PI / 6; // 30 degrees south of east
+	    var blueCarDirection = new THREE.Vector3(Math.cos(angleB), 0, Math.sin(angleB)); // Direction vector
+	    var blueCarLength = 15; // Scale the vector for better visibility (corresponding to 30 km/h)
+	    addVector(blueCarPosition, blueCarDirection.normalize(), blueCarLength, 0x0000ff, "Vbg");
+	
+	    // Relative velocity vector (yellow)
+	    var relativeDirection = blueCarDirection.clone().sub(redCarDirection); // Vector subtraction for relative velocity
+	    var relativePosition = new THREE.Vector3(10, 0, 6); // For simplicity, assume relative vector at origin
+	    var relativeLength = 34; //relativeDirection.length(); // Magnitude of the relative velocity
+	    addVector(relativePosition, relativeDirection.normalize(), relativeLength, 0xffff00, "Vbr"); 
+	}
+	
+	function createTextSprite(message, color) {
+	    var canvas = document.createElement('canvas');
+	    var context = canvas.getContext('2d');
+	
+	    // Set canvas size and font size proportional to the vector length
+	    canvas.width = 256;
+	    canvas.height = 128;
+	    context.font = 'Bold 64px Arial';
+	    context.fillStyle = color;
+	    context.textAlign = 'center';
+	    context.textBaseline = 'middle';
+	
+	    // Draw the text in the center of the canvas
+	    context.fillText(message, canvas.width / 2, canvas.height / 2);
+	
+	    var texture = new THREE.CanvasTexture(canvas);
+	    var spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+	    var sprite = new THREE.Sprite(spriteMaterial);
+	
+	    // Scale down the sprite for proper display in the scene
+	    sprite.scale.set(15, 10, 3); // Adjust the scale of the text sprite
+	    sprite.position.y += 11; 
+	    return sprite;
+	}
+	
+	function addVector(position, direction, length, color, label) {
+	    const arrowLength = length;
+	    const headLength = 1.3;
+	    const headWidth = 0.9;
+	
+	    // Create the arrow helper
+	    var arrowHelper = new THREE.ArrowHelper(direction, position, arrowLength, color, headLength, headWidth);
+	    scene.add(arrowHelper);
+	
+	    // Calculate the endpoint (tip) of the vector for placing the label
+	    var tipPoint = new THREE.Vector3().copy(position).addScaledVector(direction, length);
+	
+	    // Create the text sprite and position it at the tip of the arrow
+	    var textSprite = createTextSprite(label, color === 0xff0000 ? 'red' : (color === 0x0000ff ? 'blue' : 'yellow'));
+	    textSprite.position.copy(tipPoint);
+	    scene.add(textSprite);
+	}
+
+	function startFunction(){
+		addVelocityVectors();
+		lasttime = performance.now()*0.001 ;
+		is_start = true;
+	}
+	function onWindowResize() {
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+		renderer.setSize( window.innerWidth, window.innerHeight );
+	}
+
+	function animate() {
+	    var currenttime = performance.now() * 0.001; // Convert to seconds
+	    var time = Math.abs(lasttime - currenttime);
+	
+	    // Only animate if the simulation is not paused
+	    if (!isPaused) {
+	        if (!is_stop) {
+	            for (let i = 0; i < wheels.length; i++) {
+	                wheels[i].rotation.x = -time * Math.PI * 2;
+	            }
+	
+	            if (is_start) {
+	                // Red car moves West at 40 km/h
+	                carModel.position.x -= 0.1 * time;
+	
+	                // Blue car moves South-East at 45 degrees with 30 km/h
+	                var velocityB = 0.1 * (25 / 40); // Adjust the speed of the blue car
+	                var angleB = Math.PI / 6; // 30 degrees in radians
+	
+	                // Calculate new positions
+	                var deltaX = velocityB * Math.cos(angleB) * time; // East component
+	                var deltaZ = velocityB * Math.sin(angleB) * time; // South component
+	
+	                carModelB.position.x += deltaX;
+	                carModelB.position.z += deltaZ;
+	
+	                // Check if the red car reaches x = 60 and restart both cars
+	                if (carModel.position.x <= -60) {
+	                    // Reset both cars to their original positions
+	                    carModel.position.set(52, 0, -11.5); // Original position of the red car
+	                    carModelB.position.set(-37, 0, 0.8); // Original position of the blue car
+	
+	                    // Optionally, reset the time to zero for a fresh start
+	                    lasttime = performance.now() * 0.001;
+	                }
+	            }
+	        }
+	    }
+	
+	    requestAnimationFrame(animate);
+	    controls.update();
+	    renderer.render(scene, camera);
+	}
+
+
+</script>
+
+</body>
+</html>

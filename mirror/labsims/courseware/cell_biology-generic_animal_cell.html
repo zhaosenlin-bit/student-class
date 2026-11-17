@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Generic Animal Cell — Labelled 3D Model</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; background:#0d0a0c; height:100%; }
+  canvas { display:block; }
+  #info {
+    position:absolute; top:16px; left:16px; color:#d9a9a4; font-family:'Courier New', monospace;
+    font-size:12px; letter-spacing:0.5px; line-height:1.6; pointer-events:none; user-select:none;
+    text-shadow:0 0 8px rgba(0,0,0,0.8);
+  }
+  #info b { color:#ffe6e2; }
+  #hud {
+    position:absolute; bottom:16px; left:16px; color:#7a5b5e; font-family:'Courier New', monospace;
+    font-size:11px; pointer-events:none; user-select:none;
+  }
+
+  /* ---- labels ---- */
+  #leaders { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
+  #labels  { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
+  .lab {
+    position:absolute; transform:translate(-50%, -50%); white-space:nowrap;
+    font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; color:#ffeceb;
+    text-shadow:0 1px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9);
+    letter-spacing:0.4px;
+  }
+
+  /* ---- quiz mode ---- */
+  #quizWrap {
+    position:absolute; left:16px; top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  #quizToggle {
+    background:rgba(20,12,14,0.90); border:1px solid #3a2326; border-radius:20px;
+    color:#ffe6e2; font-family:'Courier New', monospace; font-size:12px; letter-spacing:0.5px;
+    padding:8px 18px; cursor:pointer; user-select:none; pointer-events:auto;
+    box-shadow:0 2px 10px rgba(0,0,0,0.45);
+  }
+  #quizToggle:hover { background:rgba(34,20,24,0.95); }
+  #quizToggle.active { background:#5a2a30; border-color:#e08a86; }
+  #quizPanel {
+    position:relative;
+    width:300px; background:rgba(20,12,14,0.94); border:1px solid #3a2326; border-radius:8px;
+    padding:14px 16px; font-family:'Courier New', monospace; color:#d9a9a4; text-align:center;
+    pointer-events:auto;
+  }
+  #quizPanel[hidden] { display:none; }
+  #quizProgress { font-size:10px; letter-spacing:1px; color:#8a6a66; margin-bottom:6px; }
+  #quizPrompt { font-size:13px; color:#ffe6e2; margin-bottom:10px; }
+  #quizAnswer { font-size:17px; font-weight:bold; color:#ffd54a; min-height:24px; margin-bottom:12px; }
+  #quizAnswer.hidden-answer { color:#8a6a66; }
+  #quizBtns { display:flex; gap:6px; }
+  #quizBtns button {
+    flex:1; background:#2b1a1d; color:#f0c3bf; border:1px solid #3a2326; border-radius:4px;
+    font-family:inherit; font-size:11px; padding:7px 0; cursor:pointer;
+  }
+  #quizBtns button:hover { background:#3a2327; color:#ffe6e2; }
+
+  /* ---- tour mode ---- */
+  #tourToggle {
+    background:rgba(20,12,14,0.90); border:1px solid #3a2326; border-radius:20px;
+    color:#ffe6e2; font-family:'Courier New', monospace; font-size:12px; letter-spacing:0.5px;
+    padding:8px 18px; cursor:pointer; user-select:none; pointer-events:auto;
+    box-shadow:0 2px 10px rgba(0,0,0,0.45);
+  }
+  #tourToggle:hover { background:rgba(34,20,24,0.95); }
+  #tourToggle.active { background:#5a2a30; border-color:#e08a86; }
+  #tourPanel {
+    position:relative;
+    width:220px; background:rgba(20,12,14,0.94); border:1px solid #3a2326; border-radius:8px;
+    padding:12px 14px; font-family:'Courier New', monospace; color:#d9a9a4; text-align:center;
+    pointer-events:auto;
+  }
+  #tourPanel[hidden] { display:none; }
+  #tourProgress { font-size:10px; letter-spacing:1px; color:#8a6a66; margin-bottom:6px; }
+  #tourName { font-size:13px; color:#ffe6e2; margin-bottom:10px; font-weight:bold; }
+  #tourBtns { display:flex; gap:6px; }
+  #tourBtns button {
+    flex:1; background:#2b1a1d; color:#f0c3bf; border:1px solid #3a2326; border-radius:4px;
+    font-family:inherit; font-size:11px; padding:7px 0; cursor:pointer;
+  }
+  #tourBtns button:hover { background:#3a2327; color:#ffe6e2; }
+  #tourBtns button:disabled { opacity:0.4; cursor:default; }
+  .tourDescBox {
+    position:absolute; transform:translate(-50%,0); max-width:230px;
+    font-family:'Courier New', monospace; font-size:11px; line-height:1.4; color:#f0c3bf;
+    background:rgba(20,12,14,0.90); border:1px solid #3a2326; border-radius:6px;
+    padding:6px 9px; pointer-events:none; user-select:none; white-space:normal;
+  }
+
+  /* ---- tuning panel ---- */
+  #panel {
+    position:absolute; top:16px; right:16px; width:268px; max-height:calc(100vh - 32px);
+    overflow-y:auto; background:rgba(20,12,14,0.88); border:1px solid #3a2326; border-radius:6px;
+    font-family:'Courier New', monospace; font-size:11px; color:#d9a9a4; padding:10px 12px 12px;
+    backdrop-filter:blur(4px);
+  }
+  #panel h2 {
+    margin:0 0 8px; font-size:11px; letter-spacing:1.5px; color:#ffe6e2; font-weight:bold;
+    display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+  }
+  #panel.collapsed .body { display:none; }
+  #panel .grp {
+    margin:12px 0 4px; color:#c07ad8; letter-spacing:1px; border-bottom:1px solid #402a2d; padding-bottom:3px;
+  }
+  #panel label { display:block; margin:7px 0 0; }
+  #panel .row { display:flex; justify-content:space-between; }
+  #panel .val { color:#ffe6e2; }
+  #panel input[type=range] {
+    width:100%; margin:2px 0 0; height:14px; accent-color:#e08a86; background:transparent;
+  }
+  #panel .btns { display:flex; gap:6px; margin-top:12px; }
+  #panel button {
+    flex:1; background:#2b1a1d; color:#f0c3bf; border:1px solid #4a3033; border-radius:4px;
+    font-family:inherit; font-size:11px; padding:5px 0; cursor:pointer;
+  }
+  #panel button:hover { background:#3a2327; color:#fff0ee; }
+  #dump {
+    width:100%; box-sizing:border-box; margin-top:8px; height:96px; resize:vertical;
+    background:#170f11; color:#d79a95; border:1px solid #402a2d; border-radius:4px;
+    font-family:inherit; font-size:10px; padding:5px;
+  }
+</style>
+</head>
+<body>
+<div id="info"><b>ANIMAL CELL</b> — generic<br>membrane / cytoplasm / nucleus / mitochondria / ribosomes on rough ER</div>
+<div id="hud">drag to orbit · scroll to zoom</div>
+
+<svg id="leaders"><circle id="quizRing" r="10" fill="none" stroke="#ffd54a" stroke-width="2.2" style="display:none"></circle><circle id="quizDot" r="4" fill="#ffd54a" style="display:none"></circle></svg>
+<div id="labels"></div>
+<div id="tourDescBox" class="tourDescBox" style="display:none"></div>
+
+<div id="quizWrap">
+  <button id="quizToggle">🎯 Guess the Organelle</button>
+  <div id="quizPanel" hidden>
+    <div id="quizProgress">1 / 1</div>
+    <div id="quizPrompt">What is highlighted?</div>
+    <div id="quizAnswer" class="hidden-answer">?</div>
+    <div id="quizBtns">
+      <button id="quizReveal">Reveal</button>
+      <button id="quizNext">Next</button>
+      <button id="quizExit">Exit</button>
+    </div>
+  </div>
+  <button id="tourToggle">🧭 Start Tour</button>
+  <div id="tourPanel" hidden>
+    <div id="tourProgress">1 / 1</div>
+    <div id="tourName">Cell membrane</div>
+    <div id="tourBtns">
+      <button id="tourPrev">Prev</button>
+      <button id="tourNext">Next</button>
+      <button id="tourExit">Exit</button>
+    </div>
+  </div>
+</div>
+
+<div id="panel">
+  <h2 id="panelHead"><span>PARAMETERS</span><span id="caret">[–]</span></h2>
+  <div class="body" id="panelBody"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/api/program-assets/labsims-cell_biology-generic_animal_cell/_ext/labsims/cell_biology/organelles.js"></script>
+<script>
+/* ============================================================
+   TUNABLE PARAMETERS — every slider writes here and rebuilds
+   the cell. These values are the defaults.
+   ============================================================ */
+const P = {
+  seed:            7,
+
+  /* --- cell body --- */
+  cellRadius:      5.0,
+  cellWobble:      1.0,    // how irregular the blob outline is
+  cellWobbleScale: 1.0,    // higher = more, smaller dents
+  cellFlatten:     0.72,   // squash along Y, as in the drawn reference
+  membraneOpacity: 0.28,
+  cytosolOpacity:  0.13,   // faint inner volume so the cell reads as filled
+  membraneThickness:0.06,  // the darker rim just inside the membrane
+
+  /* --- nucleus --- */
+  nucleusRadius:   1.15,
+  nucleusFlatten:  0.80,
+  nucleusX:        1.10,   // position as a fraction of the cell radius
+  nucleusY:       -0.30,
+  nucleusZ:        0.55,
+  nucleolusSize:   0.36,   // fraction of the nucleus
+  envelopeGap:     0.10,   // translucent nuclear envelope standing off the core
+
+  /* --- mitochondria --- */
+  mitoCount:       26,
+  mitoLength:      0.42,
+  mitoWidth:       0.15,
+  mitoSpread:      0.80,   // how far out into the cytoplasm they scatter
+  mitoCristae:     1,      // 0/1 — darker inner body
+  mitoMembraneOpacity: 0.55,  // <1 makes the outer membrane translucent
+  cristaeFolds:    5,      // zigzag folds along the mitochondrion
+  cristaeAmplitude:0.46,   // how far the folds swing toward the membrane
+  cristaeThickness:0.15,   // ridge thickness; raise it if they read too faint
+
+  /* --- rough ER + ribosomes --- */
+  erFolds:         6,      // number of stacked folds
+  erWidth:         2.10,
+  erSpacing:       0.34,   // gap between folds
+  erRipple:        0.16,   // out-of-plane waviness
+  erTube:          0.075,  // thickness of each fold
+  erFlatten:       0.55,   // squashes the tubes into sheets (cisternae)
+  erX:            -0.55,   // ER cluster position, fraction of cell radius
+  erY:             0.42,
+  erZ:             0.10,
+  erTilt:          28,     // degrees
+  riboSize:        0.055,
+  riboDensity:     46,     // ribosomes studded per fold
+  riboFree:        40,     // free ribosomes loose in the cytoplasm
+
+  /* --- labels + view --- */
+  labelsOn:        1,
+  labelSize:       15,     // px
+  labelDistance:   96,     // px from the anchor out to the text
+  spin:            0.30    // 0 to hold still
+};
+
+/* slider definitions: [key, label, min, max, step] — a 1-item row is a heading */
+const CONTROLS = [
+  ['CELL BODY'],
+  ['cellRadius',       'radius',            2.0,  9.0,  0.1 ],
+  ['cellWobble',       'wobble',            0.0,  2.5,  0.05],
+  ['cellWobbleScale',  'wobble scale',      0.3,  3.0,  0.05],
+  ['cellFlatten',      'flatten',           0.30, 1.20, 0.01],
+  ['membraneOpacity',  'membrane opacity',  0.02, 1.00, 0.01],
+  ['cytosolOpacity',   'cytosol opacity',   0.00, 0.60, 0.01],
+  ['membraneThickness','membrane rim',      0.00, 0.25, 0.005],
+  ['NUCLEUS'],
+  ['nucleusRadius',    'radius',            0.3,  3.0,  0.05],
+  ['nucleusFlatten',   'flatten',           0.40, 1.20, 0.01],
+  ['nucleusX',         'position x',       -1.2,  1.2,  0.01],
+  ['nucleusY',         'position y',       -1.2,  1.2,  0.01],
+  ['nucleusZ',         'position z',       -1.2,  1.2,  0.01],
+  ['nucleolusSize',    'nucleolus',         0.00, 0.70, 0.01],
+  ['envelopeGap',      'envelope gap',      0.00, 0.40, 0.01],
+  ['MITOCHONDRIA'],
+  ['mitoCount',        'count',             0,    120,  1   ],
+  ['mitoLength',       'length',            0.10, 1.20, 0.01],
+  ['mitoWidth',        'width',             0.03, 0.50, 0.01],
+  ['mitoSpread',       'spread',            0.20, 1.00, 0.01],
+  ['mitoCristae',      'cristae (0/1)',     0,    1,    1   ],
+  ['mitoMembraneOpacity', 'membrane opacity', 0.05, 1.00, 0.01],
+  ['cristaeFolds',     'cristae folds',     2,    12,   1   ],
+  ['cristaeAmplitude', 'cristae spread',    0.10, 0.80, 0.01],
+  ['cristaeThickness', 'cristae thickness', 0.03, 0.35, 0.005],
+  ['ROUGH ER'],
+  ['erFolds',          'folds',             1,    14,   1   ],
+  ['erWidth',          'width',             0.4,  5.0,  0.05],
+  ['erSpacing',        'fold spacing',      0.10, 1.00, 0.01],
+  ['erRipple',         'ripple',            0.00, 0.60, 0.01],
+  ['erTube',           'fold thickness',    0.02, 0.25, 0.005],
+  ['erFlatten',        'sheet flatten',     0.20, 1.00, 0.01],
+  ['erX',              'position x',       -1.2,  1.2,  0.01],
+  ['erY',              'position y',       -1.2,  1.2,  0.01],
+  ['erZ',              'position z',       -1.2,  1.2,  0.01],
+  ['erTilt',           'tilt (deg)',       -90,   90,   1   ],
+  ['riboSize',         'ribosome size',     0.01, 0.20, 0.005],
+  ['riboDensity',      'ribosomes / fold',  0,    120,  1   ],
+  ['riboFree',         'free ribosomes',    0,    300,  1   ],
+  ['LABELS + VIEW'],
+  ['labelsOn',         'labels (0/1)',      0,    1,    1   ],
+  ['labelSize',        'label size (px)',   9,    28,   1   ],
+  ['labelDistance',    'leader length (px)',30,   260,  2   ],
+  ['spin',             'auto-spin',         0.0,  2.0,  0.05],
+  ['MISC'],
+  ['seed',             'random seed',       1,    200,  1   ]
+];
+
+/* ============================================================
+   SEEDED RNG — a slider change only alters what that slider
+   controls; the scatter of organelles stays put.
+   ============================================================ */
+let _rngState = 1;
+function seedRng(s) { _rngState = (s * 1831565813 + 0x9E3779B9) >>> 0; }
+function rnd() {
+  _rngState = (_rngState + 0x6D2B79F5) >>> 0;
+  let t = _rngState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+/* ============================================================
+   SCENE / CAMERA / RENDERER
+   ============================================================ */
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0d0a0c, 0.008);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 500);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ============================================================
+   LIGHTING — warm key, cool fill, matching the soft wash of the
+   textbook illustration rather than a hard studio look
+   ============================================================ */
+scene.add(new THREE.HemisphereLight(0xffd9d2, 0x1a0d12, 0.75));
+const key = new THREE.DirectionalLight(0xfff1ec, 1.0);
+key.position.set(-7, 11, 9);
+scene.add(key);
+const rim = new THREE.PointLight(0xff9a8f, 0.55, 90);
+rim.position.set(12, -5, -8);
+scene.add(rim);
+const fill = new THREE.PointLight(0xb07ad8, 0.35, 90);
+fill.position.set(-10, -7, 6);
+scene.add(fill);
+
+/* ============================================================
+   MATERIALS
+   ============================================================ */
+// organelle materials and builders live in organelles.js
+const membraneMat = Organelles.membraneMaterial({ opacity:0.28 });
+const rimMat      = Organelles.membraneInnerMaterial();
+const cytosolMat  = Organelles.cytoplasmMaterial({ opacity:0.13 });
+let cell = new THREE.Group();
+scene.add(cell);
+
+/* ============================================================
+   CELL OUTLINE
+   One radial displacement field defines the blob. Everything
+   else — where organelles may sit, where the labels point —
+   asks this same function, so nothing can drift outside the
+   membrane when the shape parameters change.
+   ============================================================ */
+function cellRadiusAt(n) {
+  const f = P.cellWobbleScale;
+  const w =
+    0.150 * Math.sin(n.x * 1.7 * f + 0.9) +
+    0.120 * Math.sin(n.y * 2.1 * f + 2.3) +
+    0.105 * Math.sin(n.z * 1.9 * f + 4.1) +
+    0.075 * Math.sin((n.x + n.y) * 3.1 * f + 1.1) +
+    0.055 * Math.sin((n.y - n.z) * 3.7 * f + 5.2) +
+    0.040 * Math.sin((n.x - n.z) * 4.9 * f + 2.7);
+  return P.cellRadius * (1 + P.cellWobble * w);
+}
+
+// a point on the membrane in direction n (n is normalised)
+function surfacePoint(n) {
+  const r = cellRadiusAt(n);
+  return new THREE.Vector3(n.x * r, n.y * r * P.cellFlatten, n.z * r);
+}
+
+// a point inside the cell: direction n, fraction f of the way out
+function interiorPoint(n, f) {
+  return surfacePoint(n).multiplyScalar(f);
+}
+
+function blobMesh(material, scale, detail = 5) {
+  const geo = new THREE.IcosahedronGeometry(1, detail);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const p = surfacePoint(v.normalize()).multiplyScalar(scale);
+    pos.setXYZ(i, p.x, p.y, p.z);
+  }
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, material);
+}
+
+/* ============================================================
+   ORGANELLES
+   ============================================================ */
+function nucleusCentre() {
+  const n = new THREE.Vector3(P.nucleusX, P.nucleusY, P.nucleusZ);
+  const len = n.length();
+  if (len < 1e-4) return new THREE.Vector3();
+  // treat the xyz params as a direction plus a fraction of the way out,
+  // so the nucleus can never be pushed through the membrane
+  return interiorPoint(n.clone().normalize(), Math.min(len, 1) * 0.55);
+}
+
+function createNucleus(group) {
+  const c = nucleusCentre();
+  const nuc = Organelles.nucleus({
+    radius: P.nucleusRadius, flatten: P.nucleusFlatten,
+    nucleolusSize: P.nucleolusSize, envelopeGap: P.envelopeGap
+  });
+  nuc.position.copy(c);
+  group.add(nuc);
+  return c;
+}
+
+// Scatter helper: a random interior point that keeps clear of the nucleus
+// and of the ER cluster, so organelles never interpenetrate.
+function scatterPoint(clearOf, maxFrac) {
+  for (let tries = 0; tries < 40; tries++) {
+    const n = new THREE.Vector3(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1);
+    if (n.lengthSq() < 1e-6) continue;
+    n.normalize();
+    const p = interiorPoint(n, 0.25 + rnd() * (maxFrac - 0.25));
+    let ok = true;
+    for (const c of clearOf) if (p.distanceTo(c.at) < c.r) { ok = false; break; }
+    if (ok) return p;
+  }
+  return null;
+}
+
+function createMitochondria(group, clearOf) {
+  const anchors = [];
+  const count = Math.round(P.mitoCount);
+  const makeMito = Organelles.mitochondrionMaker({
+    length: P.mitoLength, width: P.mitoWidth, cristae: P.mitoCristae > 0.5,
+    folds: P.cristaeFolds, amplitude: P.cristaeAmplitude, thickness: P.cristaeThickness
+  });
+
+  for (let i = 0; i < count; i++) {
+    const p = scatterPoint(clearOf, P.mitoSpread);
+    if (!p) continue;
+
+    const rx = rnd() * Math.PI * 2, ry = rnd() * Math.PI * 2, rz = rnd() * Math.PI * 2;
+    const m = makeMito(P.mitoCristae > 0.5 ? rnd() * Math.PI * 2 : 0);
+    m.position.copy(p);
+    m.rotation.set(rx, ry, rz);
+    group.add(m);
+    anchors.push(p);
+  }
+  return anchors;
+}
+
+function createRoughER(group) {
+  const er = Organelles.roughER({
+    folds: P.erFolds, width: P.erWidth, spacing: P.erSpacing, ripple: P.erRipple,
+    tube: P.erTube, flatten: P.erFlatten, tilt: P.erTilt,
+    riboSize: P.riboSize, riboDensity: P.riboDensity, random: rnd
+  });
+
+  const n = new THREE.Vector3(P.erX, P.erY, P.erZ);
+  const len = n.length();
+  const centre = len < 1e-4 ? new THREE.Vector3()
+                            : interiorPoint(n.clone().normalize(), Math.min(len, 1) * 0.55);
+  er.position.copy(centre);
+  group.add(er);
+  return centre;
+}
+
+function createFreeRibosomes(group, clearOf) {
+  const count = Math.round(P.riboFree);
+  if (count < 1 || P.riboSize < 0.005) return;
+  const geo = Organelles.ribosomeGeometry(P.riboSize * 0.8);
+  for (let i = 0; i < count; i++) {
+    const p = scatterPoint(clearOf, 0.9);
+    if (!p) continue;
+    const r = Organelles.ribosome(geo);
+    r.position.copy(p);
+    group.add(r);
+  }
+}
+
+/* ============================================================
+   LABELS — anchored to real 3D points and projected each frame,
+   so a leader line always ends on the thing it names however
+   the cell is turned.
+   ============================================================ */
+const labelDefs = [
+  { key:'membrane',  text:'cell membrane' },
+  { key:'ribosomes', text:'ribosomes' },
+  { key:'mito',      text:'mitochondria' },
+  { key:'cytoplasm', text:'cytoplasm' },
+  { key:'nucleus',   text:'nucleus' }
+];
+let anchors = {};
+
+const labelLayer = document.getElementById('labels');
+const leaderSvg  = document.getElementById('leaders');
+const labelEls = {}, leaderEls = {}, dotEls = {};
+
+for (const d of labelDefs) {
+  const el = document.createElement('div');
+  el.className = 'lab';
+  el.textContent = d.text;
+  labelLayer.appendChild(el);
+  labelEls[d.key] = el;
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', '#ffd9d2');
+  line.setAttribute('stroke-width', '1.1');
+  line.setAttribute('stroke-opacity', '0.8');
+  leaderSvg.appendChild(line);
+  leaderEls[d.key] = line;
+
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('r', '2.4');
+  dot.setAttribute('fill', '#ffd9d2');
+  leaderSvg.appendChild(dot);
+  dotEls[d.key] = dot;
+}
+
+const _proj = new THREE.Vector3();
+
+function updateLabels() {
+  const show = P.labelsOn > 0.5;
+  const w = window.innerWidth, h = window.innerHeight;
+  let descShown = false;
+
+  for (const d of labelDefs) {
+    const el = labelEls[d.key], line = leaderEls[d.key], dot = dotEls[d.key];
+    const a = anchors[d.key];
+    const isTourTarget = tour.active && tourCurrentDef().key === d.key;
+    if ((!show && !isTourTarget) || !a) { el.style.display = 'none'; line.style.display = 'none'; dot.style.display = 'none'; continue; }
+
+    // the anchor is stored in cell-local space, so it follows the spin
+    _proj.copy(a).applyMatrix4(cell.matrixWorld).project(camera);
+    if (_proj.z > 1) { el.style.display = 'none'; line.style.display = 'none'; dot.style.display = 'none'; continue; }
+
+    const sx = (_proj.x * 0.5 + 0.5) * w;
+    const sy = (-_proj.y * 0.5 + 0.5) * h;
+
+    // run the leader outward from the centre of the screen so the text
+    // always lands clear of the cell rather than on top of it
+    let dx = sx - w / 2, dy = sy - h / 2;
+    const len = Math.hypot(dx, dy) || 1;
+    dx /= len; dy /= len;
+
+    const ex = THREE.MathUtils.clamp(sx + dx * P.labelDistance, 70, w - 70);
+    const ey = THREE.MathUtils.clamp(sy + dy * P.labelDistance, 24, h - 24);
+    const tail = dx >= 0 ? 14 : -14;        // short horizontal tick, as in the reference
+
+    el.style.display = '';
+    el.style.fontSize = P.labelSize + 'px';
+    el.style.left = (ex + tail * 1.6 + (dx >= 0 ? el.offsetWidth / 2 : -el.offsetWidth / 2)) + 'px';
+    el.style.top  = ey + 'px';
+
+    line.style.display = '';
+    line.setAttribute('points', sx + ',' + sy + ' ' + ex + ',' + ey + ' ' + (ex + tail) + ',' + ey);
+    dot.style.display = '';
+    dot.setAttribute('cx', sx);
+    dot.setAttribute('cy', sy);
+
+    if (isTourTarget) {
+      tourDescBox.style.display = '';
+      tourDescBox.textContent = TOUR_DESCS[d.key] || '';
+      tourDescBox.style.left = el.style.left;
+      tourDescBox.style.top = (ey + P.labelSize + 10) + 'px';
+      descShown = true;
+    }
+  }
+
+  if (!descShown) tourDescBox.style.display = 'none';
+}
+
+/* ============================================================
+   BUILD / REBUILD
+   ============================================================ */
+function disposeGroup(obj) {
+  obj.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+}
+
+function build() {
+  scene.remove(cell);
+  disposeGroup(cell);
+
+  membraneMat.opacity = P.membraneOpacity;
+  cytosolMat.opacity = P.cytosolOpacity;
+  rimMat.opacity = Math.min(0.8, P.membraneOpacity * 2);
+  membraneMat.needsUpdate = cytosolMat.needsUpdate = rimMat.needsUpdate = true;
+
+  Organelles.setOpacity(Organelles.materials.mitochondrion, P.mitoMembraneOpacity);
+
+  seedRng(P.seed);
+  cell = new THREE.Group();
+
+  // membrane, plus a back-faced shell just inside it for the darker rim
+  // that gives the drawn reference its outline
+  cell.add(blobMesh(membraneMat, 1.0));
+  if (P.membraneThickness > 0.002) cell.add(blobMesh(rimMat, 1 - P.membraneThickness));
+  if (P.cytosolOpacity > 0.002)    cell.add(blobMesh(cytosolMat, 0.985, 4));
+
+  const nucC = createNucleus(cell);
+  const erC  = createRoughER(cell);
+
+  const keepClear = [
+    { at: nucC, r: P.nucleusRadius * (1 + P.envelopeGap) + 0.35 },
+    { at: erC,  r: Math.max(P.erWidth * 0.6, P.erSpacing * P.erFolds * 0.7) + 0.3 }
+  ];
+  const mitoPts = createMitochondria(cell, keepClear);
+  createFreeRibosomes(cell, keepClear);
+
+  scene.add(cell);
+
+  /* label anchors, all in cell-local space */
+  const memDir = new THREE.Vector3(-0.55, 0.62, 0.55).normalize();
+  anchors = {
+    membrane:  surfacePoint(memDir),
+    nucleus:   nucC.clone(),
+    ribosomes: erC.clone(),
+    cytoplasm: interiorPoint(new THREE.Vector3(0.15, -0.75, 0.64).normalize(), 0.58),
+    mito:      mitoPts.length ? mitoPts[Math.floor(mitoPts.length * 0.5)].clone() : null
+  };
+
+  if (quiz.active) ensureAnchorVisible(quizCurrentDef());
+  if (tour.active) ensureAnchorVisible(tourCurrentDef());
+}
+
+/* ============================================================
+   CONTROL PANEL
+   ============================================================ */
+const panelBody = document.getElementById('panelBody');
+const readouts = {};
+
+for (const c of CONTROLS) {
+  if (c.length === 1) {
+    const h = document.createElement('div');
+    h.className = 'grp';
+    h.textContent = c[0];
+    panelBody.appendChild(h);
+    continue;
+  }
+  const [k, label, min, max, step] = c;
+  const wrap = document.createElement('label');
+  const row = document.createElement('div');
+  row.className = 'row';
+  const name = document.createElement('span');
+  name.textContent = label;
+  const val = document.createElement('span');
+  val.className = 'val';
+  val.textContent = P[k];
+  row.appendChild(name); row.appendChild(val);
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = min; slider.max = max; slider.step = step; slider.value = P[k];
+  slider.addEventListener('input', () => {
+    P[k] = parseFloat(slider.value);
+    val.textContent = slider.value;
+    build();
+    dumpValues();
+  });
+
+  wrap.appendChild(row); wrap.appendChild(slider);
+  panelBody.appendChild(wrap);
+  readouts[k] = { slider, val };
+}
+
+const btns = document.createElement('div');
+btns.className = 'btns';
+const resetBtn = document.createElement('button');
+resetBtn.textContent = 'reset';
+const copyBtn = document.createElement('button');
+copyBtn.textContent = 'copy values';
+btns.appendChild(resetBtn); btns.appendChild(copyBtn);
+panelBody.appendChild(btns);
+
+const dump = document.createElement('textarea');
+dump.id = 'dump';
+dump.readOnly = true;
+panelBody.appendChild(dump);
+
+// only the values that differ from the defaults, so the paste-back stays short
+const DEFAULTS = JSON.parse(JSON.stringify(P));
+function dumpValues() {
+  const changed = {};
+  for (const k in P) if (P[k] !== DEFAULTS[k]) changed[k] = P[k];
+  dump.value = Object.keys(changed).length
+    ? JSON.stringify(changed, null, 1)
+    : '(all defaults)';
+}
+dumpValues();
+
+resetBtn.addEventListener('click', () => {
+  Object.assign(P, DEFAULTS);
+  for (const k in readouts) {
+    readouts[k].slider.value = P[k];
+    readouts[k].val.textContent = P[k];
+  }
+  build();
+  dumpValues();
+});
+
+copyBtn.addEventListener('click', () => {
+  dump.select();
+  if (navigator.clipboard) navigator.clipboard.writeText(dump.value).catch(() => {});
+  copyBtn.textContent = 'copied!';
+  setTimeout(() => copyBtn.textContent = 'copy values', 900);
+});
+
+const panel = document.getElementById('panel');
+document.getElementById('panelHead').addEventListener('click', () => {
+  panel.classList.toggle('collapsed');
+  document.getElementById('caret').textContent = panel.classList.contains('collapsed') ? '[+]' : '[–]';
+});
+// keep the panel from driving the orbit controls
+panel.addEventListener('mousedown', e => e.stopPropagation());
+panel.addEventListener('wheel', e => e.stopPropagation());
+
+/* ============================================================
+   GUESS THE ORGANELLE — a quiz mode for classroom formative
+   assessment (mini whiteboards). Hides the always-on labels,
+   highlights one organelle at a time with a pulsing marker, and
+   lets the teacher reveal its name once students have answered.
+   ============================================================ */
+const quizToggle     = document.getElementById('quizToggle');
+const quizPanel      = document.getElementById('quizPanel');
+const quizPromptEl   = document.getElementById('quizPrompt');
+const quizAnswerEl   = document.getElementById('quizAnswer');
+const quizProgressEl = document.getElementById('quizProgress');
+const quizRevealBtn  = document.getElementById('quizReveal');
+const quizNextBtn    = document.getElementById('quizNext');
+const quizExitBtn    = document.getElementById('quizExit');
+const quizRing       = document.getElementById('quizRing');
+const quizDot        = document.getElementById('quizDot');
+
+const quiz = { active:false, order:[], pos:0, revealed:false, prevLabelsOn:1, prevSpin:0 };
+
+function shuffledIndices(n) {
+  const a = Array.from({ length:n }, (_, i) => i);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function quizCurrentDef() { return labelDefs[quiz.order[quiz.pos]]; }
+
+// Turn the cell so the highlighted organelle faces the camera. Found by
+// sampling angles rather than solved algebraically, so it never depends
+// on which way Three.js's Y-rotation convention happens to run — it just
+// tries a spread of angles and keeps whichever brings the anchor closest
+// to the camera's azimuth.
+function ensureAnchorVisible(def) {
+  const a = anchors[def.key];
+  if (!a) return;
+  const camAz = Math.atan2(camera.position.z, camera.position.x);
+  const m = new THREE.Matrix4();
+  let best = cell.rotation.y, bestDiff = Infinity;
+  for (let deg = 0; deg < 360; deg += 5) {
+    const R = THREE.MathUtils.degToRad(deg);
+    m.makeRotationY(R);
+    const p = a.clone().applyMatrix4(m);
+    let diff = Math.abs(Math.atan2(p.z, p.x) - camAz);
+    if (diff > Math.PI) diff = 2 * Math.PI - diff;
+    if (diff < bestDiff) { bestDiff = diff; best = R; }
+  }
+  cell.rotation.y = best;
+}
+
+function quizShowRound() {
+  const def = quizCurrentDef();
+  quiz.revealed = false;
+  quizPromptEl.textContent = 'What is highlighted?';
+  quizAnswerEl.textContent = '?';
+  quizAnswerEl.classList.add('hidden-answer');
+  quizProgressEl.textContent = (quiz.pos + 1) + ' / ' + quiz.order.length;
+  quizRevealBtn.textContent = 'Reveal';
+  ensureAnchorVisible(def);
+}
+
+function quizStart() {
+  if (tour.active) tourExit();
+  quiz.active = true;
+  quiz.prevLabelsOn = P.labelsOn;
+  quiz.prevSpin = P.spin;
+  P.labelsOn = 0;   // hide the always-on labels so only the quizzed one shows
+  P.spin = 0;       // hold still once turned to face the highlighted organelle
+
+  quiz.order = shuffledIndices(labelDefs.length);
+  quiz.pos = 0;
+  quizShowRound();
+
+  quizToggle.classList.add('active');
+  quizToggle.textContent = '🎯 Exit Quiz';
+  quizPanel.hidden = false;
+}
+
+function quizExit() {
+  quiz.active = false;
+  P.labelsOn = quiz.prevLabelsOn;
+  P.spin = quiz.prevSpin;
+  quizToggle.classList.remove('active');
+  quizToggle.textContent = '🎯 Guess the Organelle';
+  quizPanel.hidden = true;
+}
+
+function quizNext() {
+  quiz.pos++;
+  if (quiz.pos >= quiz.order.length) { quiz.order = shuffledIndices(labelDefs.length); quiz.pos = 0; }
+  quizShowRound();
+}
+
+quizToggle.addEventListener('click', () => { quiz.active ? quizExit() : quizStart(); });
+quizNextBtn.addEventListener('click', quizNext);
+quizExitBtn.addEventListener('click', quizExit);
+quizRevealBtn.addEventListener('click', () => {
+  quiz.revealed = !quiz.revealed;
+  if (quiz.revealed) {
+    quizAnswerEl.textContent = quizCurrentDef().text;
+    quizAnswerEl.classList.remove('hidden-answer');
+    quizRevealBtn.textContent = 'Hide';
+  } else {
+    quizAnswerEl.textContent = '?';
+    quizAnswerEl.classList.add('hidden-answer');
+    quizRevealBtn.textContent = 'Reveal';
+  }
+});
+
+// keep the quiz UI from driving the orbit controls, same as the tuning panel
+quizPanel.addEventListener('mousedown', e => e.stopPropagation());
+quizPanel.addEventListener('wheel', e => e.stopPropagation());
+quizToggle.addEventListener('mousedown', e => e.stopPropagation());
+
+function updateQuizMarker() {
+  if (!quiz.active) { quizRing.style.display = 'none'; quizDot.style.display = 'none'; return; }
+  const a = anchors[quizCurrentDef().key];
+  if (!a) { quizRing.style.display = 'none'; quizDot.style.display = 'none'; return; }
+
+  _proj.copy(a).applyMatrix4(cell.matrixWorld).project(camera);
+  if (_proj.z > 1) { quizRing.style.display = 'none'; quizDot.style.display = 'none'; return; }
+
+  const w = window.innerWidth, h = window.innerHeight;
+  const sx = (_proj.x * 0.5 + 0.5) * w;
+  const sy = (-_proj.y * 0.5 + 0.5) * h;
+  const pulse = (Math.sin(clock.elapsedTime * 3.2) + 1) / 2;
+
+  quizRing.style.display = '';
+  quizRing.setAttribute('cx', sx);
+  quizRing.setAttribute('cy', sy);
+  quizRing.setAttribute('r', 8 + pulse * 10);
+  quizRing.setAttribute('stroke-opacity', (0.9 - pulse * 0.6).toFixed(2));
+
+  quizDot.style.display = '';
+  quizDot.setAttribute('cx', sx);
+  quizDot.setAttribute('cy', sy);
+}
+
+/* ============================================================
+   TOUR — walks through every organelle in turn: rotates the cell
+   to face it, dims whatever layer would otherwise block the view
+   (membrane / cytosol), and shows its name with the function text
+   underneath the on-screen label.
+   ============================================================ */
+const tourToggle  = document.getElementById('tourToggle');
+const tourPanel   = document.getElementById('tourPanel');
+const tourNameEl  = document.getElementById('tourName');
+const tourProgEl  = document.getElementById('tourProgress');
+const tourPrevBtn = document.getElementById('tourPrev');
+const tourNextBtn = document.getElementById('tourNext');
+const tourExitBtn = document.getElementById('tourExit');
+const tourDescBox = document.getElementById('tourDescBox');
+
+const TOUR_DESCS = {
+  membrane:  'Controls what enters and leaves the cell; encloses the cytoplasm.',
+  ribosomes: 'Site of protein synthesis; builds proteins by translating mRNA.',
+  mito:      'Site of aerobic respiration; produces ATP (energy) for the cell.',
+  cytoplasm: 'Jelly-like substance where metabolic reactions occur and organelles are suspended.',
+  nucleus:   "Contains the cell's DNA and controls the cell's activities."
+};
+
+// opacities that can occlude an organelle from the camera — dimmed while
+// touring and restored to whatever the user had set on exit
+const TOUR_DIM = { membraneOpacity: 0.06, cytosolOpacity: 0.03 };
+
+const tour = { active:false, pos:0, prevLabelsOn:1, prevSpin:0, prevDim:{} };
+
+function tourCurrentDef() { return labelDefs[tour.pos]; }
+
+function applyParams(vals) {
+  Object.assign(P, vals);
+  for (const k in vals) {
+    if (readouts[k]) { readouts[k].slider.value = P[k]; readouts[k].val.textContent = P[k]; }
+  }
+  build();
+  dumpValues();
+}
+
+function tourShowStep() {
+  const def = tourCurrentDef();
+  tourNameEl.textContent = def.text;
+  tourProgEl.textContent = (tour.pos + 1) + ' / ' + labelDefs.length;
+  tourPrevBtn.disabled = tour.pos === 0;
+  tourNextBtn.textContent = tour.pos === labelDefs.length - 1 ? 'Restart' : 'Next';
+  ensureAnchorVisible(def);
+}
+
+function tourStart() {
+  if (quiz.active) quizExit();
+  tour.active = true;
+  tour.prevLabelsOn = P.labelsOn;
+  tour.prevSpin = P.spin;
+  for (const k in TOUR_DIM) tour.prevDim[k] = P[k];
+  P.labelsOn = 0;   // only the touring organelle's label should show
+  P.spin = 0;       // hold still once turned to face it
+  applyParams(TOUR_DIM);
+
+  tour.pos = 0;
+  tourShowStep();
+
+  tourToggle.classList.add('active');
+  tourToggle.textContent = '🧭 Exit Tour';
+  tourPanel.hidden = false;
+}
+
+function tourExit() {
+  tour.active = false;
+  P.labelsOn = tour.prevLabelsOn;
+  P.spin = tour.prevSpin;
+  applyParams(tour.prevDim);
+  tourToggle.classList.remove('active');
+  tourToggle.textContent = '🧭 Start Tour';
+  tourPanel.hidden = true;
+  tourDescBox.style.display = 'none';
+}
+
+function tourNext() {
+  tour.pos = (tour.pos + 1) % labelDefs.length;
+  tourShowStep();
+}
+function tourPrev() {
+  tour.pos = (tour.pos - 1 + labelDefs.length) % labelDefs.length;
+  tourShowStep();
+}
+
+tourToggle.addEventListener('click', () => { tour.active ? tourExit() : tourStart(); });
+tourNextBtn.addEventListener('click', tourNext);
+tourPrevBtn.addEventListener('click', tourPrev);
+tourExitBtn.addEventListener('click', tourExit);
+
+// keep the tour UI from driving the orbit controls, same as the other panels
+tourPanel.addEventListener('mousedown', e => e.stopPropagation());
+tourPanel.addEventListener('wheel', e => e.stopPropagation());
+tourToggle.addEventListener('mousedown', e => e.stopPropagation());
+
+
+build();
+
+/* ============================================================
+   CAMERA CONTROLS (manual orbit, no external deps)
+   ============================================================ */
+let isDragging = false, prevX = 0, prevY = 0;
+let theta = 0.5, phiAngle = 1.15, camDist = 20;
+const target = new THREE.Vector3(0, 0, 0);
+
+function updateCamera() {
+  camera.position.set(
+    target.x + camDist * Math.sin(phiAngle) * Math.sin(theta),
+    target.y + camDist * Math.cos(phiAngle),
+    target.z + camDist * Math.sin(phiAngle) * Math.cos(theta)
+  );
+  camera.lookAt(target);
+}
+updateCamera();
+
+renderer.domElement.addEventListener('mousedown', (e) => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  theta -= (e.clientX - prevX) * 0.006;
+  phiAngle = THREE.MathUtils.clamp(phiAngle - (e.clientY - prevY) * 0.006, 0.2, Math.PI - 0.2);
+  prevX = e.clientX; prevY = e.clientY;
+  updateCamera();
+});
+renderer.domElement.addEventListener('wheel', (e) => {
+  camDist = THREE.MathUtils.clamp(camDist + e.deltaY * 0.02, 6, 60);
+  updateCamera();
+});
+
+let lastTouch = null;
+renderer.domElement.addEventListener('touchstart', (e) => { lastTouch = e.touches[0]; });
+renderer.domElement.addEventListener('touchmove', (e) => {
+  if (!lastTouch) return;
+  const t = e.touches[0];
+  theta -= (t.clientX - lastTouch.clientX) * 0.006;
+  phiAngle = THREE.MathUtils.clamp(phiAngle - (t.clientY - lastTouch.clientY) * 0.006, 0.2, Math.PI - 0.2);
+  lastTouch = t;
+  updateCamera();
+}, { passive:true });
+renderer.domElement.addEventListener('touchend', () => lastTouch = null);
+
+/* ============================================================
+   RENDER LOOP
+   ============================================================ */
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  cell.rotation.y += P.spin * dt * 0.25;
+  cell.updateMatrixWorld();
+
+  renderer.render(scene, camera);
+  updateLabels();
+  updateQuizMarker();
+}
+animate();
+</script>
+</body>
+</html>

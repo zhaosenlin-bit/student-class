@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Root Hair Cell — 3D Absorption Simulation</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; background:#06100a; height:100%; }
+  canvas { display:block; }
+  #info {
+    position:absolute; top:16px; left:16px; color:#a8c4ae; font-family:'Courier New', monospace;
+    font-size:12px; letter-spacing:0.5px; line-height:1.6; pointer-events:none; user-select:none;
+    text-shadow:0 0 8px rgba(0,0,0,0.8);
+  }
+  #info b { color:#e4f4e6; }
+  #hud {
+    position:absolute; bottom:16px; left:16px; color:#546a58; font-family:'Courier New', monospace;
+    font-size:11px; pointer-events:none; user-select:none;
+  }
+
+  /* ---- tuning panel ---- */
+  #panel {
+    position:absolute; top:16px; right:16px; width:268px; max-height:calc(100vh - 32px);
+    overflow-y:auto; background:rgba(8,18,12,0.88); border:1px solid #1d3624; border-radius:6px;
+    font-family:'Courier New', monospace; font-size:11px; color:#a8c4ae; padding:10px 12px 12px;
+    backdrop-filter:blur(4px);
+  }
+  #panel h2 {
+    margin:0 0 8px; font-size:11px; letter-spacing:1.5px; color:#e4f4e6; font-weight:bold;
+    display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+  }
+  #panel.collapsed .body { display:none; }
+  #panel .grp {
+    margin:12px 0 4px; color:#8fd694; letter-spacing:1px; border-bottom:1px solid #24402c; padding-bottom:3px;
+  }
+  #panel label { display:block; margin:7px 0 0; }
+  #panel .row { display:flex; justify-content:space-between; }
+  #panel .val { color:#e4f4e6; }
+  #panel input[type=range] {
+    width:100%; margin:2px 0 0; height:14px; accent-color:#7fc98a; background:transparent;
+  }
+  #panel .btns { display:flex; gap:6px; margin-top:12px; }
+  #panel button {
+    flex:1; background:#14281b; color:#b9d8bf; border:1px solid #2b4a34; border-radius:4px;
+    font-family:inherit; font-size:11px; padding:5px 0; cursor:pointer;
+  }
+  #panel button:hover { background:#1c3625; color:#e8f7ea; }
+  #viewToggle {
+    position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+    background:rgba(8,18,12,0.9); color:#e4f4e6; border:1px solid #2b4a34; border-radius:20px;
+    font-family:'Courier New', monospace; font-size:12px; letter-spacing:0.5px;
+    padding:8px 18px; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,0.45);
+  }
+  #viewToggle:hover { background:#1c3625; border-color:#8fd694; }
+
+  /* ---- osmosis vs active transport tour ---- */
+  #tourStart {
+    display:block; width:100%; margin-top:12px; padding:8px 0;
+    background:#1c3625 !important; border:1px solid #8fd694 !important; color:#e4f4e6 !important;
+    border-radius:4px; font-family:inherit; font-size:12px; cursor:pointer;
+  }
+  #tourStart:hover { background:#24462f !important; }
+  #tourCard {
+    position:absolute; left:16px; top:84px; width:320px; max-height:calc(100vh - 130px);
+    overflow-y:auto; box-sizing:border-box; background:rgba(8,18,12,0.92); border:1px solid #2b4a34;
+    border-left:3px solid #63c8f0; border-radius:6px; padding:12px 14px;
+    font-family:'Courier New', monospace; color:#a8c4ae; z-index:6;
+  }
+  #tourCard[hidden] { display:none; }
+  #tourCard .hd { display:flex; justify-content:space-between; font-size:10px; letter-spacing:1.5px; color:#8fd694; }
+  #tourCard h3 { margin:8px 0 6px; font-size:14px; color:#e4f4e6; line-height:1.3; }
+  #tourCard p { margin:0 0 6px; font-size:12px; line-height:1.55; }
+  #tourCard b { color:#e4f4e6; }
+  #tourCard .w { color:#63c8f0; font-weight:bold; }
+  #tourCard .i { color:#f2c141; font-weight:bold; }
+  #tourCard .c { color:#a27cf0; font-weight:bold; }
+  #tourCard table { width:100%; border-collapse:collapse; font-size:11px; margin-top:4px; }
+  #tourCard th, #tourCard td { border-top:1px solid #24402c; padding:4px 3px; text-align:left; vertical-align:top; }
+  #tourCard th { color:#e4f4e6; }
+  #tourCard .nav { display:flex; gap:6px; margin-top:10px; }
+  #tourCard button {
+    flex:1; background:transparent; color:#e4f4e6; border:1px solid #2b4a34;
+    border-radius:4px; font-family:inherit; font-size:12px; padding:6px 0; cursor:pointer;
+  }
+  #tourCard button:hover { border-color:#8fd694; color:#8fd694; }
+  #tourSvg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5; }
+  #dump {
+    width:100%; box-sizing:border-box; margin-top:8px; height:96px; resize:vertical;
+    background:#0b160f; color:#8ec99a; border:1px solid #24402c; border-radius:4px;
+    font-family:inherit; font-size:10px; padding:5px;
+  }
+</style>
+</head>
+<body>
+<div id="info"><b>ROOT HAIR CELL</b><br>hair projection / cytoplasm + mitochondria / permanent vacuole<br>carrier proteins pump mineral ions in</div>
+<div id="hud">drag to orbit · scroll to zoom · &#9664; &#9654; to step adaptations</div>
+
+<button id="viewToggle">show whole cell</button>
+
+<div id="panel">
+  <h2 id="panelHead"><span>PARAMETERS</span><span id="caret">[&ndash;]</span></h2>
+  <div class="body" id="panelBody"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/api/program-assets/labsims-cell_biology-root_hair/_ext/labsims/cell_biology/organelles.js"></script>
+<script src="/api/program-assets/labsims-cell_biology-root_hair/_ext/labsims/cell_biology/adaptations.js"></script>
+<script>
+/* ============================================================
+   TUNABLE PARAMETERS — every slider writes here and rebuilds
+   the cell. These values are the defaults.
+   ============================================================ */
+const P = {
+  cellScale:        1.0,
+
+  /* --- cell body (the boxy part sitting in the root epidermis) --- */
+  bodyLength:       3.2,    // along X, toward the hair
+  bodyHeight:       2.0,
+  bodyDepth:        1.8,
+  bodyRound:        4.0,    // 2 = ellipsoid, high = sharp-cornered box
+  neighbourCell:    1,      // 0/1 — hairless epidermal cell on the far side from the hair
+  cellGap:          0.06,
+  wallThickness:    0.24,   // grows outward; the contents keep their size
+  wallOpacity:      0.55,
+  membraneOpacity:  0.30,
+
+  /* --- contents --- */
+  vacuoleFill:      0.66,   // fraction of the body the vacuole occupies
+  vacuoleOpacity:   0.42,
+  nucleusSize:      0.31,
+  nucleusX:        -0.52,   // position along the body, -1 = far end, +1 = hair end
+  mitoCount:        16,
+  mitoSize:         0.125,
+  mitoBias:         0.70,   // 0 = spread evenly, 1 = crowded at the hair base
+  mitoMembraneOpacity: 0.55,
+  cristaeFolds:     5,
+  cristaeAmplitude: 0.46,
+  cristaeThickness: 0.15,
+
+  /* --- the root hair itself --- */
+  hairLength:       7.5,    // this is the whole point of the cell
+  hairRadius:       0.34,
+  hairTaper:        0.55,   // tip radius / base radius
+  hairWave:         0.38,   // how much the hair snakes between soil grains
+  hairWaves:        1.5,
+  hairSegments:     90,
+  hairSides:        14,
+  hairOpacity:      0.55,
+  hairTipLength:    0.90,   // length of the pointed end
+  vacuoleReach:     0.85,   // how far along the hair the vacuole extends
+  hairVacuoleWidth: 0.62,   // vacuole radius / hair lumen radius
+
+  /* --- uptake --- */
+  waterCount:       110,    // water entering by osmosis
+  waterSpeed:       0.17,
+  waterSize:        0.055,
+  ionCount:         30,     // mineral ions entering by active transport
+  ionSpeed:         0.095,
+  ionSize:          0.080,
+  ionFlash:         1,      // 0/1 — flash where an ion is actively pumped in
+  carrierCount:     14,     // carrier proteins set into the hair membrane
+  carrierSize:      0.15,   // how big each carrier protein is
+  soilCount:        70,     // soil water outside the hair, for context
+  soilSpread:       1.9,
+  soilDrift:        0.12
+};
+
+/* slider definitions: [key, label, min, max, step] — a 1-item row is a heading */
+const CONTROLS = [
+  ['CELL BODY'],
+  ['bodyLength',      'length',              1.0,  6.0,  0.05],
+  ['bodyHeight',      'height',              0.8,  4.0,  0.05],
+  ['bodyDepth',       'depth',               0.8,  4.0,  0.05],
+  ['bodyRound',       'corner sharpness',    2.0,  12.0, 0.1 ],
+  ['neighbourCell',   'neighbour cell (0/1)',0,    1,    1   ],
+  ['cellGap',         'gap between cells',   0.00, 0.60, 0.01],
+  ['wallThickness',   'wall thickness',      0.10, 0.60, 0.01],
+  ['wallOpacity',     'wall opacity',        0.02, 1.00, 0.01],
+  ['membraneOpacity', 'membrane opacity',    0.02, 1.00, 0.01],
+  ['CONTENTS'],
+  ['vacuoleFill',     'vacuole fill',        0.20, 0.92, 0.01],
+  ['vacuoleOpacity',  'vacuole opacity',     0.05, 1.00, 0.01],
+  ['nucleusSize',     'nucleus size',        0.10, 0.80, 0.01],
+  ['nucleusX',        'nucleus position',   -0.90, 0.90, 0.01],
+  ['mitoCount',       'mitochondria',        0,    60,   1   ],
+  ['mitoSize',        'mitochondrion size',  0.04, 0.30, 0.005],
+  ['mitoBias',        'crowding at hair',    0.00, 1.00, 0.01],
+  ['mitoMembraneOpacity', 'mito membrane opacity', 0.05, 1.00, 0.01],
+  ['cristaeFolds',    'cristae folds',       2,    12,   1   ],
+  ['cristaeAmplitude','cristae spread',      0.10, 0.80, 0.01],
+  ['cristaeThickness','cristae thickness',   0.03, 0.35, 0.005],
+  ['ROOT HAIR'],
+  ['hairLength',      'length',              1.0,  16.0, 0.1 ],
+  ['hairRadius',      'base radius',         0.08, 1.00, 0.01],
+  ['hairTaper',       'tip / base radius',   0.15, 1.00, 0.01],
+  ['hairWave',        'waviness',            0.00, 1.20, 0.01],
+  ['hairWaves',       'bends',               0.0,  5.0,  0.05],
+  ['hairSegments',    'smoothness',          12,   200,  2   ],
+  ['hairSides',       'tube sides',          5,    28,   1   ],
+  ['hairOpacity',     'hair wall opacity',   0.03, 1.00, 0.01],
+  ['hairTipLength',   'tip point length',    0.05, 3.00, 0.05],
+  ['vacuoleReach',    'vacuole reach',       0.00, 0.97, 0.01],
+  ['hairVacuoleWidth','vacuole width',       0.20, 0.90, 0.01],
+  ['UPTAKE'],
+  ['waterCount',      'water particles',     0,    400,  5   ],
+  ['waterSpeed',      'water speed',         0.00, 0.80, 0.005],
+  ['waterSize',       'water size',          0.01, 0.20, 0.005],
+  ['ionCount',        'mineral ions',        0,    150,  1   ],
+  ['ionSpeed',        'ion speed',           0.00, 0.80, 0.005],
+  ['ionSize',         'ion size',            0.01, 0.25, 0.005],
+  ['ionFlash',        'pump flash (0/1)',    0,    1,    1   ],
+  ['carrierCount',    'carrier proteins',    0,    40,   1   ],
+  ['carrierSize',     'carrier size',        0.06, 0.40, 0.01],
+  ['soilCount',       'soil water',          0,    300,  5   ],
+  ['soilSpread',      'soil spread',         0.5,  5.0,  0.05],
+  ['soilDrift',       'soil drift',          0.00, 0.80, 0.01],
+  ['VIEW'],
+  ['cellScale',       'cell scale',          0.3,  2.5,  0.05]
+];
+
+/* ============================================================
+   SCENE / CAMERA / RENDERER
+   ============================================================ */
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x06100a, 0.010);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 500);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+document.body.appendChild(renderer.domElement);
+
+// section view: the wall keeps only the z <= 0 half, exposing the contents
+const sectionPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+let sectioned = true;
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ============================================================
+   LIGHTING — soft, no blown-out highlights
+   ============================================================ */
+scene.add(new THREE.AmbientLight(0x4a5a4e, 0.60));
+const key = new THREE.DirectionalLight(0xdff5e2, 0.70);
+key.position.set(7, 9, 6);
+scene.add(key);
+const rim = new THREE.PointLight(0x44cc88, 0.45, 70);
+rim.position.set(-9, -4, -7);
+scene.add(rim);
+const fill = new THREE.PointLight(0xbba05a, 0.22, 70);
+fill.position.set(6, -6, 6);
+scene.add(fill);
+
+/* ============================================================
+   MATERIALS
+   Every membrane/wall uses depthWrite:false so the organelles
+   inside are never hidden by the shell around them.
+   ============================================================ */
+const wallMat     = new THREE.MeshPhongMaterial({ color:0x9ad6a4, shininess:10, specular:0x2e4a34, transparent:true, opacity:0.20, side:THREE.DoubleSide, depthWrite:false });
+// the wall stays local for the section toggle; the rest comes from organelles.js
+const membraneMat = Organelles.membraneMaterial({ opacity:0.30 });
+const cytoMat     = Organelles.cytoplasmMaterial({ opacity:0.22, side:THREE.DoubleSide });
+const vacuoleMat  = Organelles.vacuoleMaterial();
+const waterMat    = new THREE.MeshPhongMaterial({ color:0x63c8f0, shininess:40, specular:0x99e8ff, emissive:0x0d3a4c, emissiveIntensity:0.55 });
+const ionMat      = new THREE.MeshPhongMaterial({ color:0xf2c141, shininess:40, specular:0xffe9a0, emissive:0x4a3505, emissiveIntensity:0.60 });
+const carrierMat  = new THREE.MeshPhongMaterial({ color:0xa27cf0, shininess:12, specular:0x2f2450, emissive:0xa27cf0, emissiveIntensity:0.22, transparent:true, opacity:1 });
+const soilMat     = new THREE.MeshPhongMaterial({ color:0x4e6f5c, shininess:8,  specular:0x223328, transparent:true, opacity:0.42, depthWrite:false });
+
+/* small deterministic RNG so a rebuild puts the organelles back
+   in the same places instead of reshuffling them every slider tick */
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+// how far a carrier protein's lobes tilt when its channel is fully open one way
+const CARRIER_OPEN = 0.42;
+// carriers dim with the ions when the tour is talking about water
+let carrierOpacity = 1;
+
+// stage boundaries along each particle's journey (fractions of s, 0 -> 1):
+// arrive at the membrane, get pumped (ions), be inside the lumen, reach the hair base
+const ROUTE = {
+  water: { arrive: 0.18, pump: 0.18, inside: 0.18, base: 0.78 },
+  ion:   { arrive: 0.12, pump: 0.20, inside: 0.215, base: 0.78 }
+};
+
+// the contents are sized as if the wall were WALL_INSET thick; any extra
+// thickness is added outside, so the membrane and everything in it keep their size
+const WALL_INSET = 0.10;
+const wallGrowth = () => P.wallThickness - WALL_INSET;
+
+/* rounded brick: a sphere pushed out onto the superellipsoid
+   |x/a|^p + |y/b|^p + |z/c|^p = 1, so p = 2 is an ellipsoid and
+   larger p sharpens the corners toward a box */
+function roundedBoxGeometry(w, h, d, p) {
+  const geo = new THREE.SphereGeometry(1, 48, 32);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  const a = w / 2, b = h / 2, c = d / 2;
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).normalize();
+    const s = Math.pow(Math.abs(v.x) / a, p) + Math.pow(Math.abs(v.y) / b, p) + Math.pow(Math.abs(v.z) / c, p);
+    const r = Math.pow(s, -1 / p);
+    pos.setXYZ(i, v.x * r, v.y * r, v.z * r);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/* ============================================================
+   TAPERED TUBE — THREE.TubeGeometry has a constant radius, and
+   the hair has to thin toward the tip, so the sweep is done by
+   hand. The frame uses a fixed up-vector, which is safe here
+   because the hair never turns far from the +X axis.
+   ============================================================ */
+// a0..a1 sweeps part of the circumference; a = 0 points toward +Z, so
+// PI/2..3PI/2 keeps just the back (-Z) half of the tube
+function taperedTube(pointAt, radiusAt, segs, radial, a0 = 0, a1 = Math.PI * 2) {
+  const pos = [], nor = [], idx = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  const T = new THREE.Vector3(), N = new THREE.Vector3(), B = new THREE.Vector3();
+
+  for (let i = 0; i <= segs; i++) {
+    const u = i / segs;
+    const p  = pointAt(u);
+    const pB = pointAt(Math.min(u + 1e-3, 1));
+    const pA = pointAt(Math.max(u - 1e-3, 0));
+    T.subVectors(pB, pA).normalize();
+    N.crossVectors(T, up).normalize();
+    B.crossVectors(N, T).normalize();
+    const r = radiusAt(u);
+
+    for (let j = 0; j <= radial; j++) {
+      const a = a0 + (a1 - a0) * j / radial, ca = Math.cos(a), sa = Math.sin(a);
+      const nx = N.x * ca + B.x * sa, ny = N.y * ca + B.y * sa, nz = N.z * ca + B.z * sa;
+      pos.push(p.x + nx * r, p.y + ny * r, p.z + nz * r);
+      nor.push(nx, ny, nz);
+    }
+  }
+  for (let i = 0; i < segs; i++) {
+    for (let j = 0; j < radial; j++) {
+      const a = i * (radial + 1) + j, b = a + radial + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal',   new THREE.Float32BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return g;
+}
+
+/* ============================================================
+   ROOT HAIR CELL
+   Local frame: the body is a box centred on the origin and the
+   hair grows along +X out of its front face. Nothing moves
+   except the particles, so the geometry is built once per
+   rebuild and only the uptake is animated.
+   ============================================================ */
+class RootHairCell {
+  constructor(state = {}) {
+    this.group = new THREE.Group();
+    this.group.scale.setScalar(P.cellScale);
+    scene.add(this.group);
+
+    this.t = state.t || 0;
+
+    this._buildBody();
+    this._buildHair();
+    this._buildCarriers();
+    this._buildParticles();
+  }
+
+  dispose() {
+    // every carrier gets its own material so it can flash on its own
+    if (this.carriers) this.carriers.forEach(c => c.mat.dispose());
+    this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    scene.remove(this.group);
+  }
+
+  /* ---- the hair centreline, u = 0 at the cell wall, u = 1 at the tip ---- */
+  hairPoint(u) {
+    const ang = u * P.hairWaves * Math.PI * 2;
+    return new THREE.Vector3(
+      P.bodyLength / 2 + u * P.hairLength,
+      P.hairWave * u * Math.sin(ang),
+      P.hairWave * 0.65 * u * Math.cos(ang * 0.8)
+    );
+  }
+  // the lumen is fixed by the hair radius; wall thickness only adds outward
+  // floor keeps room for the vacuole extension; only widens the hair when it would otherwise be too thin
+  hairInner(u) { return Math.max(P.hairRadius * (1 - (1 - P.hairTaper) * u) - WALL_INSET * 0.6, 0.09); }
+  hairOuter(u) { return this.hairInner(u) + P.wallThickness * 0.6; }
+
+  /* ---------------- body: wall, membrane, vacuole, nucleus, mitochondria ---------------- */
+  _buildBody() {
+    this._buildCellBody(this.group, rng(20240607), true);
+
+    // neighbouring epidermal cell with no hair, on the side away from the hair
+    if (P.neighbourCell > 0.5) {
+      const g = new THREE.Group();
+      g.position.x = -(P.bodyLength + wallGrowth() * 2 + P.cellGap);
+      this.group.add(g);
+      this._buildCellBody(g, rng(31337), false);
+    }
+  }
+
+  _buildCellBody(parent, r, main) {
+    const L = P.bodyLength, H = P.bodyHeight, D = P.bodyDepth, w = WALL_INSET, g = wallGrowth();
+
+    // cellulose cell wall — a rigid rounded brick, thickening outward
+    const wall = new THREE.Mesh(roundedBoxGeometry(L + g * 2, H + g * 2, D + g * 2, P.bodyRound), wallMat);
+    parent.add(wall);
+
+    // plasma membrane — partially permeable, just inside the wall
+    const mem = new THREE.Mesh(roundedBoxGeometry(L - w * 2, H - w * 2, D - w * 2, P.bodyRound), membraneMat);
+    parent.add(mem);
+
+    // cytoplasm — a soft rounded volume filling the space the vacuole leaves
+    const cytoGeo = new THREE.SphereGeometry(1, 22, 16);
+    cytoGeo.scale((L - w * 2) * 0.49, (H - w * 2) * 0.49, (D - w * 2) * 0.49);
+    parent.add(new THREE.Mesh(cytoGeo, cytoMat));
+
+    // large permanent vacuole — cell sap, pushed slightly away from the hair
+    const f = P.vacuoleFill;
+    const vacGeo = new THREE.SphereGeometry(1, 26, 18);
+    vacGeo.scale(L * 0.5 * f, H * 0.5 * f, D * 0.5 * f);
+    const vac = new THREE.Mesh(vacGeo, vacuoleMat);
+    vac.position.set(main ? -L * 0.06 : L * 0.04, 0, 0);
+    parent.add(vac);
+
+    // nucleus
+    const nuc = Organelles.nucleus({ radius: P.nucleusSize });
+    if (main) nuc.position.set(P.nucleusX * L * 0.5 * 0.8, H * 0.22, D * 0.14);
+    else      nuc.position.set(L * 0.30, -H * 0.24, -D * 0.14);
+    parent.add(nuc);
+
+    if (main) {
+      this.wallMesh = wall;
+      this.vacuole = vac;
+      this.nucleus = nuc;
+      this.mitos = [];
+    }
+
+    // mitochondria — in the hair cell, biased toward the hair end where the ion pumps are
+    const bias = main ? P.mitoBias : 0;
+    const n = Math.round(P.mitoCount);
+    const makeMito = Organelles.mitochondrionMaker({
+      length: P.mitoSize * 2.7, width: P.mitoSize,
+      folds: P.cristaeFolds, amplitude: P.cristaeAmplitude, thickness: P.cristaeThickness
+    });
+    for (let i = 0; i < n; i++) {
+      const m = makeMito(i * 2.399963);
+      // push x toward +1 (the hair base) as mitoBias rises
+      const raw = r() * 2 - 1;
+      const x = THREE.MathUtils.lerp(raw, 0.35 + 0.6 * r(), bias);
+      const ang = r() * Math.PI * 2;
+      const rad = 0.62 + r() * 0.34;
+      m.position.set(x * L * 0.42, Math.sin(ang) * rad * H * 0.40, Math.cos(ang) * rad * D * 0.40);
+      m.rotation.set(r() * 3, r() * 3, r() * 3);
+      parent.add(m);
+      if (main) this.mitos.push(m);
+    }
+  }
+
+  /* ---------------- the hair: wall tube plus the cytoplasm-filled lumen ---------------- */
+  _buildHair() {
+    const segs = Math.round(P.hairSegments), sides = Math.round(P.hairSides);
+    const pt = u => this.hairPoint(u);
+
+    // A flat clipping plane can't follow the hair's bends, so in section view
+    // the hair wall is built as a half-tube around its own centreline instead.
+    const outerMat = wallMat.clone();
+    outerMat.opacity = P.hairOpacity;
+    outerMat.clippingPlanes = [];
+    const [a0, a1] = sectioned ? [Math.PI / 2, Math.PI * 1.5] : [0, Math.PI * 2];
+    const outerSides = sectioned ? Math.max(3, Math.ceil(sides / 2)) : sides;
+    const outer = new THREE.Mesh(taperedTube(pt, u => this.hairOuter(u), segs, outerSides, a0, a1), outerMat);
+    this.group.add(outer);
+
+    const inner = new THREE.Mesh(taperedTube(pt, u => this.hairInner(u), segs, Math.max(5, sides - 2)), cytoMat);
+    this.group.add(inner);
+
+    // pointed tip: the hair carries on along its end direction and narrows to
+    // nothing, swept with the same frame so it joins the tube seamlessly
+    const end = this.hairPoint(1);
+    const dir = end.clone().sub(this.hairPoint(0.995)).normalize();
+    const tipAt = len => s => end.clone().addScaledVector(dir, s * len);
+    const tipSegs = 14;
+    const tipLen = P.hairTipLength;
+    const outerTip = taperedTube(tipAt(tipLen), s => this.hairOuter(1) * Math.pow(1 - s, 0.85),
+                                 tipSegs, outerSides, a0, a1);
+    this.group.add(new THREE.Mesh(outerTip, outerMat));
+    const innerTip = taperedTube(tipAt(tipLen * 0.8), s => this.hairInner(1) * Math.pow(1 - s, 0.85),
+                                 tipSegs, Math.max(5, sides - 2));
+    this.group.add(new THREE.Mesh(innerTip, cytoMat));
+
+    this._buildHairVacuole(segs, sides);
+  }
+
+  /* the permanent vacuole runs on out of the cell body and along the hair,
+     leaving a thin layer of cytoplasm between it and the hair wall */
+  _buildHairVacuole(segs, sides) {
+    if (P.vacuoleReach < 0.01) return;
+    const L = P.bodyLength;
+    const vacHalf = L * 0.5 * P.vacuoleFill;
+    const startX = -L * 0.06 + vacHalf * 0.7;          // begins inside the main vacuole
+    const base = this.hairPoint(0);
+    const bodyLen = Math.max(base.x - startX, 0.01);
+    const hairLen = P.hairLength * P.vacuoleReach;
+    const split = bodyLen / (bodyLen + hairLen);
+
+    const uAt = s => s < split ? 0 : (s - split) / (1 - split) * P.vacuoleReach;
+    const pointAt = s => s < split
+      ? new THREE.Vector3(THREE.MathUtils.lerp(startX, base.x, s / split), base.y, base.z)
+      : this.hairPoint(uAt(s));
+    const radiusAt = s => this.hairInner(uAt(s)) * P.hairVacuoleWidth;
+
+    const tube = new THREE.Mesh(taperedTube(pointAt, radiusAt, segs, Math.max(6, sides - 2)), vacuoleMat);
+    this.group.add(tube);
+
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(radiusAt(1), 12, 9), vacuoleMat);
+    cap.position.copy(pointAt(1));
+    this.group.add(cap);
+  }
+
+  /* ---------------- carrier proteins ----------------
+     The ions were crossing an invisible membrane, so pupils could not see what
+     was doing the pumping. Each carrier is a ring of four tiny purple subunits
+     set into the hair membrane with a channel down the middle. The subunits
+     tilt: the channel faces the soil while an ion waits outside, then swings
+     over to face the lumen as that ion is pumped through. Every ion is handed
+     to a carrier when it is built, so ions only ever cross at a carrier. */
+  _buildCarriers() {
+    this.carriers = [];
+    const n = Math.round(P.carrierCount);
+    if (n < 1) return;
+
+    const r = rng(4711);
+    const S = P.carrierSize;
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(), Z = new THREE.Vector3();
+    const basis = new THREE.Matrix4();
+
+    for (let i = 0; i < n; i++) {
+      // spread along the hair, and around it on the golden angle so no two line up
+      const u = THREE.MathUtils.clamp(0.14 + (i + 0.5) / n * 0.74 + (r() * 2 - 1) * 0.015, 0.04, 0.96);
+      const ang = i * 2.399963 + r() * 0.5;
+      const c0 = this.hairPoint(u);
+
+      // local +Y points out through the membrane, local +X runs along the hair
+      Y.set(0, Math.sin(ang), Math.cos(ang));
+      Z.crossVectors(X, Y);
+      basis.makeBasis(X, Y, Z);
+      const grp = new THREE.Group();
+      grp.quaternion.setFromRotationMatrix(basis);
+      const rad = this.hairInner(u);
+      grp.position.set(c0.x, c0.y + Y.y * rad, c0.z + Y.z * rad);
+      this.group.add(grp);
+
+      // four narrow subunits round a central channel, each reaching across the membrane
+      const mat = carrierMat.clone();
+      const lobe = (dx, dz) => {
+        const m = new THREE.Mesh(geo, mat);
+        m.scale.set(S * 0.40, S * 1.15, S * 0.40);
+        m.position.set(dx * S * 0.58, 0, dz * S * 0.58);
+        grp.add(m);
+        return m;
+      };
+      this.carriers.push({ u, ang, grp, mat, o: -1, flash: 0, ions: [],
+                           lobes: [lobe(1, 0), lobe(-1, 0), lobe(0, 1), lobe(0, -1)] });
+    }
+  }
+
+  /* o = -1: the channel opens outward, to the soil; o = +1: it opens inward,
+     into the lumen. Leaning every subunit the same way closes one mouth as it
+     opens the other, so an ion can only ever be on one side at a time. */
+  _updateCarriers(dt) {
+    if (!this.carriers.length) return;
+    // the ion snaps through in a moment, so the carrier holds its inward-facing
+    // shape for a beat afterwards and then swings back — otherwise the flip is
+    // over before anyone watching has seen it
+    const R = ROUTE.ion, span = Math.max(R.inside - R.pump, 1e-4), HOLD = 0.03, RESET = 0.05;
+    const ease = k => k * k * (3 - 2 * k);
+
+    for (const c of this.carriers) {
+      // the busiest ion at this carrier decides which way it faces
+      let target = -1, best = 0;
+      for (const p of c.ions) {
+        const after = p.s - R.inside;
+        let o = null, pri = 0;
+        if (p.s >= R.arrive && p.s < R.pump)      { o = -1; pri = 1; }                                   // holding it outside
+        else if (p.s >= R.pump && p.s < R.inside) { o = -1 + 2 * ease((p.s - R.pump) / span); pri = 3; }  // flipping it through
+        else if (after >= 0 && after < HOLD)          { o = 1; pri = 3; }                                 // open to the lumen
+        else if (after >= 0 && after < HOLD + RESET)  { o = 1 - 2 * ease((after - HOLD) / RESET); pri = 2; }  // turning back
+        if (o !== null && pri > best) { best = pri; target = o; }
+      }
+      // all four subunits lean the same way, so one mouth shuts as the other opens
+      c.o += (target - c.o) * Math.min(1, dt * 9);
+      const a = c.o * CARRIER_OPEN;
+      c.lobes[0].rotation.z =  a;
+      c.lobes[1].rotation.z = -a;
+      c.lobes[2].rotation.x = -a;
+      c.lobes[3].rotation.x =  a;
+
+      c.flash = Math.max(0, c.flash - dt * 2.2);
+      c.mat.emissiveIntensity = 0.22 + c.flash * 1.4;
+      c.mat.opacity = carrierOpacity;
+    }
+  }
+
+  /* ---------------- uptake particles ---------------- */
+  _buildParticles() {
+    const r = rng(991);
+
+    // water and mineral ions both start out in the soil, cross into the hair,
+    // run along the lumen, then out into the cell body and the vacuole —
+    // but they cross the membrane differently (see _route)
+    const makeStream = (count, size, mat, speed, kind) => {
+      const list = [];
+      const geo = new THREE.SphereGeometry(size, 7, 6);
+      for (let i = 0; i < count; i++) {
+        const m = new THREE.Mesh(geo, mat);
+        this.group.add(m);
+        // ions queue at a carrier protein; water crosses anywhere it likes
+        const car = kind === 'ion' && this.carriers.length
+          ? this.carriers[i % this.carriers.length] : null;
+        const p = {
+          mesh: m,
+          kind,
+          size,
+          carrier: car,
+          s:      r(),                       // progress 0 -> 1 along the route
+          entry:  car ? car.u : 0.12 + r() * 0.80,   // where on the hair it crosses the membrane
+          ang:    car ? car.ang + (r() * 2 - 1) * 0.06 : r() * Math.PI * 2,   // direction it arrives from
+          rad:    r() * 0.8,                 // radial offset inside the lumen
+          far:    0.6 + r() * 0.9,           // how far out in the soil it starts
+          rate:   speed * (0.7 + r() * 0.6),
+          target: new THREE.Vector3(
+            (r() * 2 - 1) * P.bodyLength * 0.30,
+            (r() * 2 - 1) * P.bodyHeight * 0.30,
+            (r() * 2 - 1) * P.bodyDepth  * 0.30)
+        };
+        list.push(p);
+        if (car) car.ions.push(p);
+      }
+      return list;
+    };
+
+    this.water = makeStream(Math.round(P.waterCount), P.waterSize, waterMat, P.waterSpeed, 'water');
+    this.ions  = makeStream(Math.round(P.ionCount),  P.ionSize,  ionMat,   P.ionSpeed,   'ion');
+
+    // flashes marking each ion pumped across the membrane, reused from a pool
+    this.flashes = [];
+    this.flashGeo = new THREE.SphereGeometry(1, 12, 9);
+
+    // free soil water sitting around the hair, drifting slowly
+    this.soil = [];
+    const sGeo = new THREE.SphereGeometry(P.waterSize * 0.85, 6, 5);
+    for (let i = 0; i < Math.round(P.soilCount); i++) {
+      const m = new THREE.Mesh(sGeo, soilMat);
+      const u = r();
+      const base = this.hairPoint(u);
+      const ang = r() * Math.PI * 2;
+      const rad = this.hairOuter(u) + 0.15 + r() * P.soilSpread;
+      m.position.set(base.x + (r() * 2 - 1) * 0.6, base.y + Math.sin(ang) * rad, base.z + Math.cos(ang) * rad);
+      // keep soil water out of the cell bodies
+      if (m.position.x < P.bodyLength / 2 + wallGrowth() + 0.15) continue;
+      this.group.add(m);
+      this.soil.push({ mesh: m, home: m.position.clone(), ph: r() * Math.PI * 2, sp: 0.4 + r() * 1.2 });
+    }
+  }
+
+  /* Route a particle along its journey, s = 0 -> 1:
+       soil approach -> membrane crossing -> along the lumen -> into the cell.
+     WATER (osmosis) is passive: it glides straight through the wall and
+     membrane without stopping.
+     IONS (active transport) pass the freely permeable wall, then wait at the
+     membrane for a carrier protein, and are pumped in with a burst of energy
+     (the flash fires at ROUTE.pump). */
+  _route(p, out) {
+    const R = ROUTE[p.kind];
+    const dirY = Math.sin(p.ang), dirZ = Math.cos(p.ang);
+    const c0 = this.hairPoint(p.entry);
+    const lumenR = this.hairInner(p.entry) * p.rad;
+
+    if (p.s < R.arrive) {
+      // soil -> membrane (ions) or straight on into the lumen (water)
+      const k = p.s / R.arrive;
+      const startR = this.hairOuter(p.entry) + p.far;
+      const endR = p.kind === 'ion' ? this.hairInner(p.entry) + p.size : lumenR;
+      const rr = THREE.MathUtils.lerp(startR, endR, k);
+      out.set(c0.x, c0.y + dirY * rr, c0.z + dirZ * rr);
+    } else if (p.s < R.inside) {
+      // ions only: hold at the membrane, then snap through once pumped
+      const memR = this.hairInner(p.entry) + p.size;
+      let rr = memR;
+      if (p.s >= R.pump) rr = THREE.MathUtils.lerp(memR, lumenR, (p.s - R.pump) / (R.inside - R.pump));
+      else rr += Math.sin(p.s * 900) * p.size * 0.15;   // jostling while it waits
+      out.set(c0.x, c0.y + dirY * rr, c0.z + dirZ * rr);
+    } else if (p.s < R.base) {
+      const u = p.entry * (1 - (p.s - R.inside) / (R.base - R.inside));
+      const c = this.hairPoint(u);
+      const rr = this.hairInner(u) * p.rad;
+      out.set(c.x, c.y + dirY * rr, c.z + dirZ * rr);
+    } else {
+      const k = (p.s - R.base) / (1 - R.base);
+      out.copy(this.hairPoint(0)).lerp(p.target, k);
+    }
+  }
+
+  _spawnFlash(pos) {
+    let f = this.flashes.find(x => !x.mesh.visible);
+    if (!f) {
+      if (this.flashes.length >= 24) return;
+      const mat = new THREE.MeshBasicMaterial({ color:0xfff0a0, transparent:true, opacity:1,
+                                                blending:THREE.AdditiveBlending, depthWrite:false });
+      f = { mesh: new THREE.Mesh(this.flashGeo, mat), t: 0 };
+      this.group.add(f.mesh);
+      this.flashes.push(f);
+    }
+    f.t = 0;
+    f.mesh.position.copy(pos);
+    f.mesh.visible = true;
+  }
+
+  update(dt, t) {
+    this.t = t;
+    const tmp = new THREE.Vector3();
+
+    for (const list of [this.water, this.ions]) {
+      for (const p of list) {
+        const prev = p.s;
+        p.s += dt * p.rate;
+        if (p.s >= 1) { p.s -= 1; }
+        this._route(p, tmp);
+        p.mesh.position.copy(tmp);
+        // grow in out in the soil and shrink away inside the cell, so the loop doesn't pop
+        p.mesh.scale.setScalar(Math.min(1, p.s / 0.03, (1 - p.s) / 0.03));
+
+        if (p.kind === 'ion' && prev < ROUTE.ion.pump && p.s >= ROUTE.ion.pump) {
+          if (p.carrier) p.carrier.flash = 1;             // the carrier lights up as it pumps
+          if (P.ionFlash > 0.5) this._spawnFlash(tmp);
+        }
+      }
+    }
+
+    this._updateCarriers(dt);
+
+    for (const f of this.flashes) {
+      if (!f.mesh.visible) continue;
+      f.t += dt;
+      const k = f.t / 0.55;
+      if (k >= 1) { f.mesh.visible = false; continue; }
+      f.mesh.scale.setScalar(P.ionSize * (1.2 + 4.5 * k));
+      f.mesh.material.opacity = Math.pow(1 - k, 1.6);
+    }
+
+    for (const s of this.soil) {
+      const d = P.soilDrift;
+      s.mesh.position.set(
+        s.home.x + Math.sin(t * s.sp * 0.6 + s.ph) * d,
+        s.home.y + Math.cos(t * s.sp * 0.5 + s.ph) * d,
+        s.home.z + Math.sin(t * s.sp * 0.4 + s.ph * 1.7) * d
+      );
+    }
+  }
+}
+
+/* ============================================================
+   BUILD / REBUILD — a slider change rebuilds the cell but keeps
+   the animation clock, so nothing jumps.
+   ============================================================ */
+let cell = null;
+
+function build() {
+  const state = cell ? { t: cell.t } : {};
+  if (cell) cell.dispose();
+
+  wallMat.opacity     = P.wallOpacity;
+  wallMat.clippingPlanes = sectioned ? [sectionPlane] : [];
+  wallMat.needsUpdate = true;
+  membraneMat.opacity = P.membraneOpacity;
+  vacuoleMat.opacity  = P.vacuoleOpacity;
+  Organelles.setOpacity(Organelles.materials.mitochondrion, P.mitoMembraneOpacity);
+
+  cell = new RootHairCell(state);
+}
+
+/* ============================================================
+   CONTROL PANEL
+   ============================================================ */
+const panelBody = document.getElementById('panelBody');
+const readouts = {};
+
+for (const c of CONTROLS) {
+  if (c.length === 1) {
+    const h = document.createElement('div');
+    h.className = 'grp';
+    h.textContent = c[0];
+    panelBody.appendChild(h);
+    continue;
+  }
+  const [k, label, min, max, step] = c;
+  const wrap = document.createElement('label');
+  const row = document.createElement('div');
+  row.className = 'row';
+  const name = document.createElement('span');
+  name.textContent = label;
+  const val = document.createElement('span');
+  val.className = 'val';
+  val.textContent = P[k];
+  row.appendChild(name); row.appendChild(val);
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = min; slider.max = max; slider.step = step; slider.value = P[k];
+  slider.addEventListener('input', () => {
+    P[k] = parseFloat(slider.value);
+    val.textContent = slider.value;
+    build();
+    dumpValues();
+  });
+
+  wrap.appendChild(row); wrap.appendChild(slider);
+  panelBody.appendChild(wrap);
+  readouts[k] = { slider, val };
+}
+
+const btns = document.createElement('div');
+btns.className = 'btns';
+const resetBtn = document.createElement('button');
+resetBtn.textContent = 'reset';
+const copyBtn = document.createElement('button');
+copyBtn.textContent = 'copy values';
+btns.appendChild(resetBtn); btns.appendChild(copyBtn);
+panelBody.appendChild(btns);
+
+const dump = document.createElement('textarea');
+dump.id = 'dump';
+dump.readOnly = true;
+panelBody.appendChild(dump);
+
+// only the values that differ from the defaults, so the paste-back stays short
+const DEFAULTS = JSON.parse(JSON.stringify(P));
+function dumpValues() {
+  const changed = {};
+  for (const k in P) if (P[k] !== DEFAULTS[k]) changed[k] = P[k];
+  dump.value = Object.keys(changed).length
+    ? JSON.stringify(changed, null, 1)
+    : '(all defaults)';
+}
+dumpValues();
+
+resetBtn.addEventListener('click', () => {
+  Object.assign(P, DEFAULTS);
+  sectioned = true;
+  viewToggle.textContent = 'show whole cell';
+  for (const k in readouts) {
+    readouts[k].slider.value = P[k];
+    readouts[k].val.textContent = P[k];
+  }
+  build();
+  dumpValues();
+});
+
+copyBtn.addEventListener('click', () => {
+  dump.select();
+  if (navigator.clipboard) navigator.clipboard.writeText(dump.value).catch(() => {});
+  copyBtn.textContent = 'copied!';
+  setTimeout(() => copyBtn.textContent = 'copy values', 900);
+});
+
+const panel = document.getElementById('panel');
+document.getElementById('panelHead').addEventListener('click', () => {
+  panel.classList.toggle('collapsed');
+  document.getElementById('caret').textContent = panel.classList.contains('collapsed') ? '[+]' : '[\u2013]';
+});
+// keep the panel from driving the orbit controls
+panel.addEventListener('mousedown', e => e.stopPropagation());
+panel.addEventListener('wheel', e => e.stopPropagation());
+
+// toggles between the sectioned view and the original intact, faint wall
+const VIEW_OPACITY = {
+  section: { wallOpacity: DEFAULTS.wallOpacity, hairOpacity: DEFAULTS.hairOpacity },
+  whole:   { wallOpacity: 0.20, hairOpacity: 0.26 }
+};
+const viewToggle = document.getElementById('viewToggle');
+viewToggle.addEventListener('mousedown', e => e.stopPropagation());
+viewToggle.addEventListener('click', () => {
+  sectioned = !sectioned;
+  const vals = VIEW_OPACITY[sectioned ? 'section' : 'whole'];
+  Object.assign(P, vals);
+  for (const k in vals) {
+    readouts[k].slider.value = P[k];
+    readouts[k].val.textContent = P[k];
+  }
+  viewToggle.textContent = sectioned ? 'show whole cell' : 'show section view';
+  build();
+  dumpValues();
+});
+
+build();
+
+/* ============================================================
+   CAMERA CONTROLS
+   ============================================================ */
+let isDragging = false, prevX = 0, prevY = 0;
+let theta = 0.75, phiAngle = 1.20, camDist = 15;
+let autoOrbit = true;
+const camTarget = new THREE.Vector3();
+const camGoal = new THREE.Vector3();
+let camPlaced = false;
+
+// tour state lives here because the render loop reads it from the first frame;
+// the tour UI and its steps are set up at the end of the script
+const tour = { active:false, step:0, userOrbit:false, userZoom:false, tracked:null };
+let TOUR_STEPS = [];
+
+const wrapAngle = a => ((a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+
+function updateCamera() {
+  if (tour.active) {
+    // ease toward the step's framing; a drag or scroll hands that axis back to the user
+    const st = TOUR_STEPS[tour.step];
+    camGoal.copy(st.target());
+    if (!tour.userZoom) camDist += (st.dist - camDist) * 0.04;
+    if (!tour.userOrbit) {
+      theta += wrapAngle(st.theta - theta) * 0.04;
+      phiAngle += (st.phi - phiAngle) * 0.04;
+    }
+  } else {
+    // frame the whole cell, hair included, rather than just the body
+    const mid = (P.bodyLength / 2 + P.hairLength * 0.45) * P.cellScale * 0.55;
+    const shift = P.neighbourCell > 0.5 ? (P.bodyLength + wallGrowth() * 2 + P.cellGap) * 0.35 * P.cellScale : 0;
+    camGoal.set(mid - shift, 0, 0);
+  }
+  if (!camPlaced) { camTarget.copy(camGoal); camPlaced = true; }
+  camTarget.lerp(camGoal, tour.active ? 0.05 : 0.12);
+  camera.position.set(
+    camTarget.x + camDist * Math.sin(phiAngle) * Math.sin(theta),
+    camTarget.y + camDist * Math.cos(phiAngle),
+    camTarget.z + camDist * Math.sin(phiAngle) * Math.cos(theta)
+  );
+  camera.lookAt(camTarget);
+}
+
+renderer.domElement.addEventListener('mousedown', (e) => { isDragging = true; autoOrbit = false; tour.userOrbit = true; prevX = e.clientX; prevY = e.clientY; });
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - prevX, dy = e.clientY - prevY;
+  theta -= dx * 0.006;
+  phiAngle = THREE.MathUtils.clamp(phiAngle - dy * 0.006, 0.2, Math.PI - 0.2);
+  prevX = e.clientX; prevY = e.clientY;
+});
+renderer.domElement.addEventListener('wheel', (e) => {
+  tour.userZoom = true;
+  camDist = THREE.MathUtils.clamp(camDist + e.deltaY * 0.015, 3, 45);
+});
+
+let lastTouch = null;
+renderer.domElement.addEventListener('touchstart', (e) => { lastTouch = e.touches[0]; autoOrbit = false; tour.userOrbit = true; });
+renderer.domElement.addEventListener('touchmove', (e) => {
+  if (!lastTouch) return;
+  const t = e.touches[0];
+  const dx = t.clientX - lastTouch.clientX, dy = t.clientY - lastTouch.clientY;
+  theta -= dx * 0.006;
+  phiAngle = THREE.MathUtils.clamp(phiAngle - dy * 0.006, 0.2, Math.PI - 0.2);
+  lastTouch = t;
+}, { passive:true });
+renderer.domElement.addEventListener('touchend', () => lastTouch = null);
+
+/* ============================================================
+   RENDER LOOP
+   ============================================================ */
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  // close-up tour steps slow the particles down so each crossing can be followed
+  cell.update(dt * (tour.active ? TOUR_STEPS[tour.step].speed : 1), t);
+
+  if (autoOrbit && !tour.active) theta += 0.0012;
+  updateCamera();
+
+  renderer.render(scene, camera);
+}
+animate();
+
+/* ============================================================
+   ADAPTATIONS — anchors are built in the cell's local frame and
+   carried into world space by its group
+   ============================================================ */
+const rootPoint = (x, y, z) => cell.group.localToWorld(new THREE.Vector3(x, y, z));
+const adaptations = CellAdaptations.init({
+  camera,
+  heading: 'ROOT HAIR CELL ADAPTATIONS',
+  theme: { accent:'#8fd694', text:'#a8c4ae', bright:'#e4f4e6', bg:'rgba(8,18,12,0.9)', border:'#2b4a34' },
+  items: [
+    {
+      title: 'Long, narrow hair projection',
+      text: 'The hair pushes out between the soil particles, giving the cell a <b>much larger surface area</b>. This means <b>more water and mineral ions can be absorbed</b> at the same time, so uptake is faster.',
+      anchor: () => {
+        const p = cell.hairPoint(0.55);
+        return rootPoint(p.x, p.y + cell.hairOuter(0.55), p.z);
+      }
+    },
+    {
+      title: 'Water enters by osmosis',
+      text: 'The soil solution is a <b>dilute solution</b> and the cell sap inside is <b>concentrated</b>. Water therefore moves down a <b>water potential gradient</b>, through the partially permeable membrane, <b>by osmosis</b>.',
+      anchor: () => {
+        const p = cell.hairPoint(0.8);
+        return rootPoint(p.x, p.y, p.z);
+      }
+    },
+    {
+      title: 'Many mitochondria',
+      text: 'Mitochondria carry out <b>aerobic respiration</b> to release the <b>energy (ATP)</b> needed for <b>active transport</b> &mdash; moving mineral ions into the cell <b>against</b> their concentration gradient.',
+      anchor: () => {
+        const m = cell.mitos[Math.floor(cell.mitos.length * 0.3)];
+        return m ? cell.group.localToWorld(m.position.clone()) : null;
+      }
+    },
+    {
+      title: 'Large permanent vacuole',
+      text: 'The vacuole is full of <b>cell sap</b>, a concentrated solution of sugars and salts. It helps keep the <b>concentration gradient</b> between the cell and the soil steep, so water keeps moving in.',
+      anchor: () => rootPoint(cell.vacuole.position.x, cell.vacuole.position.y, cell.vacuole.position.z)
+    },
+    {
+      title: 'Thin wall and membrane',
+      text: 'The cellulose wall is <b>thin and freely permeable</b>, and the membrane just inside it is <b>partially permeable</b>. Together they give a <b>short diffusion distance</b> into the cytoplasm.',
+      anchor: () => rootPoint(0, P.bodyHeight * 0.5, 0)
+    },
+    {
+      title: 'No chloroplasts',
+      text: 'Roots are <b>underground in the dark</b>, so photosynthesis is impossible. The cell contains <b>no chloroplasts</b> &mdash; the space is used for cytoplasm and the vacuole instead.',
+      anchor: () => rootPoint(-P.bodyLength * 0.25, -P.bodyHeight * 0.32, P.bodyDepth * 0.3)
+    },
+    {
+      title: 'Nucleus',
+      text: 'Unlike a xylem vessel, a root hair cell is <b>alive</b>. The nucleus holds the DNA and <b>controls the cell\u2019s activities</b>, including making the carrier proteins used in active transport.',
+      anchor: () => cell.group.localToWorld(cell.nucleus.position.clone())
+    }
+  ]
+});
+
+/* ============================================================
+   TOUR — OSMOSIS vs ACTIVE TRANSPORT
+   Moves the camera in on the hair and steps through annotated
+   cards. The stream being discussed stays bright while the other
+   is dimmed, and a leader line follows a particle that is
+   crossing the membrane right now.
+   ============================================================ */
+const hairWorld = (u, lift = 0) => {
+  const p = cell.hairPoint(u);
+  return cell.group.localToWorld(new THREE.Vector3(p.x, p.y + lift, p.z));
+};
+
+// follow one particle through a stage of its route; stick with it until it moves on
+function trackParticle(list, lo, hi) {
+  const ok = p => p.s >= lo && p.s < hi && Math.cos(p.ang) > 0.3 && p.entry > 0.35 && p.entry < 0.85;
+  if (!tour.tracked || !list.includes(tour.tracked) || !ok(tour.tracked)) {
+    tour.tracked = list.find(p => ok(p) && p.s < hi - 0.03) || null;
+  }
+  return tour.tracked ? cell.group.localToWorld(tour.tracked.mesh.position.clone()) : null;
+}
+
+TOUR_STEPS = [
+  {
+    title: 'Two ways into the root hair',
+    text: 'Both <span class="w">water</span> and <span class="i">mineral ions</span> come in from the soil through the root hair &mdash; but they cross the cell membrane in <b>completely different ways</b>. Watch how each one gets in.',
+    focus: 'both', speed: 1, dist: 12, theta: 0.12, phi: 1.30,
+    target: () => hairWorld(0.45),
+    anchor: () => hairWorld(0.55, cell.hairOuter(0.55))
+  },
+  {
+    title: 'Water: osmosis',
+    text: 'The soil water is a <b>dilute solution</b>; the cell sap inside is <b>concentrated</b>. Water moves from the dilute solution to the concentrated one, through the <b>partially permeable membrane</b>. This is <b>osmosis</b>.<br><br>It is <b>passive</b>: no energy is needed, so the <span class="w">water</span> glides straight in without stopping.',
+    focus: 'water', speed: 0.45, dist: 4.2, theta: 0.10, phi: 1.35,
+    target: () => hairWorld(0.6),
+    anchor: () => trackParticle(cell.water, 0.06, ROUTE.water.arrive + 0.04)
+  },
+  {
+    title: 'Mineral ions: active transport',
+    text: 'The cell already holds <b>more mineral ions</b> than the soil, so ions have to be moved <b>against their concentration gradient</b>.<br><br>Each <span class="i">ion</span> passes the wall, then <b>waits outside a <span class="c">carrier protein</span></b> &mdash; one of the small purple shapes set into the membrane. The carrier is open to the soil; once it has the ion it <b>swings shut and opens inside</b>, pumping the ion in using energy from respiration. <b>Each flash is one ion being pumped.</b>',
+    focus: 'ions', speed: 0.45, dist: 4.0, theta: 0.10, phi: 1.35,
+    target: () => hairWorld(0.6),
+    anchor: () => trackParticle(cell.ions, ROUTE.ion.arrive - 0.01, ROUTE.ion.inside)
+  },
+  {
+    title: 'Why not just diffusion?',
+    text: '<b>Diffusion</b> only moves particles from a <b>higher</b> concentration to a <b>lower</b> one, and needs no energy. Because there are already more ions inside the cell than in the soil, diffusion would carry ions <b>out</b>, not in.<br><br><b>Osmosis</b> is a special case of diffusion &mdash; the movement of <b>water</b> across a partially permeable membrane &mdash; so it is passive too. Only <b>active transport</b> can take ions in against the gradient.',
+    focus: 'ions', speed: 0.6, dist: 5.2, theta: -0.15, phi: 1.30,
+    target: () => hairWorld(0.6),
+    anchor: () => trackParticle(cell.ions, ROUTE.ion.arrive - 0.01, ROUTE.ion.inside)
+  },
+  {
+    title: 'The energy comes from mitochondria',
+    text: 'Active transport needs <b>energy</b>. Root hair cells contain <b>many mitochondria</b>, where <b>aerobic respiration</b> releases the energy the carrier proteins use to pump ions in. Osmosis does not use any of it.',
+    focus: 'both', speed: 1, dist: 5.5, theta: 0.35, phi: 1.25,
+    target: () => {
+      const m = cell.mitos[Math.floor(cell.mitos.length * 0.3)];
+      return m ? cell.group.localToWorld(m.position.clone()) : hairWorld(0);
+    },
+    anchor: () => {
+      const m = cell.mitos[Math.floor(cell.mitos.length * 0.3)];
+      return m ? cell.group.localToWorld(m.position.clone()) : null;
+    }
+  },
+  {
+    title: 'Summary',
+    text: '<table>' +
+      '<tr><th></th><th class="w">Osmosis</th><th class="i">Active transport</th></tr>' +
+      '<tr><td>What moves</td><td>water</td><td>mineral ions</td></tr>' +
+      '<tr><td>Direction</td><td>dilute &rarr; concentrated solution</td><td>against the concentration gradient</td></tr>' +
+      '<tr><td>Energy</td><td>none (passive)</td><td>needed, from respiration</td></tr>' +
+      '<tr><td>Crosses via</td><td>partially permeable membrane</td><td><span class="c">carrier proteins</span> in the membrane</td></tr>' +
+      '</table>',
+    focus: 'both', speed: 1, dist: 12, theta: 0.12, phi: 1.30,
+    target: () => hairWorld(0.45),
+    anchor: null
+  }
+];
+
+const tourCard = document.createElement('div');
+tourCard.id = 'tourCard';
+tourCard.hidden = true;
+tourCard.innerHTML = `
+  <div class="hd"><span>OSMOSIS vs ACTIVE TRANSPORT</span><span id="tourCount"></span></div>
+  <h3 id="tourTitle"></h3>
+  <div id="tourText"></div>
+  <div class="nav">
+    <button id="tourPrev">&#9664; back</button>
+    <button id="tourNext">next &#9654;</button>
+    <button id="tourExit">exit</button>
+  </div>`;
+document.body.appendChild(tourCard);
+['mousedown', 'wheel', 'touchstart'].forEach(ev => tourCard.addEventListener(ev, e => e.stopPropagation()));
+
+const tourSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+tourSvg.id = 'tourSvg';
+tourSvg.innerHTML = `
+  <path id="tourLine" fill="none" stroke="#63c8f0" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.9"/>
+  <circle id="tourRing" r="9" fill="none" stroke="#63c8f0" stroke-width="1.5"/>`;
+tourSvg.style.display = 'none';
+document.body.appendChild(tourSvg);
+
+const tourStart = document.createElement('button');
+tourStart.id = 'tourStart';
+tourStart.textContent = '▶ tour: osmosis vs active transport';
+adaptations.box.appendChild(tourStart);
+
+function setFocus(mode) {
+  const dim = (mat, on) => {
+    mat.transparent = !on;
+    mat.opacity = on ? 1 : 0.12;
+    mat.needsUpdate = true;
+  };
+  dim(waterMat, mode !== 'ions');
+  dim(ionMat, mode !== 'water');
+  carrierOpacity = mode === 'water' ? 0.12 : 1;
+}
+
+function tourShow(i) {
+  tour.step = (i + TOUR_STEPS.length) % TOUR_STEPS.length;
+  tour.userOrbit = tour.userZoom = false;
+  tour.tracked = null;
+  const st = TOUR_STEPS[tour.step];
+  document.getElementById('tourCount').textContent = `${tour.step + 1} / ${TOUR_STEPS.length}`;
+  document.getElementById('tourTitle').textContent = st.title;
+  document.getElementById('tourText').innerHTML = st.text;
+  document.getElementById('tourNext').innerHTML = tour.step === TOUR_STEPS.length - 1 ? 'finish' : 'next &#9654;';
+  tourCard.style.borderLeftColor = st.focus === 'ions' ? '#f2c141' : '#63c8f0';
+  const accent = st.focus === 'ions' ? '#f2c141' : '#63c8f0';
+  document.getElementById('tourLine').setAttribute('stroke', accent);
+  document.getElementById('tourRing').setAttribute('stroke', accent);
+  setFocus(st.focus);
+}
+
+function tourBegin() {
+  if (!sectioned) viewToggle.click();   // the tour needs to see inside the hair
+  tour.active = true;
+  autoOrbit = false;
+  adaptations.setPaused(true);
+  tourCard.hidden = false;
+  tourShow(0);
+}
+
+function tourEnd() {
+  tour.active = false;
+  tourCard.hidden = true;
+  tourSvg.style.display = 'none';
+  setFocus('both');
+  adaptations.setPaused(false);
+}
+
+tourStart.addEventListener('click', tourBegin);
+document.getElementById('tourPrev').addEventListener('click', () => tourShow(tour.step - 1));
+document.getElementById('tourNext').addEventListener('click', () => {
+  if (tour.step === TOUR_STEPS.length - 1) tourEnd(); else tourShow(tour.step + 1);
+});
+document.getElementById('tourExit').addEventListener('click', tourEnd);
+window.addEventListener('keydown', e => {
+  if (!tour.active || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight') document.getElementById('tourNext').click();
+  if (e.key === 'ArrowLeft' && tour.step > 0) tourShow(tour.step - 1);
+  if (e.key === 'Escape') tourEnd();
+});
+
+// leader line from the card to whatever the step is pointing at
+(function trackTour() {
+  requestAnimationFrame(trackTour);
+  if (!tour.active) return;
+  const st = TOUR_STEPS[tour.step];
+  const p = st.anchor ? st.anchor() : null;
+  if (!p) { tourSvg.style.display = 'none'; return; }
+  const v = p.project(camera);
+  if (v.z >= 1 || v.z <= -1) { tourSvg.style.display = 'none'; return; }
+  const x = (v.x + 1) / 2 * window.innerWidth;
+  const y = (1 - v.y) / 2 * window.innerHeight;
+  const cr = tourCard.getBoundingClientRect();
+  const tr = document.getElementById('tourTitle').getBoundingClientRect();
+  const sx = cr.right, sy = tr.top + tr.height / 2;
+  document.getElementById('tourLine').setAttribute('d', `M${sx},${sy} H${sx + 22} L${x},${y}`);
+  const ring = document.getElementById('tourRing');
+  ring.setAttribute('cx', x); ring.setAttribute('cy', y);
+  tourSvg.style.display = '';
+})();
+</script>
+</body>
+</html>

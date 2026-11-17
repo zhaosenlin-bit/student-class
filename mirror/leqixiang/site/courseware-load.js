@@ -31,8 +31,8 @@ async function retry(ctx){
 window.addEventListener('message',event=>{
  const ctx=active,data=event.data;
  if(!ctx||!isActive(ctx)||event.source!==ctx.frame.contentWindow||!data||data.version!==1||ctx.retrying)return;
- if(data.type==='xiaobai:cdn-fallback'&&data.courseId===ctx.courseId){retry(ctx);return;}
- if(data.type!=='xiaobai:courseware-startup'||![ctx.courseId,ctx.seriesId].includes(data.courseId))return;
+ if(data.type==='leqixiang:cdn-fallback'&&data.courseId===ctx.courseId){retry(ctx);return;}
+ if(data.type!=='leqixiang:courseware-startup'||![ctx.courseId,ctx.seriesId].includes(data.courseId))return;
  if(data.phase==='error'){fail(ctx,data.detail||{});return;}
  if(ctx.failed||ctx.ready)return;
  if(data.phase==='ready'){

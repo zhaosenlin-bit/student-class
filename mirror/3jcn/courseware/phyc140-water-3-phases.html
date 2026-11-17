@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc140-water-3-phases/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc140-water-3-phases/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/3jcn-phyc140-water-3-phases/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc140-water-3-phases/_ext/vendor/css/final.css">
+	<style>
+		body {
+			color: black;
+		}
+		    #density2Value, #density1Value, #h1Value{
+			  color: brown;             /* Bright green text */
+			  background-color: lightyellow;  /* Dark background */
+			  border: 1px solid #00ff00;  /* Green border */
+			  padding: 4px;
+			  border-radius: 4px;
+		   }
+	.control-panel {
+	  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  font-family: Arial, sans-serif;
+	  text-align: center;
+	}
+	.control-panel-right {
+	  position: absolute;
+	  top: 90px;
+	  right: 50px;
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  text-align: center;
+	}
+	
+	.control-group {
+	  margin-bottom: 15px;
+	}
+	
+	.slider-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+	
+	input[type="range"] {
+	  width: 65%;
+	  accent-color: blue;
+	}
+	
+	input[type="text"] {
+	  width: 80px;
+	  font-weight: bold;
+	  text-align: center;
+	  color: blue;
+	}
+	
+	.minmax {
+	  display: flex;
+	  justify-content: space-between;
+	  font-size: 12px;
+	  margin-top: 5px;
+	}
+	</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 31 May 2025       -->
+	
+	<script type="module">   
+		
+	import THREE from '../jsm/three.js';
+		
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';	
+	import { LineGeometry } from '../jsm/LineGeometry.js';
+	import { Line2 } from '../jsm/Line2.js';
+	import { LineMaterial } from '../jsm/LineMaterial.js';
+        import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  14 June 2025
+		 **  All rights reserved **/
+		
+	var initScene, dragcontrols, controls, light, referenceLine;
+	let waterHole, firstHole, isStart = false, isPaused = false, isDone = false;
+	let metal, water, water2, baseY = -15;
+	const g = 9.81;  
+	let waterParticles = []; const waterHoles = [];
+	const labelArray = [], arrowArray = [];
+	let timeData = [];
+	let tempData = [];
+	let currentTime = 0; 
+	let clock = new THREE.Clock();
+	let t = 0;
+	let timeScale = 0.006;
+	let currentIndex = 0;
+	let simulationInterval;
+	let currentTemp = -20;
+	let m, rate; let T1, T2, T3, T4, T5;
+	let iceMesh, waterMesh, phaseLabelMesh = null;
+	let steamParticles = [];
+	const maxSteamParticles = 100;
+	let waterHeight = 10;   
+	let boilingBubbles = [];
+	const maxBubbles = 100;
+	let simulationTime = 0;
+	const originalWaterHeight = 10;  // Match your total tank height
+
+	let metalYStart = 15, metalYTarget = -10;  // adjust depending on water height
+	let initialWaterHeight;  // store starting water height
+	let waterRiseStarted = false; let loadedFont = null;
+
+		
+	const _0x60468b=_0x1ec7;(function(_0x26fb34,_0x3ad51d){const _0x535c6b=_0x1ec7,_0x6ff80e=_0x26fb34();while(!![]){try{const _0xdad6f2=-parseInt(_0x535c6b(0x18c))/0x1+parseInt(_0x535c6b(0x172))/0x2+parseInt(_0x535c6b(0x18f))/0x3+parseInt(_0x535c6b(0x1c6))/0x4+-parseInt(_0x535c6b(0x193))/0x5*(-parseInt(_0x535c6b(0x1cd))/0x6)+-parseInt(_0x535c6b(0x1ce))/0x7+-parseInt(_0x535c6b(0x1b6))/0x8*(-parseInt(_0x535c6b(0x174))/0x9);if(_0xdad6f2===_0x3ad51d)break;else _0x6ff80e['push'](_0x6ff80e['shift']());}catch(_0x291f5e){_0x6ff80e['push'](_0x6ff80e['shift']());}}}(_0x5c8f,0xe7a6a));const textureloader=new THREE[(_0x60468b(0x1a3))](),fontloader=new FontLoader();var scene=new THREE[(_0x60468b(0x1a9))](),camera=new THREE['PerspectiveCamera'](0x23,window[_0x60468b(0x18e)]/window[_0x60468b(0x192)],0x1,0x3e8);const renderer=new THREE[(_0x60468b(0x17d))]({'antialias':!![]});initScene=function(){const _0x461c9d=_0x60468b;scene['background']=new THREE[(_0x461c9d(0x198))](0x87ceeb),camera=new THREE[(_0x461c9d(0x1c9))](0x23,window['innerWidth']/window[_0x461c9d(0x192)],0x1,0x3e8),camera['position'][_0x461c9d(0x170)](0x0,2.5,0x5a),camera[_0x461c9d(0x1bd)](scene['position']),scene[_0x461c9d(0x1b8)](camera),controls=new OrbitControls(camera,renderer[_0x461c9d(0x16f)]),renderer[_0x461c9d(0x1a4)](window[_0x461c9d(0x18e)],window[_0x461c9d(0x192)]),renderer[_0x461c9d(0x190)][_0x461c9d(0x1aa)]=!![],document[_0x461c9d(0x1a0)]('viewport')[_0x461c9d(0x1b9)](renderer[_0x461c9d(0x16f)]),setupLights(),createMilikanContainer(),addLabel('Hot\x20Plate',0x11,-0x11,0x0,_0x461c9d(0x16c)),water=createWater(0xa,baseY),addHotPlate();var _0x43e198=new THREE[(_0x461c9d(0x182))](0x78,0x2,0x28);const _0x499522=new THREE[(_0x461c9d(0x1bf))](_0x43e198,new THREE['MeshPhongMaterial']({'color':'purple'}));_0x499522['position'][_0x461c9d(0x170)](0x0,-0x14,0x0),scene[_0x461c9d(0x1b8)](_0x499522),document[_0x461c9d(0x1a0)]('massSlider')[_0x461c9d(0x195)]('input',()=>{const _0x4b8652=_0x461c9d;m=parseFloat(document[_0x4b8652(0x1a0)](_0x4b8652(0x1ac))[_0x4b8652(0x1a6)]),document[_0x4b8652(0x1a0)]('massValue')['value']=m;const _0x828a77=(m-0x64)/0xc8;waterHeight=0xa+_0x828a77*0xa,updatePhaseHeights(0x1,0x0),iceMesh[_0x4b8652(0x197)]['y']=waterHeight/ iceMesh[_0x4b8652(0x17a)][_0x4b8652(0x16d)][_0x4b8652(0x199)],iceMesh[_0x4b8652(0x1c4)]['y']=baseY+waterHeight/0x2;}),document['getElementById'](_0x461c9d(0x1b2))['addEventListener'](_0x461c9d(0x19c),()=>{isStart=!![],generateTemperatureData(),currentIndex=0x0,simulationInterval=setInterval(()=>{const _0xf4737d=_0x1ec7;if(currentIndex>=timeData[_0xf4737d(0x188)]-0x1){clearInterval(simulationInterval);return;}currentIndex++,updateUIValues(),drawTemperatureGraph();},0x64);}),window[_0x461c9d(0x195)](_0x461c9d(0x173),onWindowResize,![]),requestAnimationFrame(render),render();};function generateTemperatureData(){const _0x2df5ae=_0x60468b;m=parseFloat(document[_0x2df5ae(0x1a0)](_0x2df5ae(0x1ac))['value']),rate=parseFloat(document[_0x2df5ae(0x1a0)](_0x2df5ae(0x176))['value']);const _0x3408b6=0.5,_0x15f84d=0x1,_0x42a50c=0.5,_0x4258aa=0x50,_0xe976ab=0x21c;let _0xae3e00=-0x14,_0x13310e=m*_0x3408b6*0x14,_0xe38307=_0x13310e/rate,_0x5a7037=m*_0x4258aa,_0x4217b0=_0x5a7037/rate,_0x47c919=m*_0x15f84d*0x64,_0x7f9045=_0x47c919/rate,_0x1abb16=m*_0xe976ab,_0x5141d8=_0x1abb16/rate,_0x421db4=m*_0x42a50c*0x15,_0x40533b=_0x421db4/rate;T1=_0xe38307,T2=_0xe38307+_0x4217b0,T3=T2+_0x7f9045,T4=T3+_0x5141d8,T5=T4+_0x40533b,timeData=[],tempData=[];for(let _0x7bff47=0x0;_0x7bff47<=0x28;_0x7bff47++){let _0x530bd6=_0x7bff47/0x28*_0xe38307;timeData[_0x2df5ae(0x1bc)](_0x530bd6),tempData['push'](_0xae3e00+_0x530bd6/_0xe38307*0x14);}for(let _0x4d9dcc=0x0;_0x4d9dcc<=0x14;_0x4d9dcc++){let _0x1af40e=T1+_0x4d9dcc/0x14*_0x4217b0;timeData[_0x2df5ae(0x1bc)](_0x1af40e),tempData['push'](0x0);}for(let _0x417f76=0x0;_0x417f76<=0x3c;_0x417f76++){let _0x330343=T2+_0x417f76/0x3c*_0x7f9045;timeData[_0x2df5ae(0x1bc)](_0x330343),tempData[_0x2df5ae(0x1bc)](_0x417f76/0x3c*0x64);}for(let _0x18fa50=0x0;_0x18fa50<=0x3c;_0x18fa50++){let _0x2abbb0=T3+_0x18fa50/0x3c*_0x5141d8;timeData['push'](_0x2abbb0),tempData['push'](0x64);}for(let _0x3973ad=0x0;_0x3973ad<=0x14;_0x3973ad++){let _0x2a2f9e=T4+_0x3973ad/0x14*_0x40533b;timeData[_0x2df5ae(0x1bc)](_0x2a2f9e),tempData['push'](0x64+_0x3973ad/0x14*0x15);}}function updateUIValues(){const _0xb3ca0b=_0x60468b;if(!timeData||!tempData||timeData[_0xb3ca0b(0x188)]===0x0||currentIndex>=timeData[_0xb3ca0b(0x188)])return;const _0x621d5f=timeData[currentIndex],_0x5deda0=tempData[currentIndex];typeof _0x621d5f==='number'&&(document[_0xb3ca0b(0x1a0)](_0xb3ca0b(0x1c8))[_0xb3ca0b(0x1a6)]=_0x621d5f['toFixed'](0x1)+'\x20s');typeof _0x5deda0==='number'&&(document[_0xb3ca0b(0x1a0)](_0xb3ca0b(0x1cb))['value']=_0x5deda0[_0xb3ca0b(0x16e)](0x1)+_0xb3ca0b(0x1c3));let _0x2cbd18=timeData[currentIndex];m=parseFloat(document['getElementById'](_0xb3ca0b(0x1ac))[_0xb3ca0b(0x1a6)]);let _0x2b29da=0x0,_0x384160=0x0;if(_0x2cbd18<T1)_0x2b29da=m,_0x384160=0x0;else{if(_0x2cbd18>=T1&&_0x2cbd18<T2){const _0x89f9db=(_0x2cbd18-T1)/(T2-T1);_0x2b29da=m*(0x1-_0x89f9db),_0x384160=m*_0x89f9db;}else{if(_0x2cbd18>=T2&&_0x2cbd18<T3)_0x2b29da=0x0,_0x384160=m;else{if(_0x2cbd18>=T3&&_0x2cbd18<T4){generateBoilingBubble(0xa),updateBoilingBubbles();const _0x78ff00=(_0x2cbd18-T3)/(T4-T3);_0x2b29da=0x0,_0x384160=m*(0x1-_0x78ff00);}else _0x2b29da=0x0,_0x384160=0x0;}}}if(_0x2cbd18<T1)updatePhaseLabel(_0xb3ca0b(0x1c2));else{if(_0x2cbd18>=T1&&_0x2cbd18<T2)updatePhaseLabel('Ice\x20Starts\x20Melting');else{if(_0x2cbd18>=T2&&_0x2cbd18<T3)updatePhaseLabel(_0xb3ca0b(0x1cf));else _0x2cbd18>=T3&&_0x2cbd18<T4?updatePhaseLabel(_0xb3ca0b(0x181)):(isDone=!![],updatePhaseLabel(_0xb3ca0b(0x19b)));}}document[_0xb3ca0b(0x1a0)]('amountSolid')[_0xb3ca0b(0x1a6)]=_0x2b29da['toFixed'](0x1)+'\x20g',document['getElementById'](_0xb3ca0b(0x1a2))[_0xb3ca0b(0x1a6)]=_0x384160['toFixed'](0x1)+'\x20g',updatePhaseHeights(_0x2b29da/m,_0x384160/m);}function drawTemperatureGraph(){const _0x88b192=_0x60468b,_0x4ba276=document[_0x88b192(0x1a0)](_0x88b192(0x1ba)),_0x2502d0=_0x4ba276[_0x88b192(0x1c5)]('2d');_0x2502d0['clearRect'](0x0,0x0,_0x4ba276['width'],_0x4ba276[_0x88b192(0x199)]);const _0x44eb06=0x32,_0x269ad0=_0x4ba276[_0x88b192(0x1c1)]-0x2*_0x44eb06,_0x2e82d2=_0x4ba276[_0x88b192(0x199)]-0x2*_0x44eb06,_0x398283=Math[_0x88b192(0x184)](...timeData),_0x43edfb=Math[_0x88b192(0x184)](...tempData),_0xad38a7=Math[_0x88b192(0x18b)](...tempData);_0x2502d0[_0x88b192(0x1b3)]=_0x88b192(0x1a1),_0x2502d0['fillStyle']=_0x88b192(0x1ca),_0x2502d0['font']=_0x88b192(0x16b);const _0x3b9a9b=0x6;for(let _0x56cc15=0x0;_0x56cc15<=_0x3b9a9b;_0x56cc15++){const _0x3a9be7=_0x44eb06+_0x2e82d2/_0x3b9a9b*_0x56cc15,_0xae292d=_0x43edfb-_0x56cc15/_0x3b9a9b*(_0x43edfb-_0xad38a7);_0x2502d0[_0x88b192(0x1b5)](),_0x2502d0[_0x88b192(0x185)](_0x44eb06,_0x3a9be7),_0x2502d0['lineTo'](_0x44eb06+_0x269ad0,_0x3a9be7),_0x2502d0[_0x88b192(0x187)](),_0x2502d0[_0x88b192(0x180)](_0xae292d[_0x88b192(0x16e)](0x0),_0x44eb06-0x23,_0x3a9be7+0x4);}const _0x4b6aaf=0xa;for(let _0x1fe4fc=0x0;_0x1fe4fc<=_0x4b6aaf;_0x1fe4fc++){const _0x20a6a5=_0x44eb06+_0x269ad0/_0x4b6aaf*_0x1fe4fc,_0xbd4fb9=_0x1fe4fc/_0x4b6aaf*_0x398283;_0x2502d0['beginPath'](),_0x2502d0[_0x88b192(0x185)](_0x20a6a5,_0x44eb06),_0x2502d0[_0x88b192(0x1b1)](_0x20a6a5,_0x44eb06+_0x2e82d2),_0x2502d0[_0x88b192(0x187)](),_0x2502d0[_0x88b192(0x180)](_0xbd4fb9[_0x88b192(0x16e)](0x0),_0x20a6a5-0xa,_0x44eb06+_0x2e82d2+0xf);}_0x2502d0[_0x88b192(0x1b5)](),_0x2502d0[_0x88b192(0x185)](_0x44eb06,_0x44eb06),_0x2502d0[_0x88b192(0x1b1)](_0x44eb06,_0x44eb06+_0x2e82d2),_0x2502d0[_0x88b192(0x1b1)](_0x44eb06+_0x269ad0,_0x44eb06+_0x2e82d2),_0x2502d0[_0x88b192(0x1b3)]=_0x88b192(0x1ca),_0x2502d0[_0x88b192(0x187)](),_0x2502d0[_0x88b192(0x180)](_0x88b192(0x19a),0xa,_0x44eb06-0xa),_0x2502d0[_0x88b192(0x180)]('Time\x20(s)',_0x44eb06+_0x269ad0-0x28,_0x44eb06+_0x2e82d2+0x1e),_0x2502d0['fillText'](_0x88b192(0x183),_0x44eb06+_0x269ad0/0x2-0x1e,_0x44eb06-0x14),_0x2502d0[_0x88b192(0x1b5)](),_0x2502d0[_0x88b192(0x1b3)]='red';for(let _0x36181f=0x0;_0x36181f<=currentIndex;_0x36181f++){let _0x281102=_0x44eb06+timeData[_0x36181f]/_0x398283*_0x269ad0,_0x58fcce=_0x44eb06+_0x2e82d2-(tempData[_0x36181f]-_0xad38a7)/(_0x43edfb-_0xad38a7)*_0x2e82d2;if(_0x36181f===0x0)_0x2502d0[_0x88b192(0x185)](_0x281102,_0x58fcce);else _0x2502d0[_0x88b192(0x1b1)](_0x281102,_0x58fcce);}_0x2502d0[_0x88b192(0x187)]();}function addHotPlate(){const _0x297594=_0x60468b,_0x5646da=0.5,_0x5a129b=0x4,_0x845e77=new RoundedBoxGeometry(0x1e,0x3,0x1e,_0x5a129b,_0x5646da),_0x17d54b=new THREE['MeshStandardMaterial']({'color':_0x297594(0x1ca),'metalness':0x1,'roughness':0.1}),_0x327d70=new THREE['Mesh'](_0x845e77,_0x17d54b);_0x327d70[_0x297594(0x1c4)][_0x297594(0x170)](0x0,-17.5,0x0);const _0x162deb=new THREE['CylinderGeometry'](0xa,0xa,0x1,0x20),_0x154d89=new THREE[(_0x297594(0x1be))]({'color':_0x297594(0x171)}),_0x539674=new THREE[(_0x297594(0x1bf))](_0x162deb,_0x154d89);scene['add'](_0x539674),_0x327d70[_0x297594(0x1b8)](_0x539674),_0x539674[_0x297594(0x1c4)][_0x297594(0x170)](0x0,0x2,0x0);const _0x5ba74c=new RoundedBoxGeometry(0x1,0x1,0x1,_0x5a129b,0.3),_0x26c4e5=new THREE[(_0x297594(0x1be))]({'color':_0x297594(0x171)}),_0x5605a2=new THREE[(_0x297594(0x1bf))](_0x5ba74c,_0x26c4e5);_0x327d70['add'](_0x5605a2),_0x5605a2[_0x297594(0x1c4)]['set'](-0x8,0x0,0xf);const _0x6dc61f=new THREE['CylinderGeometry'](0x1,0x1,0x2,0x20),_0x4d1c79=textureloader[_0x297594(0x19d)](_0x297594(0x17c)),_0x227a48=new THREE[(_0x297594(0x1be))]({'map':_0x4d1c79}),_0xd211d=new THREE['Mesh'](_0x6dc61f,_0x227a48);_0xd211d['rotation']['x']=Math['PI']/0x2,_0x327d70['add'](_0xd211d),_0xd211d['position'][_0x297594(0x170)](0x0,0x0,0xf),addLabel(_0x297594(0x1c7),0x8,-0x12,0xf,'white'),scene[_0x297594(0x1b8)](_0x327d70);}function getFractionLiquid(){const _0x5d9da8=_0x60468b;m=parseFloat(document[_0x5d9da8(0x1a0)]('massSlider')[_0x5d9da8(0x1a6)]);let _0x16f886=parseFloat(document[_0x5d9da8(0x1a0)](_0x5d9da8(0x1a2))[_0x5d9da8(0x1a6)]);return _0x16f886/m;}function _0x1ec7(_0x5d4e20,_0x568ead){const _0x5c8fd7=_0x5c8f();return _0x1ec7=function(_0x1ec755,_0x196405){_0x1ec755=_0x1ec755-0x169;let _0x153c3f=_0x5c8fd7[_0x1ec755];return _0x153c3f;},_0x1ec7(_0x5d4e20,_0x568ead);}function generateBoilingBubble(_0x26ad12){const _0x230b39=_0x60468b;if(boilingBubbles['length']>=maxBubbles)return;const _0x38c9a7=Math[_0x230b39(0x196)]()*0.3+0.1,_0x387ebd=new THREE[(_0x230b39(0x178))](_0x38c9a7,0x8,0x8),_0x13777c=new THREE[(_0x230b39(0x1cc))]({'color':0xffffff,'transparent':!![],'opacity':0.6}),_0x9f37aa=new THREE[(_0x230b39(0x1bf))](_0x387ebd,_0x13777c),_0xa92411=Math['random']()*0x7-0x3,_0x10ca7a=baseY+Math[_0x230b39(0x196)]()*(_0x26ad12*0.5),_0x2f0127=Math[_0x230b39(0x196)]()*0x4-0x2;_0x9f37aa[_0x230b39(0x1c4)][_0x230b39(0x170)](_0xa92411,_0x10ca7a,_0x2f0127),_0x9f37aa['userData']={'riseSpeed':0.05+Math[_0x230b39(0x196)]()*0.05},scene[_0x230b39(0x1b8)](_0x9f37aa),boilingBubbles[_0x230b39(0x1bc)](_0x9f37aa);}function updateBoilingBubbles(){const _0x19168e=_0x60468b;if(isDone){for(let _0x358ec2=boilingBubbles[_0x19168e(0x188)]-0x1;_0x358ec2>=0x0;_0x358ec2--){scene['remove'](boilingBubbles[_0x358ec2]);}boilingBubbles[_0x19168e(0x188)]=0x0;return;}Math[_0x19168e(0x196)]()<0.3&&generateBoilingBubble();for(let _0x277aa8=boilingBubbles[_0x19168e(0x188)]-0x1;_0x277aa8>=0x0;_0x277aa8--){const _0x5736e4=boilingBubbles[_0x277aa8];_0x5736e4[_0x19168e(0x1c4)]['y']+=_0x5736e4[_0x19168e(0x1b0)][_0x19168e(0x1a5)],_0x5736e4['position']['y']>0xf&&(scene[_0x19168e(0x177)](_0x5736e4),boilingBubbles['splice'](_0x277aa8,0x1));}}function createWater(_0x598119,_0x4e4e05){const _0xe413a9=_0x60468b;baseY=_0x4e4e05;const _0x16da75=new THREE[(_0xe413a9(0x18d))](0xa,0xa,_0x598119,0x20),_0x41686d=new THREE['MeshPhongMaterial']({'color':'white','side':THREE[_0xe413a9(0x19e)],'transparent':!![],'opacity':0.8});iceMesh=new THREE[(_0xe413a9(0x1bf))](_0x16da75,_0x41686d),iceMesh['position'][_0xe413a9(0x170)](0x0,baseY+_0x598119/0x2,0x0),scene[_0xe413a9(0x1b8)](iceMesh);const _0xb499d0=new THREE[(_0xe413a9(0x18d))](0xa,0xa,0.01,0x20),_0x307aa7=new THREE['MeshPhongMaterial']({'color':_0xe413a9(0x17f),'side':THREE[_0xe413a9(0x19e)],'transparent':!![],'opacity':0.6});waterMesh=new THREE[(_0xe413a9(0x1bf))](_0xb499d0,_0x307aa7),waterMesh[_0xe413a9(0x1c4)][_0xe413a9(0x170)](0x0,baseY+0.005,0x0),scene[_0xe413a9(0x1b8)](waterMesh);}function updatePhaseHeights(_0xe9d205,_0x1b38b3){const _0x34c513=_0x60468b,_0x423087=parseFloat(document[_0x34c513(0x1a0)](_0x34c513(0x1ac))['value'])===0x64?0xa:waterHeight,_0x1bb82d=_0x423087*_0xe9d205,_0x290d8f=_0x423087*_0x1b38b3;waterMesh[_0x34c513(0x197)]['y']=_0x290d8f/waterMesh[_0x34c513(0x17a)][_0x34c513(0x16d)][_0x34c513(0x199)],waterMesh[_0x34c513(0x1c4)]['y']=baseY+_0x290d8f/0x2,iceMesh['scale']['y']=_0x1bb82d/ iceMesh[_0x34c513(0x17a)][_0x34c513(0x16d)][_0x34c513(0x199)],iceMesh[_0x34c513(0x1c4)]['y']=baseY+_0x290d8f+_0x1bb82d/0x2;}function createMilikanContainer(){const _0x24a45d=_0x60468b;darkHalfPipe(),clearHalfPipe();const _0x41ee27=new THREE[(_0x24a45d(0x18d))](0xc,0xc,0x2,0x20),_0x132fd5=new THREE[(_0x24a45d(0x1be))]({'color':_0x24a45d(0x1ca)}),_0x21f4ae=new THREE[(_0x24a45d(0x1bf))](_0x41ee27,_0x132fd5);_0x21f4ae[_0x24a45d(0x1c4)][_0x24a45d(0x170)](0x0,-0xe,0x0),scene[_0x24a45d(0x1b8)](_0x21f4ae);}function darkHalfPipe(){const _0x2d70d4=_0x60468b;var _0x1e05b2=new THREE[(_0x2d70d4(0x1a8))]();_0x1e05b2['moveTo'](-0xc,0x0),_0x1e05b2[_0x2d70d4(0x169)](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x1e05b2['lineTo'](0xc,0x0),_0x1e05b2[_0x2d70d4(0x169)](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x1e05b2[_0x2d70d4(0x1b1)](-0xc,0x0);var _0x2bcb8e={'steps':0x2,'depth':0x14,'bevelEnabled':![]},_0x551380=new THREE[(_0x2d70d4(0x18a))](_0x1e05b2,_0x2bcb8e),_0x5e958f=new THREE[(_0x2d70d4(0x1be))]({'color':'gray'}),_0x4a74f7=new THREE['Mesh'](_0x551380,_0x5e958f);_0x4a74f7['rotation']['x']=-Math['PI']/0x2,_0x4a74f7['position'][_0x2d70d4(0x170)](0x0,-0xf,0x0),scene[_0x2d70d4(0x1b8)](_0x4a74f7);}function clearHalfPipe(){const _0x5de390=_0x60468b;var _0x556a67=new THREE[(_0x5de390(0x1a8))]();_0x556a67[_0x5de390(0x185)](-0xc,0x0),_0x556a67[_0x5de390(0x169)](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x556a67[_0x5de390(0x1b1)](0xc,0x0),_0x556a67[_0x5de390(0x169)](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x556a67[_0x5de390(0x1b1)](-0xc,0x0);var _0x4c9c9f={'steps':0x1,'depth':0x14,'bevelEnabled':![]},_0x52d136=new THREE[(_0x5de390(0x18a))](_0x556a67,_0x4c9c9f),_0x2bd978=new THREE[(_0x5de390(0x1cc))]({'color':_0x5de390(0x191),'side':THREE[_0x5de390(0x19e)],'transparent':!![],'opacity':0.2}),_0x26a69c=new THREE[(_0x5de390(0x1bf))](_0x52d136,_0x2bd978);_0x26a69c[_0x5de390(0x194)]['x']=Math['PI']/0x2,_0x26a69c['position'][_0x5de390(0x170)](0x0,0x5,0x0),scene[_0x5de390(0x1b8)](_0x26a69c);}function setupLights(){const _0x3fef63=_0x60468b,_0x418bc6=new THREE[(_0x3fef63(0x17b))](0xffffff,0x1);_0x418bc6['position'][_0x3fef63(0x170)](0xa,0x28,0x14),scene[_0x3fef63(0x1b8)](_0x418bc6);const _0x22d75a=new THREE['SpotLight'](0xffffff,0x3);_0x22d75a['position'][_0x3fef63(0x170)](0x0,0x14,-0x5),_0x22d75a['angle']=Math['PI']/0x8,_0x22d75a[_0x3fef63(0x1b4)]=0.5,_0x22d75a[_0x3fef63(0x1ab)]=0x2,_0x22d75a['distance']=0x64,_0x22d75a[_0x3fef63(0x1bb)][_0x3fef63(0x1c4)]['set'](0x0,0x0,0x0),scene[_0x3fef63(0x1b8)](_0x22d75a),scene[_0x3fef63(0x1b8)](_0x22d75a[_0x3fef63(0x1bb)]);const _0x31df25=new THREE[(_0x3fef63(0x1af))](0xffffff,0.6);scene['add'](_0x31df25);}function cleanLabels(){const _0x94890d=_0x60468b;if(!labelArray)return;for(let _0x18030e=0x0;_0x18030e<labelArray[_0x94890d(0x188)];_0x18030e++){const _0x592335=labelArray[_0x18030e];_0x592335[_0x94890d(0x17a)]&&_0x592335[_0x94890d(0x17a)][_0x94890d(0x1ad)](),_0x592335[_0x94890d(0x1ae)]&&(Array[_0x94890d(0x189)](_0x592335[_0x94890d(0x1ae)])?_0x592335[_0x94890d(0x1ae)][_0x94890d(0x17e)](_0x51dc55=>_0x51dc55[_0x94890d(0x1ad)]()):_0x592335['material'][_0x94890d(0x1ad)]()),scene[_0x94890d(0x177)](_0x592335);}labelArray[_0x94890d(0x188)]=0x0;}function updatePhaseLabel(_0x408f9a){const _0xb8a504=_0x60468b;cleanLabels(),loadedFont?createPhaseLabelMesh(_0x408f9a,loadedFont):fontloader[_0xb8a504(0x19d)]('/api/program-assets/3jcn-phyc140-water-3-phases/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json',function(_0x472633){loadedFont=_0x472633,createPhaseLabelMesh(_0x408f9a,_0x472633);});}function createPhaseLabelMesh(_0x4d7308,_0x18f9c5){const _0xcbc68=_0x60468b,_0x31cace=new TextGeometry(_0x4d7308,{'font':_0x18f9c5,'size':0x2,'height':0.2}),_0x56b160=new THREE[(_0xcbc68(0x16a))]({'color':_0xcbc68(0x1a7)});phaseLabelMesh=new THREE[(_0xcbc68(0x1bf))](_0x31cace,_0x56b160),phaseLabelMesh[_0xcbc68(0x1c4)]['set'](-0xc,0xc,0x0),scene['add'](phaseLabelMesh),labelArray['push'](phaseLabelMesh);}function addLabel(_0x1d95bc,_0x497e33,_0x486468,_0x2257ad,_0x1e6306){const _0x20a782=_0x60468b;fontloader[_0x20a782(0x19d)](_0x20a782(0x179),function(_0x528c22){const _0x14cb9a=_0x20a782;var _0x32b11f=new TextGeometry(_0x1d95bc,{'size':1.5,'height':0.2,'curveSegments':0x6,'font':_0x528c22}),_0x173305=new THREE[(_0x14cb9a(0x16a))]({'color':_0x1e6306}),_0x50ca9b=new THREE[(_0x14cb9a(0x1bf))](_0x32b11f,_0x173305);_0x50ca9b[_0x14cb9a(0x1c4)]['set'](_0x497e33,_0x486468,_0x2257ad),scene[_0x14cb9a(0x1b8)](_0x50ca9b);});}function onWindowResize(){const _0x20a91b=_0x60468b;camera[_0x20a91b(0x186)]=window['innerWidth']/window[_0x20a91b(0x192)],camera[_0x20a91b(0x1b7)](),renderer[_0x20a91b(0x1a4)](window[_0x20a91b(0x18e)],window['innerHeight']);}const render=()=>{const _0x15ad4e=_0x60468b;requestAnimationFrame(render),controls[_0x15ad4e(0x19f)](),renderer[_0x15ad4e(0x1c0)](scene,camera),updateUIValues();if(isStart&&currentIndex<timeData[_0x15ad4e(0x188)]-0x1){if(!isPaused){const _0x456c22=clock[_0x15ad4e(0x175)]();t+=_0x456c22*timeScale;while(currentIndex<timeData[_0x15ad4e(0x188)]-0x1&&timeData[currentIndex]<t){currentIndex++;}}drawTemperatureGraph();}};function _0x5c8f(){const _0x4ad34a=['random','scale','Color','height','Temperature\x20(°C)','Water\x20fully\x20vaporized','click','load','DoubleSide','update','getElementById','#ccc','amountLiquid','TextureLoader','setSize','riseSpeed','value','brown','Shape','Scene','enabled','decay','massSlider','dispose','material','AmbientLight','userData','lineTo','start','strokeStyle','penumbra','beginPath','40TzkYhU','updateProjectionMatrix','add','appendChild','graphCanvas','target','push','lookAt','MeshBasicMaterial','Mesh','render','width','Ice\x20Heating\x20Up','\x20°C','position','getContext','768888wIdBXB','3JCN','timeValue','PerspectiveCamera','black','tempValue','MeshPhongMaterial','523266KQVSte','466648jSTpwL','Water\x20Heating\x20Up','absarc','MeshLambertMaterial','12px\x20Arial','white','parameters','toFixed','domElement','set','red','941658GfvVLR','resize','300843IAdvrh','getDelta','heatSlider','remove','SphereGeometry','/api/program-assets/3jcn-phyc140-water-3-phases/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','geometry','DirectionalLight','texture/knob.png','WebGLRenderer','forEach','blue','fillText','Water\x20Starts\x20to\x20Boil','BoxGeometry','Temp\x20vs.\x20Time','max','moveTo','aspect','stroke','length','isArray','ExtrudeGeometry','min','1345343EqgAXg','CylinderGeometry','innerWidth','4330356ViqHAl','shadowMap','#ffffff','innerHeight','5DeoaWX','rotation','addEventListener'];_0x5c8f=function(){return _0x4ad34a;};return _0x5c8f();}
+
+		window.onload = initScene;	
+</script>
+  
+</head>
+  
+<body>
+<div id="info" style="text-align: left"> 
+<h1 style="text-align: center">Three Phases of Water</h1>
+		
+<div class="control-panel">			    
+		<div class="control-group">
+		  Initial Mass of Ice (g):
+		  <div class="slider-row" style="display: flex; align-items: center;">
+		    <input type="range" id="massSlider" min="100" max="300" step="1" value="100" style="flex: 1; margin-right: 8px;">
+		    <input type="text" id="massValue" value="100" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+		  </div>
+		  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+		    <span>100</span>
+		    <span>300</span>
+		  </div>
+		</div>
+		    
+		  <div class="control-group">
+		    Constant Heat Rate (cal/s):
+		    <div class="slider-row">
+		      <input type="range" id="heatSlider" min="50" max="100" step="1" value="50">
+		      <input type="text" id="heatValue" value="50 cal/s" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>50</span>
+		      <span>100</span>
+		    </div>
+		  </div>
+		    
+		  <div class="control-group">
+		    Amount of Solid Water (g):
+		    <input type="text" id="amountSolid" value="100 g" readonly style="width: 90px;"><br>
+		    Amount of Liquid Water (g):
+		    <input type="text" id="amountLiquid" value="0.0 g" readonly style="width: 90px;">
+		  </div>     
+		  <div class="control-group">
+		    Time (s):
+		    <input type="text" id="timeValue" value="0.0 s" readonly style="width: 90px;">
+		    Temperature ( °C):
+		    <input type="text" id="tempValue" value="-20.0 °C" readonly style="width: 90px;">
+		  </div><br>
+		
+		 <button class="btn btn-primary" id="start">Start</button><br>
+		<button class="btn btn-danger" onclick="alert('This simulation demonstrates the **three phases of water**:\n\n' +
+		'The process starts with **ice at -20°C** and heats it until it becomes **steam at 121°C**.\n\n' +
+		'1. **Solid (Ice)** – Water in frozen form, heated from -20°C to 0°C.\n' +
+		'2. **Liquid (Water)** – Ice melts at 0°C, then heats from 0°C to 100°C.\n' +
+		'3. **Gas (Steam)** – Water boils at 100°C and turns to vapor, continuing to heat up to 121°C.\n\n' +
+		'=== Physics Data Used ===\n' +
+		'• Specific heat of ice = 0.5 cal/g·°C\n' +
+		'• Specific heat of water = 1.0 cal/g·°C\n' +
+		'• Specific heat of steam = 0.5 cal/g·°C\n' +
+		'• Latent heat of fusion = 80 cal/g\n' +
+		'• Latent heat of vaporization = 540 cal/g\n\n' +
+		'Use the sliders to change the ice mass and heat rate to see how phase changes occur over time!')">
+		  3 Phases of Water?
+		</button>
+  
+	</div>
+        <canvas id="graphCanvas" width="400" height="250" style="position:absolute; right:30px; top:120px; background:white; border:1px solid black;"></canvas>
+
+</div>           
+<div id="viewport"></div>
+</body>
+</html>

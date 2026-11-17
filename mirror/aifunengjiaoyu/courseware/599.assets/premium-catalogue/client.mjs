@@ -43,9 +43,9 @@ export async function mountCustomer(root,{openLegacy,openPremium,token,onLogin,i
       const packages=Object.fromEntries(data.packages.map(p=>[p.id,p.id===packageId?{view,selectedId,query}:saved.packages[p.id]]).filter(([,v])=>v));
       saved={version:1,packageId,packages};
       try {localStorage.setItem(storageKey,JSON.stringify(saved));} catch {}
-      if(window.TuringCourseLinks?.parse(window.location.hash)?.page==='premium'){
+      if(window.LeqixiangCourseLinks?.parse(window.location.hash)?.page==='premium'){
         const c=data.courses.find(c=>c.packageId===packageId&&c.id===selectedId);
-        const link=c&&window.TuringCourseLinks.href({kind:'premium',packageId:c.packageId,courseId:c.id});
+        const link=c&&window.LeqixiangCourseLinks.href({kind:'premium',packageId:c.packageId,courseId:c.id});
         history.replaceState(null,'',view==='course'&&link?link:'#premium');
       }
     }
@@ -89,7 +89,7 @@ export async function mountCustomer(root,{openLegacy,openPremium,token,onLogin,i
       if(selected)selectedId=selected.id;
       const blocks=data.categories.filter(c=>c.kind==='block'&&c.parentId===pack.gradeCategoryId).sort((a,b)=>a.sortOrder-b.sortOrder);
       const preview=view==='samples'?`<section class="pc-experience" aria-label="免费体验课"><header><p class="pc-eyebrow">${esc(pack.name)} · 免费体验</p><h2>先体验，再选择。</h2><p>登录后，每个免费课件可累计体验 10 次。普通 VIP 对指定免费课件不限次数。</p></header><div class="pc-sample-grid">${samples.map(c=>`<article class="pc-sample-card"><button class="pc-sample-cover" data-course="${esc(c.id)}" aria-label="查看${esc(c.title)}封面">${cover(c)}<span class="pc-free-tag">免费体验</span></button><div class="pc-sample-body"><p class="pc-eyebrow">${esc(cat(cat(c.pointId)?.parentId)?.name)} · ${esc(cat(c.pointId)?.name)}</p><h3><button data-course="${esc(c.id)}">${esc(c.title)}</button></h3><div class="pc-sample-action">${action(c)}<span class="pc-usage">${esc(usage(c))}</span></div></div></article>`).join('')}</div>${!samples.length?'<p class="pc-empty" role="status">没有匹配的免费体验课，可调整搜索内容，或在左侧知识分类中查找。</p>':''}${purchaseNote}</section>`:selected?`<div class="pc-cover">${cover(selected)}<span class="pc-cover-tag">${available(selected)?'':lock} 静态封面</span></div><div class="pc-preview-body"><p class="pc-eyebrow">${esc(cat(selected.pointId)?.name)}${selected.freeSample?' · 免费体验':''}</p><h2>${esc(selected.title)}</h2><p>${selected.legacyAvailable?'本课程关联课件广场原作品，原单购及原会员权益继续适用。':(selected.programId?'可先体验指定免费课件，再选择适合您的精品套餐。':'课程正在准备中，开放后可先体验指定免费课件。')}</p><div class="pc-sample-action">${action(selected,true)}${selected.freeSample?`<span class="pc-usage">${esc(usage(selected))}</span>`:''}</div>${purchaseNote}</div>`:'<div class="pc-preview-body">没有找到匹配的课件。</div>';
-      root.innerHTML=`<div class="pc-heading"><div><p class="pc-eyebrow">TURING EDUCATION · 精品课程</p><h1>把抽象知识，变成眼前的理解。</h1><p>循着知识脉络，找到适合课堂的交互课件。</p></div>${access.administrator?'<span class="pc-admin-access" role="status">管理员可直接使用全部精品课，无需购买</span>':'<button id="pc-plan-purchase" class="pc-plan-entry">了解与开通套餐</button>'}</div>
+      root.innerHTML=`<div class="pc-heading"><div><p class="pc-eyebrow">LEQIXIANG EDUCATION · 精品课程</p><h1>把抽象知识，变成眼前的理解。</h1><p>循着知识脉络，找到适合课堂的交互课件。</p></div>${access.administrator?'<span class="pc-admin-access" role="status">管理员可直接使用全部精品课，无需购买</span>':'<button id="pc-plan-purchase" class="pc-plan-entry">了解与开通套餐</button>'}</div>
         <div class="pc-tabs" aria-label="学科">${subjects.map(s=>`<button data-subject="${esc(s.id)}" aria-pressed="${s.id===subjectId}">${esc(s.name)}</button>`).join('')}</div>
         <div class="pc-tabs pc-packages" aria-label="年级套餐">${packages.map(p=>`<button data-package="${esc(p.id)}" aria-pressed="${p.id===packageId}">${esc(p.name)}</button>`).join('')}</div>
         <div class="pc-layout"><aside class="pc-directory">${hasSamples(packageId)?`<button id="pc-free-experience" class="pc-experience-entry" aria-pressed="${view==='samples'}">${play}<span>免费体验<small>先试用，找到适合您的课件</small></span></button>`:''}<label>查找课件<input id="pc-search" type="search" maxlength="80" value="${esc(query)}" placeholder="输入课件名称"></label>

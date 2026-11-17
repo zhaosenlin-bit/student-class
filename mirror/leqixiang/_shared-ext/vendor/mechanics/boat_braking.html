@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boat Braking Simulation | Kinematic Equations | 3JCN Physics Simulation</title>
+<meta name="description" content="Interactive 3D boat braking simulation using constant-acceleration kinematic equations to determine whether a boat stops before a floating log.">
+<meta name="keywords" content="boat braking simulation, kinematic equations, constant acceleration, stopping distance, boat physics simulation, 3JCN">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="Thomas Nguyen, 3JCN Physics Simulation">
+<link rel="canonical" href="https://www.new3jcn.com/mechanics/boat_braking.html">
+<link rel="shortcut icon" type="image/x-icon" href="/3jcn.ico">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<link rel="stylesheet" href="css/boat_braking.css">
+
+</head>
+<body>
+
+<!-- ================== SIMULATION ================== -->
+<section id="simulationArea">
+
+  <div id="sceneTitle">
+    <h1>Boat Braking - Kinematic Equations</h1>
+  </div>
+
+  <div id="controlsOverlay">
+
+    <div class="control-panel">
+
+      <!-- ================== THREE SLIDERS IN ONE ROW ================== -->
+      <div class="controls-main-row">
+
+        <!-- Initial Speed -->
+        <div class="control-group">
+          Initial Speed (m/s):
+
+          <div class="slider-row">
+            <input
+              type="range"
+              id="speedSlider"
+              min="4"
+              max="20"
+              step="0.5"
+              value="12"
+            >
+
+            <input
+              type="text"
+              id="speedValue"
+              value="12.0"
+              readonly
+            >
+          </div>
+
+          <div class="minmax">
+            <span>4</span>
+            <span>20</span>
+          </div>
+        </div>
+
+
+        <!-- Distance to Log -->
+        <div class="control-group">
+          Distance to Log (m):
+
+          <div class="slider-row">
+            <input
+              type="range"
+              id="distanceSlider"
+              min="10"
+              max="50"
+              step="1"
+              value="24"
+            >
+
+            <input
+              type="text"
+              id="distanceValue"
+              value="24"
+              readonly
+            >
+          </div>
+
+          <div class="minmax">
+            <span>10</span>
+            <span>50</span>
+          </div>
+        </div>
+
+
+        <!-- Braking Time -->
+        <div class="control-group">
+          Braking Time (s):
+
+          <div class="slider-row">
+            <input
+              type="range"
+              id="timeSlider"
+              min="2"
+              max="8"
+              step="0.5"
+              value="4"
+            >
+
+            <input
+              type="text"
+              id="timeValue"
+              value="4.0"
+              readonly
+            >
+          </div>
+
+          <div class="minmax">
+            <span>2</span>
+            <span>8</span>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ================== LIVE DATA ================== -->
+      <div class="data-grid">
+
+        <div>
+          Speed (m/s)
+          <input
+            type="text"
+            id="currentSpeed"
+            value="12.0"
+            readonly
+          >
+        </div>
+
+        <div>
+          Distance (m)
+          <input
+            type="text"
+            id="currentDistance"
+            value="0.0"
+            readonly
+          >
+        </div>
+
+        <div>
+          Time (s)
+          <input
+            type="text"
+            id="currentTime"
+            value="0.0"
+            readonly
+          >
+        </div>
+
+      </div>
+
+
+      <!-- ================== BUTTONS ================== -->
+      <div class="button-row">
+
+        <button
+          class="btn btn-danger"
+          id="start">
+          Start
+        </button>
+
+        <button
+          class="btn btn-danger"
+          id="problem">
+          Problem
+        </button>
+
+        <button
+          class="btn btn-danger"
+          id="formula">
+          Formula
+        </button>
+
+        <button
+          class="btn btn-primary"
+          id="reset">
+          Reset
+        </button>
+
+        <a
+          href="https://www.new3jcn.com/simulation.html"
+          class="btn btn-primary">
+          Simulation Home
+        </a>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div id="viewport"></div>
+
+</section>
+
+<!-- ================== STUDENT EXERCISE ================== -->
+<section id="exerciseSection">
+  <h2>Boat Braking Exercise</h2>
+  <div class="exercise-grid">
+    <div class="exercise-item">
+      <label for="studentname">Student's name:</label>
+      <input type="text" id="studentname" autocomplete="name">
+    </div>
+    <div class="exercise-item">
+      <label for="answer">Acceleration (m/s²):</label>
+      <input type="number" id="answer" step="0.1" placeholder="Nearest tenth">
+    </div>
+    <div class="exercise-item">
+      <label for="safeAnswer">Does the boat stop in time?</label>
+      <select id="safeAnswer">
+        <option value="">Select</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+    </div>
+    <div class="exercise-item exercise-check">
+      <button type="button" class="btn btn-primary" id="check">Check Answer</button>
+    </div>
+  </div>
+  <div id="resultMessage" role="status" aria-live="polite"></div>
+  <input type="checkbox" id="check-box" aria-label="Correct answer indicator">
+</section>
+
+<!-- ================== INSTRUCTIONS ================== -->
+<section id="seoContent">
+  <h2>Boat Braking and Constant Acceleration</h2>
+  <p>
+    This interactive <strong>3D physics simulation</strong> models a boat traveling in a straight buoy-marked channel. The boat first moves at constant speed. When the driver reaches the braking point, a floating log is a specified distance ahead, so the boat must decelerate rather than turn away.
+  </p>
+
+  <p>During the braking part of the motion, the boat slows uniformly from its initial speed to rest in the selected braking time:</p>
+  <div class="formula-box">0 = v₀ + at</div>
+
+  <p>Therefore, the braking acceleration is:</p>
+  <div class="formula-box">a = −v₀ / t</div>
+
+  <p>The stopping distance is the average speed multiplied by the braking time:</p>
+  <div class="formula-box">d<sub>stop</sub> = ½v₀t</div>
+
+  <h2>How to Use the Simulation</h2>
+  <ul>
+    <li>Choose the boat's initial speed.</li>
+    <li>Choose the distance from the braking point to the floating log.</li>
+    <li>Choose the time from the start of braking to the log's position.</li>
+    <li>Click <strong>Start</strong>. The boat first cruises at constant speed, then begins braking.</li>
+    <li>Calculate the acceleration to the nearest tenth of a meter per second squared.</li>
+    <li>Decide whether the boat stops in time and check both answers.</li>
+  </ul>
+
+  <h2>What Students Learn</h2>
+  <ul>
+    <li><h3>Constant Velocity Before Braking</h3><p>The first part of the animation separates uniform motion from accelerated motion. The displayed braking distance and time begin when the boat starts decelerating.</p></li>
+    <li><h3>Negative Acceleration</h3><p>When acceleration is opposite the boat's velocity, the boat slows down. A negative acceleration does not automatically mean an object is slowing down; the velocity direction must also be considered.</p></li>
+    <li><h3>Stopping Before an Obstacle</h3><p>Compare the calculated stopping distance with the available distance to the log. If the stopping distance is smaller, the boat stops with water still remaining between it and the log.</p></li>
+  </ul>
+
+  <h2>Example</h2>
+  <p>Suppose a boat begins braking at <strong>10 m/s</strong>, the log is <strong>30 m</strong> ahead, and the braking time is <strong>4.0 s</strong>.</p>
+  <div class="formula-box">a = −10 / 4 = −2.5 m/s²</div>
+  <p>The stopping distance is:</p>
+  <div class="formula-box">d<sub>stop</sub> = ½(10)(4) = 20 m</div>
+  <p>The boat therefore stops <strong>10 m before the log</strong>.</p>
+
+  <h2>Related Simulations</h2>
+  <ul class="related-links">
+    <li><a href="/mechanics/runway.html">Runway Takeoff</a></li>
+    <li><a href="/mechanics/changing_motion.html">Changing Motion</a></li>
+    <li><a href="/mechanics/projectile-motion-simulation.html">Projectile Motion</a></li>
+    <li><a href="/mechanics/newtons-second-law-simulation.html">Newton's Second Law</a></li>
+    <li><a href="/mechanics/double-cone-rolling-uphill-simulation.html">Antigravity? </a></li>
+    <li><a href="/simulation.html">All 3JCN Physics Simulations</a></li>
+  </ul>
+</section>
+
+<footer>
+  <p>Boat Braking Simulation | Kinematic Equations | Physics Simulation<br>
+  <a href="https://www.new3jcn.com/simulation.html">All Simulations</a></p>
+</footer>
+
+<div id="problemPopup" class="popup-overlay" role="dialog" aria-modal="true" aria-labelledby="problemTitle" hidden>
+  <div class="popup-box">
+    <h2 id="problemTitle">Boat Braking Problem</h2>
+    <p id="problemText"></p>
+    <button class="btn btn-danger closePopup" data-popup="problemPopup">Close</button>
+  </div>
+</div>
+<div id="formulaPopup" class="popup-overlay" role="dialog" aria-modal="true" aria-labelledby="formulaTitle" hidden>
+  <div class="popup-box">
+    <h2 id="formulaTitle">Kinematic Equations</h2>
+    <p><b>Final velocity:</b><br>v = v<sub>0</sub> + at</p>
+    <p>The selected braking time is the time required to stop, so <b>v = 0</b>:</p>
+    <p><b>a = −v<sub>0</sub> / t</b></p>
+    <p>The stopping distance is:</p>
+    <p><b>d<sub>stop</sub> = ½v<sub>0</sub>t</b></p>
+    <p>If d<sub>stop</sub> ≤ distance to the log, the boat stops in time.</p>
+    <button class="btn btn-danger closePopup" data-popup="formulaPopup">Close</button>
+  </div>
+</div>
+
+<script type="module">
+
+import * as THREE from 'https://www.new3jcn.com/js/three.module.js';
+import { OrbitControls } from 'https://www.new3jcn.com/jsm/OrbitControls.js';
+import { GLTFLoader } from 'https://www.new3jcn.com/jsm/GLTFLoader.js';
+import { Water } from 'https://www.new3jcn.com/js/Water.js';
+import { Sky } from 'https://www.new3jcn.com/js/Sky.js';
+
+let container, scene, camera, renderer, controls, water, light;
+let boat = null;
+let logGroup = null;
+let buoyGroup = null;
+
+let initialSpeedMS = 12.0;
+let logDistanceM = 24.0;
+let travelTimeS = 4.0;
+const CRUISE_DISTANCE_M = 16;   // boat travels 16 m at constant speed first
+
+let running = false;
+let simTime = 0;
+let lastTime = 0;
+
+const TIME_SCALE = 1.0;
+const START_X = 0;
+const START_Z = -140;
+const BASE_METERS_TO_SCENE = 6.2;
+const DISTANCE_SCALE = 2.0; // doubles the visual simulation distance for each 1 m
+const METERS_TO_SCENE = BASE_METERS_TO_SCENE * DISTANCE_SCALE;
+const BOAT_BASE_Y = 0;
+const BOAT_YAW = Math.PI;
+const CHANNEL_HALF_WIDTH = 14.0;
+const BRAKE_START_Z = START_Z + CRUISE_DISTANCE_M * METERS_TO_SCENE;
+const BOAT_LENGTH_SCENE = 22;   // approximate boat length in scene units
+const HALF_BOAT_LENGTH = BOAT_LENGTH_SCENE / 2;
+let logHit = false;
+let logSpin = 0;
+let logSpinSpeed = 0;
+
+const audioCorrect = new Audio('https://www.new3jcn.com/Audio/correct.mp3');
+const audioWrong = new Audio('https://www.new3jcn.com/Audio/wrong.mp3');
+const woodHitSound =
+  new Audio("../mp3/wood-hit.mp3");
+
+woodHitSound.preload = "auto";
+
+init();
+animate();
+
+function init() {
+  container = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u0069\u0065\u0077\u0070\u006F\u0072\u0074");
+  let _0x7ea;
+  const _0xa8624d = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('simulationArea');
+  _0x7ea = '\u006F\u006C\u0065\u006D\u006A\u0062';
+  renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+    '\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073': !![]
+  });
+  renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F']);
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](_0xa8624d['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'], _0xa8624d['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074']);
+  container['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](344422 ^ 344401, _0xa8624d['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'] / _0xa8624d['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074'], 212977 ^ 212976, 126678 ^ 106742);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](807757 ^ 807899, 147698 ^ 147689, -(935448 ^ 935524));
+  light = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0.8);
+  scene['\u0061\u0064\u0064'](light);
+  const _0xbaa7g = new THREE['\u0050\u006F\u0069\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffeeee, 0.6, 916335 ^ 916451);
+  _0xbaa7g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](900422 ^ 900462, 175487 ^ 175467, 494029 ^ 494079);
+  scene['\u0061\u0064\u0064'](_0xbaa7g);
+  createOceanAndSky();
+  loadBoat();
+  createLog();
+  createBuoys();
+  controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls['\u006D\u0061\u0078\u0050\u006F\u006C\u0061\u0072\u0041\u006E\u0067\u006C\u0065'] = Math['\u0050\u0049'] * 0.495;
+  controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](201648 ^ 201648, 826917 ^ 826913, -(250572 ^ 250598));
+  controls['\u006D\u0069\u006E\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] = 818080 ^ 818076;
+  controls['\u006D\u0061\u0078\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] = 456624 ^ 456360;
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  setupUI();
+  updateSliderValues();
+  positionObjects();
+  updateLiveData(initialSpeedMS, 276628 ^ 276628, 345089 ^ 345089);
+  window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('resize', onWindowResize, false);
+}
+function createOceanAndSky() {
+  const _0xgde = new THREE['\u0050\u006C\u0061\u006E\u0065\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](741724 ^ 751180, 110773 ^ 104357);
+  water = new Water(_0xgde, {
+    '\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0057\u0069\u0064\u0074\u0068': 512,
+    '\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0048\u0065\u0069\u0067\u0068\u0074': 512,
+    "waterNormals": new THREE['\u0054\u0065\u0078\u0074\u0075\u0072\u0065\u004C\u006F\u0061\u0064\u0065\u0072']()['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0077\u0077\u0077\u002E\u006E\u0065\u0077\u0033\u006A\u0063\u006E\u002E\u0063\u006F\u006D\u002F\u0070\u0069\u0063\u0074\u0075\u0072\u0065\u0073\u002F\u0077\u0061\u0074\u0065\u0072\u006E\u006F\u0072\u006D\u0061\u006C\u0073\u002E\u006A\u0070\u0067", function (texture) {
+      texture['\u0077\u0072\u0061\u0070\u0053'] = texture['\u0077\u0072\u0061\u0070\u0054'] = THREE['\u0052\u0065\u0070\u0065\u0061\u0074\u0057\u0072\u0061\u0070\u0070\u0069\u006E\u0067'];
+    }),
+    '\u0061\u006C\u0070\u0068\u0061': 1.0,
+    "sunDirection": light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']()['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065'](),
+    '\u0073\u0075\u006E\u0043\u006F\u006C\u006F\u0072': 0xffffff,
+    '\u0077\u0061\u0074\u0065\u0072\u0043\u006F\u006C\u006F\u0072': 0x001e0f,
+    "distortionScale": 3.7,
+    '\u0066\u006F\u0067': scene['\u0066\u006F\u0067'] !== undefined
+  });
+  water['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = -Math['\u0050\u0049'] / (348608 ^ 348610);
+  scene['\u0061\u0064\u0064'](water);
+  var _0xeacdfb = (117131 ^ 117129) + (274434 ^ 274434);
+  const _0xgc3ecb = new Sky();
+  _0xeacdfb = 802599 ^ 802607;
+  var _0x9ac = (592543 ^ 592535) + (932017 ^ 932019);
+  const _0x76e9a = _0xgc3ecb['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073'];
+  _0x9ac = "jjhdfh";
+  _0x76e9a['turbidity']['\u0076\u0061\u006C\u0075\u0065'] = 405821 ^ 405815;
+  _0x76e9a['rayleigh']['\u0076\u0061\u006C\u0075\u0065'] = 458805 ^ 458807;
+  _0x76e9a['luminance']['\u0076\u0061\u006C\u0075\u0065'] = 380377 ^ 380376;
+  _0x76e9a['mieCoefficient']['\u0076\u0061\u006C\u0075\u0065'] = 0.005;
+  _0x76e9a["\u006D\u0069\u0065\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u0047"]['\u0076\u0061\u006C\u0075\u0065'] = 0.8;
+  const _0x553f4c = {
+    "distance": 400,
+    "inclination": 0.24,
+    '\u0061\u007A\u0069\u006D\u0075\u0074\u0068': 0.205
+  };
+  var _0x235aa = (355490 ^ 355489) + (396935 ^ 396935);
+  const _0x193b = new THREE['\u0043\u0075\u0062\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](0.1, 141900 ^ 141901, 189469 ^ 189981);
+  _0x235aa = (358159 ^ 358156) + (975115 ^ 975115);
+  _0x193b['\u0072\u0065\u006E\u0064\u0065\u0072\u0054\u0061\u0072\u0067\u0065\u0074']['\u0074\u0065\u0078\u0074\u0075\u0072\u0065']['\u0067\u0065\u006E\u0065\u0072\u0061\u0074\u0065\u004D\u0069\u0070\u006D\u0061\u0070\u0073'] = !![];
+  _0x193b['\u0072\u0065\u006E\u0064\u0065\u0072\u0054\u0061\u0072\u0067\u0065\u0074']['\u0074\u0065\u0078\u0074\u0075\u0072\u0065']['\u006D\u0069\u006E\u0046\u0069\u006C\u0074\u0065\u0072'] = THREE['\u004C\u0069\u006E\u0065\u0061\u0072\u004D\u0069\u0070\u006D\u0061\u0070\u004C\u0069\u006E\u0065\u0061\u0072\u0046\u0069\u006C\u0074\u0065\u0072'];
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = _0x193b['\u0072\u0065\u006E\u0064\u0065\u0072\u0054\u0061\u0072\u0067\u0065\u0074'];
+  let _0x17ae;
+  const _0x386d = Math['\u0050\u0049'] * (_0x553f4c['\u0069\u006E\u0063\u006C\u0069\u006E\u0061\u0074\u0069\u006F\u006E'] - 0.5);
+  _0x17ae = (364381 ^ 364373) + (134877 ^ 134869);
+  var _0xf8828d = (222727 ^ 222720) + (802242 ^ 802240);
+  const _0xa1e = (173141 ^ 173143) * Math['\u0050\u0049'] * (_0x553f4c['\u0061\u007A\u0069\u006D\u0075\u0074\u0068'] - 0.5);
+  _0xf8828d = (154623 ^ 154619) + (577570 ^ 577578);
+  light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = _0x553f4c['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] * Math['\u0063\u006F\u0073'](_0xa1e);
+  light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = _0x553f4c['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] * Math['\u0073\u0069\u006E'](_0xa1e) * Math['\u0073\u0069\u006E'](_0x386d);
+  light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = _0x553f4c['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] * Math['\u0073\u0069\u006E'](_0xa1e) * Math['\u0063\u006F\u0073'](_0x386d);
+  _0xgc3ecb['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['sunPosition']['\u0076\u0061\u006C\u0075\u0065'] = light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);
+  water['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['sunDirection']['\u0076\u0061\u006C\u0075\u0065']['\u0063\u006F\u0070\u0079'](light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'])['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();
+  _0x193b['\u0075\u0070\u0064\u0061\u0074\u0065'](renderer, _0xgc3ecb);
+}
+function loadBoat() {
+  const _0x2aedab = new GLTFLoader();
+  _0x2aedab['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0077\u0077\u0077\u002E\u006E\u0065\u0077\u0033\u006A\u0063\u006E\u002E\u0063\u006F\u006D\u002F\u006D\u006F\u0064\u0065\u006C\u0073\u002F\u0062\u006F\u0061\u0074\u002F\u0073\u0063\u0065\u006E\u0065\u002E\u0067\u006C\u0074\u0066", gltf => {
+    boat = gltf['\u0073\u0063\u0065\u006E\u0065'];
+    boat['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](400737 ^ 400740, 557939 ^ 557942, 990631 ^ 990626);
+    boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](START_X, BOAT_BASE_Y, START_Z);
+    boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = BOAT_YAW;
+    scene['\u0061\u0064\u0064'](boat);
+  }, undefined, error => {
+    console['\u0065\u0072\u0072\u006F\u0072']("\u0042\u006F\u0061\u0074\u0020\u006D\u006F\u0064\u0065\u006C\u0020\u006C\u006F\u0061\u0064\u0069\u006E\u0067\u0020\u0065\u0072\u0072\u006F\u0072\u003A", error);
+  });
+}
+function createLog() {
+  logGroup = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  const _0x189f5c = new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x7b4a20
+  });
+  var _0xb0834a = (838812 ^ 838813) + (761398 ^ 761393);
+  const _0x1e9cg = new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xb9824b
+  });
+  _0xb0834a = (657790 ^ 657785) + (271825 ^ 271824);
+  var _0x82121d = (555846 ^ 555846) + (765419 ^ 765418);
+  const _0xefd = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](1.15, 1.15, 10.5, 780859 ^ 780827), _0x189f5c);
+  _0x82121d = 418334 ^ 418335;
+  _0xefd['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (630339 ^ 630337);
+  _0xefd['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = 0.55;
+  logGroup['\u0061\u0064\u0064'](_0xefd);
+  const _0x3_0x6c3 = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0069\u0072\u0063\u006C\u0065\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](1.15, 119395 ^ 119363), _0x1e9cg);
+  _0x3_0x6c3['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = Math['\u0050\u0049'] / (478086 ^ 478084);
+  _0x3_0x6c3['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-5.25, 0.55, 662579 ^ 662579);
+  logGroup['\u0061\u0064\u0064'](_0x3_0x6c3);
+  const _0x1c_0x907 = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0069\u0072\u0063\u006C\u0065\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](1.15, 480253 ^ 480221), _0x1e9cg);
+  _0x1c_0x907['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = -Math['\u0050\u0049'] / (221778 ^ 221776);
+  _0x1c_0x907['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](5.25, 0.55, 276482 ^ 276482);
+  logGroup['\u0061\u0064\u0064'](_0x1c_0x907);
+  const _0x6911d = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.18, 0.30, 277248 ^ 277251, 999661 ^ 999677), _0x189f5c);
+  _0x6911d['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = -0.85;
+  _0x6911d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](0.9, 1.8, 0.25);
+  logGroup['\u0061\u0064\u0064'](_0x6911d);
+  logGroup['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](393587 ^ 393585, 967313 ^ 967315, 950118 ^ 950116);
+  scene['\u0061\u0064\u0064'](logGroup);
+}
+function createBuoys() {
+  buoyGroup = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  let _0x2c42c;
+  const _0x409f = 578374 ^ 578382;
+  _0x2c42c = 863448 ^ 863455;
+  for (let i = 298633 ^ 298633; i < _0x409f * (381747 ^ 381745); i++) {
+    const _0xg7b9fc = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+    const _0x3c2d5c = i % (291359 ^ 291357) === (832035 ^ 832035) ? 0xff6b2d : 0xffffff;
+    const _0x5560b = i % (997279 ^ 997277) === (693992 ^ 693992) ? 0xffffff : 0xff3b1f;
+    const _0x49ab = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.65, 0.86, 1.7, 352421 ^ 352435), new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      "color": _0x3c2d5c
+    }));
+    _0x49ab['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = 0.78;
+    _0xg7b9fc['\u0061\u0064\u0064'](_0x49ab);
+    let _0x62d15f;
+    const _0x2ee57e = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.48, 123089 ^ 123075, 863709 ^ 863695), new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      "color": _0x5560b
+    }));
+    _0x62d15f = 180574 ^ 180569;
+    _0x2ee57e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = 1.72;
+    _0xg7b9fc['\u0061\u0064\u0064'](_0x2ee57e);
+    const _0xecebge = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.08, 0.08, 0.72, 248086 ^ 248092), new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      '\u0063\u006F\u006C\u006F\u0072': 0x333333
+    }));
+    _0xecebge['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = 2.18;
+    _0xg7b9fc['\u0061\u0064\u0064'](_0xecebge);
+    _0xg7b9fc['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](773718 ^ 773716, 374369 ^ 374371, 755744 ^ 755746);
+    _0xg7b9fc['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0070\u0068\u0061\u0073\u0065'] = i * 0.45;
+    buoyGroup['\u0061\u0064\u0064'](_0xg7b9fc);
+  }
+  scene['\u0061\u0064\u0064'](buoyGroup);
+}
+function setupUI() {
+  bindSlider('speedSlider', value => {
+    initialSpeedMS = value;
+    resetSimulation(false);
+  });
+  bindSlider("\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0053\u006C\u0069\u0064\u0065\u0072", value => {
+    logDistanceM = value;
+    resetSimulation(false);
+  });
+  bindSlider("\u0074\u0069\u006D\u0065\u0053\u006C\u0069\u0064\u0065\u0072", value => {
+    travelTimeS = value;
+    resetSimulation(false);
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0074\u0061\u0072\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", startSimulation);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('reset')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', () => resetSimulation(!![]));
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0068\u0065\u0063\u006B")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', checkAnswer);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('problem')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', showProblem);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0066\u006F\u0072\u006D\u0075\u006C\u0061")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', () => openPopup("\u0066\u006F\u0072\u006D\u0075\u006C\u0061\u0050\u006F\u0070\u0075\u0070"));
+  document['\u0071\u0075\u0065\u0072\u0079\u0053\u0065\u006C\u0065\u0063\u0074\u006F\u0072\u0041\u006C\u006C']("\u002E\u0063\u006C\u006F\u0073\u0065\u0050\u006F\u0070\u0075\u0070")['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](button => {
+    button['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => closePopup(button['\u0064\u0061\u0074\u0061\u0073\u0065\u0074']['\u0070\u006F\u0070\u0075\u0070']));
+  });
+  document['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('keydown', event => {
+    if (event['\u006B\u0065\u0079'] === 'Escape') {
+      ["\u0070\u0072\u006F\u0062\u006C\u0065\u006D\u0050\u006F\u0070\u0075\u0070", 'formulaPopup']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](id => {
+        const _0xc4d5ca = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);
+        if (!_0xc4d5ca['\u0068\u0069\u0064\u0064\u0065\u006E']) closePopup(id);
+      });
+    }
+  });
+}
+function bindSlider(id, callback) {
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id)['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('input', event => {
+    if (running) return;
+    callback(parseFloat(event['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']));
+    updateSliderValues();
+  });
+}
+function calculatedAcceleration() {
+  return -initialSpeedMS / travelTimeS;
+}
+function stoppingTime() {
+  return travelTimeS;
+}
+function stoppingDistance() {
+  return 0.5 * initialSpeedMS * travelTimeS;
+}
+function stopsInTime() {
+  return stoppingDistance() <= logDistanceM + 1e-9;
+}
+function collisionTime() {
+  const a = calculatedAcceleration();
+  var _0x8d7c4c = (950818 ^ 950817) + (754384 ^ 754391);
+  const _0x4_0xdfb = initialSpeedMS * initialSpeedMS + (931942 ^ 931940) * a * logDistanceM;
+  _0x8d7c4c = (345329 ^ 345335) + (997412 ^ 997420);
+  if (_0x4_0xdfb < (934103 ^ 934103)) return Infinity;
+  return (-initialSpeedMS + Math['\u0073\u0071\u0072\u0074'](_0x4_0xdfb)) / a;
+}
+function startSimulation() {
+  if (!boat || running) return;
+  resetSimulation(false);
+  running = !![];
+  simTime = 992235 ^ 992235;
+  lastTime = performance['\u006E\u006F\u0077']();
+  disableSliders(!![]);
+}
+function getLogZ() {
+  return BRAKE_START_Z + logDistanceM * METERS_TO_SCENE + HALF_BOAT_LENGTH;
+}
+function resetSimulation(clearAnswers) {
+  running = false;
+  simTime = 882846 ^ 882846;
+  lastTime = 947346 ^ 947346;
+  disableSliders(false);
+  positionObjects();
+  updateLiveData(initialSpeedMS, 188161 ^ 188161, 266037 ^ 266037);
+  if (clearAnswers) {
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('studentname')['\u0076\u0061\u006C\u0075\u0065'] = '';
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0061\u006E\u0073\u0077\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065'] = '';
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('safeAnswer')['\u0076\u0061\u006C\u0075\u0065'] = '';
+  }
+  logHit = false;
+  logSpin = 641604 ^ 641604;
+  logSpinSpeed = 792722 ^ 792722;
+  if (logGroup) {
+    logGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = 947514 ^ 947514;
+  }
+  const _0x32c27b = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0075\u006C\u0074\u004D\u0065\u0073\u0073\u0061\u0067\u0065");
+  _0x32c27b['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = '';
+  _0x32c27b['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u0062\u006C\u006F\u0063\u006B";
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0068\u0065\u0063\u006B\u002D\u0062\u006F\u0078")['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'] = false;
+}
+function positionObjects() {
+  if (boat) {
+    boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](START_X, BOAT_BASE_Y, START_Z);
+    boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = 570152 ^ 570152;
+    boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = BOAT_YAW;
+    boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = 902295 ^ 902295;
+  }
+  var _0x9e_0xb8e = (435487 ^ 435483) + (427302 ^ 427299);
+  const _0x5b838b = getLogZ();
+  _0x9e_0xb8e = (590956 ^ 590949) + (253190 ^ 253187);
+  if (logGroup) {
+    logGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](164311 ^ 164311, 105990 ^ 105990, _0x5b838b);
+  }
+  if (buoyGroup) {
+    const _0xdade = buoyGroup['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068'] / (937647 ^ 937645);
+    const _0x919b = START_Z + (343485 ^ 343477);
+    var _0x9185f = (767357 ^ 767354) + (720145 ^ 720146);
+    const _0xdc601f = _0x5b838b - (388414 ^ 388400);
+    _0x9185f = 387299 ^ 387301;
+    const _0x5_0xec9 = _0xdc601f - _0x919b;
+    for (let i = 219965 ^ 219965; i < buoyGroup['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']; i++) {
+      const _0x6_0x283 = buoyGroup['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E'][i];
+      const _0xe573fa = i < _0xdade ? 223542 ^ 223542 : 402194 ^ 402195;
+      var _0x82a = (798294 ^ 798303) + (199086 ^ 199085);
+      const _0x265bfd = i % _0xdade;
+      _0x82a = 995100 ^ 995096;
+      const _0x4fbg = _0x265bfd / (_0xdade - (698328 ^ 698329));
+      _0x6_0x283['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = _0x919b + _0x4fbg * _0x5_0xec9;
+      _0x6_0x283['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = _0xe573fa === (380916 ^ 380916) ? -CHANNEL_HALF_WIDTH : CHANNEL_HALF_WIDTH;
+      _0x6_0x283['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = 939630 ^ 939630;
+    }
+  }
+}
+function animate() {
+  requestAnimationFrame(animate);
+  var _0xa_0x1b5 = (612747 ^ 612739) + (428820 ^ 428819);
+  const _0x8ecdd = performance['\u006E\u006F\u0077']() * 0.001;
+  _0xa_0x1b5 = (473033 ^ 473035) + (302935 ^ 302933);
+  if (running && boat) {
+    const _0xf966a = performance['\u006E\u006F\u0077']();
+    const _0x34d4a = Math['\u006D\u0069\u006E']((_0xf966a - lastTime) / (954688 ^ 955048), 0.05);
+    lastTime = _0xf966a;
+    simTime += _0x34d4a * TIME_SCALE;
+    const _0x115dc = CRUISE_DISTANCE_M / initialSpeedMS;
+    if (simTime < _0x115dc) {
+      var _0xac_0x0c7 = (281147 ^ 281138) + (393805 ^ 393802);
+      const _0x6d91g = initialSpeedMS * simTime;
+      _0xac_0x0c7 = '\u006B\u0068\u006C\u006A\u006D\u0065';
+      boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = START_X;
+      boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = START_Z + _0x6d91g * METERS_TO_SCENE;
+      boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = BOAT_YAW;
+      updateLiveData(initialSpeedMS, 967959 ^ 967959, 623497 ^ 623497);
+    } else {
+      var _0x59711a = (920849 ^ 920857) + (742458 ^ 742456);
+      const _0xd91b = simTime - _0x115dc;
+      _0x59711a = "hjqmoi";
+      const a = calculatedAcceleration();
+      let _0xa2efb;
+      const _0x92b = Math['\u006D\u0069\u006E'](_0xd91b, travelTimeS);
+      _0xa2efb = '\u0069\u0070\u006A\u0065\u0063\u006C';
+      var _0x7dd87e = (232864 ^ 232871) + (651368 ^ 651372);
+      const _0xf7b4ae = Math['\u006D\u0061\u0078'](587769 ^ 587769, initialSpeedMS * _0x92b + 0.5 * a * _0x92b * _0x92b);
+      _0x7dd87e = (447687 ^ 447686) + (774080 ^ 774085);
+      var _0xa80af = (533237 ^ 533245) + (564349 ^ 564340);
+      const _0xb1da7c = Math['\u006D\u0061\u0078'](771672 ^ 771672, initialSpeedMS + a * _0x92b);
+      _0xa80af = '\u0063\u0065\u0064\u006B\u0067\u0068';
+      var _0x_0x7ab = (866941 ^ 866932) + (464871 ^ 464866);
+      const _0xb9ea = stoppingDistance();
+      _0x_0x7ab = 867166 ^ 867164;
+      var _0x8340fa = (432240 ^ 432245) + (355899 ^ 355897);
+      const _0xd4g93d = _0xb9ea <= logDistanceM;
+      _0x8340fa = "lgikma";
+      const _0xb229ec = _0xb9ea > logDistanceM;
+      if (_0xd4g93d) {
+        logHit = false;
+        logSpinSpeed = 302206 ^ 302206;
+        const _0xb5ea = Math['\u006D\u0069\u006E'](_0xf7b4ae, _0xb9ea);
+        boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = START_X;
+        boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = BRAKE_START_Z + _0xb5ea * METERS_TO_SCENE;
+        boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = BOAT_YAW;
+      } else if (_0xb229ec) {
+        if (_0xf7b4ae <= logDistanceM) {
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = START_X;
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = BRAKE_START_Z + _0xf7b4ae * METERS_TO_SCENE;
+          boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = BOAT_YAW;
+        } else {
+          if (!logHit) {
+            logHit = !![];
+            logSpinSpeed = 2.2;
+            woodHitSound['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0054\u0069\u006D\u0065'] = 784428 ^ 784428;
+            woodHitSound['\u0070\u006C\u0061\u0079']()['\u0063\u0061\u0074\u0063\u0068'](error => {
+              console['\u006C\u006F\u0067']("\u0057\u006F\u006F\u0064\u0020\u0068\u0069\u0074\u0020\u0073\u006F\u0075\u006E\u0064\u0020\u0063\u006F\u0075\u006C\u0064\u0020\u006E\u006F\u0074\u0020\u0070\u006C\u0061\u0079\u003A", error);
+            });
+          }
+          const extraDistance = _0xf7b4ae - logDistanceM;
+          const logBoatCenterZ = BRAKE_START_Z + logDistanceM * METERS_TO_SCENE;
+          var _0x975eg = (368566 ^ 368567) + (315030 ^ 315027);
+          const turnAmount = Math['\u006D\u0069\u006E'](extraDistance / (776695 ^ 776703), 527190 ^ 527191);
+          _0x975eg = '\u0067\u0066\u006E\u0067\u0062\u0064';
+          const maxTurnAngle = Math['\u0050\u0049'] / (191662 ^ 191658);
+          let _0x9dfdd;
+          const turnRadians = maxTurnAngle * turnAmount;
+          _0x9dfdd = '\u0064\u006D\u006D\u006F\u006B\u0070';
+          boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u006C\u0065\u0072\u0070'](BOAT_YAW, BOAT_YAW - maxTurnAngle, turnAmount);
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = START_X + extraDistance * METERS_TO_SCENE * Math['\u0073\u0069\u006E'](turnRadians);
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = logBoatCenterZ + extraDistance * METERS_TO_SCENE * Math['\u0063\u006F\u0073'](turnRadians);
+        }
+      }
+      updateLiveData(_0xb1da7c, _0xf7b4ae, _0x92b);
+      if (_0xd91b >= travelTimeS) {
+        if (_0xd4g93d) {
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = START_X;
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = BRAKE_START_Z + _0xb9ea * METERS_TO_SCENE;
+          boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = BOAT_YAW;
+          logHit = false;
+          logSpinSpeed = 240012 ^ 240012;
+        } else {
+          var _0x64b3e = (545781 ^ 545782) + (653395 ^ 653398);
+          const extraDistance = _0xb9ea - logDistanceM;
+          _0x64b3e = (360798 ^ 360797) + (355865 ^ 355871);
+          let _0xg1e2fe;
+          const logBoatCenterZ = BRAKE_START_Z + logDistanceM * METERS_TO_SCENE;
+          _0xg1e2fe = '\u0066\u0064\u006B\u0068\u006C\u0063';
+          const turnAmount = Math['\u006D\u0069\u006E'](extraDistance / (536793 ^ 536785), 704834 ^ 704835);
+          const maxTurnAngle = Math['\u0050\u0049'] / (772093 ^ 772089);
+          let _0xga58ee;
+          const turnRadians = maxTurnAngle * turnAmount;
+          _0xga58ee = (490299 ^ 490303) + (529345 ^ 529345);
+          boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u006C\u0065\u0072\u0070'](BOAT_YAW, BOAT_YAW - maxTurnAngle, turnAmount);
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = START_X + extraDistance * METERS_TO_SCENE * Math['\u0073\u0069\u006E'](turnRadians);
+          boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = logBoatCenterZ + extraDistance * METERS_TO_SCENE * Math['\u0063\u006F\u0073'](turnRadians);
+          if (!logHit) {
+            logHit = !![];
+            logSpinSpeed = 2.2;
+            woodHitSound['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0054\u0069\u006D\u0065'] = 334438 ^ 334438;
+            woodHitSound['\u0070\u006C\u0061\u0079']()['\u0063\u0061\u0074\u0063\u0068'](error => {
+              console['\u006C\u006F\u0067']("\u0057\u006F\u006F\u0064\u0020\u0068\u0069\u0074\u0020\u0073\u006F\u0075\u006E\u0064\u0020\u0063\u006F\u0075\u006C\u0064\u0020\u006E\u006F\u0074\u0020\u0070\u006C\u0061\u0079\u003A", error);
+            });
+          }
+        }
+        updateLiveData(498082 ^ 498082, _0xb9ea, travelTimeS);
+        running = false;
+        disableSliders(false);
+      }
+    }
+  }
+  if (boat) {
+    boat['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = BOAT_BASE_Y + Math['\u0073\u0069\u006E'](_0x8ecdd) * 0.35;
+    boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0073\u0069\u006E'](_0x8ecdd) * 0.05;
+    boat['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0073\u0069\u006E'](_0x8ecdd) * 0.08;
+  }
+  if (logGroup) {
+    logGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = Math['\u0073\u0069\u006E'](_0x8ecdd * 1.15 + (973263 ^ 973262)) * 0.32;
+    var _0x7f829e = (451443 ^ 451446) + (936344 ^ 936347);
+    const _0xf7b5e = Math['\u0073\u0069\u006E'](_0x8ecdd * 0.90) * 0.045;
+    _0x7f829e = 443307 ^ 443308;
+    if (logHit) {
+      logSpin += logSpinSpeed / (216499 ^ 216463);
+      logSpinSpeed *= 0.985;
+      if (Math['\u0061\u0062\u0073'](logSpinSpeed) < 0.01) {
+        logSpinSpeed = 733398 ^ 733398;
+      }
+    }
+    logGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0073\u0069\u006E'](_0x8ecdd * 0.75) * 0.03;
+    logGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = logSpin;
+    logGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = _0xf7b5e;
+  }
+  if (buoyGroup) {
+    buoyGroup['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((buoy, index) => {
+      let _0x8gc24e;
+      const _0x7c1aab = buoy['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0070\u0068\u0061\u0073\u0065'] || index * 0.35;
+      _0x8gc24e = 478536 ^ 478542;
+      buoy['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = Math['\u0073\u0069\u006E'](_0x8ecdd * 1.6 + _0x7c1aab) * 0.24;
+      buoy['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0073\u0069\u006E'](_0x8ecdd * 1.2 + _0x7c1aab) * 0.05;
+      buoy['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0073\u0069\u006E'](_0x8ecdd * (297406 ^ 297407) + _0x7c1aab) * 0.02;
+    });
+  }
+  if (water && water['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] && water['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073'] && water['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0074\u0069\u006D\u0065']) {
+    water['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']["\u0074\u0069\u006D\u0065"]['\u0076\u0061\u006C\u0075\u0065'] += (249738 ^ 249739) / (947920 ^ 947948);
+  }
+  if (controls) {
+    controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  }
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+function updateSliderValues() {
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('speedValue')['\u0076\u0061\u006C\u0075\u0065'] = initialSpeedMS['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](897380 ^ 897381);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0056\u0061\u006C\u0075\u0065")['\u0076\u0061\u006C\u0075\u0065'] = logDistanceM['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](608086 ^ 608086);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0074\u0069\u006D\u0065\u0056\u0061\u006C\u0075\u0065")['\u0076\u0061\u006C\u0075\u0065'] = travelTimeS['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](498426 ^ 498427);
+}
+function updateLiveData(speed, distance, time) {
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('currentSpeed')['\u0076\u0061\u006C\u0075\u0065'] = speed['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](792106 ^ 792107);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065")['\u0076\u0061\u006C\u0075\u0065'] = distance['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](788746 ^ 788747);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0054\u0069\u006D\u0065")['\u0076\u0061\u006C\u0075\u0065'] = time['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](649573 ^ 649572);
+}
+function disableSliders(disabled) {
+  ["\u0073\u0070\u0065\u0065\u0064\u0053\u006C\u0069\u0064\u0065\u0072", "\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0053\u006C\u0069\u0064\u0065\u0072", "\u0074\u0069\u006D\u0065\u0053\u006C\u0069\u0064\u0065\u0072"]['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](id => {
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id)['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = disabled;
+  });
+}
+function checkAnswer() {
+  const _0xaaa = parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('answer')['\u0076\u0061\u006C\u0075\u0065']);
+  let _0x88c4gd;
+  const _0xf89daf = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0061\u0066\u0065\u0041\u006E\u0073\u0077\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065'];
+  _0x88c4gd = "gebijm";
+  var _0x1e_0xa65 = (522697 ^ 522689) + (211789 ^ 211787);
+  const _0x56da = (document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('studentname')['\u0076\u0061\u006C\u0075\u0065'] || "\u0053\u0074\u0075\u0064\u0065\u006E\u0074")['\u0074\u0072\u0069\u006D']();
+  _0x1e_0xa65 = (384770 ^ 384778) + (740009 ^ 740008);
+  var _0x2_0x442 = (975219 ^ 975217) + (427963 ^ 427964);
+  const _0x310a = Math['\u0072\u006F\u0075\u006E\u0064'](calculatedAcceleration() * (672763 ^ 672753)) / (218082 ^ 218088);
+  _0x2_0x442 = (315890 ^ 315889) + (295529 ^ 295533);
+  const _0x7_0xcd4 = stopsInTime() ? "\u0079\u0065\u0073" : "\u006E\u006F";
+  const _0x9ca4ge = Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](_0xaaa) && Math['\u0061\u0062\u0073'](_0xaaa - _0x310a) < 0.051;
+  const _0x8_0x780 = _0xf89daf === _0x7_0xcd4;
+  var _0x33bd = (584360 ^ 584364) + (213467 ^ 213467);
+  const _0x9367f = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0075\u006C\u0074\u004D\u0065\u0073\u0073\u0061\u0067\u0065");
+  _0x33bd = (665313 ^ 665318) + (459044 ^ 459043);
+  _0x9367f['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = '';
+  _0x9367f['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u0062\u006C\u006F\u0063\u006B";
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0068\u0065\u0063\u006B\u002D\u0062\u006F\u0078")['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'] = false;
+  if (!_0x9ca4ge || !_0x8_0x780) {
+    audioWrong['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0054\u0069\u006D\u0065'] = 912777 ^ 912777;
+    audioWrong['\u0070\u006C\u0061\u0079']()['\u0063\u0061\u0074\u0063\u0068'](() => {});
+    return;
+  }
+  audioCorrect['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0054\u0069\u006D\u0065'] = 669903 ^ 669903;
+  audioCorrect['\u0070\u006C\u0061\u0079']()['\u0063\u0061\u0074\u0063\u0068'](() => {});
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0068\u0065\u0063\u006B\u002D\u0062\u006F\u0078")['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'] = !![];
+  _0x9367f['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u0062\u006C\u006F\u0063\u006B";
+  _0x9367f['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${_0x56da} passed the test. Correct! a = ${_0x310a['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](181677 ^ 181676)} m/s²; ${_0x7_0xcd4 === "\u0079\u0065\u0073" ? 'the boat stops in time.' : "\u0074\u0068\u0065\u0020\u0062\u006F\u0061\u0074\u0020\u0064\u006F\u0065\u0073\u0020\u006E\u006F\u0074\u0020\u0073\u0074\u006F\u0070\u0020\u0069\u006E\u0020\u0074\u0069\u006D\u0065\u002E"}`;
+}
+function showProblem() {
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('problemText')['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `A boat is moving at <b>${initialSpeedMS['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](243985 ^ 243984)} m/s</b> when the driver begins braking. ` + `A floating log is <b>${logDistanceM['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](925893 ^ 925893)} m</b> ahead. The boat decelerates uniformly and comes to rest after ` + `<b>${travelTimeS['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](488942 ^ 488943)} s</b>.<br><br>` + `Two rows of buoys keep the boat in a straight channel, so it must slow down instead of turning away.<br><br>` + `1. What is the boat's acceleration? Round to the nearest tenth.<br>` + `2. Does the boat stop before reaching the log?`;
+  openPopup('problemPopup');
+}
+function openPopup(id) {
+  const _0x4947g = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);
+  _0x4947g['\u0068\u0069\u0064\u0064\u0065\u006E'] = false;
+  let _0xe3g;
+  const _0xcf_0x1ca = _0x4947g['\u0071\u0075\u0065\u0072\u0079\u0053\u0065\u006C\u0065\u0063\u0074\u006F\u0072']('.closePopup');
+  _0xe3g = (199038 ^ 199030) + (637254 ^ 637255);
+  if (_0xcf_0x1ca) _0xcf_0x1ca['\u0066\u006F\u0063\u0075\u0073']();
+}
+function closePopup(id) {
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id)['\u0068\u0069\u0064\u0064\u0065\u006E'] = !![];
+}
+function onWindowResize() {
+  const _0x7a9bd = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('simulationArea');
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = _0x7a9bd['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'] / _0x7a9bd['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074'];
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](_0x7a9bd['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'], _0x7a9bd['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074']);
+}
+</script>
+</body>
+</html>

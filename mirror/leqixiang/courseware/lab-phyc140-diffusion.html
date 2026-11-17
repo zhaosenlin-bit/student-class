@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-diffusion/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-diffusion/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-diffusion/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-diffusion/_ext/vendor/css/final.css">	
+	<style>
+		input[type=text] {
+		  background-color: #ffffff;
+		  color: black;
+		  text-align: center;
+		}
+		body {
+			color: black;
+		}
+	.control-panel {
+	  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 250px;
+	  font-family: Arial, sans-serif;
+	  text-align: center;
+	}
+	.control-panel-right {
+	  position: absolute;
+	  top: 90px;
+	  right: 50px;
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  text-align: center;
+	}
+	
+	.control-group {
+	  margin-bottom: 15px;
+	}
+	
+	.slider-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+	
+	input[type="range"] {
+	  width: 65%;
+	  accent-color: blue;
+	}
+	
+	input[type="text"] {
+	  width: 80px;
+	  font-weight: bold;
+	  text-align: center;
+	  color: blue;
+	}
+	
+	.minmax {
+	  display: flex;
+	  justify-content: space-between;
+	  font-size: 12px;
+	  margin-top: 5px;
+	}
+
+	</style> 
+	
+	<!--       Author: Thomas Nguyen
+		         来源与许可：见项目文档
+	           Date: 2 July 2025       -->
+	
+<script type="module">   
+	
+    import * as THREE from '../jsm/three.module.js';
+    import { OrbitControls } from '../jsm/OrbitControls.js';
+    import { FontLoader } from '../jsm/FontLoader.js';
+    import { TextGeometry } from '../jsm/TextGeometry.js';	
+    import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  25 May 2025
+		 **  All rights reserved **/
+		
+	let scene, camera, renderer, controls;
+	let leftGroup, rightGroup;
+	let box, wall;
+	let barrierRemoved = false, isPaused = false;;
+	let startTime = null;
+	let elapsedTime = 0;
+	
+	// Constants
+	const N_A = 6.022e23;
+	const scalingFactor = 5e23;  // adjusted for realism
+	const velocityScaling = 0.005;
+	const radius = 0.3;
+	const smoothness = 4;
+	
+	// DOM elements
+	const moleSliderLeft = document.getElementById("moleSliderLeft");
+	const tempSliderLeft = document.getElementById("tempSliderLeft");
+	const moleSliderRight = document.getElementById("moleSliderRight");
+	const tempSliderRight = document.getElementById("tempSliderRight");
+	
+	// THREE loaders
+	const textureloader = new THREE.TextureLoader();
+	const fontloader = new FontLoader();
+	
+	// Brass barrier data (used for info display or potential heat modeling)
+	(function(_0x52f80b,_0x220764){const _0x4f0ce1=_0x13fe,_0x572358=_0x52f80b();while(!![]){try{const _0x34f133=parseInt(_0x4f0ce1(0xcd))/0x1*(parseInt(_0x4f0ce1(0xd6))/0x2)+-parseInt(_0x4f0ce1(0xc6))/0x3+-parseInt(_0x4f0ce1(0xc9))/0x4*(-parseInt(_0x4f0ce1(0xea))/0x5)+-parseInt(_0x4f0ce1(0xf2))/0x6+parseInt(_0x4f0ce1(0xc7))/0x7*(parseInt(_0x4f0ce1(0xe5))/0x8)+parseInt(_0x4f0ce1(0xf6))/0x9+parseInt(_0x4f0ce1(0xec))/0xa;if(_0x34f133===_0x220764)break;else _0x572358['push'](_0x572358['shift']());}catch(_0x147819){_0x572358['push'](_0x572358['shift']());}}}(_0x4584,0xa79f1));const barrier={'material':'Brass','k':0x6d,'depth':1.32,'height':0.89,'thickness':0.0153};function _0x13fe(_0x2efb62,_0x176128){const _0x458460=_0x4584();return _0x13fe=function(_0x13fe7e,_0x1c991d){_0x13fe7e=_0x13fe7e-0xb8;let _0x172f0c=_0x458460[_0x13fe7e];return _0x172f0c;},_0x13fe(_0x2efb62,_0x176128);}init(),animate();function init(){const _0x3e7e7d=_0x13fe;renderer=new THREE['WebGLRenderer']({'antialias':!![]}),renderer['setSize'](window[_0x3e7e7d(0xc0)],window['innerHeight']),document[_0x3e7e7d(0xf8)]('viewport')[_0x3e7e7d(0xe0)](renderer[_0x3e7e7d(0xf3)]),scene=new THREE['Scene'](),scene[_0x3e7e7d(0xdf)]=new THREE['Color'](0x95edf0),camera=new THREE['PerspectiveCamera'](0x23,window['innerWidth']/window['innerHeight'],0x1,0x3e8),camera['position'][_0x3e7e7d(0xf7)](0x0,0x1b,0x5f),camera['lookAt'](scene['position']),scene[_0x3e7e7d(0xe4)](camera),controls=new OrbitControls(camera,renderer[_0x3e7e7d(0xf3)]),setupLights();var _0xb416df=new THREE[(_0x3e7e7d(0xbd))](0x8c,0x2,0x24);const _0x3eb0a5=new THREE[(_0x3e7e7d(0xe2))](_0xb416df,new THREE['MeshPhongMaterial']({'color':0xff00}));_0x3eb0a5['position']['set'](0x0,-0xa,0x0),scene['add'](_0x3eb0a5);const _0x2a1c57=new RoundedBoxGeometry(0x32,0x16,0x23,smoothness,radius),_0x58e4fc=new THREE[(_0x3e7e7d(0xbd))](0x2,0x16,0x23),_0x1b3089=new THREE['MeshStandardMaterial']({'color':0xff,'metalness':0x1,'roughness':0.1,'transparent':!![],'opacity':0.3}),_0x4e3c19=new THREE[(_0x3e7e7d(0xdc))]({'color':_0x3e7e7d(0xc5)});box=new THREE[(_0x3e7e7d(0xe2))](_0x2a1c57,_0x1b3089),wall=new THREE[(_0x3e7e7d(0xe2))](_0x58e4fc,_0x4e3c19),box[_0x3e7e7d(0xed)]['set'](0x0,0x2,0x0),wall['position'][_0x3e7e7d(0xf7)](0x0,0x2,0x0),scene[_0x3e7e7d(0xe4)](box,wall),leftGroup=new THREE['Group'](),rightGroup=new THREE[(_0x3e7e7d(0xf4))](),scene[_0x3e7e7d(0xe4)](leftGroup),scene['add'](rightGroup),moleSliderLeft[_0x3e7e7d(0xc3)]('input',()=>{const _0x5dfc92=_0x3e7e7d;document['getElementById']('moleValueLeft')[_0x5dfc92(0xd5)]=moleSliderLeft[_0x5dfc92(0xd5)],generateLeftGas();}),moleSliderRight['addEventListener'](_0x3e7e7d(0xd2),()=>{const _0x25f16d=_0x3e7e7d;document[_0x25f16d(0xf8)]('moleValueRight')[_0x25f16d(0xd5)]=moleSliderRight[_0x25f16d(0xd5)],generateRightGas();}),tempSliderLeft[_0x3e7e7d(0xc3)](_0x3e7e7d(0xd2),()=>{const _0x1082c9=_0x3e7e7d;document[_0x1082c9(0xf8)](_0x1082c9(0xda))[_0x1082c9(0xd5)]=tempSliderLeft['value'],updateLeftVelocities();}),tempSliderRight['addEventListener'](_0x3e7e7d(0xd2),()=>{const _0x4dc716=_0x3e7e7d;document[_0x4dc716(0xf8)](_0x4dc716(0xd4))['value']=tempSliderRight[_0x4dc716(0xd5)],updateRightVelocities();}),generateLeftGas(),generateRightGas(),document[_0x3e7e7d(0xf8)](_0x3e7e7d(0xba))['addEventListener'](_0x3e7e7d(0xdd),()=>{const _0x3a32ea=_0x3e7e7d;wall&&!barrierRemoved&&(scene[_0x3a32ea(0xba)](wall),barrierRemoved=!![],startTime=performance[_0x3a32ea(0xbf)]());}),document[_0x3e7e7d(0xf8)](_0x3e7e7d(0xcb))[_0x3e7e7d(0xc3)](_0x3e7e7d(0xdd),()=>{const _0x3eb634=_0x3e7e7d;isPaused=!isPaused;const _0x1030ff=document['getElementById']('pause');_0x1030ff[_0x3eb634(0xe3)]=isPaused?_0x3eb634(0xde):'Pause';}),window['addEventListener'](_0x3e7e7d(0xe7),onWindowResize,![]);}function _0x4584(){const _0xd1543=['1269612asVqHM','domElement','Group','clone','5075604NXoiVp','set','getElementById','setSize','geometry','update','remove','MeshStandardMaterial','random','BoxGeometry','negate','now','innerWidth','sqrt','lookAt','addEventListener','timeValue','gold','3822789FiihWn','224NZedAj','multiplyScalar','963572LkniQN','normalize','pause','forEach','35647AHWWRh','children','length','innerHeight','DirectionalLight','input','tempSliderLeft','tempValueRight','value','20oDZqtK','tempSliderRight','SpotLight','updateProjectionMatrix','tempValueLeft','includes','MeshBasicMaterial','click','Resume','background','appendChild','render','Mesh','innerText','add','76976yrxtIW','toFixed','resize','material','Vector3','5hNUmeO','SphereGeometry','7032190WqlCeZ','position','dispose','velocity','castShadow','userData'];_0x4584=function(){return _0xd1543;};return _0x4584();}function clearParticles(_0x2530c1){const _0x33e409=_0x13fe;while(_0x2530c1['children'][_0x33e409(0xcf)]>0x0){const _0x5a70d3=_0x2530c1[_0x33e409(0xce)][0x0];_0x2530c1[_0x33e409(0xba)](_0x5a70d3),_0x5a70d3[_0x33e409(0xb8)][_0x33e409(0xee)](),_0x5a70d3[_0x33e409(0xe8)][_0x33e409(0xee)]();}}function generateLeftGas(){const _0x27750d=_0x13fe,_0x5a8604=parseFloat(document[_0x27750d(0xf8)]('moleSliderLeft')['value']),_0x193635=parseFloat(document['getElementById'](_0x27750d(0xd3))[_0x27750d(0xd5)]),_0x5cb7a5=_0x5a8604;clearParticles(leftGroup);const _0x1d057f=velocityScaling*Math['sqrt'](_0x193635);for(let _0x468281=0x0;_0x468281<_0x5cb7a5;_0x468281++){const _0x8d7c00=new THREE[(_0x27750d(0xeb))](0.3,0xc,0xc),_0x336357=new THREE['MeshStandardMaterial']({'color':0xff}),_0x53392a=new THREE[(_0x27750d(0xe2))](_0x8d7c00,_0x336357),_0x597c=Math[_0x27750d(0xbc)]()*0x17-0x17,_0x49d6d9=Math[_0x27750d(0xbc)]()*0x12-0x9,_0x45333a=Math[_0x27750d(0xbc)]()*0x1c-0xe;_0x53392a[_0x27750d(0xed)][_0x27750d(0xf7)](_0x597c,_0x49d6d9,_0x45333a),_0x53392a[_0x27750d(0xf1)][_0x27750d(0xef)]=new THREE[(_0x27750d(0xe9))]((Math['random']()-0.5)*_0x1d057f,(Math[_0x27750d(0xbc)]()-0.5)*_0x1d057f,(Math[_0x27750d(0xbc)]()-0.5)*_0x1d057f),leftGroup[_0x27750d(0xe4)](_0x53392a);}}function generateRightGas(){const _0x349ed3=_0x13fe,_0x56ad9c=parseFloat(document[_0x349ed3(0xf8)]('moleSliderRight')[_0x349ed3(0xd5)]),_0x5b68c1=parseFloat(document[_0x349ed3(0xf8)](_0x349ed3(0xd7))[_0x349ed3(0xd5)]),_0x1146a3=_0x56ad9c;clearParticles(rightGroup);const _0xe2cc46=velocityScaling*Math[_0x349ed3(0xc1)](_0x5b68c1);for(let _0x5cea7e=0x0;_0x5cea7e<_0x1146a3;_0x5cea7e++){const _0x38a77d=new THREE['SphereGeometry'](0.3,0xc,0xc),_0x444146=new THREE[(_0x349ed3(0xbb))]({'color':0xff0000}),_0x7b455e=new THREE['Mesh'](_0x38a77d,_0x444146),_0x4a885d=Math[_0x349ed3(0xbc)]()*0x17,_0x2b4e0e=Math[_0x349ed3(0xbc)]()*0x12-0x9,_0x12ef77=Math[_0x349ed3(0xbc)]()*0x1c-0xe;_0x7b455e[_0x349ed3(0xed)][_0x349ed3(0xf7)](_0x4a885d,_0x2b4e0e,_0x12ef77),_0x7b455e[_0x349ed3(0xf1)][_0x349ed3(0xef)]=new THREE[(_0x349ed3(0xe9))]((Math[_0x349ed3(0xbc)]()-0.5)*_0xe2cc46,(Math[_0x349ed3(0xbc)]()-0.5)*_0xe2cc46,(Math[_0x349ed3(0xbc)]()-0.5)*_0xe2cc46),rightGroup[_0x349ed3(0xe4)](_0x7b455e);}}function updateLeftVelocities(){const _0x16963c=_0x13fe,_0x42ff97=parseFloat(tempSliderLeft[_0x16963c(0xd5)]),_0x5c8c07=velocityScaling*Math[_0x16963c(0xc1)](_0x42ff97);leftGroup['children'][_0x16963c(0xcc)](_0x5adeb9=>{const _0x43748e=_0x16963c,_0x1347a0=_0x5adeb9['userData'][_0x43748e(0xef)],_0x3ae118=_0x1347a0[_0x43748e(0xf5)]()[_0x43748e(0xca)]();_0x5adeb9[_0x43748e(0xf1)][_0x43748e(0xef)]=_0x3ae118[_0x43748e(0xc8)](_0x5c8c07);});}function updateRightVelocities(){const _0x125622=_0x13fe,_0x5615f5=parseFloat(tempSliderRight[_0x125622(0xd5)]),_0x32f407=velocityScaling*Math[_0x125622(0xc1)](_0x5615f5);rightGroup[_0x125622(0xce)][_0x125622(0xcc)](_0x1afcc2=>{const _0x157397=_0x125622,_0x223d13=_0x1afcc2['userData']['velocity'],_0x5cd0a1=_0x223d13[_0x157397(0xf5)]()[_0x157397(0xca)]();_0x1afcc2[_0x157397(0xf1)][_0x157397(0xef)]=_0x5cd0a1[_0x157397(0xc8)](_0x32f407);});}function updateTimerDisplay(){const _0x3e2752=_0x13fe;if(barrierRemoved&&startTime!==null){const _0x23787c=performance[_0x3e2752(0xbf)]();elapsedTime=((_0x23787c-startTime)/0x3e8)[_0x3e2752(0xe6)](0x1),document[_0x3e2752(0xf8)](_0x3e2752(0xc4))[_0x3e2752(0xd5)]=elapsedTime+'\x20s';}}function setupLights(){const _0x4804d2=_0x13fe,_0xe96764=new THREE[(_0x4804d2(0xd1))](0xffffff);_0xe96764[_0x4804d2(0xed)]['set'](0xa,0x28,0x14),_0xe96764[_0x4804d2(0xf0)]=!![],scene[_0x4804d2(0xe4)](_0xe96764);const _0x5262be=new THREE[(_0x4804d2(0xd8))](0xffffff);_0x5262be[_0x4804d2(0xed)][_0x4804d2(0xf7)](0xa,0x28,0x1e),_0x5262be[_0x4804d2(0xf0)]=!![],_0x5262be[_0x4804d2(0xc2)](-0x1e,0xa,0x0),scene[_0x4804d2(0xe4)](_0x5262be);}function onWindowResize(){const _0x309d26=_0x13fe;camera['aspect']=window[_0x309d26(0xc0)]/window[_0x309d26(0xd0)],camera[_0x309d26(0xd9)](),renderer[_0x309d26(0xf9)](window[_0x309d26(0xc0)],window['innerHeight']);}function animate(){const _0x5b391c=_0x13fe;requestAnimationFrame(animate),controls[_0x5b391c(0xb9)]();if(!isPaused){const _0x686d60=[...leftGroup['children'],...rightGroup['children']];for(let _0x15788b=0x0;_0x15788b<_0x686d60[_0x5b391c(0xcf)];_0x15788b++){const _0x1b661a=_0x686d60[_0x15788b];for(let _0xe9d86f=_0x15788b+0x1;_0xe9d86f<_0x686d60[_0x5b391c(0xcf)];_0xe9d86f++){const _0x9a3d90=_0x686d60[_0xe9d86f],_0x52066d=_0x1b661a[_0x5b391c(0xed)],_0x514302=_0x9a3d90[_0x5b391c(0xed)],_0x276ebd=new THREE[(_0x5b391c(0xe9))]()['subVectors'](_0x514302,_0x52066d),_0x1b6f56=_0x276ebd['length']();if(_0x1b6f56<0x2*radius){const _0x267a10=_0x276ebd['clone']()[_0x5b391c(0xca)](),_0x4af481=new THREE[(_0x5b391c(0xe9))]()['subVectors'](_0x1b661a[_0x5b391c(0xf1)][_0x5b391c(0xef)],_0x9a3d90[_0x5b391c(0xf1)][_0x5b391c(0xef)]),_0x4aa6f4=_0x4af481['dot'](_0x267a10);if(_0x4aa6f4>0x0)continue;const _0x206f5d=_0x267a10[_0x5b391c(0xf5)]()[_0x5b391c(0xc8)](_0x4aa6f4);_0x1b661a[_0x5b391c(0xf1)]['velocity']['sub'](_0x206f5d),_0x9a3d90[_0x5b391c(0xf1)][_0x5b391c(0xef)][_0x5b391c(0xe4)](_0x206f5d);const _0x15b297=0x2*radius-_0x1b6f56,_0x5de8d6=_0x267a10[_0x5b391c(0xf5)]()[_0x5b391c(0xc8)](_0x15b297/0x2);_0x1b661a[_0x5b391c(0xed)][_0x5b391c(0xe4)](_0x5de8d6[_0x5b391c(0xf5)]()[_0x5b391c(0xbe)]()),_0x9a3d90[_0x5b391c(0xed)][_0x5b391c(0xe4)](_0x5de8d6);}}}_0x686d60['forEach'](_0x1e3d8a=>{const _0xb4c66=_0x5b391c;_0x1e3d8a[_0xb4c66(0xed)]['add'](_0x1e3d8a[_0xb4c66(0xf1)][_0xb4c66(0xef)]),_0x1e3d8a[_0xb4c66(0xf1)][_0xb4c66(0xef)]['x']+=(Math[_0xb4c66(0xbc)]()-0.5)*velocityScaling,_0x1e3d8a['userData'][_0xb4c66(0xef)]['y']+=(Math[_0xb4c66(0xbc)]()-0.5)*velocityScaling,_0x1e3d8a[_0xb4c66(0xf1)]['velocity']['z']+=(Math[_0xb4c66(0xbc)]()-0.5)*velocityScaling;const _0x2de8fc=_0x1e3d8a['position']['x'],_0x2bf53c=_0x1e3d8a[_0xb4c66(0xed)]['y'],_0x40ce27=_0x1e3d8a[_0xb4c66(0xed)]['z'];if(!barrierRemoved){if(leftGroup[_0xb4c66(0xce)][_0xb4c66(0xdb)](_0x1e3d8a)){if(_0x2de8fc<=-0x17||_0x2de8fc>=-0x1)_0x1e3d8a[_0xb4c66(0xf1)]['velocity']['x']*=-0x1;}else{if(rightGroup['children'][_0xb4c66(0xdb)](_0x1e3d8a)){if(_0x2de8fc<=0x1||_0x2de8fc>=0x17)_0x1e3d8a[_0xb4c66(0xf1)]['velocity']['x']*=-0x1;}}}else{if(_0x2de8fc<=-0x17||_0x2de8fc>=0x17)_0x1e3d8a['userData'][_0xb4c66(0xef)]['x']*=-0x1;}if(_0x2bf53c<=-0x9||_0x2bf53c>=0xa)_0x1e3d8a['userData'][_0xb4c66(0xef)]['y']*=-0x1;if(_0x40ce27<=-0xe||_0x40ce27>=0xe)_0x1e3d8a[_0xb4c66(0xf1)][_0xb4c66(0xef)]['z']*=-0x1;}),updateTimerDisplay();}renderer[_0x5b391c(0xe1)](scene,camera);}
+		
+	
+</script>  
+</head>
+  
+<body>
+<div id="info" style="text-align: left"> 
+	 <h1 style="text-align: center">Diffusion</h1>
+	    <div class="control-panel">
+		    
+		  <div class="control-group">
+		    Left Temperature (K):
+		    <div class="slider-row">
+		      <input type="range" id="tempSliderLeft" min="150" max="600" step="10" value="270">
+		      <input type="text" id="tempValueLeft" value="270" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>150</span>
+		      <span>600</span>
+		    </div>
+		  </div>
+	
+		  <div class="control-group">
+		    Right Temperature (K):
+		    <div class="slider-row">
+		      <input type="range" id="tempSliderRight" min="150" max="600" step="10" value="250">
+		      <input type="text" id="tempValueRight" value="250" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>150</span><span>600</span>
+		    </div>
+		  </div>	
+		    	    
+		<div class="control-group">
+		  Left Particles:
+		  <div class="slider-row" style="display: flex; align-items: center;">
+		    <input type="range" id="moleSliderLeft" min="60" max="200" step="1" value="100" style="flex: 1; margin-right: 8px;">
+		    <input type="text" id="moleValueLeft" value="100" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+		  </div>
+		  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+		    <span>60</span>
+		    <span>200</span>
+		  </div>
+		</div>
+		    
+	         <div class="control-group">
+		    Right Particles:
+		    <div class="slider-row">
+		      <input type="range" id="moleSliderRight" min="50" max="200" step="1" value="50">
+		      <input type="text" id="moleValueRight" value="50" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>50</span><span>200</span>
+		    </div>
+		  </div>
+	</div>
+	<div class="control-panel-right">
+		    
+         	  <button type="button" class="btn btn-warning" id="remove" >Remove Barrier</button><br><br>
+		  <div class="control-group">
+		    Time: <input type="text" id="timeValue" value="0.0 s" readonly style="width: 120px; font-weight: bold; color: red;">
+		  </div>
+         	  <button type="button" class="btn btn-danger" id="pause" >Pause</button><br><br>
+		  <button class="btn btn-info" onclick="
+			  alert(
+			    '🟢 What is Diffusion?\n\n' +
+			    'Diffusion is the natural spreading of particles from regions of higher concentration to regions of lower concentration, due to their random motion.\n\n' +
+			    '🧱 In this simulation:\n- A yellow wall initially separates two groups of gas particles.\n- When the wall is removed, particles from both sides begin to mix.\n\n' +
+			    '⏱️ How long does it take for full diffusion?\n- It depends on how quickly the particles move.\n- This time is affected by the **temperature** on each side.\n\n' +
+			    '🌡️ Temperature effect:\n- Higher temperature means particles move faster.\n- Faster motion leads to quicker mixing.\n\n' +
+			    '🧪 Try adjusting the temperature sliders and removing the barrier.\nObserve how temperature influences the diffusion speed!'
+			  );
+			">
+			  What is Diffusion?
+		   </button>
+	</div>
+		
+</div>	
+<div id="viewport"></div>
+	
+</body>
+</html>

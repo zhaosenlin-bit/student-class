@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>乐启享 · 物理实验</title>
+	<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc240-atomic-spectra-exp.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Education",
+		    "name": "3JCN"
+		  }
+		}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/vendor/css/main3.css">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/phyc240-atomic-spectra-exp">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<style>
+		input {
+			 text-align: center;
+		}
+		body {
+			color: white;
+		}
+		
+	</style> 
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info" style="text-align: center">
+	    <h1 style="text-align: center">ATOMIC SPECTRA</h1>
+	    <button class="btn btn-primary" id='neon' >Neon</button>
+	    <button class="btn btn-primary" id='hydrogen' >Hydrogen</button>
+	    <button class="btn btn-primary" id='helium' >Helium</button>
+	    <button class="btn btn-primary" id='sodium' >Sodium</button>
+	    <button class="btn btn-primary" id='lithium' >Lithium</button>
+	    <button class="btn btn-primary" id='mercury' >Mercury</button>
+            
+    </div>
+
+	<script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/threejs.org/build/three.module.js",
+    "three/addons/": "/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/threejs.org/examples/jsm/"
+  }
+}
+</script>
+	
+    <script type="module">
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';
+	    
+        var container, camera, scene, light, renderer, controls;
+        var x_pos = -10, rainbowLight, prism, whiteLight, onoff = false, lightArray = [];
+	let  glowMaterial, screen, band, band2;
+	let composer, bloomComposer, finalComposer;
+	const bandWidth = 12; let bandLength;
+
+	// Store the original materials for non-bloom objects
+	const materials = {};
+	    
+	var fontloader = new FontLoader();
+        var textureloader = new THREE.TextureLoader();
+
+        const extrudeSettings = {
+	    depth: 12,  // Extrusion depth along the y-axis
+	    bevelEnabled: false,
+	    steps: 1
+	};
+
+        init();
+        animate();
+
+        function init() {
+            container = document.getElementById('container');
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x659471);
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
+            camera.position.set(0, 30, 100);
+	    const axesHelper = new THREE.AxesHelper( 15 );
+            //scene.add( axesHelper );
+
+            light = new THREE.DirectionalLight(0xffffff, 0.8);
+            scene.add(light);
+            var amlight = new THREE.AmbientLight(0x404040); // soft white light
+            scene.add(amlight);
+            var pointlight = new THREE.PointLight(0xfaef28, 1, 100);
+            pointlight.position.set(10, 25, 30);
+            scene.add(pointlight);
+
+            const triangleShape = new THREE.Shape()
+		    .moveTo(-20, -13)      // Base point on x-z plane
+		    .lineTo(0, -13)      // Base point on x-z plane
+		    .lineTo(-10, 22)       // Peak point on x-z plane
+		    .lineTo(-20, -13);     // Close path
+		
+		// Create the prism with the new extrusion settings
+		prism = addShape(triangleShape, extrudeSettings, 0x8080f0, 0, 0, 0, 0, 0, 0, 1);
+		prism.rotation.x = Math.PI/2;
+		prism.position.y = 0.8; // Adjust position on y-axis to sit on the floor, if needed
+		
+	    addNeonTube();
+	    createRectangularWithSlit(-40,-2,10, 0);
+	    blackScreen();  
+	    setGasGlowColor('white');
+	    addText(-15,5,-15, 3,'prism', 'white');
+	    addText(-50,15,-10, 3,'slit', 'white');
+	    addText(-50,10,-10, 3,'opening', 'white');
+	    addText(-60,11,10, 2.5,'gas tube', 'white');
+	    addText(40,5,10, 2.5,'screen', 'white');
+		
+            // Create Breadboard
+            var geometry1 = new THREE.BoxGeometry(90, 2, 60);
+            var mat = new THREE.MeshPhongMaterial({ color: 'red' });
+            var base = new THREE.Mesh(geometry1, mat);
+            var surface = new THREE.BoxGeometry(90, 0.2, 60);
+            var texture = textureloader.load('/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/vendor/Phyc140/texture/cross.png');
+            var covermesh = new THREE.Mesh(surface, new THREE.MeshBasicMaterial({ color: 'yellow' }));
+            base.add(covermesh);
+            covermesh.position.set(0, 1.1, 0);
+	    base.position.set(0,-12,0);
+	    scene.add(base);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+
+            document.getElementById('hydrogen').addEventListener('click', () => setGasGlowColor('hydrogen'));
+	    document.getElementById('neon').addEventListener('click', () => setGasGlowColor('neon'));
+	    document.getElementById('helium').addEventListener('click', () => setGasGlowColor('helium'));
+	    document.getElementById('sodium').addEventListener('click', () => setGasGlowColor('sodium'));
+	    document.getElementById('mercury').addEventListener('click', () => setGasGlowColor('mercury'));
+	    document.getElementById('lithium').addEventListener('click', () => setGasGlowColor('lithium'));
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+	    
+	// Function to add the neon tube to the scene
+	function addNeonTube(){ // Create the glow material with emissive property 
+	   glowMaterial = new THREE.MeshStandardMaterial({ 
+	        color: 0xff0000, // Initial red color
+	        emissive: 0xffffff, // Emissive color for glowing
+	        emissiveIntensity: 2, // Control intensity of the glow
+	        transparent: true, 
+	        opacity: 0.6 
+	    });
+	    const group = new THREE.Group();
+	    //const clearmaterial = new THREE.MeshStandardMaterial({ color: 'white', transparent: true, opacity: 0.2 });
+	
+	    // Outer parts of the tube
+	    const geometry = new THREE.CapsuleGeometry( 1.3, 4, 4, 8 ); 
+	    const tube1 = new THREE.Mesh( geometry, glowMaterial ); 
+	    const tube2 = new THREE.Mesh( geometry, glowMaterial ); 
+	
+	    // Inner glowing part of the tube
+	    const geo = new THREE.CylinderGeometry(0.5, 0.5, 14);
+	    
+    	   const middle = new THREE.Mesh(geo, glowMaterial);
+	
+	    // Position the tube parts
+	    middle.position.set(0, 0, 0);
+	    tube1.position.set(0, 10, 0);
+	    tube2.position.set(0, -10, 0);
+	
+	    // Add the components to the group
+	    group.add(tube1);
+	    group.add(tube2);
+	    group.add(middle);
+	
+	    group.position.set(-50, -5, 10);
+	    scene.add(group);
+	}
+	
+	function blackScreen(){
+		 var geo = new THREE.BoxGeometry(0.2, 12, 60);
+            	var material = new THREE.MeshPhongMaterial({ color: 'black' });
+            	screen = new THREE.Mesh(geo, material);
+		screen.position.set(45,-5,0);
+		scene.add(screen);
+	}
+	    
+        function addShape(shape, extrudeSettings, color, x, y, z, rx, ry, rz, s) {
+            let geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            var clearMaterial = new THREE.MeshPhongMaterial({
+                color: "#ffffff",
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.4
+            });
+
+            let mesh = new THREE.Mesh(geometry, clearMaterial);
+            mesh.position.set(x, y, z);
+            mesh.rotation.set(rx, ry, rz);
+            mesh.scale.set(s, s, s);
+            scene.add(mesh);
+            return mesh;
+        }
+
+	function lightBand(length, x, y, z, alpha, color) {
+	    const geometry = new THREE.PlaneGeometry(length, bandWidth);
+	    const material = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.6 });
+	    const plane = new THREE.Mesh(geometry, material);
+	
+	    // Convert alpha to radians if it's in degrees
+	    plane.rotation.y = THREE.MathUtils.degToRad(alpha);
+	
+	    plane.position.set(x, y, z);
+	    lightArray.push(plane);
+	    scene.add(plane);
+	
+	    return plane; // Ensure the plane is returned so 'band' can store it
+	}
+	
+	function setGasGlowColor(gas) {
+	   if (gas === 'white') {
+	        glowMaterial.color.set(0xffffff); 
+	        glowMaterial.emissive.set(0xffffff);
+	
+	        const whiteTexture = textureloader.load('textures/white_spec.png');
+	        const whiteMaterial = new THREE.MeshBasicMaterial({ map: whiteTexture });
+	        
+	        if (screen) {  // Check if screen is defined
+	            screen.material = whiteMaterial;
+	            addWhiteEmissionSpectra();
+	        } else {
+	            console.error("Screen is undefined. Make sure blackScreen() has been called.");
+	        }
+	    } else if (gas === 'neon') {
+		   scene.remove(screen);
+		   blackScreen();
+		cleanLightBand();	    
+	        glowMaterial.color.set(0xff0000); 
+	        glowMaterial.emissive.set(0xff0000); 
+		addNeonEmissionSpectra();
+	    } else if (gas === 'hydrogen') {
+		   scene.remove(screen);
+		   blackScreen();
+		cleanLightBand();	    
+	        glowMaterial.color.set(0xff69b4); // Pinkish color for hydrogen
+	        glowMaterial.emissive.set(0xff69b4); // Pinkish emissive for hydrogen glow
+		addHydrogenEmissionSpectra();
+	    } else if (gas === 'helium') {
+		   scene.remove(screen);
+		   blackScreen();
+		cleanLightBand();	    
+	        glowMaterial.color.set(0x00ffff); // Cyan color for helium
+	        glowMaterial.emissive.set(0x00ffff); // Cyan emissive for helium glow
+		addHeliumEmissionSpectra();
+	    } else if (gas === 'sodium') {
+		   scene.remove(screen);
+		   blackScreen();
+		cleanLightBand();	    
+	        glowMaterial.color.set(0xFFD700); // yellow-orange for sodium
+	        glowMaterial.emissive.set(0xFFD700); // Cyan emissive for sodium glow
+		addSodiumEmissionSpectra();
+	    } else if (gas === 'mercury') {
+		   scene.remove(screen);
+		   blackScreen();
+		cleanLightBand();	    
+	        glowMaterial.color.set(0x33ffdd); // Dominant Blue-Green for mercury
+	        glowMaterial.emissive.set(0x33ffdd); // Cyan emissive for mercury glow
+		addMercuryEmissionSpectra();
+	    } else if (gas === 'lithium') {
+		   scene.remove(screen);
+		   blackScreen();
+		cleanLightBand();	    
+	        glowMaterial.color.set(0xff2000); // Crimson Red color for lithium
+	        glowMaterial.emissive.set(0xff2000); // Cyan emissive for lithium glow
+		addLithiumEmissionSpectra();
+	    }
+	}
+	    
+	function addWhiteEmissionSpectra(){
+	        lightBand(36, -31.5, -5, 10, 0, 0xffffff); // incoming
+	        drawPlaneBetweenPoints(-13.5, 10, -6, 9, 0xffffff);    // middle
+		
+		drawPlaneBetweenPoints(-6, 9, 45, -30, 0x8B00FF );  // violet
+		drawPlaneBetweenPoints(-6, 9, 45, 30, 0xB22222);  // dark red
+	}
+	    
+	function addHydrogenEmissionSpectra(){
+	        lightBand(36, -31.5, -5, 10, 0, 0xff69b4); // incoming
+	        drawPlaneBetweenPoints(-13.5, 10, -6, 9, 0xff69b4);    // middle
+		
+		drawPlaneBetweenPoints(-6, 9, 45, -27, 0x8B00FF );  // violet
+		drawPlaneBetweenPoints(-6, 9, 45, -20, 0x0000FF);  // blue
+		drawPlaneBetweenPoints(-6, 9, 45, -10, 0x00FFFF);  // green
+		drawPlaneBetweenPoints(-6, 9, 45, 22, 0xFF0000);  // red
+	}
+	    
+	function addNeonEmissionSpectra(){
+	        lightBand(36, -31.5, -5, 10, 0, 0xff0000); // incoming light
+	        drawPlaneBetweenPoints(-13.5, 10, -6, 9, 0xff0000);   // middle one	
+		
+		drawPlaneBetweenPoints(-6, 9, 45, -2, 0x00FF7F );  //  green
+		drawPlaneBetweenPoints(-6, 9, 45, 7, 0xFFD700);  // deep yellow
+		drawPlaneBetweenPoints(-6, 9, 45, 8, 0xFFD700);  // deep yellow
+		drawPlaneBetweenPoints(-6, 9, 45, 11, 0xFFA500);  // bright orange 
+		drawPlaneBetweenPoints(-6, 9, 45, 12, 0xFF6347);  // orange red
+		drawPlaneBetweenPoints(-6, 9, 45, 14, 0xDC143C);  // crimson red
+		drawPlaneBetweenPoints(-6, 9, 45, 15, 0xFF0000);  // red  
+		drawPlaneBetweenPoints(-6, 9, 45, 16, 0xFF4500);  // bright red
+		drawPlaneBetweenPoints(-6, 9, 45, 17, 0xFF4500);  // bright red
+		drawPlaneBetweenPoints(-6, 9, 45, 18, 0xFF4500);  // bright red
+		drawPlaneBetweenPoints(-6, 9, 45, 20, 0xB22222);  // dark red
+		drawPlaneBetweenPoints(-6, 9, 45, 22, 0xB22222);  // dark red
+		drawPlaneBetweenPoints(-6, 9, 45, 28, 0xB22222);  // dark red
+	}
+	    
+	function addHeliumEmissionSpectra(){
+	        lightBand(36, -31.5, -5, 10, 0, 0x00ffff); // incoming
+	        drawPlaneBetweenPoints(-13.5, 10, -6, 9, 0x00ffff);    // middle		
+		
+		drawPlaneBetweenPoints(-6, 9, 45, -23, 0x0000FF);  // blue
+		drawPlaneBetweenPoints(-6, 9, 45, -16, 0x0000FF);  // blue
+		drawPlaneBetweenPoints(-6, 9, 45, -10, 0x00FFFF);  // green
+		drawPlaneBetweenPoints(-6, 9, 45, -7, 0x00FFFF);  // green
+		drawPlaneBetweenPoints(-6, 9, 45, 10, 0xFFD700);  // yellow
+		drawPlaneBetweenPoints(-6, 9, 45, 22, 0xFF0000);  // red
+	}    
+	    
+	function addSodiumEmissionSpectra(){
+	        lightBand(36, -31.5, -5, 10, 0, 0xffd700); // incoming
+	        drawPlaneBetweenPoints(-13.5, 10, -6, 9, 0xffd700);    // middle		
+		
+		drawPlaneBetweenPoints(-6, 9, 45, -24, 0x8A2BE2);  // faint violet
+		drawPlaneBetweenPoints(-6, 9, 45, -22, 0x0000FF);  // blue
+		drawPlaneBetweenPoints(-6, 9, 45, -21, 0x0000FF);  // blue
+		drawPlaneBetweenPoints(-6, 9, 45, 8, 0xFFD700);  // yellow
+	}
+	        
+	function addMercuryEmissionSpectra(){
+	        lightBand(36, -31.5, -5, 10, 0, 0x33FFDD); // incoming
+	        drawPlaneBetweenPoints(-13.5, 10, -6, 9, 0x33FFDD);    // middle		
+		
+		drawPlaneBetweenPoints(-6, 9, 45, -29, 0x8B00FF );  // violet
+		drawPlaneBetweenPoints(-6, 9, 45, -22, 0x0000FF);  // blue
+		drawPlaneBetweenPoints(-6, 9, 45, -1, 0x006400);  // dark green
+		drawPlaneBetweenPoints(-6, 9, 45, 6, 0xFFD700);  // yellow
+	}
+	        
+	function addLithiumEmissionSpectra(){
+	        lightBand(36, -31.5, -5, 10, 0, 0xff2d00); // incoming
+	        drawPlaneBetweenPoints(-13.5, 10, -6, 9, 0xff2d00);    // middle		
+		
+		drawPlaneBetweenPoints(-6, 9, 45, -18, 0x8A2BE2);  // very faint violet
+		drawPlaneBetweenPoints(-6, 9, 45, -14, 0x4169E1);  // faint blue
+		drawPlaneBetweenPoints(-6, 9, 45, -1, 0x00FF7F);  // faint green
+		drawPlaneBetweenPoints(-6, 9, 45, 12, 0xFF4500);  // orange-red
+		drawPlaneBetweenPoints(-6, 9, 45, 23, 0xFF2D00);  // bright crimson red
+	}
+	    
+	function addLine(x1,y1,z1,x2,y2,z2){
+		var arr = [new THREE.Vector3(x1,y1,z1),
+			   new THREE.Vector3(x2,y2,z2)]; 
+		var mat = new THREE.MeshBasicMaterial({color: "white"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 100, 0.3, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		scene.add(str);
+		lightArray.push(str);
+		return str;
+	}
+      	
+	function addText(x,y,z,s,t, colo){
+		fontloader.load("/api/program-assets/lab-phyc240-atomic-spectra-exp/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+		    var  textGeo = new TextGeometry(t, {
+			    size: s,  
+			    height: 0.5, 
+			    curveSegments: 6,
+			    font: tex,
+		    });
+		    var  textMaterial = new THREE.MeshBasicMaterial({color: colo}); 
+		    var textMesh = new THREE.Mesh(textGeo , textMaterial);
+		    textMesh.position.set(x,y,z);
+		    //textMesh.rotateY(Math.PI/2);
+		    scene.add(textMesh);
+		});
+	}
+	    
+	function cleanLightBand() {
+		for (let i = 0; i < lightArray.length; i++) {
+			scene.remove(lightArray[i]);
+		}
+		renderer.renderLists.dispose();
+	}
+	
+	function createRectangularWithSlit(x,y,z, alpha) {
+	    	const geometry = new THREE.BoxGeometry( 1, 20, 24 ); 
+		const material = new THREE.MeshPhongMaterial( {
+			color: "#ffff00",    
+			side:THREE.DoubleSide,
+			transparent:true,
+			opacity:0.6
+		});
+		const box = new THREE.Mesh( geometry, material ); 
+		box.position.set(x,y,z);
+	    	var filterGeometry = new THREE.PlaneGeometry(1, 12); // Narrow plane for the slit filter
+	    	var filterMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+	    	var slit = new THREE.Mesh(filterGeometry, filterMaterial);
+	    	slit.position.set(0, -3, 0); // Place filter in the middle of the scene
+		box.add(slit);
+		box.rotation.x = alpha;
+		scene.add( box );
+	}
+	    
+	function drawPlaneBetweenPoints(x1, z1, x2, z2, color = 0xffffff) {
+	    // Calculate the distance between the two points
+	    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(z2 - z1, 2));
+	
+	    // Create the plane geometry with the calculated length and given width
+	    const geometry = new THREE.PlaneGeometry(length, bandWidth);
+	    const material = new THREE.MeshBasicMaterial({ color: color, transparent:true, opacity:0.6, side: THREE.DoubleSide });
+	    const plane = new THREE.Mesh(geometry, material);
+	
+	    // Set the position of the plane to be the midpoint between the two points
+	    const midpointX = (x1 + x2) / 2;
+	    const midpointZ = (z1 + z2) / 2;
+	    plane.position.set(midpointX, 0, midpointZ);
+	
+	    // Calculate the angle to rotate the plane to align it with the two points
+	    const angle = Math.atan2(z2 - z1, x2 - x1);
+	    plane.rotation.y = -angle; // Rotate to align with the x-z plane
+	
+	    plane.position.y = -5;
+	    lightArray.push(plane);
+	    scene.add(plane);
+	
+	    return plane; // Return the plane in case further manipulation is needed
+	}
+
+	function createBloom2(){
+	    // the fake bloom is a group with 20 torii
+	    // the oreol is simulated with opacity
+	    var bloom = new THREE.Group();
+	    bloom.position.y = 0;
+	    scene.add(bloom);
+	
+	    for (var i = 0; i < 1; i += 0.05) {
+	        var torus = new THREE.Mesh(
+	            new THREE.TorusGeometry(20, 1 + i * i * 5, 20, 120), // Scale up outer radius and tube radius by 10
+	            new THREE.MeshLambertMaterial({
+	                color: i == 0 ? 'white' : 'red',
+	                transparent: true,
+	                opacity: 1 - Math.pow(i, 0.1)
+	            })
+	        );  
+	        bloom.add(torus);
+	    }
+	}
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+	    
+       function animate() {
+	    requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+	    
+    </script>
+</body>
+</html>

@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>乐启享 · 物理实验</title>
+
+<link rel="icon" href="/brand/favicon.ico">
+<link rel="stylesheet" href="/api/program-assets/3jcn-simulation-nuclear-fission/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background: #1dcbea;
+  }
+
+  #viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  #info {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  #info h1 {
+    margin: 10px 0 12px;
+    font-family: Georgia, serif;
+    font-size: clamp(30px, 4vw, 48px);
+    font-weight: bold;
+    color: black;
+    text-shadow: 3px 3px 2px white;
+  }
+
+  #info button,
+  #info a {
+    pointer-events: auto;
+  }
+
+  #status {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: rgba(0, 45, 65, 0.8);
+    color: white;
+    padding: 10px 22px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 16px;
+    max-width: 95%;
+    pointer-events: none;
+  }
+
+  .atom-label {
+    position: absolute;
+    color: #111;
+    font-size: 17px;
+    font-weight: bold;
+    white-space: nowrap;
+    text-align: center;
+    text-shadow: 1px 1px 2px white,
+                 -1px -1px 2px white;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+  }
+
+  .neutron-label {
+    color: #111;
+    font-size: 19px;
+  }
+
+  .energy-label {
+    color: #ffed00;
+    font-size: 21px;
+    text-shadow: 2px 2px 2px black;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="viewport"></div>
+
+<div id="info">
+  <h1>Nuclear Fission</h1>
+
+  <button class="btn btn-danger" id="start">
+    Initiate Fission
+  </button>
+  <button class="btn btn-primary" id="pauseBtn">
+    Pause
+  </button>
+  <button class="btn btn-warning" id="about">
+    What is Nuclear Fission?
+  </button>
+
+  
+</div>
+
+<div id="status">
+  U-235 + neutron → Ba-141 + Kr-92 + 3 neutrons + energy
+</div>
+
+<script type="module">
+
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+
+let scene, camera, renderer, controls;
+let initialNucleus, incomingNeutron;
+
+let phase = 'ready';
+let lastTime = 0;
+let isPaused = false;
+let nuclei = [];
+let particles = [];
+let labels = [];
+let effects = [];
+let incomingNeutronLabel;
+let targets = [];
+let firstFragments = [];
+let secondFragments = [];
+
+let firstNeutrons = [];
+let finalNeutrons = [];
+
+let completedFissions = 0;
+
+const viewport = document.getElementById('viewport');
+const statusBox = document.getElementById('status');
+const startButton = document.getElementById('start');
+
+const RED = 0xe52323;
+const WHITE = 0xf1f1f1;
+
+const PROTONS_U = 92;
+const NEUTRONS_U = 143;
+
+const PROTONS_BA = 56;
+const NEUTRONS_BA = 85;
+
+const PROTONS_KR = 36;
+const NEUTRONS_KR = 56;
+
+// Shared geometry/materials reduce GPU workload.
+const nucleonGeometry =
+  new THREE.SphereGeometry(0.38, 10, 8);
+
+const neutronGeometry =
+  new THREE.SphereGeometry(0.58, 16, 12);
+
+const protonMaterial =
+  new THREE.MeshStandardMaterial({
+    color: RED,
+    roughness: 0.4
+  });
+
+const boundNeutronMaterial =
+  new THREE.MeshStandardMaterial({
+    color: WHITE,
+    roughness: 0.4
+  });
+
+const freeNeutronMaterial =
+  new THREE.MeshStandardMaterial({
+    color: WHITE,
+    metalness: 0.15,
+    roughness: 0.3
+  });
+
+function init() {
+  scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0x1dcbea);
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](909023 ^ 909051, window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'], 0.1, 833709 ^ 833881);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](189159 ^ 189159, 752061 ^ 752061, 111088 ^ 111001);
+  camera['\u006C\u006F\u006F\u006B\u0041\u0074'](524242 ^ 524242, 993952 ^ 993952, 858638 ^ 858638);
+  renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+    '\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073': !![]
+  });
+  renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'], 448969 ^ 448971));
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+  viewport['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067'] = !![];
+  controls['\u0064\u0061\u006D\u0070\u0069\u006E\u0067\u0046\u0061\u0063\u0074\u006F\u0072'] = 0.04;
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0050\u0061\u006E'] = false;
+  var _0x929e5g = (746467 ^ 746469) + (186045 ^ 186042);
+  const _0x6a30g = new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0.65);
+  _0x929e5g = 325940 ^ 325938;
+  scene['\u0061\u0064\u0064'](_0x6a30g);
+  const _0x2a_0x1af = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 1.3);
+  _0x2a_0x1af['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(218547 ^ 218535), 205770 ^ 205801, 213537 ^ 213533);
+  scene['\u0061\u0064\u0064'](_0x2a_0x1af);
+  createInitialScene();
+  startButton['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+    if (phase === 'completed') {
+      location['\u0072\u0065\u006C\u006F\u0061\u0064']();
+    } else {
+      startFission();
+    }
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", togglePause);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0061\u0062\u006F\u0075\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', () => {
+    alert('Nuclear Fission\n\n' + "\u0041\u0020\u006E\u0065\u0075\u0074\u0072\u006F\u006E\u0020\u0063\u0061\u006E\u0020\u0062\u0065\u0020\u0061\u0062\u0073\u006F\u0072\u0062\u0065\u0064\u0020\u0062\u0079\u0020\u0061\u0020\u0055\u0072\u0061\u006E\u0069\u0075\u006D\u002D\u0032\u0033\u0035\u0020\u006E\u0075\u0063\u006C\u0065\u0075\u0073\u002C\u0020" + 'forming an excited Uranium-236 nucleus.\n\n' + 'One possible fission channel is:\n\n' + 'U-235 + n → Ba-141 + Kr-92 + 3n + Energy\n\n' + 'The released neutrons can cause further fissions ' + "\u0069\u006E\u0020\u006F\u0074\u0068\u0065\u0072\u0020\u0055\u0072\u0061\u006E\u0069\u0075\u006D\u002D\u0032\u0033\u0035\u0020\u006E\u0075\u0063\u006C\u0065\u0069\u002C\u0020\u0070\u0072\u006F\u0064\u0075\u0063\u0069\u006E\u0067\u0020\u0061\u0020\u0063\u0068\u0061\u0069\u006E\u0020\u0072\u0065\u0061\u0063\u0074\u0069\u006F\u006E\u002E\u000A\u000A" + "\u0054\u0068\u0069\u0073\u0020\u0073\u0069\u006D\u0075\u006C\u0061\u0074\u0069\u006F\u006E\u0020\u0069\u006C\u006C\u0075\u0073\u0074\u0072\u0061\u0074\u0065\u0073\u0020\u0061\u006E\u0020\u0069\u0064\u0065\u0061\u006C\u0069\u007A\u0065\u0064\u0020\u0063\u0068\u0061\u0069\u006E\u0020\u0072\u0065\u0061\u0063\u0074\u0069\u006F\u006E\u002E\u0020" + "\u0041\u0063\u0074\u0075\u0061\u006C\u0020\u0066\u0069\u0073\u0073\u0069\u006F\u006E\u0020\u0070\u0072\u006F\u0064\u0075\u0063\u0074\u0073\u0020\u0061\u006E\u0064\u0020\u006E\u0065\u0075\u0074\u0072\u006F\u006E\u0020\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0069\u0063\u0069\u0074\u0069\u0065\u0073\u0020\u0076\u0061\u0072\u0079\u002C\u0020" + "\u0061\u006E\u0064\u0020\u006E\u006F\u0074\u0020\u0065\u0076\u0065\u0072\u0079\u0020\u0065\u006D\u0069\u0074\u0074\u0065\u0064\u0020\u006E\u0065\u0075\u0074\u0072\u006F\u006E\u0020\u0063\u0061\u0075\u0073\u0065\u0073\u0020\u0061\u006E\u006F\u0074\u0068\u0065\u0072\u0020\u0066\u0069\u0073\u0073\u0069\u006F\u006E\u002E");
+  });
+  window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065", onWindowResize);
+}
+function createNucleus(x, y, z, protons, neutrons, name, scale = 600765 ^ 600764) {
+  let _0x_0xa8g;
+  const _0x59b = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0x_0xa8g = (177672 ^ 177677) + (670812 ^ 670814);
+  var _0x479b1a = (159709 ^ 159710) + (265641 ^ 265646);
+  const _0x44588e = protons + neutrons;
+  _0x479b1a = 262177 ^ 262181;
+  let _0x7acfc;
+  const _0xb41eb = 3.75 * Math['\u0063\u0062\u0072\u0074'](_0x44588e / (566689 ^ 566602)) * scale;
+  _0x7acfc = (898023 ^ 898020) + (828415 ^ 828409);
+  const _0xcf316c = new THREE['\u0049\u006E\u0073\u0074\u0061\u006E\u0063\u0065\u0064\u004D\u0065\u0073\u0068'](nucleonGeometry, protonMaterial, protons);
+  var _0x7ab = (336828 ^ 336824) + (173547 ^ 173546);
+  const _0xe9f4da = new THREE['\u0049\u006E\u0073\u0074\u0061\u006E\u0063\u0065\u0064\u004D\u0065\u0073\u0068'](nucleonGeometry, boundNeutronMaterial, neutrons);
+  _0x7ab = 565357 ^ 565352;
+  let _0xed5cde;
+  const _0xb54g5f = new THREE['\u004F\u0062\u006A\u0065\u0063\u0074\u0033\u0044']();
+  _0xed5cde = '\u0063\u0066\u0062\u006C\u006A\u0067';
+  let _0x8e5c9c;
+  const _0xbbec = [];
+  _0x8e5c9c = '\u006D\u0069\u0065\u006F\u0064\u006B';
+  for (let i = 674543 ^ 674543; i < _0x44588e; i++) {
+    const _0x5ag4g = Math['\u0061\u0063\u006F\u0073']((578863 ^ 578861) * Math['\u0072\u0061\u006E\u0064\u006F\u006D']() - (816864 ^ 816865));
+    let _0x983g;
+    const _0xd_0xae6 = (530388 ^ 530390) * Math['\u0050\u0049'] * Math['\u0072\u0061\u006E\u0064\u006F\u006D']();
+    _0x983g = (937577 ^ 937577) + (984582 ^ 984578);
+    var _0x2_0xc82 = (795515 ^ 795507) + (648028 ^ 648031);
+    const r = _0xb41eb * Math['\u0063\u0062\u0072\u0074'](Math['\u0072\u0061\u006E\u0064\u006F\u006D']());
+    _0x2_0xc82 = (532957 ^ 532953) + (539398 ^ 539406);
+    _0xbbec['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](r * Math['\u0073\u0069\u006E'](_0x5ag4g) * Math['\u0063\u006F\u0073'](_0xd_0xae6), r * Math['\u0073\u0069\u006E'](_0x5ag4g) * Math['\u0073\u0069\u006E'](_0xd_0xae6), r * Math['\u0063\u006F\u0073'](_0x5ag4g)));
+  }
+  for (let i = _0xbbec['\u006C\u0065\u006E\u0067\u0074\u0068'] - (193865 ^ 193864); i > (480574 ^ 480574); i--) {
+    let _0xb558dc;
+    const j = Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u0072\u0061\u006E\u0064\u006F\u006D']() * (i + (700247 ^ 700246)));
+    _0xb558dc = (739127 ^ 739120) + (551198 ^ 551199);
+    [_0xbbec[i], _0xbbec[j]] = [_0xbbec[j], _0xbbec[i]];
+  }
+  for (let i = 551511 ^ 551511; i < protons; i++) {
+    _0xb54g5f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0xbbec[i]);
+    _0xb54g5f['\u0075\u0070\u0064\u0061\u0074\u0065\u004D\u0061\u0074\u0072\u0069\u0078']();
+    _0xcf316c['\u0073\u0065\u0074\u004D\u0061\u0074\u0072\u0069\u0078\u0041\u0074'](i, _0xb54g5f['\u006D\u0061\u0074\u0072\u0069\u0078']);
+  }
+  for (let i = 719569 ^ 719569; i < neutrons; i++) {
+    _0xb54g5f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0xbbec[protons + i]);
+    _0xb54g5f['\u0075\u0070\u0064\u0061\u0074\u0065\u004D\u0061\u0074\u0072\u0069\u0078']();
+    _0xe9f4da['\u0073\u0065\u0074\u004D\u0061\u0074\u0072\u0069\u0078\u0041\u0074'](i, _0xb54g5f['\u006D\u0061\u0074\u0072\u0069\u0078']);
+  }
+  _0xcf316c['\u0069\u006E\u0073\u0074\u0061\u006E\u0063\u0065\u004D\u0061\u0074\u0072\u0069\u0078']['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065'] = !![];
+  _0xe9f4da['\u0069\u006E\u0073\u0074\u0061\u006E\u0063\u0065\u004D\u0061\u0074\u0072\u0069\u0078']['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065'] = !![];
+  nucleonGeometry['\u0063\u006F\u006D\u0070\u0075\u0074\u0065\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0053\u0070\u0068\u0065\u0072\u0065']();
+  _0xcf316c['\u0066\u0072\u0075\u0073\u0074\u0075\u006D\u0043\u0075\u006C\u006C\u0065\u0064'] = false;
+  _0xe9f4da['\u0066\u0072\u0075\u0073\u0074\u0075\u006D\u0043\u0075\u006C\u006C\u0065\u0064'] = false;
+  _0x59b['\u0061\u0064\u0064'](_0xcf316c);
+  _0x59b['\u0061\u0064\u0064'](_0xe9f4da);
+  _0x59b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  scene['\u0061\u0064\u0064'](_0x59b);
+  let _0x962aa;
+  const _0x499ffb = {
+    '\u0067\u0072\u006F\u0075\u0070': _0x59b,
+    '\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E': _0x59b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'],
+    '\u0070\u0072\u006F\u0074\u006F\u006E\u0073': protons,
+    "neutrons": neutrons,
+    "name": name,
+    "label": null,
+    '\u0061\u0063\u0074\u0069\u0076\u0065': !![]
+  };
+  _0x962aa = (870811 ^ 870815) + (404826 ^ 404825);
+  nuclei['\u0070\u0075\u0073\u0068'](_0x499ffb);
+  _0x499ffb['\u006C\u0061\u0062\u0065\u006C'] = createLabel(name, x, y + _0xb41eb + 1.6, z, "\u0061\u0074\u006F\u006D\u002D\u006C\u0061\u0062\u0065\u006C");
+  return _0x499ffb;
+}
+function createNeutron(x, y, z) {
+  const _0x33720c = new THREE['\u004D\u0065\u0073\u0068'](neutronGeometry, freeNeutronMaterial);
+  _0x33720c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  scene['\u0061\u0064\u0064'](_0x33720c);
+  return _0x33720c;
+}
+function createLabel(text, x, y, z, className = "\u0061\u0074\u006F\u006D\u002D\u006C\u0061\u0062\u0065\u006C") {
+  var _0x2feecb = (605988 ^ 605984) + (754989 ^ 754989);
+  const _0xa8828b = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']('div');
+  _0x2feecb = '\u0070\u0065\u0066\u0063\u0063\u0061';
+  _0xa8828b['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = className;
+  _0xa8828b['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = text;
+  viewport['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](_0xa8828b);
+  const _0x516ce = {
+    "element": _0xa8828b,
+    '\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E': new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, y, z),
+    '\u0061\u0063\u0074\u0069\u0076\u0065': !![]
+  };
+  labels['\u0070\u0075\u0073\u0068'](_0x516ce);
+  return _0x516ce;
+}
+function removeLabel(label) {
+  if (!label) return;
+  label['\u0061\u0063\u0074\u0069\u0076\u0065'] = false;
+  label['\u0065\u006C\u0065\u006D\u0065\u006E\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065']();
+}
+function updateLabels() {
+  const _0x324cb = renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'];
+  var _0x3_0xc7g = (973136 ^ 973143) + (439481 ^ 439481);
+  const _0xc159f = renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074'];
+  _0x3_0xc7g = 720338 ^ 720347;
+  for (const _0x1372c of labels) {
+    if (!_0x1372c['\u0061\u0063\u0074\u0069\u0076\u0065']) continue;
+    const p = _0x1372c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']();
+    p['\u0070\u0072\u006F\u006A\u0065\u0063\u0074'](camera);
+    if (p['\u007A'] < -(353422 ^ 353423) || p['\u007A'] > (742049 ^ 742048) || Math['\u0061\u0062\u0073'](p['\u0078']) > 1.2 || Math['\u0061\u0062\u0073'](p['\u0079']) > 1.2) {
+      _0x1372c['\u0065\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u006E\u006F\u006E\u0065";
+      continue;
+    }
+    _0x1372c['\u0065\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u0062\u006C\u006F\u0063\u006B";
+    const x = (p['\u0078'] * 0.5 + 0.5) * _0x324cb;
+    let _0xf6448c;
+    const y = (-p['\u0079'] * 0.5 + 0.5) * _0xc159f;
+    _0xf6448c = (907477 ^ 907472) + (260570 ^ 260572);
+    _0x1372c['\u0065\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u006C\u0065\u0066\u0074'] = `${x}px`;
+    _0x1372c['\u0065\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0074\u006F\u0070'] = `${y}px`;
+  }
+}
+function removeNucleus(nucleus) {
+  if (!nucleus || !nucleus['\u0061\u0063\u0074\u0069\u0076\u0065']) return;
+  nucleus['\u0061\u0063\u0074\u0069\u0076\u0065'] = false;
+  scene['\u0072\u0065\u006D\u006F\u0076\u0065'](nucleus['\u0067\u0072\u006F\u0075\u0070']);
+  removeLabel(nucleus['\u006C\u0061\u0062\u0065\u006C']);
+}
+function createInitialScene() {
+  incomingNeutron = createNeutron(-(399860 ^ 399839), 631716 ^ 631716, 601238 ^ 601238);
+  incomingNeutronLabel = createLabel('Neutron', -(873483 ^ 873504), 3.5, 509222 ^ 509222, "\u0061\u0074\u006F\u006D\u002D\u006C\u0061\u0062\u0065\u006C\u0020\u006E\u0065\u0075\u0074\u0072\u006F\u006E\u002D\u006C\u0061\u0062\u0065\u006C");
+  initialNucleus = createNucleus(-(352173 ^ 352180), 936798 ^ 936798, 125068 ^ 125068, PROTONS_U, NEUTRONS_U, 'Uranium-235');
+  const _0x47ccgg = [855968 ^ 855983, 708011 ^ 708011, -(713409 ^ 713422)];
+  targets = _0x47ccgg['\u006D\u0061\u0070'](y => createNucleus(680753 ^ 680762, y, 504292 ^ 504292, PROTONS_U, NEUTRONS_U, 'Uranium-235'));
+}
+function launchNeutron(start, end, duration, onArrive = null) {
+  let _0xe34db;
+  const _0xdfe1af = createNeutron(start['\u0078'], start['\u0079'], start['\u007A']);
+  _0xe34db = (706135 ^ 706131) + (349041 ^ 349048);
+  particles['\u0070\u0075\u0073\u0068']({
+    "mesh": _0xdfe1af,
+    '\u0073\u0074\u0061\u0072\u0074': start['\u0063\u006C\u006F\u006E\u0065'](),
+    '\u0065\u006E\u0064': end['\u0063\u006C\u006F\u006E\u0065'](),
+    "elapsed": 0,
+    "duration": duration,
+    '\u006F\u006E\u0041\u0072\u0072\u0069\u0076\u0065': onArrive,
+    "complete": false
+  });
+  return _0xdfe1af;
+}
+function addFissionEnergy(x, y, z) {
+  var _0x6ea = (383708 ^ 383706) + (296088 ^ 296088);
+  const _0xb4d7eg = new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](835628 ^ 835629, 414726 ^ 414738, 388609 ^ 388625);
+  _0x6ea = (490851 ^ 490858) + (733104 ^ 733110);
+  const _0x7a92fc = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xffff66,
+    '\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074': !![],
+    '\u006F\u0070\u0061\u0063\u0069\u0074\u0079': 0.85,
+    '\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065': false
+  });
+  var _0xd6gadf = (381016 ^ 381020) + (972759 ^ 972759);
+  const _0xbad5e = new THREE['\u004D\u0065\u0073\u0068'](_0xb4d7eg, _0x7a92fc);
+  _0xd6gadf = 480336 ^ 480337;
+  _0xbad5e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  scene['\u0061\u0064\u0064'](_0xbad5e);
+  effects['\u0070\u0075\u0073\u0068']({
+    '\u006D\u0065\u0073\u0068': _0xbad5e,
+    "elapsed": 0,
+    "duration": 0.9
+  });
+}
+function startFission() {
+  if (phase !== 'ready') return;
+  if (!incomingNeutron || !initialNucleus) {
+    console['\u0065\u0072\u0072\u006F\u0072']('Cannot start fission: initial neutron or nucleus is missing.');
+    return;
+  }
+  phase = "\u0069\u006E\u0063\u006F\u006D\u0069\u006E\u0067";
+  startButton['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  startButton['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Fission in Progress';
+  statusBox['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Step 1: A neutron approaches Uranium-235.';
+  var _0xd31e = (975938 ^ 975937) + (934188 ^ 934180);
+  const _0x2622c = incomingNeutron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']();
+  _0xd31e = '\u0063\u006F\u006E\u0063\u0067\u0061';
+  const _0x7b9beb = initialNucleus['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']();
+  particles['\u0070\u0075\u0073\u0068']({
+    '\u006D\u0065\u0073\u0068': incomingNeutron,
+    '\u0073\u0074\u0061\u0072\u0074': _0x2622c,
+    '\u0065\u006E\u0064': _0x7b9beb,
+    "elapsed": 0,
+    "duration": 2.6,
+    '\u0063\u006F\u006D\u0070\u006C\u0065\u0074\u0065': false,
+    "onArrive": firstFission
+  });
+}
+function firstFission() {
+  removeLabel(incomingNeutronLabel);
+  if (phase !== 'incoming') return;
+  phase = 'first-fission';
+  removeNucleus(initialNucleus);
+  addFissionEnergy(-(369284 ^ 369309), 589593 ^ 589593, 351788 ^ 351788);
+  firstFragments['\u0070\u0075\u0073\u0068'](createNucleus(-(408990 ^ 408975), 853342 ^ 853337, 112507 ^ 112507, PROTONS_BA, NEUTRONS_BA, "\u0042\u0061\u0072\u0069\u0075\u006D\u002D\u0031\u0034\u0031"));
+  firstFragments['\u0070\u0075\u0073\u0068'](createNucleus(-(287353 ^ 287336), -(876018 ^ 876021), 400920 ^ 400920, PROTONS_KR, NEUTRONS_KR, "\u004B\u0072\u0079\u0070\u0074\u006F\u006E\u002D\u0039\u0032"));
+  statusBox['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Step 2: U-235 splits into Ba-141 and Kr-92, releasing 3 neutrons.';
+  for (let i = 433197 ^ 433197; i < (269468 ^ 269471); i++) {
+    var _0xc62f1c = (225886 ^ 225885) + (760271 ^ 760269);
+    const _0xb7c = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(185056 ^ 185078), (i - (209101 ^ 209100)) * 0.8, 126263 ^ 126263);
+    _0xc62f1c = (194958 ^ 194953) + (650510 ^ 650510);
+    const _0x7ge7a = targets[i];
+    launchNeutron(_0xb7c, _0x7ge7a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'], 899921 ^ 899922, () => secondGenerationFission(_0x7ge7a));
+  }
+  phase = "\u0063\u0068\u0061\u0069\u006E\u002D\u0072\u0065\u0061\u0063\u0074\u0069\u006F\u006E";
+}
+function secondGenerationFission(target) {
+  if (!target['\u0061\u0063\u0074\u0069\u0076\u0065']) return;
+  var _0x4_0xa98 = (415351 ^ 415350) + (954332 ^ 954325);
+  const x = target['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'];
+  _0x4_0xa98 = (132983 ^ 132990) + (224300 ^ 224301);
+  var _0xae64g = (733869 ^ 733870) + (453111 ^ 453109);
+  const y = target['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'];
+  _0xae64g = (551278 ^ 551276) + (853394 ^ 853394);
+  var _0x51e = (666844 ^ 666840) + (935401 ^ 935404);
+  const z = target['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'];
+  _0x51e = 139136 ^ 139143;
+  removeNucleus(target);
+  addFissionEnergy(x, y, z);
+  const _0xfe_0x72d = createNucleus(113320 ^ 113333, y + 3.5, z, PROTONS_BA, NEUTRONS_BA, "\u0042\u0061\u0072\u0069\u0075\u006D\u002D\u0031\u0034\u0031");
+  const _0xbf_0x66d = createNucleus(636820 ^ 636809, y - 3.5, z, PROTONS_KR, NEUTRONS_KR, "\u004B\u0072\u0079\u0070\u0074\u006F\u006E\u002D\u0039\u0032");
+  secondFragments['\u0070\u0075\u0073\u0068'](_0xfe_0x72d, _0xbf_0x66d);
+  completedFissions++;
+  const _0x2178c = targets['\u0069\u006E\u0064\u0065\u0078\u004F\u0066'](target);
+  for (let j = 917958 ^ 917958; j < (222431 ^ 222428); j++) {
+    const _0xb428cg = _0x2178c * (596853 ^ 596854) + j;
+    let _0x4e_0xd2a;
+    const _0xa41bef = (229037 ^ 229049) - _0xb428cg * (446546 ^ 446551);
+    _0x4e_0xd2a = 184730 ^ 184735;
+    const _0xdd_0xa9b = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x + (456189 ^ 456191), y, z);
+    const _0xfc_0x37b = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](686342 ^ 686381, _0xa41bef, 370333 ^ 370333);
+    finalNeutrons['\u0070\u0075\u0073\u0068'](launchNeutron(_0xdd_0xa9b, _0xfc_0x37b, 2.2));
+  }
+  if (completedFissions === (320039 ^ 320036)) {
+    phase = 'completed';
+    statusBox['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Step 3: Three additional U-235 nuclei undergo fission, releasing 9 neutrons.';
+    startButton['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Restart Simulation';
+    startButton['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+  }
+}
+function updateParticles(dt) {
+  for (const _0x6445f of particles) {
+    if (_0x6445f['\u0063\u006F\u006D\u0070\u006C\u0065\u0074\u0065']) continue;
+    _0x6445f['\u0065\u006C\u0061\u0070\u0073\u0065\u0064'] += dt;
+    const u = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0063\u006C\u0061\u006D\u0070'](_0x6445f['\u0065\u006C\u0061\u0070\u0073\u0065\u0064'] / _0x6445f['\u0064\u0075\u0072\u0061\u0074\u0069\u006F\u006E'], 450997 ^ 450997, 859583 ^ 859582);
+    _0x6445f['\u006D\u0065\u0073\u0068']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u006C\u0065\u0072\u0070\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](_0x6445f['\u0073\u0074\u0061\u0072\u0074'], _0x6445f['\u0065\u006E\u0064'], u);
+    if (u >= (139376 ^ 139377)) {
+      _0x6445f['\u0063\u006F\u006D\u0070\u006C\u0065\u0074\u0065'] = !![];
+      if (_0x6445f['\u006F\u006E\u0041\u0072\u0072\u0069\u0076\u0065']) {
+        scene['\u0072\u0065\u006D\u006F\u0076\u0065'](_0x6445f['\u006D\u0065\u0073\u0068']);
+        _0x6445f['\u006F\u006E\u0041\u0072\u0072\u0069\u0076\u0065']();
+      }
+    }
+  }
+}
+function updateEffects(dt) {
+  for (let i = effects['\u006C\u0065\u006E\u0067\u0074\u0068'] - (442465 ^ 442464); i >= (937215 ^ 937215); i--) {
+    const _0x69f14e = effects[i];
+    _0x69f14e['\u0065\u006C\u0061\u0070\u0073\u0065\u0064'] += dt;
+    let _0x79831d;
+    const p = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0063\u006C\u0061\u006D\u0070'](_0x69f14e['\u0065\u006C\u0061\u0070\u0073\u0065\u0064'] / _0x69f14e['\u0064\u0075\u0072\u0061\u0074\u0069\u006F\u006E'], 799084 ^ 799084, 111895 ^ 111894);
+    _0x79831d = '\u0062\u0063\u006D\u006C\u0064\u0069';
+    const _0x6cd = (466618 ^ 466619) + p * (569554 ^ 569561);
+    _0x69f14e['\u006D\u0065\u0073\u0068']['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](_0x6cd, _0x6cd, _0x6cd);
+    _0x69f14e['\u006D\u0065\u0073\u0068']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = 0.85 * ((194580 ^ 194581) - p);
+    if (p >= (940705 ^ 940704)) {
+      scene['\u0072\u0065\u006D\u006F\u0076\u0065'](_0x69f14e['\u006D\u0065\u0073\u0068']);
+      _0x69f14e['\u006D\u0065\u0073\u0068']['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+      _0x69f14e['\u006D\u0065\u0073\u0068']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+      effects['\u0073\u0070\u006C\u0069\u0063\u0065'](i, 912183 ^ 912182);
+    }
+  }
+}
+function togglePause() {
+  if (phase === 'ready') return;
+  isPaused = !isPaused;
+  const _0xff5a1e = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E");
+  if (isPaused) {
+    _0xff5a1e['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0052\u0065\u0073\u0075\u006D\u0065";
+    _0xff5a1e['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065']('btn-primary');
+    _0xff5a1e['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0061\u0064\u0064']('btn-success');
+  } else {
+    _0xff5a1e['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+    _0xff5a1e['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065']("\u0062\u0074\u006E\u002D\u0073\u0075\u0063\u0063\u0065\u0073\u0073");
+    _0xff5a1e['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0061\u0064\u0064']("\u0062\u0074\u006E\u002D\u0070\u0072\u0069\u006D\u0061\u0072\u0079");
+  }
+}
+function animate(time = 502346 ^ 502346) {
+  requestAnimationFrame(animate);
+  var _0x3681g = (452768 ^ 452777) + (760983 ^ 760983);
+  const _0xcfc9db = Math['\u006D\u0069\u006E']((time - lastTime) / (103149 ^ 102661), 0.05);
+  _0x3681g = (168157 ^ 168158) + (995602 ^ 995603);
+  lastTime = time;
+  if (!isPaused) {
+    updateParticles(_0xcfc9db);
+    updateEffects(_0xcfc9db);
+    controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  }
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+  updateLabels();
+}
+function onWindowResize() {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+  updateLabels();
+}
+
+init();
+animate();
+
+</script>
+
+</body>
+</html>

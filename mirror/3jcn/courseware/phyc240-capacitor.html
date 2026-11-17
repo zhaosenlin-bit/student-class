@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>乐启享 · 物理实验</title>
+
+  <link rel="icon" href="/brand/favicon.ico">
+
+  <!-- SEO -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="description" content="Free interactive 3D physics simulation of an RC circuit. Explore capacitor charging and discharging, time constant (tau), current I(t), capacitor voltage Vc(t), and stored energy Uc in real time. Includes graphs of current vs time and voltage vs time.">
+  <meta name="keywords" content="physics simulation, RC circuit simulation, charging capacitor, discharging capacitor, time constant, tau, current vs time, voltage vs time, capacitor energy, interactive physics, virtual lab, 3D physics simulation, 乐启享物理仿真">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="/courseware/3jcn-simulation?local=1">
+
+  <link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-capacitor/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+  <script src="/api/program-assets/3jcn-phyc240-capacitor/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="/api/program-assets/3jcn-phyc240-capacitor/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+  <!-- Three (non-module) -->
+  <script src="/api/program-assets/3jcn-phyc240-capacitor/_ext/vendor/js/three.js"></script>
+  <script src="/api/program-assets/3jcn-phyc240-capacitor/_ext/vendor/js/OrbitControls.js"></script>
+
+  <!-- Charts -->
+  <script src="/api/program-assets/3jcn-phyc240-capacitor/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-capacitor/_ext/vendor/css/main3.css">
+
+  <style>
+    body { margin:0; overflow:hidden; color:black; }
+    #viewport { width:100vw; height:100vh; }
+
+    /* ===== TOP CONTROL PANEL (responsive) ===== */
+    #topPanel{
+      position:absolute;
+      top:12px;
+      left:50%;
+      transform:translateX(-50%);
+      width:min(1200px, calc(100vw - 24px));
+      background: rgba(255,255,255,0.94);
+      border:2px solid #444;
+      border-radius:14px;
+      padding:10px 12px;
+      box-shadow:0 10px 26px rgba(0,0,0,0.25);
+      z-index:20;
+      font-family: Arial, sans-serif;
+    
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    
+    /* ROW 1: fields (wrap when needed) */
+    .topRow{
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:12px;
+      flex-wrap:wrap;               /* <-- key fix */
+    }
+    
+    /* ROW 2: sliders + buttons (wrap when needed) */
+    .bottomRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;               /* <-- key fix */
+    }
+    
+    /* Compact blocks */
+    .block{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      white-space:nowrap;
+      flex: 0 1 auto;
+    }
+    
+    /* Labels */
+    .block label{
+      margin:0;
+      font-size:13px;
+      font-weight:800;
+    }
+    
+    /* Textboxes */
+    .block input[type="text"]{
+      width:105px;
+      height:28px;
+      text-align:center;
+      font-weight:900;
+      border:1px solid #888;
+      border-radius:6px;
+      background:#fff6df;
+      padding:0 6px;
+    }
+    
+    /* Dropdowns */
+    .block select.form-control{
+      width:110px;
+      height:30px;
+      padding:2px 6px;
+      font-weight:800;
+    }
+    
+    /* Slider group */
+    .sliderBlock{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      white-space:nowrap;
+      font-size:13px;
+      font-weight:800;
+      flex: 1 1 320px;              /* can shrink + wrap nicely */
+    }
+    
+    .sliderBlock input[type="range"]{
+      width:160px;
+      max-width: 40vw;              /* prevents overflow on small screens */
+    }
+    
+    .sliderVal{
+      min-width:36px;
+      text-align:right;
+      font-weight:900;
+    }
+    
+    /* Buttons */
+    .btnRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;               /* buttons wrap if needed */
+      justify-content:flex-end;
+      flex: 0 1 auto;
+    }
+    
+    /* -------- Small screens: tighten sizes -------- */
+    @media (max-width: 900px){
+      .block input[type="text"]{ width:92px; }
+      .block select.form-control{ width:96px; }
+      .sliderBlock input[type="range"]{ width:140px; }
+    }
+    
+    /* -------- Very small screens: stack rows cleanly -------- */
+    @media (max-width: 650px){
+      #topPanel{ padding:10px; }
+      .topRow, .bottomRow{ justify-content:flex-start; }
+      .sliderBlock{ flex: 1 1 100%; }
+      .btnRow{ width:100%; justify-content:flex-start; }
+    }
+
+    /* ===== Graph Panels (clean, non-overlapping, professional look) ===== */
+    #canvas{
+      width: 260px;
+      height: 220px;
+      position: absolute;
+      top: 150px;      /* push below control panel */
+      right: 25px;
+      z-index: 15;
+    
+      border: 2px solid #ffffff;
+      border-radius: 10px;
+      background: rgba(10, 25, 45, 0.85); /* dark blue glass look */
+      box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+    }
+    
+    #canvas2{
+      width: 260px;
+      height: 220px;
+      position: absolute;
+      top: 400px;      /* clear vertical spacing so BOTH show */
+      right: 25px;
+      z-index: 15;
+    
+      border: 2px solid #ffffff;
+      border-radius: 10px;
+      background: rgba(10, 25, 45, 0.85);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+    }
+
+    #canvas, #canvas2{
+      background: linear-gradient(180deg, #0b1a2a 0%, #102a44 100%);
+    }
+
+  </style>
+
+  <script>
+	    /**
+	     * author: Thomas Nguyen   "3jcn.com"
+	     * original: 21 Aug 2020
+	     * updated: Feb 2026 (remove dat.GUI, top-center controls)
+	     * cleaned: Feb 2026 (remove duplicates, missing variables, ensure buttons work)
+	     */
+	
+	    // ---------- Helpers ----------
+	    function $(id){ return document.getElementById(id); }
+	
+	    // ---------- Three.js globals ----------
+	    var renderer, scene, camera, controls;
+	    var lightDir, lightAmb;
+	
+	    // Scene objects
+	    var wire1, wire2, plate1, plate2, batteryMesh, resistorMesh, swit, arrowCurrent, arrowHelper;
+	    var arrowCollection = []; 
+		let resistorGroup = null;
+	
+	    let VMesh = null;   
+	    let voltFont = null;
+	    let voltFontLoading = false;
+	    let voltMeshToken = 0;   // prevents old async loads from adding text later
+	    let pendingVoltText =  "6 V";
+	
+	    // Assets
+	    var loader = new THREE.TextureLoader();
+	    var fontloader = new THREE.FontLoader();
+	
+	    // ---------- Simulation parameters (UI-driven) ----------
+	    var params = {
+	      resistance: 5,
+	      voltage: 6,
+	      distance: 7,
+	      areaSize: 23
+	    };
+	
+	    // ---------- Internal physics ----------
+	    var epsilon = 8.85e-12;
+	    var Vo = 6, R = 5, d = 7, plate_size = 23;
+	    var C_uF = 0;     // microfarads (effective display value)
+	    var tau = 0;      // seconds
+	    var Io = 0;       // A
+	
+	    // Readouts
+	    var Vc = 0;
+	    var I  = 0;
+	    var U  = 0;
+	
+	    // Mode
+	    var mode = "idle"; // "idle" | "charging" | "charged_hold" | "discharging" | "finished"
+	
+	    // ---------- Graph arrays ----------
+	    var I_charge = [], V_charge = [];
+	    var I_dis    = [], V_dis    = [];
+	    var I_zero   = [], V_const  = [];
+	    var chart1 = null, chart2 = null;
+	
+	    // ---------- E-field gradual build/removal ----------
+	    const list = [1,2,3,4,5,6,7];
+	    let center = new THREE.Vector3(0, 7, 30);
+	    let step = 1;
+	    let fieldTimer = null;
+	    let fieldStepIndex = 0;
+	    let fieldMaxSteps = list.length;
+
+	    // ================= UI =================
+	    function syncUI(){$("\u0064\u0069\u0073\u0074\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](906523^906522);$("laVaera".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0061\u0072\u0065\u0061\u0053\u0069\u007A\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](599594^599594);$("\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u0061\u006E\u0063\u0065")['\u0076\u0061\u006C\u0075\u0065']=C_uF['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](759212^759214)+" \u00B5F";$("\u0076\u0063")['\u0076\u0061\u006C\u0075\u0065']=Vc['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](442279^442277)+"V ".split("").reverse().join("");$("\u0069\u0074")['\u0076\u0061\u006C\u0075\u0065']=I['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](542592^542594)+"\u0020\u0041";$("ygrene".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=U['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](305331^305335)+"\u0020\u004A";$("esolc".split("").reverse().join(""))['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=mode!=="\u0069\u0064\u006C\u0065";$("nepo".split("").reverse().join(""))['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=mode!=="gnigrahc".split("").reverse().join("")&&mode!=="dloh_degrahc".split("").reverse().join("");$("\u0064\u0069\u0073\u0063\u0068\u0061\u0072\u0067\u0065")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=mode!=="\u0063\u0068\u0061\u0072\u0067\u0065\u0064\u005F\u0068\u006F\u006C\u0064";}function showInfo(){alert("\u0052\u0043\u0020\u0043\u0069\u0072\u0063\u0075\u0069\u0074\u0020\u0028\u0043\u0068\u0061\u0072\u0067\u0069\u006E\u0067\u0020\u0026\u0020\u0044\u0069\u0073\u0063\u0068\u0061\u0072\u0067\u0069\u006E\u0067\u0029\u0020\u2014\u0020\u0046\u006F\u0072\u006D\u0075\u006C\u0061\u0073\u0020\u0055\u0073\u0065\u0064\u000A\u000A"+"\u0054\u0049\u004D\u0045\u0020\u0043\u004F\u004E\u0053\u0054\u0041\u004E\u0054\u003A\u000A"+"\u0020\u0020\u0020\u03C4\u0020\u003D\u0020\u0052\u0020\u00B7\u0020\u0043\u000A\u000A"+"\u0043\u0048\u0041\u0052\u0047\u0049\u004E\u0047\u0020\u0028\u0053\u0077\u0069\u0074\u0063\u0068\u0020\u0043\u006C\u006F\u0073\u0065\u0064\u002C\u0020\u0042\u0061\u0074\u0074\u0065\u0072\u0079\u0020\u0043\u006F\u006E\u006E\u0065\u0063\u0074\u0065\u0064\u0029\u003A\u000A"+"\u0020\u0020\u0020\u0056\u0063\u0028\u0074\u0029\u0020\u003D\u0020\u0056\u0030\u0020\u005B\u0020\u0031\u0020\u2212\u0020\u0065\u005E\u0028\u2212\u0074\u002F\u03C4\u0029\u0020\u005D\u000A"+"\u0020\u0020\u0020\u0049\u0028\u0074\u0029\u0020\u0020\u003D\u0020\u0028\u0056\u0030\u0020\u002F\u0020\u0052\u0029\u0020\u00B7\u0020\u0065\u005E\u0028\u2212\u0074\u002F\u03C4\u0029\u000A"+"\n\n\xB2])t(cV[ C )2/1( = )t(cU   ".split("").reverse().join("")+"\u004F\u0050\u0045\u004E\u0020\u0053\u0057\u0049\u0054\u0043\u0048\u0020\u0028\u0042\u0061\u0074\u0074\u0065\u0072\u0079\u0020\u0052\u0065\u006D\u006F\u0076\u0065\u0064\u0029\u003A\u000A"+"\u0020\u0020\u0020\u0051\u0020\u0069\u0073\u0020\u0066\u0069\u0078\u0065\u0064\u0020\u2192\u0020\u0056\u0063\u0020\u2248\u0020\u0063\u006F\u006E\u0073\u0074\u0061\u006E\u0074\u0020\u0028\u0069\u0064\u0065\u0061\u006C\u0020\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072\u0029\u000A"+"\n\n0 = )t(I   ".split("").reverse().join("")+"\u0044\u0049\u0053\u0043\u0048\u0041\u0052\u0047\u0049\u004E\u0047\u0020\u0028\u0054\u0068\u0072\u006F\u0075\u0067\u0068\u0020\u0052\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0029\u003A\u000A"+"\n)\u03C4/t\u2212(^e \xB7 0V = )t(cV   ".split("").reverse().join("")+"\n)\u03C4/t\u2212(^e \xB7 )R / 0V( =  )t(I   ".split("").reverse().join("")+"\u0020\u0020\u0020\u0055\u0063\u0028\u0074\u0029\u0020\u003D\u0020\u0028\u0031\u002F\u0032\u0029\u0020\u0043\u0020\u005B\u0056\u0063\u0028\u0074\u0029\u005D\u00B2\u000A\u000A"+"\u004E\u004F\u0054\u0045\u003A\u000A"+"\nroticapac eht tsaf woh slortnoc CR = )uat( \u03C4   ".split("").reverse().join("")+"\u0020\u0020\u0020\u0063\u0068\u0061\u0072\u0067\u0065\u0073\u0020\u0061\u006E\u0064\u0020\u0064\u0069\u0073\u0063\u0068\u0061\u0072\u0067\u0065\u0073\u002E\u000A"+".)etats ydaets raen( \u03C45 \u2248 ot pu deyalpsid era shparG   ".split("").reverse().join(""));}function drawCharts(Iarr,Varr,_0x74b3eb){if(chart1){chart1['\u0064\u0065\u0073\u0074\u0072\u006F\u0079']();chart1=null;}if(chart2){chart2['\u0064\u0065\u0073\u0074\u0072\u006F\u0079']();chart2=null;}var _0x0f4eb=(822977^822980)+(387432^387425);var _0x518b=$("\u0063\u0061\u006E\u0076\u0061\u0073")['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064");_0x0f4eb=659115^659119;chart1=new Chart(_0x518b,{"type":"scatter",'\u0064\u0061\u0074\u0061':{"datasets":[{"data":Iarr,'\u006C\u0061\u0062\u0065\u006C':"\u0043\u0075\u0072\u0072\u0065\u006E\u0074\u0020\u0076\u0073\u0020\u0054\u0069\u006D\u0065",'\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064\u0043\u006F\u006C\u006F\u0072':"#ffd400",'\u0062\u006F\u0072\u0064\u0065\u0072\u0043\u006F\u006C\u006F\u0072':"\u0023\u0066\u0066\u0064\u0034\u0030\u0030",'\u0070\u006F\u0069\u006E\u0074\u0052\u0061\u0064\u0069\u0075\u0073':3}]},"options":{'\u0072\u0065\u0073\u0070\u006F\u006E\u0073\u0069\u0076\u0065':false,'\u006D\u0061\u0069\u006E\u0074\u0061\u0069\u006E\u0041\u0073\u0070\u0065\u0063\u0074\u0052\u0061\u0074\u0069\u006F':!![],'\u006C\u0065\u0067\u0065\u006E\u0064':{'\u006C\u0061\u0062\u0065\u006C\u0073':{'\u0066\u006F\u006E\u0074\u0043\u006F\u006C\u006F\u0072':"\u0079\u0065\u006C\u006C\u006F\u0077"}},'\u0073\u0063\u0061\u006C\u0065\u0073':{"xAxes":[{'\u0067\u0072\u0069\u0064\u004C\u0069\u006E\u0065\u0073':{"color":"\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0030\u002E\u0031\u0035\u0029"},'\u0073\u0063\u0061\u006C\u0065\u004C\u0061\u0062\u0065\u006C':{'\u0064\u0069\u0073\u0070\u006C\u0061\u0079':!![],'\u0066\u006F\u006E\u0074\u0043\u006F\u006C\u006F\u0072':"#ffffff",'\u006C\u0061\u0062\u0065\u006C\u0053\u0074\u0072\u0069\u006E\u0067':"Time (s)",'\u0066\u006F\u006E\u0074\u0053\u0069\u007A\u0065':14,'\u0066\u006F\u006E\u0074\u0053\u0074\u0079\u006C\u0065':"bold"},'\u0074\u0069\u0063\u006B\u0073':{'\u0066\u006F\u006E\u0074\u0043\u006F\u006C\u006F\u0072':"\u0023\u0066\u0066\u0066\u0066\u0066\u0066"}}],'\u0079\u0041\u0078\u0065\u0073':[{'\u0067\u0072\u0069\u0064\u004C\u0069\u006E\u0065\u0073':{'\u0063\u006F\u006C\u006F\u0072':"\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0030\u002E\u0031\u0035\u0029"},'\u0073\u0063\u0061\u006C\u0065\u004C\u0061\u0062\u0065\u006C':{'\u0064\u0069\u0073\u0070\u006C\u0061\u0079':!![],"fontColor":"#ffffff",'\u0066\u006F\u006E\u0074\u0053\u0069\u007A\u0065':14,'\u0066\u006F\u006E\u0074\u0053\u0074\u0079\u006C\u0065':"\u0062\u006F\u006C\u0064"},"ticks":{'\u0066\u006F\u006E\u0074\u0043\u006F\u006C\u006F\u0072':"\u0023\u0066\u0066\u0066\u0066\u0066\u0066"}}]}}});var _0x3ba=$("2savnac".split("").reverse().join(""))['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064");_0x74b3eb=(968423^968420)+(266168^266169);chart2=new Chart(_0x3ba,{'\u0074\u0079\u0070\u0065':"\u0073\u0063\u0061\u0074\u0074\u0065\u0072",'\u0064\u0061\u0074\u0061':{'\u0064\u0061\u0074\u0061\u0073\u0065\u0074\u0073':[{'\u0064\u0061\u0074\u0061':Varr,"label":"\u0056\u006F\u006C\u0074\u0061\u0067\u0065\u0020\u0076\u0073\u0020\u0054\u0069\u006D\u0065","backgroundColor":"\u0023\u0066\u0066\u0034\u0064\u0066\u0066",'\u0062\u006F\u0072\u0064\u0065\u0072\u0043\u006F\u006C\u006F\u0072':"#ff4dff",'\u0070\u006F\u0069\u006E\u0074\u0052\u0061\u0064\u0069\u0075\u0073':3}]},"options":{'\u0072\u0065\u0073\u0070\u006F\u006E\u0073\u0069\u0076\u0065':false,"maintainAspectRatio":!![],'\u006C\u0065\u0067\u0065\u006E\u0064':{"labels":{'\u0066\u006F\u006E\u0074\u0043\u006F\u006C\u006F\u0072':"\u0023\u0038\u0037\u0043\u0045\u0046\u0041"}},'\u0073\u0063\u0061\u006C\u0065\u0073':{'\u0078\u0041\u0078\u0065\u0073':[{'\u0067\u0072\u0069\u0064\u004C\u0069\u006E\u0065\u0073':{'\u0063\u006F\u006C\u006F\u0072':"\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0030\u002E\u0031\u0035\u0029"},"scaleLabel":{"display":!![],"fontColor":"\u0023\u0066\u0066\u0066\u0066\u0066\u0066","labelString":"\u0054\u0069\u006D\u0065\u0020\u0028\u0073\u0029",'\u0066\u006F\u006E\u0074\u0053\u0069\u007A\u0065':14,"fontStyle":"\u0062\u006F\u006C\u0064"},'\u0074\u0069\u0063\u006B\u0073':{"fontColor":"\u0023\u0066\u0066\u0066\u0066\u0066\u0066"}}],'\u0079\u0041\u0078\u0065\u0073':[{'\u0067\u0072\u0069\u0064\u004C\u0069\u006E\u0065\u0073':{"color":"\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0030\u002E\u0031\u0035\u0029"},"scaleLabel":{"display":!![],'\u0066\u006F\u006E\u0074\u0043\u006F\u006C\u006F\u0072':"\u0023\u0066\u0066\u0066\u0066\u0066\u0066",'\u0066\u006F\u006E\u0074\u0053\u0069\u007A\u0065':14,'\u0066\u006F\u006E\u0074\u0053\u0074\u0079\u006C\u0065':"\u0062\u006F\u006C\u0064"},"ticks":{'\u0066\u006F\u006E\u0074\u0043\u006F\u006C\u006F\u0072':"#ffffff"}}]}}});}function addLight(){lightDir=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xFFFFFF,385018^385019);lightDir['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](213835^213855,572373^572413,-(670711^670712));scene['\u0061\u0064\u0064'](lightDir);lightAmb=new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xFFFFFF,0.35);scene['\u0061\u0064\u0064'](lightAmb);}function addSphere(x,y,z){var _0x61c93a=new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.5,322537^322505,641887^641863);var _0x15efec=new THREE['\u004D\u0065\u0073\u0068'](_0x61c93a,new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0077\u0068\u0069\u0074\u0065"}));_0x15efec['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](_0x15efec);}function addWire(r,len,x,y,z,alpha){var _0x9eee2f=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](r,r,len,680948^680916);var _0x888bfa=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"\u0062\u0072\u006F\u0077\u006E"});var w=new THREE['\u004D\u0065\u0073\u0068'](_0x9eee2f,_0x888bfa);w['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);w['\u0072\u006F\u0074\u0061\u0074\u0065\u0058'](alpha);scene['\u0061\u0064\u0064'](w);return w;}function circuit_wire(){addWire(0.2,841783^841733,570971^570971,809770^809790,-(170669^170664),Math['\u0050\u0049']/(565204^565206));addWire(0.2,617101^617137,944988^944988,-(832996^833008),207439^207439,Math['\u0050\u0049']/(399207^399205));addWire(0.2,858687^858647,965221^965221,531355^531355,-(600810^600820),357292^357292);}function addCapacitor(){if(plate1){plate1['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();plate1['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();scene['\u0072\u0065\u006D\u006F\u0076\u0065'](plate1);plate1=null;}if(plate2){plate2['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();plate2['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();scene['\u0072\u0065\u006D\u006F\u0076\u0065'](plate2);plate2=null;}plate1=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](plate_size,484152^484153,plate_size),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xff0000}));plate1['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](782198^782198,d,782217^782231);scene['\u0061\u0064\u0064'](plate1);plate2=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](plate_size,895108^895109,plate_size),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x0000ff}));plate2['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](435235^435235,-d,962304^962334);scene['\u0061\u0064\u0064'](plate2);}function rebuildVerticalWires(){if(wire1){wire1['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();wire1['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();scene['\u0072\u0065\u006D\u006F\u0076\u0065'](wire1);wire1=null;}if(wire2){wire2['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();wire2['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();scene['\u0072\u0065\u006D\u006F\u0076\u0065'](wire2);wire2=null;}var _0x84ce0c=(169002^168995)+(109403^109405);var _0x9c_0x7ab=(259175^259187)-d;_0x84ce0c=542227^542229;var _0xfbe2dd=d+((441097^441117)-d)/(179466^179464);var _0x2b3aac=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.2,0.2,_0x9c_0x7ab,764415^764383);var _0x33408c=(752554^752556)+(888685^888681);var _0x66c=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"\u0062\u0072\u006F\u0077\u006E"});_0x33408c=(878838^878838)+(361109^361106);wire1=new THREE['\u004D\u0065\u0073\u0068'](_0x2b3aac,_0x66c);wire1['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](834459^834459,_0xfbe2dd,115938^115964);scene['\u0061\u0064\u0064'](wire1);wire2=new THREE['\u004D\u0065\u0073\u0068'](_0x2b3aac,_0x66c);wire2['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](443910^443910,-_0xfbe2dd,795893^795883);scene['\u0061\u0064\u0064'](wire2);}function rebuildResistor(){if(resistorGroup){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](resistorGroup);resistorGroup['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](obj=>{if(obj['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])obj['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']){if(Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']))obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m=>m['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();}});resistorGroup=null;}resistorGroup=createResistor({'\u006F\u0068\u006D\u0073':params['\u0072\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065']});resistorGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](313194^313194,-(932460^932472),402855^402855);scene['\u0061\u0064\u0064'](resistorGroup);}function createResistor({'\u0062\u006F\u0064\u0079\u0052\u0061\u0064\u0069\u0075\u0073':bodyRadius=893215^893213,"bodyLength":bodyLength=733175^733181,"leadRadius":leadRadius=0.35,'\u006C\u0065\u0061\u0064\u004C\u0065\u006E\u0067\u0074\u0068':leadLength=967303^967298,"bandThickness":bandThickness=0.9,"bandGap":bandGap=1.6,'\u006F\u0068\u006D\u0073':ohms=618113^618116,'\u0074\u006F\u006C\u0065\u0072\u0061\u006E\u0063\u0065':tolerance="dlog".split("").reverse().join("")}={},_0xcd668a,_0xf5ab9f){var _0x1bd=(474772^474773)+(640390^640399);const g=new THREE['\u0047\u0072\u006F\u0075\u0070']();_0x1bd="bbllec".split("").reverse().join("");g['\u006E\u0061\u006D\u0065']="\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0047\u0072\u006F\u0075\u0070";const _0xeef5g=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xf2e1c2});const _0xa6d=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x777777});const _0x62e98a=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](bodyRadius,bodyRadius,bodyLength,203034^203066);var _0xeb_0x6c3=(216203^216206)+(984309^984317);const _0x3_0xe31=new THREE['\u004D\u0065\u0073\u0068'](_0x62e98a,_0xeef5g);_0xeb_0x6c3=(306779^306780)+(935126^935135);_0x3_0xe31['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049']/(213776^213778);g['\u0061\u0064\u0064'](_0x3_0xe31);var _0x68g61e=(546777^546769)+(153197^153189);const _0x6e93da=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](leadRadius,leadRadius,leadLength,588215^588199);_0x68g61e=(747121^747120)+(433173^433171);var _0x1c_0xgf7=(732331^732334)+(871052^871045);const _0x1c9dc=new THREE['\u004D\u0065\u0073\u0068'](_0x6e93da,_0xa6d);_0x1c_0xgf7=(302097^302103)+(174043^174043);const _0x633gag=new THREE['\u004D\u0065\u0073\u0068'](_0x6e93da,_0xa6d);_0x1c9dc['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049']/(888976^888978);_0x633gag['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049']/(251214^251212);_0x1c9dc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']=-(bodyLength/(313006^313004)+leadLength/(429590^429588));_0x633gag['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']=+(bodyLength/(557951^557949)+leadLength/(490509^490511));g['\u0061\u0064\u0064'](_0x1c9dc,_0x633gag);const _0xf9b8b=[364983^364983,0x8b4513,0xff0000,0xffa500,0xffff00,638930^606418,337164^337395,0x8a2be2,0x808080,0xffffff];const _0x957fbe={"-2":0xc0c0c0,"-1":0xffd700,"\u0030":0x000000,"\u0031":0x8b4513,"\u0032":0xff0000,"\u0033":0xffa500,"\u0034":0xffff00,"\u0035":0x00ff00,"\u0036":0x0000ff,"\u0037":0x8a2be2,"\u0038":0x808080,"\u0039":0xffffff};const _0xea798e={'\u0067\u006F\u006C\u0064':0xffd700,"silver":0xc0c0c0,'\u0062\u0072\u006F\u0077\u006E':0x8b4513,'\u0072\u0065\u0064':0xff0000,"green":0x00ff00,'\u0062\u006C\u0075\u0065':0x0000ff};_0xcd668a=(717056^717065)+(747536^747538);function _0x6da2ga(R,_0x6875b){R=Math['\u006D\u0061\u0078'](964750^964751,Math['\u0072\u006F\u0075\u006E\u0064'](R));const _0x263d=Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u006C\u006F\u0067\u0031\u0030'](R));const _0x8ba=Math['\u0072\u006F\u0075\u006E\u0064'](R/Math['\u0070\u006F\u0077'](181163^181153,_0x263d-(660423^660422)));_0x6875b='\u0069\u0063\u006D\u006C\u0070\u0068';let _0xdb1f1e=Math['\u0066\u006C\u006F\u006F\u0072'](_0x8ba/(213562^213552));let _0xaf_0xfaf=_0x8ba%(557433^557427);_0xdb1f1e=Math['\u006D\u0069\u006E'](Math['\u006D\u0061\u0078'](_0xdb1f1e,222338^222338),645068^645061);_0xaf_0xfaf=Math['\u006D\u0069\u006E'](Math['\u006D\u0061\u0078'](_0xaf_0xfaf,582392^582392),503302^503311);const _0xc5d35a=_0x263d-(612082^612083);return[_0xdb1f1e,_0xaf_0xfaf,_0xc5d35a,tolerance];}const _0xbeb4cd=bodyRadius*1.03;const _0xdddb=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xbeb4cd,_0xbeb4cd,bandThickness,422742^422774);_0xf5ab9f=303898^303891;function _0x7ff(color,zPos){const _0xfbafg=new THREE['\u004D\u0065\u0073\u0068'](_0xdddb,new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':color}));_0xfbafg['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049']/(901695^901693);_0xfbafg['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']=zPos;_0xfbafg['\u006E\u0061\u006D\u0065']="\u0062\u0061\u006E\u0064\u005F";g['\u0061\u0064\u0064'](_0xfbafg);return _0xfbafg;}function _0xgc5c(){for(let i=g['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']-(287609^287608);i>=(807176^807176);i--){let _0x8d1a;const _0xaae1d=g['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E'][i];_0x8d1a=(815650^815654)+(968092^968092);if(_0xaae1d&&_0xaae1d['\u006E\u0061\u006D\u0065']==="_dnab".split("").reverse().join("")){g['\u0072\u0065\u006D\u006F\u0076\u0065'](_0xaae1d);if(_0xaae1d['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])_0xaae1d['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(_0xaae1d['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])_0xaae1d['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();}}}function _0xg090a(newOhms,_0x51427e){_0xgc5c();const[d1,d2,mult,tol]=_0x6da2ga(newOhms);var _0x4bc49e=(305002^305004)+(446595^446603);const _0xfe_0x143=[_0xf9b8b[d1],_0xf9b8b[d2],_0x957fbe[String(mult)]??153366^153366,_0xea798e[tol]??0xffd700];_0x4bc49e=322742^322751;const _0x5g_0x6b5=-bodyLength/(437490^437488)+2.2;_0x51427e='\u0062\u0070\u006E\u0066\u006F\u0070';const _0x7fa4a=[_0x5g_0x6b5,_0x5g_0x6b5+bandGap,_0x5g_0x6b5+(712652^712654)*bandGap,bodyLength/(749530^749528)-2.2];for(let i=757517^757517;i<(176442^176446);i++)_0x7ff(_0xfe_0x143[i],_0x7fa4a[i]);}_0xg090a(ohms);g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0065\u0074\u004F\u0068\u006D\u0073']=_0xg090a;return g;}function disposeMesh(m){if(!m)return;if(m['\u0070\u0061\u0072\u0065\u006E\u0074'])m['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065'](m);if(m['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])m['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']){if(Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']))m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](x=>x['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else m['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();}}function battery(_0x19e){if(batteryMesh){batteryMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();batteryMesh['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();scene['\u0072\u0065\u006D\u006F\u0076\u0065'](batteryMesh);batteryMesh=null;}var _0x346bfb=loader['\u006C\u006F\u0061\u0064']("gnp.erutxet_yrettab/serutxet/..".split("").reverse().join(""));batteryMesh=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](548219^548222,824073^824076,845938^845926,774152^774184),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u006D\u0061\u0070':_0x346bfb}));batteryMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](125996^125996,654739^654739,-(680939^680949));var _0xffadf=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](5.1,5.1,791240^791245,784062^784030),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffa500}));_0x19e=430835^430835;_0xffadf['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](230406^230406,441566^441558,165429^165429);batteryMesh['\u0061\u0064\u0064'](_0xffadf);var _0xdfg19a=(186970^186971)+(627551^627545);var _0x5caf=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](1.2,1.2,991475^991474,873594^873562),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xff0000}));_0xdfg19a="lbndhg".split("").reverse().join("");_0x5caf['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](754685^754685,941320^941315,413971^413971);batteryMesh['\u0061\u0064\u0064'](_0x5caf);scene['\u0061\u0064\u0064'](batteryMesh);addVoltMesh(params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065']+"\u0020\u0056");}function removeVoltMesh(){if(!VMesh)return;if(VMesh['\u0070\u0061\u0072\u0065\u006E\u0074'])VMesh['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065'](VMesh);if(VMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])VMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(VMesh['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])VMesh['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();VMesh=null;}function addVoltMesh(text){pendingVoltText=String(text);var _0x0348e=(724033^724032)+(285568^285575);const _0x4ced=++voltMeshToken;_0x0348e=(724014^724007)+(462513^462519);function _0x11bd(font,_0x4e38ef){if(_0x4ced!==voltMeshToken)return;if(!batteryMesh)return;removeVoltMesh();const _0xbgbda=new THREE['\u0054\u0065\u0078\u0074\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](pendingVoltText,{"font":font,'\u0073\u0069\u007A\u0065':1.6,'\u0068\u0065\u0069\u0067\u0068\u0074':0.15,'\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073':6});_0x4e38ef=589246^589239;_0xbgbda['\u0063\u006F\u006D\u0070\u0075\u0074\u0065\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0042\u006F\u0078']();const _0x3a_0x359=_0xbgbda['\u0062\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0042\u006F\u0078'];_0xbgbda['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](-(_0x3a_0x359['\u006D\u0061\u0078']['\u0078']+_0x3a_0x359['\u006D\u0069\u006E']['\u0078'])*0.5,-(_0x3a_0x359['\u006D\u0061\u0078']['\u0079']+_0x3a_0x359['\u006D\u0069\u006E']['\u0079'])*0.5,-(_0x3a_0x359['\u006D\u0061\u0078']['\u007A']+_0x3a_0x359['\u006D\u0069\u006E']['\u007A'])*0.5);VMesh=new THREE['\u004D\u0065\u0073\u0068'](_0xbgbda,new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x0033ff}));VMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](340318^340318,451249^451249,383952^383962);VMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](695746^695746,Math['\u0050\u0049']/(990818^990816),272984^272984);batteryMesh['\u0061\u0064\u0064'](VMesh);}if(voltFont){_0x11bd(voltFont);return;}if(voltFontLoading)return;voltFontLoading=!![];fontloader['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0064\u0072\u006F\u0069\u0064\u002F\u0064\u0072\u006F\u0069\u0064\u005F\u0073\u0065\u0072\u0069\u0066\u005F\u0062\u006F\u006C\u0064\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E",font=>{voltFont=font;voltFontLoading=false;_0x11bd(font);},undefined,()=>{voltFontLoading=false;});}function switchOpenVisual(){if(swit){swit['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();swit['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();scene['\u0072\u0065\u006D\u006F\u0076\u0065'](swit);swit=null;}swit=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.2,0.2,662593^662603,630186^630154),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"\u0072\u0065\u0064"}));swit['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](872829^872829,454218^454239,152216^152193);swit['\u0072\u006F\u0074\u0061\u0074\u0065\u0058'](-Math['\u0050\u0049']/2.3);scene['\u0061\u0064\u0064'](swit);}function switchClosedVisual(){if(swit){swit['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();swit['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();scene['\u0072\u0065\u006D\u006F\u0076\u0065'](swit);swit=null;}swit=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.2,0.2,622781^622775,297068^297036),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0072\u0065\u0064"}));swit['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](745240^745240,243183^243195,298836^298829);swit['\u0072\u006F\u0074\u0061\u0074\u0065\u0058'](Math['\u0050\u0049']/(463390^463388));scene['\u0061\u0064\u0064'](swit);}function addCurrentDirection(z,length){if(arrowCurrent)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowCurrent);var _0x52cbb=(711637^711632)+(424389^424386);var _0x4a1bf=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](606209^606209,246355^246355,z)['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();_0x52cbb="pbhdeg".split("").reverse().join("");var _0xeg47ef=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](122129^122129,388624^388613,596893^596893);arrowCurrent=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](_0x4a1bf,_0xeg47ef,length,316753^316753);arrowCurrent['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](507510^507508,136971^136969,250794^250792);scene['\u0061\u0064\u0064'](arrowCurrent);}function addArrow(x,y,z,length){var _0x12d=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](402855^402855,-(932189^932188),773919^773919)['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();var a=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](_0x12d,new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,y,z),length,0xff0000);arrowCollection['\u0070\u0075\u0073\u0068'](a);scene['\u0061\u0064\u0064'](a);}function removeVoltMesh(){if(!VMesh)return;if(VMesh['\u0070\u0061\u0072\u0065\u006E\u0074'])VMesh['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065'](VMesh);else scene['\u0072\u0065\u006D\u006F\u0076\u0065'](VMesh);if(VMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])VMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(VMesh['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])VMesh['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();VMesh=null;}function clearArrowCollection(){for(var j=296966^296966;j<arrowCollection['\u006C\u0065\u006E\u0067\u0074\u0068'];j++)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowCollection[j]);arrowCollection['\u006C\u0065\u006E\u0067\u0074\u0068']=127896^127896;}function buildGraphArrays(){I_charge=[];V_charge=[];I_dis=[];V_dis=[];I_zero=[];V_const=[];var _0x_0x2ca=(570102^570110)+(398181^398189);var t=365200^365200;_0x_0x2ca=751873^751880;var _0xa165ea=0.25*tau;if(tau<=(673425^673425))_0xa165ea=0.1;while(t<=(440391^440386)*tau+1e-12){var _0xf7a1d=(387896^387897)+(778330^778334);var _0x776e=Vo*((425197^425196)-Math['\u0065\u0078\u0070'](-t/tau));_0xf7a1d=(308805^308813)+(632775^632771);let _0xb72f;var _0x6fe96b=Io*Math['\u0065\u0078\u0070'](-t/tau);_0xb72f='\u0065\u006E\u006E\u0065\u006B\u0064';var _0xea5b9b=(666851^666853)+(913989^913988);var _0xf419b=Vo*Math['\u0065\u0078\u0070'](-t/tau);_0xea5b9b=(707149^707147)+(386185^386185);var _0x11547a=Io*Math['\u0065\u0078\u0070'](-t/tau);I_charge['\u0070\u0075\u0073\u0068']({'\u0078':t,'\u0079':_0x6fe96b});V_charge['\u0070\u0075\u0073\u0068']({'\u0078':t,'\u0079':_0x776e});I_dis['\u0070\u0075\u0073\u0068']({'\u0078':t,'\u0079':_0x11547a});V_dis['\u0070\u0075\u0073\u0068']({'\u0078':t,'\u0079':_0xf419b});I_zero['\u0070\u0075\u0073\u0068']({'\u0078':t,'\u0079':0});V_const['\u0070\u0075\u0073\u0068']({'\u0078':t,'\u0079':Vo});t+=_0xa165ea;}}function recomputeRC(){Vo=params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065'];R=params['\u0072\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065'];d=params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'];plate_size=params['\u0061\u0072\u0065\u0061\u0053\u0069\u007A\u0065'];Io=Vo/R;const A=plate_size*plate_size;C_uF=1e11*epsilon*A/d;tau=R*(C_uF*1e-6);center['\u0073\u0065\u0074'](103033^103033,d,969218^969244);step=(plate_size-(401892^401888))/((907772^907774)*list['\u006C\u0065\u006E\u0067\u0074\u0068']);fieldMaxSteps=list['\u006C\u0065\u006E\u0067\u0074\u0068'];addVoltMesh(Vo+"\u0020\u0056");addCapacitor();rebuildVerticalWires();rebuildResistor();buildGraphArrays();}function stopFieldAnimation(){if(fieldTimer){clearInterval(fieldTimer);fieldTimer=null;}fieldStepIndex=601029^601029;}function addFieldRing(i){var _0xd4a=(736488^736492)+(402949^402945);var _0xca30a=step*i;_0xd4a=824641^824648;addArrow(center['\u0078'],center['\u0079'],center['\u007A'],(246821^246823)*d);addArrow(center['\u0078']+_0xca30a,center['\u0079'],center['\u007A'],(153563^153561)*d);addArrow(center['\u0078']+_0xca30a,center['\u0079'],center['\u007A']+_0xca30a,(846008^846010)*d);addArrow(center['\u0078'],center['\u0079'],center['\u007A']+_0xca30a,(970174^970172)*d);addArrow(center['\u0078']-_0xca30a,center['\u0079'],center['\u007A']+_0xca30a,(162152^162154)*d);addArrow(center['\u0078']-_0xca30a,center['\u0079'],center['\u007A'],(853259^853257)*d);addArrow(center['\u0078']-_0xca30a,center['\u0079'],center['\u007A']-_0xca30a,(906088^906090)*d);addArrow(center['\u0078'],center['\u0079'],center['\u007A']-_0xca30a,(838215^838213)*d);addArrow(center['\u0078']+_0xca30a,center['\u0079'],center['\u007A']-_0xca30a,(913641^913643)*d);}function startChargingField(){stopFieldAnimation();clearArrowCollection();fieldStepIndex=619081^619081;mode="\u0063\u0068\u0061\u0072\u0067\u0069\u006E\u0067";syncUI();var n=105786^105786;fieldTimer=setInterval(function(){addFieldRing(fieldStepIndex);fieldStepIndex++;Vc=Vo*((378874^378875)-Math['\u0065\u0078\u0070'](-n));I=Io*Math['\u0065\u0078\u0070'](-n);U=0.5*(C_uF*1e-6)*Vc*Vc;syncUI();n+=733985^733984;if(fieldStepIndex>fieldMaxSteps){stopFieldAnimation();if(arrowCurrent)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowCurrent);drawCharts(I_charge,V_charge);mode="\u0063\u0068\u0061\u0072\u0067\u0065\u0064\u005F\u0068\u006F\u006C\u0064";syncUI();}},442707^442535);}function startDischargingFieldRemoval(){stopFieldAnimation();mode="\u0064\u0069\u0073\u0063\u0068\u0061\u0072\u0067\u0069\u006E\u0067";syncUI();var _0xb74d2e=(362778^362783)+(799733^799735);var m=282063^282063;_0xb74d2e=(209122^209121)+(650172^650165);fieldTimer=setInterval(function(){for(let k=667461^667461;k<(387446^387455);k++){let _0xab871d;var a=arrowCollection['\u0070\u006F\u0070']();_0xab871d='\u006A\u0063\u006E\u006F\u0066\u006C';if(!a)break;scene['\u0072\u0065\u006D\u006F\u0076\u0065'](a);}Vc=Vo*Math['\u0065\u0078\u0070'](-m);I=Io*Math['\u0065\u0078\u0070'](-m);U=0.5*(C_uF*1e-6)*Vc*Vc;syncUI();m+=758995^758994;if(arrowCollection['\u006C\u0065\u006E\u0067\u0074\u0068']===(536400^536400)){stopFieldAnimation();if(arrowCurrent)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowCurrent);drawCharts(I_dis,V_dis);mode="dehsinif".split("").reverse().join("");syncUI();}},643973^644093);}function openSwitch(){if(mode!=="gnigrahc".split("").reverse().join("")&&mode!=="\u0063\u0068\u0061\u0072\u0067\u0065\u0064\u005F\u0068\u006F\u006C\u0064")return;stopFieldAnimation();if(arrowCurrent)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowCurrent);if(arrowHelper)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowHelper);if(batteryMesh)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](batteryMesh);if(VMesh)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](VMesh);switchOpenVisual();mode="\u0063\u0068\u0061\u0072\u0067\u0065\u0064\u005F\u0068\u006F\u006C\u0064";syncUI();drawCharts(I_zero,V_const);}function onParamChange(){stopFieldAnimation();params['\u0072\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065']=parseFloat($("redilSser".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065']=parseFloat($("redilStlov".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065']=parseFloat($("redilStsid".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);params['\u0061\u0072\u0065\u0061\u0053\u0069\u007A\u0065']=parseFloat($("\u0061\u0072\u0065\u0061\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);$("\u0064\u0069\u0073\u0074\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](924126^924127);$("laVaera".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0061\u0072\u0065\u0061\u0053\u0069\u007A\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](302961^302961);if(!batteryMesh)battery();mode="eldi".split("").reverse().join("");Vc=783305^783305;I=115962^115962;U=500151^500151;Vo=params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065'];addVoltMesh(Vo+"\u0020\u0056");if(arrowCurrent)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowCurrent);if(arrowHelper)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](arrowHelper);clearArrowCollection();recomputeRC();drawCharts([],[]);switchOpenVisual();syncUI();}function addText(x,y,z,t,s,colo){fontloader['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0064\u0072\u006F\u0069\u0064\u002F\u0064\u0072\u006F\u0069\u0064\u005F\u0073\u0065\u0072\u0069\u0066\u005F\u0062\u006F\u006C\u0064\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E",function(tex,_0x8bdb){var _0xae4db=(806574^806574)+(812449^812454);var _0x28d8eg=new THREE['\u0054\u0065\u0078\u0074\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](t,{'\u0073\u0069\u007A\u0065':s,'\u0068\u0065\u0069\u0067\u0068\u0074':0.2,'\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073':6,"font":tex});_0xae4db=406320^406325;var _0x4e79c=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':colo});_0x8bdb="lebkfb".split("").reverse().join("");var _0x3bf5g=new THREE['\u004D\u0065\u0073\u0068'](_0x28d8eg,_0x4e79c);_0x3bf5g['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=Math['\u0050\u0049']/(821498^821496);_0x3bf5g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](_0x3bf5g);});}function animate(){requestAnimationFrame(animate);controls['\u0075\u0070\u0064\u0061\u0074\u0065']();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}function initScene(){renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({"antialias":!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0065\u006E\u0061\u0062\u006C\u0065\u0064']=!![];$("tropweiv".split("").reverse().join(""))['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0xcfeaf2);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](663429^663462,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],717899^717898,843905^844649);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](131069^130963,665130^665120,581590^581590);scene['\u0061\u0064\u0064'](camera);controls=new THREE['\u004F\u0072\u0062\u0069\u0074\u0043\u006F\u006E\u0074\u0072\u006F\u006C\u0073'](camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);addLight();battery();rebuildResistor();circuit_wire();addSphere(333288^333288,512420^512432,619157^619147);addSphere(742313^742313,957138^957126,811944^811964);addVoltMesh(Vo+"\u0020\u0056");addText(124652^124652,797593^797590,316795^316770,"\u0043\u0068\u0061\u0072\u0067\u0069\u006E\u0067\u002F\u0044\u0069\u0073\u0063\u0068\u0061\u0072\u0067\u0069\u006E\u0067\u0020\u0061\u0020\u0043\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072",150272^150274,"\u0062\u006C\u0061\u0063\u006B");$("\u0064\u0069\u0073\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u006D\u0069\u006E']="\u0036";$("redilStsid".split("").reverse().join(""))['\u006D\u0061\u0078']="01".split("").reverse().join("");$("\u0064\u0069\u0073\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0073\u0074\u0065\u0070']="\u0030\u002E\u0032";$("\u0064\u0069\u0073\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']=params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'];$("redilSaera".split("").reverse().join(""))['\u006D\u0069\u006E']="\u0032\u0030";$("\u0061\u0072\u0065\u0061\u0053\u006C\u0069\u0064\u0065\u0072")['\u006D\u0061\u0078']="\u0033\u0030";$("redilSaera".split("").reverse().join(""))['\u0073\u0074\u0065\u0070']="\u0031";$("\u0061\u0072\u0065\u0061\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']=params['\u0061\u0072\u0065\u0061\u0053\u0069\u007A\u0065'];$("\u0072\u0065\u0073\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']=String(params['\u0072\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065']);$("\u0076\u006F\u006C\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']=params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065'];$("laVtlov".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](116075^116074)+"V ".split("").reverse().join("");recomputeRC();switchOpenVisual();Vc=514422^514422;I=590930^590930;U=874092^874092;syncUI();$("\u0064\u0069\u0073\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),onParamChange);$("redilSaera".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",onParamChange);$("nepo".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",openSwitch);$("\u0069\u006E\u0066\u006F\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),showInfo);$("esolc".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",function(){if(mode!=="eldi".split("").reverse().join(""))return;switchClosedVisual();addCurrentDirection(335030^335031,250076^250073);startChargingField();$("redilSser".split("").reverse().join(""))['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=!![];$("\u0076\u006F\u006C\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=!![];$("\u0064\u0069\u0073\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=!![];$("\u0061\u0072\u0065\u0061\u0053\u006C\u0069\u0064\u0065\u0072")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=!![];});$("\u0072\u0065\u0073\u0053\u006C\u0069\u0064\u0065\u0072")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",()=>{params['\u0072\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065']=parseFloat($("\u0072\u0065\u0073\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);$("\u0072\u0065\u0073\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0072\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065']+"\u0020\u03A9";recomputeRC();});$("\u0076\u006F\u006C\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",()=>{params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065']=parseFloat($("\u0076\u006F\u006C\u0074\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);$("\u0076\u006F\u006C\u0074\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0076\u006F\u006C\u0074\u0061\u0067\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](180732^180733)+"\u0020\u0056";recomputeRC();onParamChange();});$("\u0064\u0069\u0073\u0063\u0068\u0061\u0072\u0067\u0065")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),function(){if(mode!=="dloh_degrahc".split("").reverse().join(""))return;switchClosedVisual();addCurrentDirection(-(608492^608493),851358^851355);startDischargingFieldRemoval();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0065\u0074\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",function(){location['\u0072\u0065\u006C\u006F\u0061\u0064']();});window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("eziser".split("").reverse().join(""),function(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);});drawCharts([],[]);animate();}
+
+    window.onload = initScene;
+  </script>
+</head>
+
+<body>
+  <div id="topPanel">
+    <div class="topRow">
+      <div class="block">
+        <label>C</label>
+        <input id="capacitance" type="text" value="0 µF" readonly>
+      </div>
+
+      <div class="block">
+        <label>Vc</label>
+        <input id="vc" type="text" value="0 V" readonly>
+      </div>
+
+      <div class="block">
+        <label>I(t)</label>
+        <input id="it" type="text" value="0 A" readonly>
+      </div>
+
+      <div class="block">
+        <label>Uc</label>
+        <input id="energy" type="text" value="0 J" readonly>
+      </div>
+
+      <div class="block">
+        <label>R</label>
+		<input id="resSlider" type="range" min="1" max="20" step="1" value="5">
+		<span id="resVal">5 Ω</span>
+      </div>
+
+      <div class="sliderBlock">
+        <span>Battery Voltage V₀:</span>
+        <input id="voltSlider" type="range" min="1" max="12" step="0.5" value="6">
+        <span class="sliderVal" id="voltVal">6.0 V</span>
+      </div>
+      
+    </div>
+
+    <div class="bottomRow">
+      <div class="sliderBlock">
+        <span>Plate Distance d:</span>
+        <input id="distSlider" type="range">
+        <span class="sliderVal" id="distVal">7.0</span>
+      </div>
+
+      <div class="sliderBlock">
+        <span>Plate Area Size:</span>
+        <input id="areaSlider" type="range">
+        <span class="sliderVal" id="areaVal">23</span>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn btn-success btn-sm" id="close">Close switch</button>
+        <button class="btn btn-danger btn-sm" id="open">Open switch</button>
+        <button class="btn btn-primary btn-sm" id="discharge" style="background:purple;">Discharging</button>
+        <button class="btn btn-info btn-sm" id="infoBtn">Info</button>
+        <button class="btn btn-default btn-sm" id="resetBtn">Reset</button>
+        
+      </div>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <canvas id="canvas2"></canvas>
+
+  <div id="viewport"></div>
+</body>
+</html>

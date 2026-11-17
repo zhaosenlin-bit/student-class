@@ -1,0 +1,2762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>乐启享 · 物理实验</title>
+<link rel="icon" href="/brand/favicon.ico">
+
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#9fb7cc;color:#111}#container{position:fixed;inset:0}#menu{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;background:rgba(255,255,255,.88);padding:10px 22px;border-radius:8px;box-shadow:0 2px 7px rgba(0,0,0,.2);pointer-events:none}#menu h1{margin:0;font-size:28px;text-shadow:0 1px 2px rgba(255,255,255,.7)}#toolbar{position:fixed;left:18px;top:18px;width:112px;background:rgba(245,245,245,.98);border:2px solid #666;border-radius:14px;overflow:hidden;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.18)}#toolbarHeader{padding:10px 6px;text-align:center;font-weight:700;font-size:14px;color:#fff;background:#0b4fa3;border-bottom:1px solid #06356f}.toolBtn{width:100%;height:62px;border:0;border-bottom:1px solid #ccc;background:#f2f2f2;cursor:pointer;font-size:15px;font-weight:700}.toolBtn:hover{background:#e9eef8}.toolBtn.active{background:#d5e5ff;color:#003b8f}.toolSmall{height:44px;font-size:14px}#rightPanel{position:fixed;right:18px;top:18px;width:230px;max-height:calc(100vh - 36px);overflow-y:auto;background:rgba(250,250,250,.98);border:2px solid #666;border-radius:14px;padding:12px;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.18)}.panelTitle{font-size:18px;font-weight:700;color:#003b8f;margin-bottom:8px}#reqBox{padding:12px;border:1px solid #aaa;border-radius:10px;background:#fff;text-align:center}#reqLabel{font-size:13px;color:#555;font-weight:700}#reqValue{font-size:30px;font-weight:800;color:#b3261e;margin-top:4px}#networkStatus{margin-top:7px;font-size:12px;line-height:1.3;color:#555}#selectedInfo{font-size:14px;line-height:1.4}.editorRow{margin:10px 0}.editorRow label{display:block;margin-bottom:4px;font-size:13px;font-weight:700}.editorRow input{width:100%;padding:8px;border:1px solid #999;border-radius:8px;font-size:14px}.editorBtns button,.helpBtn{width:100%;padding:8px 6px;border:1px solid #777;border-radius:8px;background:#fff;cursor:pointer;font-weight:700}.editorBtns button:hover,.helpBtn:hover{background:#eef4ff}.helpBtn{margin-top:10px;color:#003b8f;background:#eef4ff}#statusBar{position:fixed;left:145px;right:265px;bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(0,0,0,.72);color:#fff;text-align:center;font-size:14px;z-index:20}@media(max-width:850px){#menu h1{font-size:22px}#rightPanel{right:8px;width:200px}#toolbar{left:8px}#statusBar{left:128px;right:216px}}
+</style>
+</head>
+
+<body>
+
+<div id="container"></div>
+
+<div id="menu">
+<h1>Resistor Combination Construction Kit</h1>
+</div>
+
+<div id="toolbar">
+<div id="toolbarHeader">乐启享 · 物理实验室</div>
+<button class="toolBtn active" data-tool="select">Select</button>
+<button class="toolBtn" data-tool="wire">Wire</button>
+<button class="toolBtn" data-tool="resistor">Resistor</button>
+<button class="toolBtn toolSmall" id="resetBtn">Reset</button>
+</div>
+
+<div id="rightPanel">
+<div class="panelTitle">Equivalent Resistance</div>
+
+<div id="reqBox">
+<div id="reqLabel">Between terminals A and B</div>
+<div id="reqValue">∞ Ω</div>
+<div id="networkStatus">Open circuit</div>
+</div>
+
+<div style="height:1px;background:#c9c9c9;margin:14px 0"></div>
+
+<div class="panelTitle">Selected Object</div>
+<div id="selectedInfo">None selected.</div>
+
+<div class="editorRow">
+<label for="valueInput">Resistance (Ω)</label>
+<input id="valueInput" type="number" step="0.1" min="0.001" value="100">
+</div>
+
+<div class="editorBtns">
+<button id="applyValueBtn">Apply Resistance</button>
+</div>
+
+<button id="helpBtn" class="helpBtn">Help</button>
+</div>
+
+<div id="statusBar">
+Select mode: drag resistors, labels, dark-blue terminals, or wires. Drag empty space to rotate the 3D view.
+</div>
+
+<script type="module">
+
+import * as THREE from '../jsm/three.module.js';
+import {OrbitControls} from '../jsm/OrbitControls.js';
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true;
+renderer.domElement.style.touchAction='none';
+document.getElementById('container').appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9fb7cc);
+
+const camera=new THREE.PerspectiveCamera(
+45,
+innerWidth/innerHeight,
+.1,
+1500
+);
+
+camera.position.set(0,-180,220);
+camera.up.set(0,1,0);
+camera.lookAt(0,0,0);
+
+const controls=new OrbitControls(
+camera,
+renderer.domElement
+);
+
+controls.target.set(0,0,0);
+controls.enableDamping=true;
+controls.dampingFactor=.08;
+controls.minDistance=100;
+controls.maxDistance=700;
+controls.minPolarAngle=.15;
+controls.maxPolarAngle=Math.PI-.15;
+controls.update();
+
+scene.add(
+new THREE.AmbientLight(
+0xffffff,
+.72
+)
+);
+
+const hemi=new THREE.HemisphereLight(
+0xffffff,
+0x446688,
+.75
+);
+
+hemi.position.set(0,0,180);
+scene.add(hemi);
+
+const dir=new THREE.DirectionalLight(
+0xffffff,
+1.05
+);
+
+dir.position.set(100,-80,180);
+scene.add(dir);
+
+const fill=new THREE.DirectionalLight(
+0xffffff,
+.4
+);
+
+fill.position.set(-120,100,80);
+scene.add(fill);
+
+const board=new THREE.Mesh(
+new THREE.PlaneGeometry(
+420,
+420
+),
+new THREE.MeshPhongMaterial({
+color:0xbfd3e3,
+transparent:true,
+opacity:.95,
+side:THREE.DoubleSide,
+shininess:12
+})
+);
+
+board.position.z=-2.2;
+scene.add(board);
+
+const grid=new THREE.GridHelper(
+420,
+42,
+0x518ab4,
+0x70a4c8
+);
+
+grid.rotation.x=Math.PI/2;
+grid.position.z=-1.6;
+scene.add(grid);
+
+const plane=
+new THREE.Plane(
+new THREE.Vector3(
+0,
+0,
+1
+),
+0
+);
+
+const raycaster=
+new THREE.Raycaster();
+
+const mouse=
+new THREE.Vector2();
+
+const statusBar=
+document.getElementById(
+'statusBar'
+);
+
+const reqValue=
+document.getElementById(
+'reqValue'
+);
+
+const networkStatus=
+document.getElementById(
+'networkStatus'
+);
+
+const selectedInfo=
+document.getElementById(
+'selectedInfo'
+);
+
+const valueInput=
+document.getElementById(
+'valueInput'
+);
+
+const applyValueBtn=
+document.getElementById(
+'applyValueBtn'
+);
+
+const CIRCUIT_WIRE_COLOR=0x111111;
+const COMPONENT_LEAD_COLOR=0x111111;
+const TERMINAL_COLOR=0x173f6d;
+const TERMINAL_SELECTED_COLOR=0xff0000;
+const SELECT_COLOR=0x654321;
+const LABEL_SELECTED_COLOR=0xffdd66;
+
+let mode='select';
+
+let componentCounter=0;
+let resistorCounter=0;
+
+let components=[];
+let wires=[];
+let terminalJoints=[];
+let terminalMeshes=[];
+
+/*
+ * Main snap distance.
+ * Increase this for easier snapping.
+ */
+const TERMINAL_SNAP_DISTANCE=6;
+
+let selectedComponent=null;
+let selectedWire=null;
+let selectedTerminal=null;
+let selectedLabel=null;
+let pendingWireTerminal=null;
+
+let draggingComponent=null;
+let draggingTerminal=null;
+let draggingWire=null;
+let draggingLabel=null;
+
+let terminalDragStartPoint=null;
+let terminalDragMode=null;
+
+let wireDragStartPoint=null;
+let wireDragStartOffset=0;
+
+const dragOffset=
+new THREE.Vector3();
+
+const labelDragOffset=
+new THREE.Vector3();
+
+function setStatus(text){
+statusBar.textContent=text;
+}
+
+function setMode(newMode){
+
+mode=newMode;
+
+document
+.querySelectorAll(
+'.toolBtn[data-tool]'
+)
+.forEach(btn=>{
+
+btn.classList.toggle(
+'active',
+btn.dataset.tool===newMode
+);
+
+});
+
+if(newMode!=='wire'){
+
+if(pendingWireTerminal){
+
+setTerminalHighlight(
+pendingWireTerminal.object,
+false
+);
+
+}
+
+pendingWireTerminal=null;
+
+}
+
+const messages={
+
+select:
+'Select mode: drag resistors, labels, dark-blue terminals, or wires. Drag empty space to rotate.',
+
+wire:
+'Wire mode: click one terminal, then a second terminal.',
+
+resistor:
+'Resistor selected. Click on the board to place a resistor.'
+
+};
+
+setStatus(
+messages[newMode]||''
+);
+
+}
+
+document
+.querySelectorAll(
+'.toolBtn[data-tool]'
+)
+.forEach(btn=>{
+
+btn.addEventListener(
+'click',
+()=>setMode(
+btn.dataset.tool
+)
+);
+
+});
+
+function roundRect(
+ctx,
+x,
+y,
+w,
+h,
+r
+){
+
+ctx.beginPath();
+
+ctx.moveTo(
+x+r,
+y
+);
+
+ctx.arcTo(
+x+w,
+y,
+x+w,
+y+h,
+r
+);
+
+ctx.arcTo(
+x+w,
+y+h,
+x,
+y+h,
+r
+);
+
+ctx.arcTo(
+x,
+y+h,
+x,
+y,
+r
+);
+
+ctx.arcTo(
+x,
+y,
+x+w,
+y,
+r
+);
+
+ctx.closePath();
+
+}
+
+function createTextSprite(
+text,
+{
+bg='rgba(255,255,255,.97)',
+color='#111',
+w=320,
+h=130,
+font='bold 38px Arial'
+}={}
+){
+
+const canvas=
+document.createElement(
+'canvas'
+);
+
+canvas.width=w;
+canvas.height=h;
+
+const ctx=
+canvas.getContext(
+'2d'
+);
+
+ctx.fillStyle=bg;
+ctx.strokeStyle=
+'rgba(0,0,0,.55)';
+
+ctx.lineWidth=4;
+
+roundRect(
+ctx,
+3,
+3,
+w-6,
+h-6,
+16
+);
+
+ctx.fill();
+ctx.stroke();
+
+ctx.fillStyle=color;
+ctx.font=font;
+ctx.textAlign='center';
+ctx.textBaseline='middle';
+
+const lines=
+String(text)
+.split('\n');
+
+const dy=
+(h-20)/
+Math.max(
+lines.length,
+1
+);
+
+lines.forEach(
+(line,i)=>
+ctx.fillText(
+line,
+w/2,
+10+dy*(i+.5)
+)
+);
+
+const texture=
+new THREE.CanvasTexture(
+canvas
+);
+
+const sprite=
+new THREE.Sprite(
+new THREE.SpriteMaterial({
+map:texture,
+transparent:true,
+depthTest:false,
+color:0xffffff
+})
+);
+
+sprite.scale.set(
+34,
+14,
+1
+);
+
+sprite.renderOrder=1000;
+
+return sprite;
+
+}
+
+function cylinderBetween(
+p1,
+p2,
+radius=.75,
+color=CIRCUIT_WIRE_COLOR
+){
+
+const delta=
+new THREE.Vector3()
+.subVectors(
+p2,
+p1
+);
+
+const length=
+delta.length();
+
+if(length<.001){
+return null;
+}
+
+const mesh=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+radius,
+radius,
+length,
+16
+),
+new THREE.MeshLambertMaterial({
+color
+})
+);
+
+mesh.position.copy(
+new THREE.Vector3()
+.addVectors(
+p1,
+p2
+)
+.multiplyScalar(
+.5
+)
+);
+
+mesh.quaternion
+.setFromUnitVectors(
+new THREE.Vector3(
+0,
+1,
+0
+),
+delta.normalize()
+);
+
+return mesh;
+
+}
+
+function snap(
+value,
+step=4
+){
+
+return Math.round(
+value/step
+)*step;
+
+}
+
+function pointerXY(event){
+
+const rect=
+renderer.domElement
+.getBoundingClientRect();
+
+mouse.x=
+(
+(event.clientX-rect.left)/
+rect.width
+)*2-1;
+
+mouse.y=
+-(
+(event.clientY-rect.top)/
+rect.height
+)*2+1;
+
+raycaster.setFromCamera(
+mouse,
+camera
+);
+
+}
+
+function planePoint(event){
+
+pointerXY(event);
+
+const point=
+new THREE.Vector3();
+
+raycaster.ray
+.intersectPlane(
+plane,
+point
+);
+
+return point;
+
+}
+
+function worldTerminalPos(
+component,
+index
+){
+
+return component.localToWorld(
+component
+.userData
+.terminalsLocal[index]
+.clone()
+);
+
+}
+
+function getComponentById(id){
+
+return components.find(
+component=>
+component.userData.id===id
+)||null;
+
+}
+
+function terminalCount(
+component
+){
+
+return component
+?.userData
+?.terminalsLocal
+?.length||0;
+
+}
+
+function formatResistance(R){
+
+if(!Number.isFinite(R)){
+return '∞ Ω';
+}
+
+if(R>=1e6){
+
+return `${+(R/1e6)
+.toFixed(
+R>=1e7?1:2
+)} MΩ`;
+
+}
+
+if(R>=1e3){
+
+return `${+(R/1e3)
+.toFixed(
+R>=1e4?1:2
+)} kΩ`;
+
+}
+
+if(R>=100){
+return `${R.toFixed(0)} Ω`;
+}
+
+if(R>=10){
+return `${R.toFixed(2)} Ω`;
+}
+
+return `${R.toFixed(3)} Ω`;
+
+}
+
+/* =========================================================
+   TERMINAL SNAP / MERGED NODES
+   ========================================================= */
+
+function getTerminalJoints(
+component,
+index
+){
+
+if(!component){
+return[];
+}
+
+const id=
+component.userData.id;
+
+return terminalJoints.filter(
+joint=>
+(
+joint.a.compId===id
+&&
+joint.a.term===index
+)
+||
+(
+joint.b.compId===id
+&&
+joint.b.term===index
+)
+);
+
+}
+
+function terminalJointExists(
+a,
+ai,
+b,
+bi
+){
+
+return terminalJoints.some(
+joint=>
+(
+joint.a.compId===
+a.userData.id
+&&
+joint.a.term===ai
+&&
+joint.b.compId===
+b.userData.id
+&&
+joint.b.term===bi
+)
+||
+(
+joint.a.compId===
+b.userData.id
+&&
+joint.a.term===bi
+&&
+joint.b.compId===
+a.userData.id
+&&
+joint.b.term===ai
+)
+);
+
+}
+
+function setTerminalVisible(
+component,
+index,
+visible
+){
+
+const mesh=
+component
+?.userData
+?.terminalMeshes
+?.[index];
+
+if(mesh){
+mesh.visible=visible;
+}
+
+}
+
+/*
+ * All terminals in one snapped junction are electrically
+ * connected, but only one sphere should normally be visible.
+ *
+ * If A or B belongs to the node, keep that measurement
+ * terminal visible and hide the resistor terminal spheres.
+ */
+function updateMergedTerminalVisibility(){
+
+components.forEach(
+component=>{
+
+for(
+let i=0;
+i<terminalCount(component);
+i++
+){
+
+setTerminalVisible(
+component,
+i,
+true
+);
+
+}
+
+}
+);
+
+const visited=
+new Set();
+
+const key=
+(id,index)=>
+`${id}:${index}`;
+
+function neighbors(
+id,
+index
+){
+
+const result=[];
+
+terminalJoints.forEach(
+joint=>{
+
+if(
+joint.a.compId===id
+&&
+joint.a.term===index
+){
+
+result.push(
+joint.b
+);
+
+}
+else if(
+joint.b.compId===id
+&&
+joint.b.term===index
+){
+
+result.push(
+joint.a
+);
+
+}
+
+}
+);
+
+return result;
+
+}
+
+components.forEach(
+component=>{
+
+for(
+let index=0;
+index<
+terminalCount(component);
+index++
+){
+
+const start=
+key(
+component.userData.id,
+index
+);
+
+if(
+visited.has(start)
+){
+continue;
+}
+
+const stack=[{
+compId:
+component.userData.id,
+term:index
+}];
+
+const group=[];
+
+while(stack.length){
+
+const item=
+stack.pop();
+
+const itemKey=
+key(
+item.compId,
+item.term
+);
+
+if(
+visited.has(
+itemKey
+)
+){
+continue;
+}
+
+visited.add(
+itemKey
+);
+
+group.push(
+item
+);
+
+neighbors(
+item.compId,
+item.term
+)
+.forEach(next=>{
+
+const nextKey=
+key(
+next.compId,
+next.term
+);
+
+if(
+!visited.has(
+nextKey
+)
+){
+
+stack.push(
+next
+);
+
+}
+
+});
+
+}
+
+if(group.length>1){
+
+const specialIndex=
+group.findIndex(
+item=>{
+
+const c=
+getComponentById(
+item.compId
+);
+
+return c
+&&
+(
+c.userData.type==='nodeA'
+||
+c.userData.type==='nodeB'
+);
+
+}
+);
+
+group.forEach(
+(item,i)=>{
+
+const c=
+getComponentById(
+item.compId
+);
+
+if(!c){
+return;
+}
+
+setTerminalVisible(
+c,
+item.term,
+specialIndex>=0
+?i===specialIndex
+:i===0
+);
+
+}
+);
+
+}
+
+}
+
+}
+);
+
+}
+
+function detachJoint(
+joint,
+solve=true
+){
+
+if(!joint){
+return;
+}
+
+terminalJoints=
+terminalJoints.filter(
+item=>item!==joint
+);
+
+updateMergedTerminalVisibility();
+
+if(solve){
+solveEquivalentResistance();
+}
+
+}
+
+function detachTerminalJoint(
+component,
+index,
+solve=true
+){
+
+getTerminalJoints(
+component,
+index
+)
+.slice()
+.forEach(
+joint=>
+detachJoint(
+joint,
+false
+)
+);
+
+if(solve){
+solveEquivalentResistance();
+}
+
+}
+
+function detachAllComponentJoints(
+component,
+solve=true
+){
+
+if(!component){
+return;
+}
+
+const id=
+component.userData.id;
+
+terminalJoints=
+terminalJoints.filter(
+joint=>
+joint.a.compId!==id
+&&
+joint.b.compId!==id
+);
+
+updateMergedTerminalVisibility();
+
+if(solve){
+solveEquivalentResistance();
+}
+
+}
+
+function createTerminalJoint(
+componentA,
+terminalA,
+componentB,
+terminalB,
+solve=true
+){
+
+if(
+!componentA
+||
+!componentB
+||
+componentA===componentB
+||
+terminalJointExists(
+componentA,
+terminalA,
+componentB,
+terminalB
+)
+){
+return null;
+}
+
+const joint={
+
+a:{
+compId:
+componentA.userData.id,
+term:terminalA
+},
+
+b:{
+compId:
+componentB.userData.id,
+term:terminalB
+}
+
+};
+
+terminalJoints.push(
+joint
+);
+
+updateMergedTerminalVisibility();
+
+if(solve){
+solveEquivalentResistance();
+}
+
+return joint;
+
+}
+
+function findNearestTerminal(
+component,
+index,
+maxDistance=
+TERMINAL_SNAP_DISTANCE
+){
+
+const source=
+worldTerminalPos(
+component,
+index
+);
+
+let best=null;
+let bestDistance=
+maxDistance;
+
+components.forEach(
+other=>{
+
+if(other===component){
+return;
+}
+
+for(
+let i=0;
+i<terminalCount(other);
+i++
+){
+
+const point=
+worldTerminalPos(
+other,
+i
+);
+
+const distance=
+source.distanceTo(
+point
+);
+
+if(
+distance<
+bestDistance
+){
+
+bestDistance=
+distance;
+
+best={
+
+component:other,
+terminalIndex:i,
+position:
+point.clone(),
+distance
+
+};
+
+}
+
+}
+
+}
+);
+
+return best;
+
+}
+
+/*
+ * After the first pair snaps, connect every other terminal
+ * that already occupies the same physical position.
+ *
+ * This allows 3, 4, ... terminals to make one junction.
+ */
+function connectAllOverlappingTerminals(
+component,
+index,
+tolerance=1.5
+){
+
+const point=
+worldTerminalPos(
+component,
+index
+);
+
+let created=false;
+
+components.forEach(
+other=>{
+
+if(other===component){
+return;
+}
+
+for(
+let i=0;
+i<terminalCount(other);
+i++
+){
+
+const otherPoint=
+worldTerminalPos(
+other,
+i
+);
+
+if(
+point.distanceTo(
+otherPoint
+)<=tolerance
+&&
+!terminalJointExists(
+component,
+index,
+other,
+i
+)
+){
+
+createTerminalJoint(
+component,
+index,
+other,
+i,
+false
+);
+
+created=true;
+
+}
+
+}
+
+}
+);
+
+if(created){
+
+updateMergedTerminalVisibility();
+solveEquivalentResistance();
+
+}
+
+return created;
+
+}
+
+function updateAttachedWires(
+component
+){
+
+wires.forEach(
+wire=>{
+
+if(
+wire.a.compId===
+component.userData.id
+||
+wire.b.compId===
+component.userData.id
+){
+
+updateWireVisual(
+wire
+);
+
+}
+
+}
+);
+
+}
+
+/*
+ * Whole-component snap.
+ */
+function snapComponentTerminal(
+component
+){
+
+if(
+!component
+||
+component.userData.type!=='resistor'
+){
+return false;
+}
+
+let best=null;
+
+for(
+let index=0;
+index<
+terminalCount(component);
+index++
+){
+
+const hit=
+findNearestTerminal(
+component,
+index
+);
+
+if(
+hit
+&&
+(
+!best
+||
+hit.distance<
+best.distance
+)
+){
+
+best={
+movingIndex:index,
+...hit
+};
+
+}
+
+}
+
+if(!best){
+return false;
+}
+
+const current=
+worldTerminalPos(
+component,
+best.movingIndex
+);
+
+component.position.add(
+new THREE.Vector3()
+.subVectors(
+best.position,
+current
+)
+);
+
+component.position.z=0;
+
+createTerminalJoint(
+best.component,
+best.terminalIndex,
+component,
+best.movingIndex,
+false
+);
+
+connectAllOverlappingTerminals(
+component,
+best.movingIndex
+);
+
+updateAttachedWires(
+component
+);
+
+updateMergedTerminalVisibility();
+
+solveEquivalentResistance();
+
+setStatus(
+`${component.userData.displayName} terminal snapped to ${best.component.userData.displayName}.`
+);
+
+return true;
+
+}
+
+/*
+ * Snap after extending one resistor lead.
+ */
+function snapDraggedTerminal(
+component,
+index
+){
+
+if(
+component.userData.type!=='resistor'
+){
+return false;
+}
+
+const hit=
+findNearestTerminal(
+component,
+index
+);
+
+if(!hit){
+return false;
+}
+
+const local=
+component.worldToLocal(
+hit.position.clone()
+);
+
+const base=
+component.userData
+.baseTerminalsLocal[index];
+
+/*
+ * Terminal extension is along local X.
+ */
+if(
+Math.abs(
+local.y-base.y
+)>4
+){
+return false;
+}
+
+moveResistorTerminal(
+component,
+index,
+local.x
+);
+
+const actual=
+worldTerminalPos(
+component,
+index
+);
+
+component.position.add(
+new THREE.Vector3()
+.subVectors(
+hit.position,
+actual
+)
+);
+
+component.position.z=0;
+
+createTerminalJoint(
+hit.component,
+hit.terminalIndex,
+component,
+index,
+false
+);
+
+connectAllOverlappingTerminals(
+component,
+index
+);
+
+updateAttachedWires(
+component
+);
+
+updateMergedTerminalVisibility();
+
+solveEquivalentResistance();
+
+setStatus(
+`${component.userData.displayName} terminal snapped to ${hit.component.userData.displayName}.`
+);
+
+return true;
+
+}
+
+/* =========================================================
+   RESISTOR
+   ========================================================= */
+
+function bandData(R){
+
+R=
+Math.max(
+.01,
++R||1
+);
+
+let exponent=
+Math.floor(
+Math.log10(R)
+);
+
+let sig=
+Math.round(
+R/
+10**(
+exponent-1
+)
+);
+
+if(sig>=100){
+
+sig=
+Math.round(
+sig/10
+);
+
+exponent++;
+
+}
+
+return[
+Math.floor(sig/10)%10,
+sig%10,
+exponent-1
+];
+
+}
+
+const digitColors=[
+0x000000,
+0x8b4513,
+0xff0000,
+0xffa500,
+0xffff00,
+0x00aa00,
+0x0000ff,
+0x8a2be2,
+0x808080,
+0xffffff
+];
+
+const multiplierColors={
+'-2':0xc0c0c0,
+'-1':0xffd700,
+'0':0x000000,
+'1':0x8b4513,
+'2':0xff0000,
+'3':0xffa500,
+'4':0xffff00,
+'5':0x00aa00,
+'6':0x0000ff,
+'7':0x8a2be2,
+'8':0x808080,
+'9':0xffffff
+};
+
+function createResistorVisual(
+ohms=100
+){
+
+const group=
+new THREE.Group();
+
+const bodyRadius=3;
+const bodyLength=16;
+const leadLength=8;
+
+group.name=
+'resistorVisual';
+
+const body=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+bodyRadius,
+bodyRadius,
+bodyLength,
+32
+),
+new THREE.MeshBasicMaterial({
+color:0xf2e1c2
+})
+);
+
+body.rotation.z=
+Math.PI/2;
+
+group.add(
+body
+);
+
+const leadGeometry=
+new THREE.CylinderGeometry(
+.5,
+.5,
+leadLength,
+16
+);
+
+const leadMaterial=
+new THREE.MeshBasicMaterial({
+color:
+COMPONENT_LEAD_COLOR
+});
+
+const leftLead=
+new THREE.Mesh(
+leadGeometry,
+leadMaterial
+);
+
+const rightLead=
+leftLead.clone();
+
+rightLead.material=
+leadMaterial.clone();
+
+leftLead.rotation.z=
+Math.PI/2;
+
+rightLead.rotation.z=
+Math.PI/2;
+
+leftLead.position.x=
+-(
+bodyLength/2+
+leadLength/2
+);
+
+rightLead.position.x=
+bodyLength/2+
+leadLength/2;
+
+group.add(
+leftLead,
+rightLead
+);
+
+function setOhms(value){
+
+[...group.children]
+.filter(
+object=>
+object.userData.band
+)
+.forEach(
+object=>{
+
+group.remove(
+object
+);
+
+object.geometry?.dispose();
+object.material?.dispose();
+
+}
+);
+
+const[
+d1,
+d2,
+mult
+]=
+bandData(
+value
+);
+
+const colors=[
+digitColors[d1],
+digitColors[d2],
+multiplierColors[
+String(mult)
+]??0x000000,
+0xffd700
+];
+
+const xPositions=[
+-5,
+-1.8,
+1.4,
+5.5
+];
+
+colors.forEach(
+(color,index)=>{
+
+const band=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+bodyRadius*1.03,
+bodyRadius*1.03,
+1.2,
+32
+),
+new THREE.MeshBasicMaterial({
+color
+})
+);
+
+band.rotation.z=
+Math.PI/2;
+
+band.position.x=
+xPositions[index];
+
+band.userData.band=true;
+
+group.add(
+band
+);
+
+}
+);
+
+}
+
+setOhms(
+ohms
+);
+
+group.userData.setOhms=
+setOhms;
+
+return group;
+
+}
+
+function refreshLabel(
+component
+){
+
+const old=
+component.userData
+.labelSprite;
+
+const oldPosition=
+old
+?old.position.clone()
+:null;
+
+const wasSelected=
+selectedLabel?.component===
+component;
+
+if(old){
+
+component.remove(
+old
+);
+
+old.material?.map?.dispose();
+old.material?.dispose();
+
+}
+
+let text;
+
+let bg=
+'rgba(255,255,255,.98)';
+
+let scale=[
+34,
+14,
+1
+];
+
+let position=
+oldPosition||
+new THREE.Vector3(
+0,
+18,
+5
+);
+
+let w=320;
+let h=130;
+
+if(
+component.userData.type===
+'resistor'
+){
+
+text=
+`${component.userData.displayName}\n${formatResistance(component.userData.value)}`;
+
+}
+else if(
+component.userData.type===
+'nodeA'
+){
+
+text='A';
+
+bg=
+'rgba(255,235,238,.98)';
+
+scale=[
+20,
+14,
+1
+];
+
+position=
+oldPosition||
+new THREE.Vector3(
+0,
+20,
+5
+);
+
+w=260;
+h=150;
+
+}
+else{
+
+text='B';
+
+bg=
+'rgba(232,240,254,.98)';
+
+scale=[
+20,
+14,
+1
+];
+
+position=
+oldPosition||
+new THREE.Vector3(
+0,
+20,
+5
+);
+
+w=260;
+h=150;
+
+}
+
+const sprite=
+createTextSprite(
+text,
+{
+bg,
+w,
+h
+}
+);
+
+sprite.scale.set(
+...scale
+);
+
+sprite.position.copy(
+position
+);
+
+sprite.userData.isLabel=true;
+sprite.userData.root=
+component;
+
+component.add(
+sprite
+);
+
+component.userData
+.labelSprite=sprite;
+
+if(wasSelected){
+
+selectedLabel={
+kind:'label',
+component,
+object:sprite
+};
+
+sprite.material.color
+.setHex(
+LABEL_SELECTED_COLOR
+);
+
+}
+
+}
+
+function addTerminalSpheres(component) {
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u004D\u0065\u0073\u0068\u0065\u0073'] = [];
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0045\u0078\u0074\u0065\u006E\u0073\u0069\u006F\u006E\u004D\u0065\u0073\u0068\u0065\u0073'] = [];
+  var _0x30cda = (546762 ^ 546755) + (177268 ^ 177264);
+  const _0x58d54e = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']['\u006D\u0061\u0070'](point => point['\u0063\u006C\u006F\u006E\u0065']());
+  _0x30cda = (340056 ^ 340062) + (398884 ^ 398893);
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0061\u0073\u0065\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = _0x58d54e['\u006D\u0061\u0070'](point => point['\u0063\u006C\u006F\u006E\u0065']());
+  if (component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") {
+    component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = _0x58d54e['\u006D\u0061\u0070']((point, index) => point['\u0063\u006C\u006F\u006E\u0065']()['\u0061\u0064\u0064'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](index === (674417 ^ 674417) ? -(237391 ^ 237383) : 749979 ^ 749971, 933616 ^ 933616, 915149 ^ 915149)));
+  }
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((position, index) => {
+    if (component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") {
+      const _0xaf2f = cylinderBetween(_0x58d54e[index], position, .72, COMPONENT_LEAD_COLOR);
+      if (_0xaf2f) {
+        _0xaf2f['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] = component;
+        _0xaf2f['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0073\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0045\u0078\u0074\u0065\u006E\u0073\u0069\u006F\u006E'] = !![];
+        _0xaf2f['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'] = index;
+        component['\u0061\u0064\u0064'](_0xaf2f);
+        component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0045\u0078\u0074\u0065\u006E\u0073\u0069\u006F\u006E\u004D\u0065\u0073\u0068\u0065\u0073'][index] = _0xaf2f;
+      }
+    }
+    const _0x9gegcf = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u006E\u006F\u0064\u0065\u0041" ? 0xb00020 : component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === 'nodeB' ? 628940 ^ 642932 : TERMINAL_COLOR;
+    const _0x80de2c = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065']['\u0073\u0074\u0061\u0072\u0074\u0073\u0057\u0069\u0074\u0068']('node') ? 3.1 : 2.35, 380349 ^ 380325, 911619 ^ 911635), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      "color": _0x9gegcf,
+      "shininess": 90
+    }));
+    _0x80de2c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](position);
+    _0x80de2c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0073\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C'] = !![];
+    _0x80de2c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'] = index;
+    _0x80de2c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] = component;
+    component['\u0061\u0064\u0064'](_0x80de2c);
+    component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u004D\u0065\u0073\u0068\u0065\u0073'][index] = _0x80de2c;
+    terminalMeshes['\u0070\u0075\u0073\u0068'](_0x80de2c);
+  });
+}
+function register(component, type, value = 721665 ^ 721665) {
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] = "\u0063" + ++componentCounter;
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] = type;
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'] = value;
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065'] = type === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072" ? "\u0052" + ++resistorCounter : type === 'nodeA' ? "\u0041" : "\u0042";
+  addTerminalSpheres(component);
+  component['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](object => {
+    object['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] = component;
+  });
+  refreshLabel(component);
+  components['\u0070\u0075\u0073\u0068'](component);
+  scene['\u0061\u0064\u0064'](component);
+  return component;
+}
+function createResistorComponent(resistance = 673372 ^ 673336) {
+  var _0x58cf = (301622 ^ 301619) + (769930 ^ 769923);
+  const _0x263afa = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0x58cf = '\u0063\u0065\u006D\u006E\u0062\u006A';
+  var _0x_0xeb6 = (444541 ^ 444538) + (957189 ^ 957197);
+  const _0xfe_0x4eb = createResistorVisual(resistance);
+  _0x_0xeb6 = (664859 ^ 664862) + (943717 ^ 943716);
+  _0x263afa['\u0061\u0064\u0064'](_0xfe_0x4eb);
+  _0x263afa['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0056\u0069\u0073\u0075\u0061\u006C'] = _0xfe_0x4eb;
+  _0x263afa['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(761736 ^ 761752), 105066 ^ 105066, 157235 ^ 157235), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](763194 ^ 763178, 494680 ^ 494680, 796830 ^ 796830)];
+  return register(_0x263afa, "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072", resistance);
+}
+function createMeasurementNode(type) {
+  var _0x660e = (460456 ^ 460456) + (101855 ^ 101852);
+  const _0x1bfe = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0x660e = 246420 ^ 246417;
+  _0x1bfe['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](932799 ^ 932799, 173455 ^ 173455, 399752 ^ 399752)];
+  return register(_0x1bfe, type, 936182 ^ 936182);
+}
+function updateTerminalExtensionVisual(component, index) {
+  const _0x31eae = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0061\u0073\u0065\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']?.[index];
+  const _0xba27a = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']?.[index];
+  var _0xf6a9d = (706127 ^ 706120) + (128957 ^ 128954);
+  const _0xgafb3e = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0045\u0078\u0074\u0065\u006E\u0073\u0069\u006F\u006E\u004D\u0065\u0073\u0068\u0065\u0073']?.[index];
+  _0xf6a9d = (993016 ^ 993020) + (433424 ^ 433428);
+  if (!_0x31eae || !_0xba27a || !_0xgafb3e) {
+    return;
+  }
+  var _0x1ac6bf = (716470 ^ 716464) + (157673 ^ 157678);
+  const _0x6dcba = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0073\u0075\u0062\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](_0xba27a, _0x31eae);
+  _0x1ac6bf = (637169 ^ 637169) + (720984 ^ 720991);
+  var _0x7e725b = (280607 ^ 280603) + (633656 ^ 633660);
+  const _0x3ae7de = _0x6dcba['\u006C\u0065\u006E\u0067\u0074\u0068']();
+  _0x7e725b = (799458 ^ 799459) + (745299 ^ 745307);
+  if (_0x3ae7de < .001) {
+    return;
+  }
+  _0xgafb3e['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']?.dispose();
+  _0xgafb3e['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'] = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.72, .72, _0x3ae7de, 150674 ^ 150658);
+  _0xgafb3e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0061\u0064\u0064\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](_0x31eae, _0xba27a)['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](.5));
+  _0xgafb3e['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](289257 ^ 289257, 225670 ^ 225671, 386485 ^ 386485), _0x6dcba['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());
+}
+function moveResistorTerminal(component, index, x) {
+  if (component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] !== "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") {
+    return;
+  }
+  const _0xdff = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0061\u0073\u0065\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'][index];
+  var _0xee27ad = (806302 ^ 806302) + (565830 ^ 565831);
+  const _0x3a83f = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'][index];
+  _0xee27ad = (186790 ^ 186787) + (209099 ^ 209098);
+  const _0x3_0x068 = 785918 ^ 785914;
+  x = index === (817082 ^ 817082) ? Math['\u006D\u0069\u006E'](x, _0xdff['\u0078'] - _0x3_0x068) : Math['\u006D\u0061\u0078'](x, _0xdff['\u0078'] + _0x3_0x068);
+  _0x3a83f['\u0073\u0065\u0074'](x, _0xdff['\u0079'], 567701 ^ 567701);
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u004D\u0065\u0073\u0068\u0065\u0073'][index]['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x3a83f);
+  updateTerminalExtensionVisual(component, index);
+  updateAttachedWires(component);
+  solveEquivalentResistance();
+}
+function setTerminalHighlight(mesh, on) {
+  if (!mesh?.material?.color) {
+    return;
+  }
+  const _0xd8dd = mesh['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074']?.userData.type;
+  let _0x2_0x778;
+  const _0x37a = _0xd8dd === 'nodeA' ? 0xb00020 : _0xd8dd === "\u006E\u006F\u0064\u0065\u0042" ? 342118 ^ 356318 : TERMINAL_COLOR;
+  _0x2_0x778 = '\u006D\u006D\u006C\u0063\u006B\u0069';
+  mesh['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](on ? TERMINAL_SELECTED_COLOR : _0x37a);
+}
+function highlightComponent(component, on) {
+  component['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](object => {
+    if (object['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0073\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C'] || object['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0073\u004C\u0061\u0062\u0065\u006C'] || !object['\u0069\u0073\u004D\u0065\u0073\u0068'] || !object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.color) {
+      return;
+    }
+    if (on) {
+      if (object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0065\u0066\u006F\u0072\u0065'] === undefined) {
+        object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0065\u0066\u006F\u0072\u0065'] = object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0067\u0065\u0074\u0048\u0065\u0078']();
+      }
+      object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](SELECT_COLOR);
+    } else if (object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0065\u0066\u006F\u0072\u0065'] !== undefined) {
+      object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0065\u0066\u006F\u0072\u0065']);
+      delete object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0065\u0066\u006F\u0072\u0065'];
+    }
+  });
+}
+function highlightWire(wire, on) {
+  wire['\u0067\u0072\u006F\u0075\u0070']['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](object => {
+    if (object['\u0069\u0073\u004D\u0065\u0073\u0068'] && object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.color) {
+      object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](on ? SELECT_COLOR : CIRCUIT_WIRE_COLOR);
+    }
+  });
+}
+function clearLabelSelection() {
+  if (selectedLabel?.object?.material?.color) {
+    selectedLabel['\u006F\u0062\u006A\u0065\u0063\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](0xffffff);
+  }
+  selectedLabel = null;
+}
+function clearSelection() {
+  if (selectedComponent) {
+    highlightComponent(selectedComponent, false);
+  }
+  if (selectedWire) {
+    highlightWire(selectedWire, false);
+  }
+  if (selectedTerminal) {
+    setTerminalHighlight(selectedTerminal['\u006F\u0062\u006A\u0065\u0063\u0074'], false);
+  }
+  clearLabelSelection();
+  selectedComponent = null;
+  selectedWire = null;
+  selectedTerminal = null;
+  draggingComponent = null;
+  draggingTerminal = null;
+  draggingWire = null;
+  draggingLabel = null;
+  refreshEditor();
+}
+function selectComponent(component) {
+  clearSelection();
+  selectedComponent = component;
+  highlightComponent(component, !![]);
+  refreshEditor();
+}
+function selectWire(wire) {
+  clearSelection();
+  selectedWire = wire;
+  highlightWire(wire, !![]);
+  refreshEditor();
+}
+function selectTerminal(hit) {
+  clearSelection();
+  selectedTerminal = hit;
+  setTerminalHighlight(hit['\u006F\u0062\u006A\u0065\u0063\u0074'], !![]);
+  selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<b>${hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} terminal ${hit['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'] + (221015 ^ 221014)}</b><br>` + `Drag left/right to extend or up/down to rotate.`;
+  valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+}
+function selectLabel(hit) {
+  clearSelection();
+  selectedLabel = hit;
+  hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](LABEL_SELECTED_COLOR);
+  selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<b>${hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} label</b><br>` + `Drag the label to reposition it.`;
+  valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+}
+function refreshEditor() {
+  if (selectedLabel) {
+    selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<b>${selectedLabel['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} label</b><br>` + `Drag the label to reposition it.`;
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+    return;
+  }
+  if (selectedTerminal) {
+    selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = "\u003C\u0062\u003E\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u0073\u0065\u006C\u0065\u0063\u0074\u0065\u0064\u003C\u002F\u0062\u003E\u003C\u0062\u0072\u003E" + 'Drag left/right to extend or up/down to rotate.';
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+    return;
+  }
+  if (selectedComponent) {
+    const _0x0912eb = selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'];
+    if (_0x0912eb === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") {
+      selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<b>${selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']}</b><br>` + `Type: resistor<br>` + `Resistance: ${formatResistance(selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'])}`;
+      valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+      applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+      valueInput['\u0076\u0061\u006C\u0075\u0065'] = selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'];
+    } else {
+      selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<b>${selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']}</b><br>` + `Equivalent-resistance measurement terminal`;
+      valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+      applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    }
+    return;
+  }
+  if (selectedWire) {
+    selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = '<b>Wire</b><br>Ideal wire: 0 Ω';
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    return;
+  }
+  selectedInfo['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u004E\u006F\u006E\u0065\u0020\u0073\u0065\u006C\u0065\u0063\u0074\u0065\u0064\u002E";
+  valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+}
+applyValueBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  if (!selectedComponent || selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] !== 'resistor') {
+    return;
+  }
+  var _0x98c = (466145 ^ 466146) + (125740 ^ 125740);
+  const resistance = Number(valueInput['\u0076\u0061\u006C\u0075\u0065']);
+  _0x98c = (301199 ^ 301192) + (985170 ^ 985171);
+  if (!Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](resistance) || resistance <= (456251 ^ 456251)) {
+    setStatus("\u0052\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0020\u006D\u0075\u0073\u0074\u0020\u0062\u0065\u0020\u0067\u0072\u0065\u0061\u0074\u0065\u0072\u0020\u0074\u0068\u0061\u006E\u0020\u0030\u0020\u03A9\u002E");
+    return;
+  }
+  const component = selectedComponent;
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'] = resistance;
+  component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0056\u0069\u0073\u0075\u0061\u006C']?.userData?.setOhms?.(resistance);
+  refreshLabel(component);
+  highlightComponent(component, false);
+  selectedComponent = null;
+  refreshEditor();
+  solveEquivalentResistance();
+  setStatus(`${component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} set to ${formatResistance(resistance)}.`);
+});
+function connect(componentA, terminalA, componentB, terminalB) {
+  if (componentA === componentB && terminalA === terminalB) {
+    return false;
+  }
+  var _0xe959eb = (944665 ^ 944670) + (781878 ^ 781875);
+  const _0x426g = wires['\u0073\u006F\u006D\u0065'](wire => wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === componentA['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] && wire['\u0061']['\u0074\u0065\u0072\u006D'] === terminalA && wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === componentB['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] && wire['\u0062']['\u0074\u0065\u0072\u006D'] === terminalB || wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === componentA['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] && wire['\u0062']['\u0074\u0065\u0072\u006D'] === terminalA && wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === componentB['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] && wire['\u0061']['\u0074\u0065\u0072\u006D'] === terminalB);
+  _0xe959eb = 653429 ^ 653431;
+  if (_0x426g) {
+    return false;
+  }
+  let _0x95192d;
+  const _0x7cbcc = {
+    '\u0061': {
+      '\u0063\u006F\u006D\u0070\u0049\u0064': componentA['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'],
+      "term": terminalA
+    },
+    '\u0062': {
+      '\u0063\u006F\u006D\u0070\u0049\u0064': componentB['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'],
+      "term": terminalB
+    },
+    "group": new THREE['\u0047\u0072\u006F\u0075\u0070'](),
+    '\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065': 'horizontal',
+    "routeOffset": 0
+  };
+  _0x95192d = (317085 ^ 317083) + (565194 ^ 565199);
+  _0x7cbcc['\u0067\u0072\u006F\u0075\u0070']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0077\u0069\u0072\u0065\u0052\u0065\u0066'] = _0x7cbcc;
+  scene['\u0061\u0064\u0064'](_0x7cbcc['\u0067\u0072\u006F\u0075\u0070']);
+  wires['\u0070\u0075\u0073\u0068'](_0x7cbcc);
+  updateWireVisual(_0x7cbcc);
+  solveEquivalentResistance();
+  return !![];
+}
+function buildWirePoints(wire, p1, p2) {
+  if (wire['\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065'] === 'horizontal') {
+    const y = (p1['\u0079'] + p2['\u0079']) / (201385 ^ 201387) + wire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'];
+    return [p1['\u0063\u006C\u006F\u006E\u0065'](), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](p1['\u0078'], y, 836910 ^ 836910), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](p2['\u0078'], y, 166863 ^ 166863), p2['\u0063\u006C\u006F\u006E\u0065']()];
+  }
+  let _0xb_0x796;
+  const x = (p1['\u0078'] + p2['\u0078']) / (476751 ^ 476749) + wire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'];
+  _0xb_0x796 = 586489 ^ 586491;
+  return [p1['\u0063\u006C\u006F\u006E\u0065'](), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, p1['\u0079'], 257517 ^ 257517), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, p2['\u0079'], 417907 ^ 417907), p2['\u0063\u006C\u006F\u006E\u0065']()];
+}
+function updateWireVisual(wire) {
+  while (wire['\u0067\u0072\u006F\u0075\u0070']['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    var _0xcbfbg = (592683 ^ 592674) + (396348 ^ 396349);
+    const _0x09dbge = wire['\u0067\u0072\u006F\u0075\u0070']['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u0070\u006F\u0070']();
+    _0xcbfbg = '\u0065\u0069\u0063\u0068\u006F\u0068';
+    _0x09dbge['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']?.dispose();
+    _0x09dbge['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.dispose();
+  }
+  var _0xbced = (372746 ^ 372749) + (391105 ^ 391110);
+  const _0x9ge = getComponentById(wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064']);
+  _0xbced = (935403 ^ 935406) + (460258 ^ 460257);
+  let _0x9f2f;
+  const _0xada = getComponentById(wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064']);
+  _0x9f2f = "ibgbme";
+  if (!_0x9ge || !_0xada) {
+    return;
+  }
+  var _0xcabb = (452635 ^ 452626) + (550558 ^ 550553);
+  const _0x6d9ea = buildWirePoints(wire, worldTerminalPos(_0x9ge, wire['\u0061']['\u0074\u0065\u0072\u006D']), worldTerminalPos(_0xada, wire['\u0062']['\u0074\u0065\u0072\u006D']));
+  _0xcabb = (475069 ^ 475061) + (511628 ^ 511626);
+  for (let i = 465049 ^ 465049; i < _0x6d9ea['\u006C\u0065\u006E\u0067\u0074\u0068'] - (569226 ^ 569227); i++) {
+    let _0xg_0xf5f;
+    const _0xde2f = cylinderBetween(_0x6d9ea[i], _0x6d9ea[i + (334509 ^ 334508)], .8, CIRCUIT_WIRE_COLOR);
+    _0xg_0xf5f = (702390 ^ 702398) + (116991 ^ 116989);
+    if (!_0xde2f) {
+      continue;
+    }
+    _0xde2f['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0077\u0069\u0072\u0065\u0052\u0065\u0066'] = wire;
+    wire['\u0067\u0072\u006F\u0075\u0070']['\u0061\u0064\u0064'](_0xde2f);
+  }
+  if (selectedWire === wire) {
+    highlightWire(wire, !![]);
+  }
+}
+function updateAllWires() {
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](updateWireVisual);
+}
+function hitTest(event) {
+  pointerXY(event);
+  const _0xac5aa = components['\u006D\u0061\u0070'](component => component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0053\u0070\u0072\u0069\u0074\u0065'])['\u0066\u0069\u006C\u0074\u0065\u0072'](Boolean);
+  let _0x13c55c;
+  const _0x7925fa = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](_0xac5aa, false);
+  _0x13c55c = 642747 ^ 642749;
+  if (_0x7925fa['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    let _0xeacea;
+    const object = _0x7925fa[441424 ^ 441424]['\u006F\u0062\u006A\u0065\u0063\u0074'];
+    _0xeacea = "hkjbjm";
+    if (object['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074']) {
+      return {
+        "kind": 'label',
+        '\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074': object['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'],
+        "object": object
+      };
+    }
+  }
+  var _0x299d = (627285 ^ 627286) + (380657 ^ 380656);
+  const _0x4_0x365 = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](terminalMeshes['\u0066\u0069\u006C\u0074\u0065\u0072'](mesh => mesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']), false);
+  _0x299d = (843279 ^ 843271) + (236112 ^ 236115);
+  if (_0x4_0x365['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    const object = _0x4_0x365[659135 ^ 659135]['\u006F\u0062\u006A\u0065\u0063\u0074'];
+    return {
+      '\u006B\u0069\u006E\u0064': 'terminal',
+      '\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074': object['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'],
+      '\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078': object['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'],
+      '\u006F\u0062\u006A\u0065\u0063\u0074': object
+    };
+  }
+  const _0x45c2be = [];
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    wire['\u0067\u0072\u006F\u0075\u0070']['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](object => {
+      if (object['\u0069\u0073\u004D\u0065\u0073\u0068']) {
+        _0x45c2be['\u0070\u0075\u0073\u0068'](object);
+      }
+    });
+  });
+  const _0x9798d = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](_0x45c2be, !![]);
+  if (_0x9798d['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    return {
+      '\u006B\u0069\u006E\u0064': "\u0077\u0069\u0072\u0065",
+      '\u0077\u0069\u0072\u0065': _0x9798d[509795 ^ 509795]['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0077\u0069\u0072\u0065\u0052\u0065\u0066']
+    };
+  }
+  const _0x5dd6b = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](components, !![]);
+  if (_0x5dd6b['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    var _0x619f8a = (132412 ^ 132404) + (923912 ^ 923918);
+    const _0x841fg = _0x5dd6b[159888 ^ 159888]['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'];
+    _0x619f8a = (387556 ^ 387554) + (273147 ^ 273145);
+    if (_0x841fg) {
+      return {
+        "kind": "\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074",
+        "component": _0x841fg
+      };
+    }
+  }
+  return null;
+}
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0064\u006F\u0077\u006E", event => {
+  const hit = hitTest(event);
+  if (mode === "\u0077\u0069\u0072\u0065") {
+    if (hit?.kind === 'terminal') {
+      if (!pendingWireTerminal) {
+        pendingWireTerminal = hit;
+        setTerminalHighlight(hit['\u006F\u0062\u006A\u0065\u0063\u0074'], !![]);
+        setStatus('Wire mode: choose the second terminal.');
+      } else {
+        var _0xe_0xf52 = (206246 ^ 206246) + (355877 ^ 355875);
+        const first = pendingWireTerminal;
+        _0xe_0xf52 = '\u0070\u006A\u0067\u0061\u0070\u0062';
+        setTerminalHighlight(first['\u006F\u0062\u006A\u0065\u0063\u0074'], false);
+        pendingWireTerminal = null;
+        let _0xe49c;
+        const created = connect(first['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'], first['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'], hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'], hit['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078']);
+        _0xe49c = (370692 ^ 370700) + (156871 ^ 156871);
+        setStatus(created ? "\u0057\u0069\u0072\u0065\u0020\u0063\u0072\u0065\u0061\u0074\u0065\u0064\u002E\u0020\u0043\u0068\u006F\u006F\u0073\u0065\u0020\u0074\u0068\u0065\u0020\u0066\u0069\u0072\u0073\u0074\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u0066\u006F\u0072\u0020\u0074\u0068\u0065\u0020\u006E\u0065\u0078\u0074\u0020\u0077\u0069\u0072\u0065\u002E" : "\u0054\u0068\u0061\u0074\u0020\u0063\u006F\u006E\u006E\u0065\u0063\u0074\u0069\u006F\u006E\u0020\u0061\u006C\u0072\u0065\u0061\u0064\u0079\u0020\u0065\u0078\u0069\u0073\u0074\u0073\u002E");
+      }
+    }
+    return;
+  }
+  if (mode === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") {
+    if (hit) {
+      return;
+    }
+    let _0x0a_0xdec;
+    const point = planePoint(event);
+    _0x0a_0xdec = "djijhn";
+    const resistor = createResistorComponent(538649 ^ 538749);
+    resistor['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](snap(point['\u0078']), snap(point['\u0079']), 125773 ^ 125773);
+    setMode("\u0073\u0065\u006C\u0065\u0063\u0074");
+    selectComponent(resistor);
+    solveEquivalentResistance();
+    setStatus(`${resistor['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} inserted.`);
+    return;
+  }
+  if (mode !== 'select') {
+    return;
+  }
+  if (hit?.kind === "\u006C\u0061\u0062\u0065\u006C") {
+    selectLabel(hit);
+    draggingLabel = {
+      '\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074': hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'],
+      "object": hit['\u006F\u0062\u006A\u0065\u0063\u0074']
+    };
+    var _0x32563a = (317822 ^ 317818) + (211434 ^ 211435);
+    const point = planePoint(event);
+    _0x32563a = (880983 ^ 880976) + (254440 ^ 254443);
+    var _0xc25f = (191509 ^ 191505) + (277122 ^ 277124);
+    const localPoint = hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0077\u006F\u0072\u006C\u0064\u0054\u006F\u004C\u006F\u0063\u0061\u006C'](point['\u0063\u006C\u006F\u006E\u0065']());
+    _0xc25f = "mpljcp";
+    labelDragOffset['\u0063\u006F\u0070\u0079'](hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'])['\u0073\u0075\u0062'](localPoint);
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    return;
+  }
+  if (hit?.kind === 'terminal' && hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") {
+    detachTerminalJoint(hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'], hit['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078']);
+    selectTerminal(hit);
+    draggingTerminal = {
+      '\u0063\u006F\u006D\u0070': hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'],
+      '\u0069\u006E\u0064\u0065\u0078': hit['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'],
+      '\u006D\u0065\u0073\u0068': hit['\u006F\u0062\u006A\u0065\u0063\u0074']
+    };
+    terminalDragStartPoint = planePoint(event)['\u0063\u006C\u006F\u006E\u0065']();
+    terminalDragMode = null;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    return;
+  }
+  if (hit?.kind === "\u0077\u0069\u0072\u0065") {
+    selectWire(hit['\u0077\u0069\u0072\u0065']);
+    draggingWire = hit['\u0077\u0069\u0072\u0065'];
+    wireDragStartPoint = planePoint(event)['\u0063\u006C\u006F\u006E\u0065']();
+    wireDragStartOffset = draggingWire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'];
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    return;
+  }
+  if (hit?.kind === 'component') {
+    if (hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") {
+      detachAllComponentJoints(hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']);
+    }
+    selectComponent(hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']);
+    draggingComponent = hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'];
+    const point = planePoint(event);
+    dragOffset['\u0063\u006F\u0070\u0079'](hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'])['\u0073\u0075\u0062'](point);
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    return;
+  }
+  clearSelection();
+});
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u006D\u006F\u0076\u0065", event => {
+  const point = planePoint(event);
+  if (!point) {
+    return;
+  }
+  if (draggingLabel) {
+    let _0x7f_0xfe0;
+    const local = draggingLabel['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074']['\u0077\u006F\u0072\u006C\u0064\u0054\u006F\u004C\u006F\u0063\u0061\u006C'](point['\u0063\u006C\u006F\u006E\u0065']());
+    _0x7f_0xfe0 = (855644 ^ 855637) + (386457 ^ 386459);
+    draggingLabel['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](local)['\u0061\u0064\u0064'](labelDragOffset);
+    draggingLabel['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = 448723 ^ 448726;
+    return;
+  }
+  if (draggingTerminal) {
+    const {
+      "comp": comp,
+      '\u0069\u006E\u0064\u0065\u0078': index
+    } = draggingTerminal;
+    if (!terminalDragMode && terminalDragStartPoint) {
+      const start = comp['\u0077\u006F\u0072\u006C\u0064\u0054\u006F\u004C\u006F\u0063\u0061\u006C'](terminalDragStartPoint['\u0063\u006C\u006F\u006E\u0065']());
+      var _0xce_0xe22 = (673217 ^ 673218) + (503243 ^ 503247);
+      const current = comp['\u0077\u006F\u0072\u006C\u0064\u0054\u006F\u004C\u006F\u0063\u0061\u006C'](point['\u0063\u006C\u006F\u006E\u0065']());
+      _0xce_0xe22 = 291993 ^ 291995;
+      var _0x29a7c = (212129 ^ 212130) + (951895 ^ 951888);
+      const dx = current['\u0078'] - start['\u0078'];
+      _0x29a7c = 912001 ^ 912004;
+      const dy = current['\u0079'] - start['\u0079'];
+      if (Math['\u0068\u0079\u0070\u006F\u0074'](dx, dy) >= 2.5) {
+        terminalDragMode = Math['\u0061\u0062\u0073'](dx) >= Math['\u0061\u0062\u0073'](dy) ? 'extend' : 'rotate';
+      }
+    }
+    if (terminalDragMode === 'extend') {
+      let _0x16fc1b;
+      const local = comp['\u0077\u006F\u0072\u006C\u0064\u0054\u006F\u004C\u006F\u0063\u0061\u006C'](point['\u0063\u006C\u006F\u006E\u0065']());
+      _0x16fc1b = 426285 ^ 426287;
+      moveResistorTerminal(comp, index, snap(local['\u0078'], 696893 ^ 696895));
+    } else if (terminalDragMode === "\u0072\u006F\u0074\u0061\u0074\u0065") {
+      const center = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']();
+      comp['\u0067\u0065\u0074\u0057\u006F\u0072\u006C\u0064\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E'](center);
+      var _0x0d834g = (437196 ^ 437197) + (437768 ^ 437760);
+      const angle = Math['\u0061\u0074\u0061\u006E\u0032'](point['\u0079'] - center['\u0079'], point['\u0078'] - center['\u0078']);
+      _0x0d834g = '\u0069\u0070\u0063\u006A\u0064\u0068';
+      comp['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = angle - (index === (910578 ^ 910578) ? Math['\u0050\u0049'] : 908330 ^ 908330);
+      updateAllWires();
+    }
+    return;
+  }
+  if (draggingWire) {
+    if (draggingWire['\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065'] === 'horizontal') {
+      draggingWire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'] = wireDragStartOffset + snap(point['\u0079'] - wireDragStartPoint['\u0079'], 200608 ^ 200610);
+    } else {
+      draggingWire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'] = wireDragStartOffset + snap(point['\u0078'] - wireDragStartPoint['\u0078'], 690812 ^ 690814);
+    }
+    updateWireVisual(draggingWire);
+    return;
+  }
+  if (draggingComponent) {
+    draggingComponent['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](snap(point['\u0078'] + dragOffset['\u0078']), snap(point['\u0079'] + dragOffset['\u0079']), 404494 ^ 404494);
+    updateAllWires();
+  }
+});
+function endPointer(event) {
+  if (draggingLabel) {
+    const component = draggingLabel['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'];
+    draggingLabel = null;
+    setStatus(`${component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} label repositioned.`);
+  }
+  if (draggingTerminal) {
+    const component = draggingTerminal['\u0063\u006F\u006D\u0070'];
+    const _0x4c1f = draggingTerminal['\u0069\u006E\u0064\u0065\u0078'];
+    const _0x5_0x36c = terminalDragMode === "\u0072\u006F\u0074\u0061\u0074\u0065";
+    setTerminalHighlight(draggingTerminal['\u006D\u0065\u0073\u0068'], false);
+    const snapped = _0x5_0x36c ? snapComponentTerminal(component) : snapDraggedTerminal(component, _0x4c1f);
+    draggingTerminal = null;
+    selectedTerminal = null;
+    terminalDragStartPoint = null;
+    terminalDragMode = null;
+    refreshEditor();
+    solveEquivalentResistance();
+    if (!snapped) {
+      setStatus(`${component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} ${_0x5_0x36c ? "\u0072\u006F\u0074\u0061\u0074\u0065\u0064" : "\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E\u0020\u0075\u0070\u0064\u0061\u0074\u0065\u0064"}.`);
+    }
+  }
+  if (draggingWire) {
+    draggingWire = null;
+    wireDragStartPoint = null;
+    solveEquivalentResistance();
+    setStatus('Wire route updated.');
+  }
+  if (draggingComponent) {
+    let _0x1c2e;
+    const component = draggingComponent;
+    _0x1c2e = 539570 ^ 539572;
+    const snapped = snapComponentTerminal(component);
+    draggingComponent = null;
+    solveEquivalentResistance();
+    if (!snapped) {
+      setStatus(`${component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} moved.`);
+    }
+  }
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+  if (renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0068\u0061\u0073\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064'])) {
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065'](event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+  }
+}
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0075\u0070", endPointer);
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0063\u0061\u006E\u0063\u0065\u006C", endPointer);
+window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u006B\u0065\u0079\u0064\u006F\u0077\u006E", event => {
+  if (event['\u006B\u0065\u0079'] !== "\u0044\u0065\u006C\u0065\u0074\u0065" && event['\u006B\u0065\u0079'] !== "\u0042\u0061\u0063\u006B\u0073\u0070\u0061\u0063\u0065") {
+    return;
+  }
+  if (["\u0049\u004E\u0050\u0055\u0054", "\u0054\u0045\u0058\u0054\u0041\u0052\u0045\u0041"]['\u0069\u006E\u0063\u006C\u0075\u0064\u0065\u0073'](document['\u0061\u0063\u0074\u0069\u0076\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']?.tagName)) {
+    return;
+  }
+  if (selectedWire) {
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](selectedWire['\u0067\u0072\u006F\u0075\u0070']);
+    wires = wires['\u0066\u0069\u006C\u0074\u0065\u0072'](wire => wire !== selectedWire);
+    selectedWire = null;
+    refreshEditor();
+    solveEquivalentResistance();
+    setStatus("\u0057\u0069\u0072\u0065\u0020\u0064\u0065\u006C\u0065\u0074\u0065\u0064\u002E");
+    return;
+  }
+  if (selectedComponent?.userData.type === 'resistor') {
+    var _0xd3eg = (486396 ^ 486388) + (863503 ^ 863503);
+    const component = selectedComponent;
+    _0xd3eg = "cfpkck";
+    const id = component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'];
+    detachAllComponentJoints(component, false);
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](component);
+    components = components['\u0066\u0069\u006C\u0074\u0065\u0072'](item => item !== component);
+    terminalMeshes = terminalMeshes['\u0066\u0069\u006C\u0074\u0065\u0072'](terminal => terminal['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] !== component);
+    var _0x105af = (184944 ^ 184950) + (756570 ^ 756571);
+    const doomed = wires['\u0066\u0069\u006C\u0074\u0065\u0072'](wire => wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === id || wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === id);
+    _0x105af = 443603 ^ 443606;
+    doomed['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => scene['\u0072\u0065\u006D\u006F\u0076\u0065'](wire['\u0067\u0072\u006F\u0075\u0070']));
+    wires = wires['\u0066\u0069\u006C\u0074\u0065\u0072'](wire => !doomed['\u0069\u006E\u0063\u006C\u0075\u0064\u0065\u0073'](wire));
+    selectedComponent = null;
+    updateMergedTerminalVisibility();
+    refreshEditor();
+    solveEquivalentResistance();
+    setStatus("\u0052\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0020\u0064\u0065\u006C\u0065\u0074\u0065\u0064\u002E");
+  }
+});
+class UnionFind {
+  constructor(n) {
+    this['\u0070'] = Array['\u0066\u0072\u006F\u006D']({
+      "length": n
+    }, (_, i) => i);
+  }
+  find(x) {
+    while (this['\u0070'][x] !== x) {
+      this['\u0070'][x] = this['\u0070'][this['\u0070'][x]];
+      x = this['\u0070'][x];
+    }
+    return x;
+  }
+  union(a, b) {
+    a = this['\u0066\u0069\u006E\u0064'](a);
+    b = this['\u0066\u0069\u006E\u0064'](b);
+    if (a !== b) {
+      this['\u0070'][b] = a;
+    }
+  }
+}
+function gaussianSolve(A, b) {
+  const n = b['\u006C\u0065\u006E\u0067\u0074\u0068'];
+  var _0x82c = (870183 ^ 870176) + (120856 ^ 120849);
+  const _0xf_0x58c = A['\u006D\u0061\u0070']((row, i) => [...row, b[i]]);
+  _0x82c = (803741 ^ 803736) + (259167 ^ 259165);
+  for (let k = 799508 ^ 799508; k < n; k++) {
+    let _0x7a2ac;
+    let _0x2e3dad = k;
+    _0x7a2ac = (141108 ^ 141108) + (815979 ^ 815976);
+    for (let i = k + (960208 ^ 960209); i < n; i++) {
+      if (Math['\u0061\u0062\u0073'](_0xf_0x58c[i][k]) > Math['\u0061\u0062\u0073'](_0xf_0x58c[_0x2e3dad][k])) {
+        _0x2e3dad = i;
+      }
+    }
+    if (Math['\u0061\u0062\u0073'](_0xf_0x58c[_0x2e3dad][k]) < 1e-12) {
+      return null;
+    }
+    [_0xf_0x58c[k], _0xf_0x58c[_0x2e3dad]] = [_0xf_0x58c[_0x2e3dad], _0xf_0x58c[k]];
+    const _0x66f9ed = _0xf_0x58c[k][k];
+    for (let j = k; j <= n; j++) {
+      _0xf_0x58c[k][j] /= _0x66f9ed;
+    }
+    for (let i = 532255 ^ 532255; i < n; i++) {
+      if (i === k) {
+        continue;
+      }
+      const _0x3aec = _0xf_0x58c[i][k];
+      for (let j = k; j <= n; j++) {
+        _0xf_0x58c[i][j] -= _0x3aec * _0xf_0x58c[k][j];
+      }
+    }
+  }
+  return _0xf_0x58c['\u006D\u0061\u0070'](row => row[n]);
+}
+function solveEquivalentResistance() {
+  let _0x48cg;
+  const _0x46ac = components['\u0066\u0069\u006E\u0064'](component => component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u006E\u006F\u0064\u0065\u0041");
+  _0x48cg = (722821 ^ 722823) + (110182 ^ 110183);
+  let _0x1d_0xa4b;
+  const _0x8e39b = components['\u0066\u0069\u006E\u0064'](component => component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u006E\u006F\u0064\u0065\u0042");
+  _0x1d_0xa4b = (923655 ^ 923652) + (986840 ^ 986847);
+  if (!_0x46ac || !_0x8e39b) {
+    reqValue['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u221E\u0020\u03A9";
+    networkStatus['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u004D\u0065\u0061\u0073\u0075\u0072\u0065\u006D\u0065\u006E\u0074\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u0020\u006D\u0069\u0073\u0073\u0069\u006E\u0067\u002E";
+    return;
+  }
+  var _0x184fdf = (539748 ^ 539744) + (948788 ^ 948789);
+  const _0x864ab = [];
+  _0x184fdf = (761950 ^ 761942) + (938822 ^ 938822);
+  const _0x2184d = new Map();
+  components['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](component => {
+    for (let _0xd7f9d = 921371 ^ 921371; _0xd7f9d < terminalCount(component); _0xd7f9d++) {
+      const _0x3a8bb = `${component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']}:${_0xd7f9d}`;
+      _0x2184d['\u0073\u0065\u0074'](_0x3a8bb, _0x864ab['\u006C\u0065\u006E\u0067\u0074\u0068']);
+      _0x864ab['\u0070\u0075\u0073\u0068'](_0x3a8bb);
+    }
+  });
+  var _0xa1d32b = (437642 ^ 437643) + (878774 ^ 878783);
+  const _0x7bab3f = new UnionFind(_0x864ab['\u006C\u0065\u006E\u0067\u0074\u0068']);
+  _0xa1d32b = '\u0070\u0063\u0068\u006B\u0068\u006C';
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    const i = _0x2184d['\u0067\u0065\u0074'](`${wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064']}:${wire['\u0061']['\u0074\u0065\u0072\u006D']}`);
+    let _0xd3g;
+    const j = _0x2184d['\u0067\u0065\u0074'](`${wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064']}:${wire['\u0062']['\u0074\u0065\u0072\u006D']}`);
+    _0xd3g = (916825 ^ 916826) + (316572 ^ 316569);
+    if (i !== undefined && j !== undefined) {
+      _0x7bab3f['\u0075\u006E\u0069\u006F\u006E'](i, j);
+    }
+  });
+  terminalJoints['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](joint => {
+    var _0x8a9e4d = (962420 ^ 962428) + (464984 ^ 464990);
+    const i = _0x2184d['\u0067\u0065\u0074'](`${joint['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064']}:${joint['\u0061']['\u0074\u0065\u0072\u006D']}`);
+    _0x8a9e4d = "eneedq";
+    var _0xfa51a = (778372 ^ 778381) + (344360 ^ 344367);
+    const j = _0x2184d['\u0067\u0065\u0074'](`${joint['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064']}:${joint['\u0062']['\u0074\u0065\u0072\u006D']}`);
+    _0xfa51a = '\u0064\u0063\u006D\u0061\u0064\u0068';
+    if (i !== undefined && j !== undefined) {
+      _0x7bab3f['\u0075\u006E\u0069\u006F\u006E'](i, j);
+    }
+  });
+  var _0x2308d = (483590 ^ 483584) + (797444 ^ 797446);
+  const A = _0x7bab3f['\u0066\u0069\u006E\u0064'](_0x2184d['\u0067\u0065\u0074'](`${_0x46ac['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']}:0`));
+  _0x2308d = (416078 ^ 416074) + (362134 ^ 362128);
+  const B = _0x7bab3f['\u0066\u0069\u006E\u0064'](_0x2184d['\u0067\u0065\u0074'](`${_0x8e39b['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']}:0`));
+  if (A === B) {
+    reqValue['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0030\u0020\u03A9";
+    networkStatus['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0041\u0020\u0061\u006E\u0064\u0020\u0042\u0020\u0061\u0072\u0065\u0020\u0073\u0068\u006F\u0072\u0074\u002D\u0063\u0069\u0072\u0063\u0075\u0069\u0074\u0065\u0064\u0020\u0062\u0079\u0020\u0069\u0064\u0065\u0061\u006C\u0020\u0063\u006F\u006E\u006E\u0065\u0063\u0074\u0069\u006F\u006E\u002E";
+    return;
+  }
+  const _0xfe3e = components['\u0066\u0069\u006C\u0074\u0065\u0072'](component => component['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === 'resistor');
+  const _0x555cab = [];
+  _0xfe3e['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](resistor => {
+    const _0xe5a8a = _0x7bab3f['\u0066\u0069\u006E\u0064'](_0x2184d['\u0067\u0065\u0074'](`${resistor['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']}:0`));
+    var _0x95db = (796044 ^ 796036) + (433847 ^ 433855);
+    const _0x55ead = _0x7bab3f['\u0066\u0069\u006E\u0064'](_0x2184d['\u0067\u0065\u0074'](`${resistor['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']}:1`));
+    _0x95db = '\u006F\u0062\u0070\u0066\u0070\u0070';
+    const R = Number(resistor['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065']);
+    if (Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](R) && R > (898380 ^ 898380) && _0xe5a8a !== _0x55ead) {
+      _0x555cab['\u0070\u0075\u0073\u0068']({
+        '\u006E\u0031': _0xe5a8a,
+        '\u006E\u0032': _0x55ead,
+        '\u0052': R
+      });
+    }
+  });
+  var _0xccdb = (775366 ^ 775365) + (766183 ^ 766191);
+  const _0xfdf = new Map();
+  _0xccdb = "njkhcb";
+  function _0x5b06ef(a, b) {
+    if (!_0xfdf['\u0068\u0061\u0073'](a)) {
+      _0xfdf['\u0073\u0065\u0074'](a, []);
+    }
+    _0xfdf['\u0067\u0065\u0074'](a)['\u0070\u0075\u0073\u0068'](b);
+  }
+  _0x555cab['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](edge => {
+    _0x5b06ef(edge['\u006E\u0031'], edge['\u006E\u0032']);
+    _0x5b06ef(edge['\u006E\u0032'], edge['\u006E\u0031']);
+  });
+  const _0x6_0x3f3 = new Set([A]);
+  var _0x7gc57c = (114892 ^ 114893) + (114088 ^ 114095);
+  const _0xc_0x44e = [A];
+  _0x7gc57c = (771371 ^ 771370) + (994797 ^ 994795);
+  while (_0xc_0x44e['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    let _0x636gea;
+    const _0x7_0xb65 = _0xc_0x44e['\u0073\u0068\u0069\u0066\u0074']();
+    _0x636gea = (334636 ^ 334628) + (888172 ^ 888170);
+    for (const _0x850d of _0xfdf['\u0067\u0065\u0074'](_0x7_0xb65) || []) {
+      if (!_0x6_0x3f3['\u0068\u0061\u0073'](_0x850d)) {
+        _0x6_0x3f3['\u0061\u0064\u0064'](_0x850d);
+        _0xc_0x44e['\u0070\u0075\u0073\u0068'](_0x850d);
+      }
+    }
+  }
+  if (!_0x6_0x3f3['\u0068\u0061\u0073'](B)) {
+    reqValue['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = '∞ Ω';
+    networkStatus['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u004F\u0070\u0065\u006E\u0020\u0063\u0069\u0072\u0063\u0075\u0069\u0074\u003A\u0020\u006E\u006F\u0020\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0020\u0070\u0061\u0074\u0068\u0020\u0063\u006F\u006E\u006E\u0065\u0063\u0074\u0073\u0020\u0041\u0020\u0074\u006F\u0020\u0042\u002E";
+    return;
+  }
+  var _0xbag4d = (632184 ^ 632176) + (496831 ^ 496830);
+  const _0x8_0x8c4 = new Set([A, B]);
+  _0xbag4d = "ghpbkd";
+  _0x555cab['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](edge => {
+    if (_0x6_0x3f3['\u0068\u0061\u0073'](edge['\u006E\u0031']) && _0x6_0x3f3['\u0068\u0061\u0073'](edge['\u006E\u0032'])) {
+      _0x8_0x8c4['\u0061\u0064\u0064'](edge['\u006E\u0031']);
+      _0x8_0x8c4['\u0061\u0064\u0064'](edge['\u006E\u0032']);
+    }
+  });
+  const _0x6a3eg = [..._0x8_0x8c4]['\u0066\u0069\u006C\u0074\u0065\u0072'](node => node !== B);
+  var _0x14af = (775022 ^ 775018) + (582995 ^ 582995);
+  const _0xa56ac = new Map(_0x6a3eg['\u006D\u0061\u0070']((node, i) => [node, i]));
+  _0x14af = (229530 ^ 229522) + (693090 ^ 693095);
+  const N = _0x6a3eg['\u006C\u0065\u006E\u0067\u0074\u0068'];
+  const G = Array['\u0066\u0072\u006F\u006D']({
+    '\u006C\u0065\u006E\u0067\u0074\u0068': N
+  }, () => Array(N)['\u0066\u0069\u006C\u006C'](640314 ^ 640314));
+  var _0x5b730c = (463042 ^ 463040) + (287523 ^ 287531);
+  const I = Array(N)['\u0066\u0069\u006C\u006C'](443404 ^ 443404);
+  _0x5b730c = 433716 ^ 433724;
+  I[_0xa56ac['\u0067\u0065\u0074'](A)] = 403282 ^ 403283;
+  _0x555cab['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](({
+    '\u006E\u0031': n1,
+    '\u006E\u0032': n2,
+    '\u0052': R
+  }) => {
+    if (!_0x6_0x3f3['\u0068\u0061\u0073'](n1) || !_0x6_0x3f3['\u0068\u0061\u0073'](n2)) {
+      return;
+    }
+    const _0x695c = (728142 ^ 728143) / R;
+    var _0x8fd = (627692 ^ 627689) + (374405 ^ 374412);
+    const i = _0xa56ac['\u0067\u0065\u0074'](n1);
+    _0x8fd = 919556 ^ 919555;
+    let _0xgcb;
+    const j = _0xa56ac['\u0067\u0065\u0074'](n2);
+    _0xgcb = (572026 ^ 572025) + (974700 ^ 974693);
+    if (n1 !== B) {
+      G[i][i] += _0x695c;
+    }
+    if (n2 !== B) {
+      G[j][j] += _0x695c;
+    }
+    if (n1 !== B && n2 !== B) {
+      G[i][j] -= _0x695c;
+      G[j][i] -= _0x695c;
+    }
+  });
+  const _0x648dab = gaussianSolve(G, I);
+  if (!_0x648dab) {
+    reqValue['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u221E\u0020\u03A9";
+    networkStatus['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u004F\u0070\u0065\u006E\u0020\u006F\u0072\u0020\u0073\u0069\u006E\u0067\u0075\u006C\u0061\u0072\u0020\u006E\u0065\u0074\u0077\u006F\u0072\u006B\u002E";
+    return;
+  }
+  let _0xe2_0x234;
+  const _0x6c5a3d = _0x648dab[_0xa56ac['\u0067\u0065\u0074'](A)];
+  _0xe2_0x234 = 667265 ^ 667273;
+  reqValue['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](_0x6c5a3d) && _0x6c5a3d >= (458733 ^ 458733) ? formatResistance(_0x6c5a3d) : "\u2014";
+  networkStatus['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${_0xfe3e['\u006C\u0065\u006E\u0067\u0074\u0068']} resistor${_0xfe3e['\u006C\u0065\u006E\u0067\u0074\u0068'] === (107374 ^ 107375) ? '' : "\u0073"}, ` + `${wires['\u006C\u0065\u006E\u0067\u0074\u0068']} wire${wires['\u006C\u0065\u006E\u0067\u0074\u0068'] === (348554 ^ 348555) ? '' : "\u0073"}, ` + `${terminalJoints['\u006C\u0065\u006E\u0067\u0074\u0068']} snap${terminalJoints['\u006C\u0065\u006E\u0067\u0074\u0068'] === (430361 ^ 430360) ? '' : "\u0073"} · solved automatically`;
+}
+function resetAll() {
+  clearSelection();
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => scene['\u0072\u0065\u006D\u006F\u0076\u0065'](wire['\u0067\u0072\u006F\u0075\u0070']));
+  components['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](component => scene['\u0072\u0065\u006D\u006F\u0076\u0065'](component));
+  wires = [];
+  terminalJoints = [];
+  components = [];
+  terminalMeshes = [];
+  selectedComponent = null;
+  selectedWire = null;
+  selectedTerminal = null;
+  selectedLabel = null;
+  pendingWireTerminal = null;
+  draggingComponent = null;
+  draggingTerminal = null;
+  draggingWire = null;
+  draggingLabel = null;
+  componentCounter = 597743 ^ 597743;
+  resistorCounter = 302899 ^ 302899;
+  var _0x927ga = (919720 ^ 919713) + (632353 ^ 632353);
+  const A = createMeasurementNode('nodeA');
+  _0x927ga = 426964 ^ 426973;
+  const B = createMeasurementNode("\u006E\u006F\u0064\u0065\u0042");
+  A['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(857043 ^ 856913), 239322 ^ 239322, 676632 ^ 676632);
+  B['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](714999 ^ 714869, 568221 ^ 568221, 735669 ^ 735669);
+  const _0xb6cgdc = createResistorComponent(894919 ^ 894883);
+  var _0xee6d8f = (679166 ^ 679167) + (153551 ^ 153551);
+  const _0xbcd00g = createResistorComponent(772391 ^ 772419);
+  _0xee6d8f = "mdipmo";
+  const _0xa5f4ce = createResistorComponent(848185 ^ 848221);
+  _0xb6cgdc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(413145 ^ 413171), 510823 ^ 510797, 713408 ^ 713408);
+  _0xbcd00g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](227464 ^ 227490, 667016 ^ 667042, 278250 ^ 278250);
+  _0xa5f4ce['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](303981 ^ 303981, -(945088 ^ 945136), 753428 ^ 753428);
+  refreshEditor();
+  solveEquivalentResistance();
+  setMode("\u0073\u0065\u006C\u0065\u0063\u0074");
+  setStatus("\u0054\u0068\u0072\u0065\u0065\u0020\u0073\u0074\u0061\u0072\u0074\u0065\u0072\u0020\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0073\u0020\u0061\u0072\u0065\u0020\u0072\u0065\u0061\u0064\u0079\u003A\u0020\u0074\u0077\u006F\u0020\u0061\u0062\u006F\u0076\u0065\u0020\u0061\u006E\u0064\u0020\u006F\u006E\u0065\u0020\u0062\u0065\u006C\u006F\u0077\u002E\u0020\u0043\u006F\u006E\u006E\u0065\u0063\u0074\u0020\u006F\u0072\u0020\u0073\u006E\u0061\u0070\u0020\u0074\u0068\u0065\u006D\u0020\u0062\u0065\u0074\u0077\u0065\u0065\u006E\u0020\u0041\u0020\u0061\u006E\u0064\u0020\u0042\u002E");
+}
+document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('resetBtn')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", resetAll);
+document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('helpBtn')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', () => {
+  alert('Equivalent Resistance Construction Kit\n\n' + '• A and B are the measurement terminals.\n' + '• Add as many resistors as needed.\n' + "\u2022\u0020\u0049\u006E\u0020\u0057\u0069\u0072\u0065\u0020\u006D\u006F\u0064\u0065\u002C\u0020\u0063\u006C\u0069\u0063\u006B\u0020\u006F\u006E\u0065\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u0074\u0068\u0065\u006E\u0020\u0061\u006E\u006F\u0074\u0068\u0065\u0072\u002E\u000A" + "\u2022\u0020\u0042\u0072\u0069\u006E\u0067\u0020\u0074\u0077\u006F\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u0020\u0077\u0069\u0074\u0068\u0069\u006E\u0020\u0074\u0068\u0065\u0020\u0073\u006E\u0061\u0070\u0020\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0020\u0061\u006E\u0064\u0020\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0020\u0074\u006F\u0020\u006D\u0065\u0072\u0067\u0065\u0020\u0074\u0068\u0065\u006D\u0020\u0069\u006E\u0074\u006F\u0020\u006F\u006E\u0065\u0020\u0065\u006C\u0065\u0063\u0074\u0072\u0069\u0063\u0061\u006C\u0020\u006E\u006F\u0064\u0065\u002E\u000A" + "\u2022\u0020\u0054\u0068\u0072\u0065\u0065\u0020\u006F\u0072\u0020\u006D\u006F\u0072\u0065\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u0020\u0063\u0061\u006E\u0020\u0073\u0068\u0061\u0072\u0065\u0020\u0074\u0068\u0065\u0020\u0073\u0061\u006D\u0065\u0020\u0073\u006E\u0061\u0070\u0070\u0065\u0064\u0020\u006A\u0075\u006E\u0063\u0074\u0069\u006F\u006E\u002E\u000A" + "\u2022\u0020\u0044\u0072\u0061\u0067\u0020\u0061\u0020\u0073\u006E\u0061\u0070\u0070\u0065\u0064\u0020\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0020\u0061\u0077\u0061\u0079\u0020\u0074\u006F\u0020\u0073\u0065\u0070\u0061\u0072\u0061\u0074\u0065\u0020\u0069\u0074\u0020\u0061\u0067\u0061\u0069\u006E\u002E\u000A" + "\u2022\u0020\u0044\u0072\u0061\u0067\u0020\u0061\u0020\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u006C\u0065\u0066\u0074\u002F\u0072\u0069\u0067\u0068\u0074\u0020\u0074\u006F\u0020\u0065\u0078\u0074\u0065\u006E\u0064\u0020\u006F\u0072\u0020\u0075\u0070\u002F\u0064\u006F\u0077\u006E\u0020\u0074\u006F\u0020\u0072\u006F\u0074\u0061\u0074\u0065\u002E\u000A" + "\u2022\u0020\u0044\u0072\u0061\u0067\u0020\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0073\u002C\u0020\u006C\u0061\u0062\u0065\u006C\u0073\u002C\u0020\u0061\u006E\u0064\u0020\u0077\u0069\u0072\u0065\u0073\u0020\u0074\u006F\u0020\u0072\u0065\u0061\u0072\u0072\u0061\u006E\u0067\u0065\u0020\u0074\u0068\u0065\u0020\u006E\u0065\u0074\u0077\u006F\u0072\u006B\u002E\u000A" + '• Select a resistor, enter resistance, then click Apply Resistance.\n' + "\u2022\u0020\u0050\u0072\u0065\u0073\u0073\u0020\u0044\u0065\u006C\u0065\u0074\u0065\u0020\u0074\u006F\u0020\u0072\u0065\u006D\u006F\u0076\u0065\u0020\u0061\u0020\u0073\u0065\u006C\u0065\u0063\u0074\u0065\u0064\u0020\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0020\u006F\u0072\u0020\u0077\u0069\u0072\u0065\u002E\u000A" + "\u2022\u0020\u0045\u0071\u0075\u0069\u0076\u0061\u006C\u0065\u006E\u0074\u0020\u0072\u0065\u0073\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0020\u0075\u0070\u0064\u0061\u0074\u0065\u0073\u0020\u0061\u0075\u0074\u006F\u006D\u0061\u0074\u0069\u0063\u0061\u006C\u006C\u0079\u002E\u000A" + "\u2022\u0020\u0044\u0072\u0061\u0067\u0020\u0065\u006D\u0070\u0074\u0079\u0020\u0073\u0070\u0061\u0063\u0065\u0020\u0074\u006F\u0020\u0072\u006F\u0074\u0061\u0074\u0065\u0020\u0074\u0068\u0065\u0020\u0033\u0044\u0020\u0076\u0069\u0065\u0077\u003B\u0020\u006D\u006F\u0075\u0073\u0065\u0020\u0077\u0068\u0065\u0065\u006C\u0020\u007A\u006F\u006F\u006D\u0073\u002E");
+});
+window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('resize', () => {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = innerWidth / innerHeight;
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](innerWidth, innerHeight);
+});
+function animate() {
+  requestAnimationFrame(animate);
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+resetAll();
+animate();
+
+</script>
+</body>
+</html>

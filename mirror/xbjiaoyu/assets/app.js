@@ -63,11 +63,11 @@ async function replyViewer(event,frame,courseId,kind){
  // The already authorized response remains usable during short outages. Never
  // await an unbounded network request before acknowledging this existing grace.
  const reply=()=>{if(frame.isConnected&&viewerChecks.get(frame)===check)classroomReply(event,{frame,courseId,expiresAt:check.expiresAt,active:!check.revoked});};
- if(check.pending)check.pending.then(()=>{if(frame.isConnected&&check.revoked)frame.contentWindow.postMessage({type:'xiaobai:classroom-access',version:1,courseId,deliveryId:event.data.deliveryId,requestId:event.data.requestId,state:'blocked',ttlMs:0},'*');});
+ if(check.pending)check.pending.then(()=>{if(frame.isConnected&&check.revoked)frame.contentWindow.postMessage({type:'leqixiang:classroom-access',version:1,courseId,deliveryId:event.data.deliveryId,requestId:event.data.requestId,state:'blocked',ttlMs:0},'*');});
  reply();
 }
 window.addEventListener('message',event=>{
- if(event.data?.type!=='xiaobai:classroom-access')return;
+ if(event.data?.type!=='leqixiang:classroom-access')return;
  const frame=$('#lesson-frame iframe'),time=Date.now();
  if(isClassroomRequest(event,frame,currentLesson)){
   if(lease)classroomReply(event,{frame,courseId:currentLesson,expiresAt:lease.expiresAt,active:!leaseExpired&&!$('#classroom').hidden,now:time});
@@ -434,7 +434,7 @@ document.addEventListener('click',e=>{const a=e.target.closest('a[href="#works"]
 window.addEventListener('hashchange',()=>{close();route();});
 
 window.addEventListener('message',e=>{
- if(e.data?.type!=='xiaobai:content-guard'||e.data.version!==1||e.data.state!=='return'||e.data.reason!=='user-request')return;
+ if(e.data?.type!=='leqixiang:content-guard'||e.data.version!==1||e.data.state!=='return'||e.data.reason!=='user-request')return;
  const classroomFrame=$('#lesson-frame iframe'),previewFrame=$('.creator-preview iframe');
  if((classroomFrame&&e.source===classroomFrame.contentWindow)||(previewFrame&&e.source===previewFrame.contentWindow)){
   if(classroomFrame&&e.source===classroomFrame.contentWindow){const id=currentLesson;close();courseNavigation.returnTo(id,true);}else{stopTrial();close();location.hash='catalog';}

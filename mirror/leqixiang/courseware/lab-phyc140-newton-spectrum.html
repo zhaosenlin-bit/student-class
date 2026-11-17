@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	 <title>乐启享 · 物理实验</title>
+	<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc140-newton-spectrum.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Education",
+		    "name": "3JCN"
+		  }
+		}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations for Education">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-phyc140-newton-spectrum/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations for Education">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-phyc140-newton-spectrum/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/phyc140-newton-spectrum">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-newton-spectrum/_ext/vendor/css/main3.css">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-newton-spectrum/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-newton-spectrum/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-newton-spectrum/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+  <style>
+    body{ margin:0; overflow:hidden; color:white; font-family:"Times New Roman", Times, serif; }
+    #container{ position:fixed; inset:0; }
+    .line{ line-height:1.25; }
+  </style>
+</head>
+
+<body>
+  <div id="container"></div>
+
+  <div id="info">
+    <h1>NEWTON'S PRISM EXPERIMENT</h1>
+<button class="btn btn-info"
+onclick="alert(`Newton's Prism Experiment (1666)\n\nIsaac Newton's 1666 experiment demonstrated that the dispersion of white light into colors by a prism led him to conclude that white light is a mixture of different colors.\n\nKey Idea:\nA prism does NOT create colors; it separates the different wavelengths already present in white light.\n\nRed light bends the least, while blue and violet light bend the most.`)">
+  What is Newton's Prism?
+</button>
+    <button class="btn btn-danger" id="start" >Light On/Off</button>
+	
+    <div style="margin-top:10px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+      <div>Change incident light:</div>
+      <input type="range" min="-17" max="-10" value="-12" step="0.1" id="slider"
+             style="width:280px; max-width:60vw;">
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from '../jsm/three.module.js';
+    import { OrbitControls } from '../jsm/OrbitControls.js';
+
+    // ============================================================
+    // Globals
+    // ============================================================
+    const container = document.getElementById('container');
+
+    let scene, camera, renderer, controls;
+    let prism = null;
+
+    let isOn = true;
+    let xPos = -10;
+
+    const lightObjects = [];
+    const texLoader = new THREE.TextureLoader();
+
+    // Prism triangle in LOCAL XY coordinates (matches Shape)
+    const PRISM_A = new THREE.Vector2(-20, -20);
+    const PRISM_B = new THREE.Vector2( 20, -20);
+    const PRISM_C = new THREE.Vector2(  0,  20);
+    const EXTRUDE = { depth: 10, bevelEnabled: false };
+
+    // Cached inverse matrix for shader clipping
+    const prismInvMat = new THREE.Matrix4();
+
+    init();
+    animate();
+
+    // ============================================================
+    // Utilities
+    // ============================================================
+  function disposeObject(obj){if(!obj)return;if(obj['\u0070\u0061\u0072\u0065\u006E\u0074'])obj['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065'](obj);if(obj['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])obj['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']){if(Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']))obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m=>m['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();}}function clearLights(){for(const _0xb_0x6f8 of lightObjects)disposeObject(_0xb_0x6f8);lightObjects['\u006C\u0065\u006E\u0067\u0074\u0068']=884642^884642;}function edgeFn(a,b,p){return(b['\u0078']-a['\u0078'])*(p['\u0079']-a['\u0079'])-(b['\u0079']-a['\u0079'])*(p['\u0078']-a['\u0078']);}function buildSpectrumFan({'\u006C\u0065\u006E\u0067\u0074\u0068':length=386441^386521,'\u0077\u0046\u0061\u0072':wFar=341129^341179,'\u0063\u006C\u0069\u0070\u0042\u0061\u0063\u006B':clipBack=!![]}={}){const _0x3d_0xge8=222654^222654,_0x51a13g=length;const _0x5e980d=-wFar*0.70,_0x5gfc2f=wFar*0.70;var _0xe_0x3da=(667857^667856)+(484227^484230);const _0xada=new Float32Array([_0x3d_0xge8,_0x5e980d,106312^106312,_0x3d_0xge8,_0x5gfc2f,829832^829832,_0x51a13g,_0x5gfc2f,358949^358949,_0x51a13g,_0x5e980d,372066^372066]);_0xe_0x3da=(391847^391844)+(149050^149049);const _0x718ag=new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();_0x718ag['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E",new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0xada,603323^603320));_0x718ag['\u0073\u0065\u0074\u0049\u006E\u0064\u0065\u0078']([182840^182840,939234^939235,308062^308060,719986^719986,953752^953754,818342^818341]);const _0xc837b=Math['\u0061\u0074\u0061\u006E'](wFar*0.5/Math['\u006D\u0061\u0078'](1e-6,length));var _0xf_0xd59=(374762^374761)+(456510^456504);const _0x97ebf=new THREE['\u0053\u0068\u0061\u0064\u0065\u0072\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],'\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065':false,"depthTest":!![],'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],'\u0062\u006C\u0065\u006E\u0064\u0069\u006E\u0067':THREE['\u0041\u0064\u0064\u0069\u0074\u0069\u0076\u0065\u0042\u006C\u0065\u006E\u0064\u0069\u006E\u0067'],"uniforms":{'\u0075\u004F\u0070\u0061\u0063\u0069\u0074\u0079':{'\u0076\u0061\u006C\u0075\u0065':0.95},"uHalfAngle":{'\u0076\u0061\u006C\u0075\u0065':_0xc837b},"uLength":{'\u0076\u0061\u006C\u0075\u0065':length},"uEdgeSoft":{"value":6.5},"uFade":{"value":1.0},'\u0075\u0043\u006F\u0072\u0065':{'\u0076\u0061\u006C\u0075\u0065':0.14},'\u0075\u0048\u006F\u0074':{'\u0076\u0061\u006C\u0075\u0065':0.55},'\u0075\u0046\u006C\u0069\u0070':{'\u0076\u0061\u006C\u0075\u0065':0.0},"uSat":{"value":1.55},'\u0075\u0044\u0069\u0073\u0070':{'\u0076\u0061\u006C\u0075\u0065':1.10},'\u0075\u0042\u0061\u006E\u0064':{'\u0076\u0061\u006C\u0075\u0065':1.0},'\u0075\u0043\u006C\u0069\u0070\u0042\u0061\u0063\u006B':{"value":clipBack?262873^262872:256408^256408},'\u0075\u0055\u0073\u0065\u0054\u0072\u0069\u0043\u006C\u0069\u0070':{"value":0.0},'\u0075\u0054\u0072\u0069\u0041':{'\u0076\u0061\u006C\u0075\u0065':PRISM_A['\u0063\u006C\u006F\u006E\u0065']()},"uTriB":{"value":PRISM_B['\u0063\u006C\u006F\u006E\u0065']()},'\u0075\u0054\u0072\u0069\u0043':{'\u0076\u0061\u006C\u0075\u0065':PRISM_C['\u0063\u006C\u006F\u006E\u0065']()},"uTriSoft":{"value":1.2},'\u0075\u0054\u0072\u0069\u004D\u006F\u0064\u0065':{'\u0076\u0061\u006C\u0075\u0065':1.0},'\u0075\u0055\u0073\u0065\u0050\u0072\u0069\u0073\u006D\u0056\u006F\u006C\u0043\u006C\u0069\u0070':{'\u0076\u0061\u006C\u0075\u0065':0.0},'\u0075\u0050\u0072\u0069\u0073\u006D\u0049\u006E\u0076\u004D\u0061\u0074':{'\u0076\u0061\u006C\u0075\u0065':new THREE['\u004D\u0061\u0074\u0072\u0069\u0078\u0034']()},'\u0075\u0050\u0072\u0069\u0073\u006D\u0044\u0065\u0070\u0074\u0068':{'\u0076\u0061\u006C\u0075\u0065':EXTRUDE['\u0064\u0065\u0070\u0074\u0068']},"uPrismSoft":{"value":0.30},'\u0075\u0050\u0072\u0069\u0073\u006D\u004D\u006F\u0064\u0065':{'\u0076\u0061\u006C\u0075\u0065':2.0}},"vertexShader":`
+          precision highp float;
+
+          varying vec2 vXY;
+          varying vec2 vWorldXY;
+          varying vec3 vPrismLocal;
+
+          uniform mat4 uPrismInvMat;
+
+          void main(){
+            vXY = position.xy;
+
+            vec4 wp = modelMatrix * vec4(position, 1.0);
+            vWorldXY = wp.xy;
+
+            vPrismLocal = (uPrismInvMat * wp).xyz;
+
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,"fragmentShader":`
+          precision highp float;
+
+          varying vec2 vXY;
+          varying vec2 vWorldXY;
+          varying vec3 vPrismLocal;
+
+          uniform float uOpacity, uHalfAngle, uLength;
+          uniform float uEdgeSoft, uFade, uCore, uHot;
+          uniform float uFlip, uSat, uDisp, uBand;
+          uniform float uClipBack;
+
+          uniform float uUseTriClip;
+          uniform vec2  uTriA, uTriB, uTriC;
+          uniform float uTriSoft;
+          uniform float uTriMode;
+
+          uniform float uUsePrismVolClip;
+          uniform float uPrismDepth;
+          uniform float uPrismSoft;
+          uniform float uPrismMode;
+
+          vec3 satBoost(vec3 c, float s){
+            float l = dot(c, vec3(0.299, 0.587, 0.114));
+            return mix(vec3(l), c, s);
+          }
+
+          float g(float x, float mu, float sig){
+            float d = (x - mu) / sig;
+            return exp(-d*d);
+          }
+
+          vec3 spectralBands(float t){
+            t = clamp(t, 0.0, 1.0);
+
+            float wR = g(t, 0.06, 0.07);
+            float wO = g(t, 0.18, 0.06);
+            float wY = g(t, 0.32, 0.06);
+            float wG = g(t, 0.50, 0.07);
+            float wC = g(t, 0.63, 0.07);
+            float wB = g(t, 0.78, 0.07);
+            float wV = g(t, 0.92, 0.08);
+
+            vec3 cR = vec3(1.00, 0.05, 0.02);
+            vec3 cO = vec3(1.00, 0.45, 0.00);
+            vec3 cY = vec3(1.00, 1.00, 0.10);
+            vec3 cG = vec3(0.00, 1.00, 0.20);
+            vec3 cC = vec3(0.00, 0.95, 1.00);
+            vec3 cB = vec3(0.10, 0.25, 1.00);
+            vec3 cV = vec3(0.75, 0.10, 1.00);
+
+            float sum = wR+wO+wY+wG+wC+wB+wV + 1e-6;
+            vec3 col = (wR*cR + wO*cO + wY*cY + wG*cG + wC*cC + wB*cB + wV*cV) / sum;
+
+            col = mix(col, pow(col, vec3(0.85)), uBand);
+            return col;
+          }
+
+          float edgeFn(vec2 a, vec2 b, vec2 p){
+            return (b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x);
+          }
+
+          float triMask(vec2 p){
+            // assuming triangle is CCW
+            float e0 = edgeFn(uTriA, uTriB, p);
+            float e1 = edgeFn(uTriB, uTriC, p);
+            float e2 = edgeFn(uTriC, uTriA, p);
+
+            float m0 = smoothstep(0.0, uTriSoft, e0);
+            float m1 = smoothstep(0.0, uTriSoft, e1);
+            float m2 = smoothstep(0.0, uTriSoft, e2);
+            return m0*m1*m2;
+          }
+
+          void main(){
+            // clip back (fan local x<0)
+            if (uClipBack > 0.5 && vXY.x < 0.0) discard;
+
+            float x = max(vXY.x, 1e-6);
+            float y = vXY.y;
+
+            // angle -> color position across fan
+            float ang = atan(y, x);
+            float t = (ang + uHalfAngle) / (2.0 * uHalfAngle);
+
+            // flip mapping (0/1)
+            t = mix(t, 1.0 - t, step(0.5, uFlip));
+            float tw = pow(clamp(t, 0.0, 1.0), uDisp);
+
+            // soft fan mask
+            float outside = max(0.0, abs(ang) - uHalfAngle);
+            float fanMask = exp(-uEdgeSoft * outside * outside);
+
+            float yMax = x * tan(uHalfAngle);
+            float edgeY = abs(y) / max(1e-6, yMax);
+            float thickMask = exp(-2.0 * edgeY * edgeY);
+
+            float dist01 = clamp(x / max(1e-6, uLength), 0.0, 1.0);
+            float distMask = exp(-uFade * dist01);
+
+            float intensity = uOpacity * fanMask * thickMask * distMask;
+
+            // 2D triangle clip in WORLD XY (useful for insideFan)
+            if (uUseTriClip > 0.5){
+              float m = triMask(vWorldXY);
+              if (uTriMode > 1.5) intensity *= (1.0 - m);
+              else                intensity *= m;
+            }
+
+            // 3D prism VOLUME clip in PRISM LOCAL coords (best for outsideFan)
+            if (uUsePrismVolClip > 0.5){
+              float mTri = triMask(vPrismLocal.xy);
+
+              float z0 = smoothstep(0.0, uPrismSoft, vPrismLocal.z);
+              float z1 = 1.0 - smoothstep(uPrismDepth - uPrismSoft, uPrismDepth, vPrismLocal.z);
+              float mZ  = z0 * z1;
+
+              float insideVol = mTri * mZ;
+
+              if (uPrismMode > 1.5) intensity *= (1.0 - insideVol); // CUT inside prism
+              else                  intensity *= insideVol;         // KEEP inside prism
+            }
+
+            vec3 col = spectralBands(tw);
+            col = satBoost(col, uSat);
+
+            float coreMask = exp(-120.0 * (y*y) / (x*x + 40.0)) * uCore;
+            float hot = exp(-35.0 * dist01 * dist01) * uHot;
+
+            vec3 finalCol =
+                col * (1.45 * intensity)
+              + vec3(1.0) * coreMask
+              + vec3(1.0, 0.97, 0.90) * hot * intensity;
+
+            gl_FragColor = vec4(finalCol, intensity);
+          }
+        `});_0xf_0xd59=(553971^553974)+(221903^221899);const _0xeb52c=new THREE['\u004D\u0065\u0073\u0068'](_0x718ag,_0x97ebf);_0xeb52c['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=230070^230020;return _0xeb52c;}function init(_0x990ae){renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F']);renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u006F\u0075\u0074\u0070\u0075\u0074\u0043\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065']=THREE['\u0053\u0052\u0047\u0042\u0043\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065'];renderer['\u0070\u0068\u0079\u0073\u0069\u0063\u0061\u006C\u006C\u0079\u0043\u006F\u0072\u0072\u0065\u0063\u0074\u004C\u0069\u0067\u0068\u0074\u0073']=!![];renderer['\u0074\u006F\u006E\u0065\u004D\u0061\u0070\u0070\u0069\u006E\u0067']=THREE['\u0041\u0043\u0045\u0053\u0046\u0069\u006C\u006D\u0069\u0063\u0054\u006F\u006E\u0065\u004D\u0061\u0070\u0070\u0069\u006E\u0067'];renderer['\u0074\u006F\u006E\u0065\u004D\u0061\u0070\u0070\u0069\u006E\u0067\u0045\u0078\u0070\u006F\u0073\u0075\u0072\u0065']=1.1;container['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0x659471);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](385460^385411,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],0.1,759951^775855);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](554845^554845,170988^170994,730826^730798);scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.25));const _0xf715f=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,551235^551234);_0xf715f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](909996^910002,305173^305221,130834^130874);scene['\u0061\u0064\u0064'](_0xf715f);const p=new THREE['\u0050\u006F\u0069\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.9,777479^777767);p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](683586^683592,524016^523992,622849^622879);scene['\u0061\u0064\u0064'](p);var _0xdcb=(424309^424311)+(987296^987305);const _0xc06f6d=new THREE['\u0053\u0068\u0061\u0070\u0065']()['\u006D\u006F\u0076\u0065\u0054\u006F'](PRISM_A['\u0078'],PRISM_A['\u0079'])['\u006C\u0069\u006E\u0065\u0054\u006F'](PRISM_B['\u0078'],PRISM_B['\u0079'])['\u006C\u0069\u006E\u0065\u0054\u006F'](PRISM_C['\u0078'],PRISM_C['\u0079'])['\u006C\u0069\u006E\u0065\u0054\u006F'](PRISM_A['\u0078'],PRISM_A['\u0079']);_0xdcb=586811^586803;prism=addPrism(_0xc06f6d);prism['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065\u005A'](-(768595^768598));prism['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=436598^436554;prism['\u0075\u0070\u0064\u0061\u0074\u0065\u004D\u0061\u0074\u0072\u0069\u0078\u0057\u006F\u0072\u006C\u0064'](!![]);prismInvMat['\u0063\u006F\u0070\u0079'](prism['\u006D\u0061\u0074\u0072\u0069\u0078\u0057\u006F\u0072\u006C\u0064'])['\u0069\u006E\u0076\u0065\u0072\u0074']();const _0x3942bc=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0050\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](812617^811769,471029^470445),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x000000,"transparent":!![],"opacity":0.18,'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],"depthWrite":false}));_0x3942bc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](235631^235769,526125^526187,-(992168^992128));_0x3942bc['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=-0.18;scene['\u0061\u0064\u0064'](_0x3942bc);var _0x64f7f=(740029^740024)+(138350^138349);const _0xd8e=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](118171^118209,162384^162386,348763^348775),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":'red'}));_0x64f7f=(898243^898250)+(362442^362446);const _0xff56e=texLoader['\u006C\u006F\u0061\u0064']("gnp.ssorc/erutxet".split("").reverse().join(""),t=>{t['\u0063\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065']=THREE['\u0053\u0052\u0047\u0042\u0043\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065'];t['\u0061\u006E\u0069\u0073\u006F\u0074\u0072\u006F\u0070\u0079']=renderer['\u0063\u0061\u0070\u0061\u0062\u0069\u006C\u0069\u0074\u0069\u0065\u0073']['\u0067\u0065\u0074\u004D\u0061\u0078\u0041\u006E\u0069\u0073\u006F\u0074\u0072\u006F\u0070\u0079']();t['\u0077\u0072\u0061\u0070\u0053']=t['\u0077\u0072\u0061\u0070\u0054']=THREE['\u0043\u006C\u0061\u006D\u0070\u0054\u006F\u0045\u0064\u0067\u0065\u0057\u0072\u0061\u0070\u0070\u0069\u006E\u0067'];t['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];});_0x990ae=(841855^841853)+(520433^520438);const _0xbcdg9c=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0050\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](351680^351642,643105^643101),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u006D\u0061\u0070':_0xff56e,"side":THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']}));_0xbcdg9c['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=-Math['\u0050\u0049']/(571538^571536);_0xbcdg9c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=1.02;_0xd8e['\u0061\u0064\u0064'](_0xbcdg9c);_0xd8e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](317667^317667,-21.8,365268^365268);scene['\u0061\u0064\u0064'](_0xd8e);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067']=!![];rebuildLight();document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0074\u0061\u0072\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",toggleLight);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u006C\u0069\u0064\u0065\u0072")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",e=>{xPos=parseFloat(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']);if(isOn)rebuildLight();});window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065",onResize,false);}function addPrism(shape,_0x2778ec){var _0x69e58b=(552047^552038)+(443518^443518);const _0x2cab=new THREE['\u0045\u0078\u0074\u0072\u0075\u0064\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](shape,EXTRUDE);_0x69e58b='\u0070\u006E\u006D\u0071\u006E\u006E';const _0x26fea=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u0079\u0073\u0069\u0063\u0061\u006C\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffffff,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],"opacity":0.22,'\u0074\u0072\u0061\u006E\u0073\u006D\u0069\u0073\u0073\u0069\u006F\u006E':1.0,"roughness":0.06,"metalness":0.0,'\u0069\u006F\u0072':1.52,'\u0074\u0068\u0069\u0063\u006B\u006E\u0065\u0073\u0073':2.0,"specularIntensity":1.0,'\u0073\u0070\u0065\u0063\u0075\u006C\u0061\u0072\u0043\u006F\u006C\u006F\u0072':0xffffff});_0x2778ec=661458^661459;const _0x6938b=new THREE['\u004D\u0065\u0073\u0068'](_0x2cab,_0x26fea);_0x6938b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065']=false;_0x6938b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074']=!![];scene['\u0061\u0064\u0064'](_0x6938b);return _0x6938b;}function addWhiteRay(x1,y1,z1,x2,y2,z2,_0x125e8e,_0xf7787e){const _0xe5b=[new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x1,y1,z1),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x2,y2,z2)];_0x125e8e='\u0068\u006B\u006C\u0068\u0071\u006B';const _0x2_0x739=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0xe5b);_0xf7787e=(882653^882651)+(815952^815960);var _0x2dcfc=(525754^525753)+(352388^352388);const _0x9ca4fa=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x2_0x739,257312^257308,0.3,417108^417094,false);_0x2dcfc=405184^405189;var _0x1f_0x4ed=(806451^806450)+(297272^297265);const _0x5534g=new THREE['\u004D\u0065\u0073\u0068'](_0x9ca4fa,new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffffff}));_0x1f_0x4ed=(912337^912345)+(851290^851294);scene['\u0061\u0064\u0064'](_0x5534g);lightObjects['\u0070\u0075\u0073\u0068'](_0x5534g);return _0x5534g;}function toggleLight(){isOn=!isOn;if(isOn)rebuildLight();else clearLights();}function rebuildLight(_0x82d25g,_0x2b1a,_0xb5d2a){clearLights();const _0xa77f=(676510^676508)*((655427^655433)+xPos);addWhiteRay(xPos-(378088^378048),(759414^759394)+((872874^872864)+xPos)*(552093^552095),706348^706348,xPos,_0xa77f,991412^991412);const _0x994e=(764387^764348)+(640936^640938)*Math['\u0061\u0062\u0073'](xPos);_0x82d25g=(919078^919076)+(288516^288518);const _0x8a8d=Math['\u006D\u0061\u0078'](638856^638886,((492196^492218)-xPos*(476406^476404))*1.9);var _0xec472e=(506380^506380)+(807593^807592);const _0x4ea5g=buildSpectrumFan({"length":_0x994e,'\u0077\u0046\u0061\u0072':_0x8a8d,"clipBack":!![]});_0xec472e="iibake".split("").reverse().join("");_0x4ea5g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-xPos+1.2-(268278^268286),_0xa77f-(682726^682724),248004^248004);_0x4ea5g['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=-Math['\u0050\u0049']/(183393^183403);_0x4ea5g['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049'];_0x4ea5g['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=0.06;_0x4ea5g['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0055\u0073\u0065\u0050\u0072\u0069\u0073\u006D\u0056\u006F\u006C\u0043\u006C\u0069\u0070']['\u0076\u0061\u006C\u0075\u0065']=390691^390690;_0x4ea5g['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0050\u0072\u0069\u0073\u006D\u0049\u006E\u0076\u004D\u0061\u0074']['\u0076\u0061\u006C\u0075\u0065']['\u0063\u006F\u0070\u0079'](prismInvMat);_0x4ea5g['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0050\u0072\u0069\u0073\u006D\u0044\u0065\u0070\u0074\u0068']['\u0076\u0061\u006C\u0075\u0065']=EXTRUDE['\u0064\u0065\u0070\u0074\u0068'];_0x4ea5g['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0050\u0072\u0069\u0073\u006D\u0053\u006F\u0066\u0074']['\u0076\u0061\u006C\u0075\u0065']=0.30;_0x4ea5g['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0050\u0072\u0069\u0073\u006D\u004D\u006F\u0064\u0065']['\u0076\u0061\u006C\u0075\u0065']=373025^373027;_0x4ea5g['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0046\u006C\u0069\u0070']['\u0076\u0061\u006C\u0075\u0065']=319547^319546;scene['\u0061\u0064\u0064'](_0x4ea5g);lightObjects['\u0070\u0075\u0073\u0068'](_0x4ea5g);_0x2b1a=584335^584363;const _0x3_0x6e7=buildSpectrumFan({'\u006C\u0065\u006E\u0067\u0074\u0068':_0x2b1a,"wFar":14,"clipBack":false});_0xb5d2a=751044^751044;_0x3_0x6e7['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(851192^851178),_0xa77f,228395^228395);_0x3_0x6e7['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](921235^921235,426003^426003,595463^595463);_0x3_0x6e7['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0055\u0073\u0065\u0054\u0072\u0069\u0043\u006C\u0069\u0070']['\u0076\u0061\u006C\u0075\u0065']=254796^254797;_0x3_0x6e7['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0054\u0072\u0069\u004D\u006F\u0064\u0065']['\u0076\u0061\u006C\u0075\u0065']=263360^263361;_0x3_0x6e7['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u004F\u0070\u0061\u0063\u0069\u0074\u0079']['\u0076\u0061\u006C\u0075\u0065']=0.42;_0x3_0x6e7['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0048\u006F\u0074']['\u0076\u0061\u006C\u0075\u0065']=0.14;_0x3_0x6e7['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0046\u0061\u0064\u0065']['\u0076\u0061\u006C\u0075\u0065']=0.30;_0x3_0x6e7['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0045\u0064\u0067\u0065\u0053\u006F\u0066\u0074']['\u0076\u0061\u006C\u0075\u0065']=4.6;_0x3_0x6e7['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0073']['\u0075\u0046\u006C\u0069\u0070']['\u0076\u0061\u006C\u0075\u0065']=343090^343090;_0x3_0x6e7['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=643270^643307;scene['\u0061\u0064\u0064'](_0x3_0x6e7);lightObjects['\u0070\u0075\u0073\u0068'](_0x3_0x6e7);}function onResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function animate(){requestAnimationFrame(animate);controls['\u0075\u0070\u0064\u0061\u0074\u0065']();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}
+  </script>
+</body>
+</html>
+

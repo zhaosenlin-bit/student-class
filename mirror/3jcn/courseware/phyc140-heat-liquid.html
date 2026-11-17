@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc140-heat-liquid/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc140-heat-liquid/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/3jcn-phyc140-heat-liquid/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc140-heat-liquid/_ext/vendor/css/final.css">
+	<style>
+		body {
+			color: black;
+		}
+		    #density2Value, #density1Value, #h1Value{
+			  color: brown;             /* Bright green text */
+			  background-color: lightyellow;  /* Dark background */
+			  border: 1px solid #00ff00;  /* Green border */
+			  padding: 4px;
+			  border-radius: 4px;
+		   }
+	.control-panel {
+	  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  font-family: Arial, sans-serif;
+	  text-align: center;
+	}
+	.control-panel-right {
+	  position: absolute;
+	  top: 90px;
+	  right: 50px;
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  text-align: center;
+	}
+	
+	.control-group {
+	  margin-bottom: 15px;
+	}
+	
+	.slider-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+	
+	input[type="range"] {
+	  width: 65%;
+	  accent-color: blue;
+	}
+	
+	input[type="text"] {
+	  width: 80px;
+	  font-weight: bold;
+	  text-align: center;
+	  color: blue;
+	}
+	
+	.minmax {
+	  display: flex;
+	  justify-content: space-between;
+	  font-size: 12px;
+	  margin-top: 5px;
+	}
+	</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 31 May 2025       -->
+	
+	<script type="module">   
+		
+	import THREE from '../jsm/three.js';
+		
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';	
+	import { LineGeometry } from '../jsm/LineGeometry.js';
+	import { Line2 } from '../jsm/Line2.js';
+	import { LineMaterial } from '../jsm/LineMaterial.js';
+        import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+        import { VolumetricFire } from "/Phyc140/VolumetricFire.js";
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  14 June 2025
+		 **  All rights reserved **/
+		
+	var initScene, dragcontrols, controls, light, referenceLine;
+	let waterHole, firstHole, isStart = false;
+	let water, water2, base1 = -20, base2 = 10;
+	const g = 9.81;  
+	let waterParticles = []; const waterHoles = [];
+	const labelArray = [], arrowArray = [];
+		
+	let water2Height = 7;   // initial height of upper tank water
+	let waterHeight = 10;   // initial height of lower tank water
+	const upperTankX = 23;
+	const lowerTankX = 0;
+	const flowRate = 0.01; // rate of flow (adjust this for faster/slower simulation)
+	let fire, boilingBubbles = [];
+	const maxBubbles = 100;
+	let simulationTime = 0;
+	let finalTempCalculated = false;
+		
+	const _0x38eff5=_0xbc09;(function(_0x269bd5,_0x10a9d9){const _0x855ae9=_0xbc09,_0x4c7666=_0x269bd5();while(!![]){try{const _0x59d398=-parseInt(_0x855ae9(0x154))/0x1*(-parseInt(_0x855ae9(0x14d))/0x2)+parseInt(_0x855ae9(0x152))/0x3+parseInt(_0x855ae9(0x161))/0x4+-parseInt(_0x855ae9(0x126))/0x5*(-parseInt(_0x855ae9(0x13d))/0x6)+-parseInt(_0x855ae9(0x13c))/0x7*(parseInt(_0x855ae9(0x134))/0x8)+-parseInt(_0x855ae9(0x16d))/0x9+-parseInt(_0x855ae9(0x11a))/0xa;if(_0x59d398===_0x10a9d9)break;else _0x4c7666['push'](_0x4c7666['shift']());}catch(_0x1c2a4e){_0x4c7666['push'](_0x4c7666['shift']());}}}(_0x1b6f,0x224af));const textureloader=new THREE[(_0x38eff5(0x169))](),fontloader=new FontLoader();var scene=new THREE[(_0x38eff5(0x128))](),camera=new THREE[(_0x38eff5(0x133))](0x23,window['innerWidth']/window[_0x38eff5(0x113)],0x1,0x3e8);const renderer=new THREE[(_0x38eff5(0x15b))]({'antialias':!![]});initScene=function(){const _0x11cc7b=_0x38eff5;scene[_0x11cc7b(0x116)]=new THREE[(_0x11cc7b(0x15e))](0x87ceeb),camera=new THREE['PerspectiveCamera'](0x23,window['innerWidth']/window[_0x11cc7b(0x113)],0x1,0x3e8),camera[_0x11cc7b(0x153)]['set'](0x0,0x1b,0x5a),camera[_0x11cc7b(0x13a)](scene['position']),scene[_0x11cc7b(0x158)](camera),controls=new OrbitControls(camera,renderer['domElement']),renderer[_0x11cc7b(0x14a)](window[_0x11cc7b(0x13e)],window[_0x11cc7b(0x113)]),renderer[_0x11cc7b(0x156)][_0x11cc7b(0x125)]=!![],document[_0x11cc7b(0x14f)](_0x11cc7b(0x131))[_0x11cc7b(0x12a)](renderer[_0x11cc7b(0x168)]),setupLights(),createMilikanContainer(),firstHole=createHole(10.5),addLabel('Hot\x20Water',0x0,0x11,0x0,'red'),addLabel(_0x11cc7b(0x160),0x0,0xf,0x0,_0x11cc7b(0x137)),addLabel(_0x11cc7b(0x163),0x14,-0x2,0x0,'red'),addLabel(_0x11cc7b(0x11f),0xd,-0xa,0x0,_0x11cc7b(0x114)),water=createWater(0x0,0xa,base1),water2=createWater(0x17,0x7,base2),createHighTank(),addHotPlate(),VolumetricFire['texturePath']='texture/';var _0x67d891=0x8,_0x44fbea=0x8,_0x580db2=0x8,_0x38c97f=0.5;fire=new VolumetricFire(_0x67d891,_0x44fbea,_0x580db2,_0x38c97f,camera),fire[_0x11cc7b(0x139)][_0x11cc7b(0x153)][_0x11cc7b(0x166)](0x17,0x6,0x0),scene[_0x11cc7b(0x158)](fire[_0x11cc7b(0x139)]);var _0x4b94a2=new THREE[(_0x11cc7b(0x16b))](0x78,0x2,0x28);const _0x173540=new THREE['Mesh'](_0x4b94a2,new THREE['MeshPhongMaterial']({'color':_0x11cc7b(0x129)}));_0x173540['position'][_0x11cc7b(0x166)](0x0,-0x14,0x0),scene[_0x11cc7b(0x158)](_0x173540),document['getElementById'](_0x11cc7b(0x146))[_0x11cc7b(0x15a)](_0x11cc7b(0x124),function(){isStart=!![],simulationTime=0x0;}),document[_0x11cc7b(0x14f)](_0x11cc7b(0x122))['addEventListener'](_0x11cc7b(0x124),function(){const _0x3e4a8f=_0x11cc7b;clearParticles(),location[_0x3e4a8f(0x11e)]();}),document[_0x11cc7b(0x14f)](_0x11cc7b(0x132))[_0x11cc7b(0x15a)](_0x11cc7b(0x150),()=>{const _0x54f8ba=_0x11cc7b;document['getElementById'](_0x54f8ba(0x13f))['value']=document[_0x54f8ba(0x14f)](_0x54f8ba(0x132))[_0x54f8ba(0x136)],finalTempCalculated=![],updateColdLiquidHeight();}),document[_0x11cc7b(0x14f)](_0x11cc7b(0x121))['addEventListener']('input',()=>{const _0x1f6b80=_0x11cc7b;document[_0x1f6b80(0x14f)](_0x1f6b80(0x159))[_0x1f6b80(0x136)]=document['getElementById'](_0x1f6b80(0x121))[_0x1f6b80(0x136)],finalTempCalculated=![];}),document['getElementById'](_0x11cc7b(0x14e))[_0x11cc7b(0x15a)](_0x11cc7b(0x130),()=>{finalTempCalculated=![];}),updateColdLiquidHeight(),window[_0x11cc7b(0x15a)]('resize',onWindowResize,![]),requestAnimationFrame(render),render();};function addHotPlate(){const _0x18e586=_0x38eff5;var _0x228086=new THREE[(_0x18e586(0x16b))](0x7,0.7,0x7);let _0x43084d=new THREE[(_0x18e586(0x11b))](_0x228086,new THREE[(_0x18e586(0x14b))]({'color':_0x18e586(0x15f)}));_0x43084d[_0x18e586(0x153)][_0x18e586(0x166)](0x17,0x1,0x0),scene[_0x18e586(0x158)](_0x43084d);}function generateBoilingBubble(){const _0xd9c0dd=_0x38eff5;if(boilingBubbles[_0xd9c0dd(0x135)]>=maxBubbles)return;const _0x2abaf1=Math['random']()*0.3+0.1,_0x5768f5=new THREE['SphereGeometry'](_0x2abaf1,0x8,0x8),_0x328d37=new THREE[(_0xd9c0dd(0x14b))]({'color':0xffffff,'transparent':!![],'opacity':0.6}),_0x75b9a1=new THREE[(_0xd9c0dd(0x11b))](_0x5768f5,_0x328d37),_0x57d0c1=upperTankX+(Math[_0xd9c0dd(0x16a)]()*0x7-0x3),_0x13e357=base2+Math[_0xd9c0dd(0x16a)]()*(water2Height*0.3),_0x18f763=Math['random']()*0x4-0x2;_0x75b9a1[_0xd9c0dd(0x153)][_0xd9c0dd(0x166)](_0x57d0c1,_0x13e357,_0x18f763),_0x75b9a1[_0xd9c0dd(0x11c)]={'riseSpeed':0.05+Math[_0xd9c0dd(0x16a)]()*0.05},scene[_0xd9c0dd(0x158)](_0x75b9a1),boilingBubbles[_0xd9c0dd(0x167)](_0x75b9a1);}function updateBoilingBubbles(){const _0x37973f=_0x38eff5;Math[_0x37973f(0x16a)]()<0.3&&generateBoilingBubble();for(let _0x25d3e0=boilingBubbles[_0x37973f(0x135)]-0x1;_0x25d3e0>=0x0;_0x25d3e0--){const _0x4e1f9a=boilingBubbles[_0x25d3e0];_0x4e1f9a[_0x37973f(0x153)]['y']+=_0x4e1f9a[_0x37973f(0x11c)][_0x37973f(0x155)],_0x4e1f9a[_0x37973f(0x153)]['y']>base2+water2Height-0.2&&(scene[_0x37973f(0x12c)](_0x4e1f9a),boilingBubbles[_0x37973f(0x11d)](_0x25d3e0,0x1));}}function updateColdLiquidHeight(){const _0x172be2=_0x38eff5,_0x3e848d=parseFloat(document['getElementById'](_0x172be2(0x132))[_0x172be2(0x136)]),_0x1029d4=_0x3e848d*0xa/0x5dc;waterHeight=_0x1029d4,water[_0x172be2(0x149)]['y']=_0x1029d4/0xa,water[_0x172be2(0x153)]['y']=base1+_0x1029d4/0x2;}function _0xbc09(_0x4ff68e,_0x3c5bb4){const _0x1b6f58=_0x1b6f();return _0xbc09=function(_0xbc0984,_0x6e63bf){_0xbc0984=_0xbc0984-0x110;let _0x27e004=_0x1b6f58[_0xbc0984];return _0x27e004;},_0xbc09(_0x4ff68e,_0x3c5bb4);}function createWater(_0x3f39a1,_0x41961d,_0x5c458d){const _0x4a5a98=_0x38eff5,_0xc5aadc=new THREE[(_0x4a5a98(0x15c))](0xa,0xa,_0x41961d,0x20),_0x548faa=new THREE['MeshPhongMaterial']({'color':_0x4a5a98(0x12b),'side':THREE[_0x4a5a98(0x141)],'transparent':!![],'opacity':0.8}),_0x17493f=new THREE[(_0x4a5a98(0x11b))](_0xc5aadc,_0x548faa);return _0x17493f[_0x4a5a98(0x153)][_0x4a5a98(0x166)](_0x3f39a1,_0x5c458d+_0x41961d/0x2),scene['add'](_0x17493f),_0x17493f;}function _0x1b6f(){const _0x2fdd84=['background','pow','lineTo','moveTo','11740sRVfUK','Mesh','userData','splice','reload','Cold\x20Liquid','gray','tempSlider','reset','log','click','enabled','5UHWPIK','update','Scene','purple','appendChild','#0000ff','remove','time','\x20°C','now','change','viewport','massSlider','PerspectiveCamera','122224EVVANj','length','value','red','black','mesh','lookAt','camera\x20y','49aNpkKc','1021566hhsQKV','innerWidth','massValue','castShadow','DoubleSide','/api/program-assets/3jcn-phyc140-heat-liquid/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','updateProjectionMatrix','aspect','DirectionalLight','start','absarc','rotation','scale','setSize','MeshPhongMaterial','copy','2966ELoxaA','liquidSelector','getElementById','input','SphereGeometry','202377NAxBeP','position','1hxKNgz','riseSpeed','shadowMap','toFixed','add','tempValue','addEventListener','WebGLRenderer','CylinderGeometry','MeshLambertMaterial','Color','white','at\x2096\x20°C','381800yVoaYj','ExtrudeGeometry','Burner','MeshBasicMaterial','Shape','set','push','domElement','TextureLoader','random','BoxGeometry','SpotLight','774630wHBdpd','sqrt','render','#ffffff','innerHeight','blue','load'];_0x1b6f=function(){return _0x2fdd84;};return _0x1b6f();}function createHighTank(){const _0x548d5a=_0x38eff5,_0x3f6ac2=new THREE[(_0x548d5a(0x15c))](0xa,0xa,0xa,0x20),_0xd038c9=new THREE[(_0x548d5a(0x14b))]({'color':_0x548d5a(0x112),'side':THREE[_0x548d5a(0x141)],'transparent':!![],'opacity':0.6}),_0xa59cba=new THREE[(_0x548d5a(0x11b))](_0x3f6ac2,_0xd038c9);_0xa59cba[_0x548d5a(0x153)][_0x548d5a(0x166)](0x17,0xf,0x0),scene[_0x548d5a(0x158)](_0xa59cba);const _0x17ce14=new THREE[(_0x548d5a(0x15c))](0xa,0xa,0x1,0x20),_0x286f8b=new THREE[(_0x548d5a(0x164))]({'color':'black'}),_0x1df07b=new THREE['Mesh'](_0x17ce14,_0x286f8b);_0xa59cba[_0x548d5a(0x158)](_0x1df07b),_0x1df07b[_0x548d5a(0x153)][_0x548d5a(0x166)](0x0,-0x5,0x0);}function createMilikanContainer(){const _0x34699c=_0x38eff5;darkHalfPipe(),clearHalfPipe();const _0x37b64b=new THREE[(_0x34699c(0x15c))](0xc,0xc,0x2,0x20),_0x413673=new THREE[(_0x34699c(0x164))]({'color':_0x34699c(0x138)}),_0x5580ad=new THREE['Mesh'](_0x37b64b,_0x413673);_0x5580ad['position']['set'](0x0,-0x12,0x0),scene['add'](_0x5580ad);}function darkHalfPipe(){const _0x412f87=_0x38eff5;var _0x2231cb=new THREE[(_0x412f87(0x165))]();_0x2231cb['moveTo'](-0xc,0x0),_0x2231cb[_0x412f87(0x147)](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x2231cb[_0x412f87(0x118)](0xc,0x0),_0x2231cb[_0x412f87(0x147)](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x2231cb[_0x412f87(0x118)](-0xc,0x0);var _0x24a965={'steps':0x2,'depth':0x14,'bevelEnabled':![]},_0xe7dc7b=new THREE[(_0x412f87(0x162))](_0x2231cb,_0x24a965),_0x1eec44=new THREE[(_0x412f87(0x164))]({'color':_0x412f87(0x120)}),_0x13eaab=new THREE[(_0x412f87(0x11b))](_0xe7dc7b,_0x1eec44);_0x13eaab[_0x412f87(0x148)]['x']=-Math['PI']/0x2,_0x13eaab[_0x412f87(0x153)][_0x412f87(0x166)](0x0,-0x13,0x0),scene[_0x412f87(0x158)](_0x13eaab);}function clearHalfPipe(){const _0xafe537=_0x38eff5;var _0x36cda9=new THREE[(_0xafe537(0x165))]();_0x36cda9[_0xafe537(0x119)](-0xc,0x0),_0x36cda9[_0xafe537(0x147)](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x36cda9[_0xafe537(0x118)](0xc,0x0),_0x36cda9[_0xafe537(0x147)](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x36cda9[_0xafe537(0x118)](-0xc,0x0);var _0x211037={'steps':0x1,'depth':0x14,'bevelEnabled':![]},_0xa49658=new THREE[(_0xafe537(0x162))](_0x36cda9,_0x211037),_0x420b69=new THREE[(_0xafe537(0x14b))]({'color':_0xafe537(0x112),'side':THREE[_0xafe537(0x141)],'transparent':!![],'opacity':0.2}),_0x455c5a=new THREE[(_0xafe537(0x11b))](_0xa49658,_0x420b69);_0x455c5a[_0xafe537(0x148)]['x']=Math['PI']/0x2,_0x455c5a['position'][_0xafe537(0x166)](0x0,0x1,0x0),scene[_0xafe537(0x158)](_0x455c5a);}function clearParticles(){const _0x75f7c6=_0x38eff5;if(!waterParticles)return;for(let _0x58e5a4=waterParticles[_0x75f7c6(0x135)]-0x1;_0x58e5a4>=0x0;_0x58e5a4--){scene['remove'](waterParticles[_0x58e5a4]);}waterParticles[_0x75f7c6(0x135)]=0x0;}function updateParticles(){const _0x5098d8=_0x38eff5;simulationTime+=0.02;const _0x23405b=0.02;if(water2Height>0x0){for(let _0x1a9894 of waterHoles){const _0x207d79=water2Height,_0x5c8081=Math[_0x5098d8(0x110)](0x2*g*_0x207d79),_0x2dc24f=new THREE[(_0x5098d8(0x151))](0.2,0x8,0x8),_0x5925e6=new THREE[(_0x5098d8(0x164))]({'color':_0x5098d8(0x114)}),_0x335d00=new THREE[(_0x5098d8(0x11b))](_0x2dc24f,_0x5925e6);_0x335d00[_0x5098d8(0x153)][_0x5098d8(0x14c)](_0x1a9894[_0x5098d8(0x153)]),_0x335d00[_0x5098d8(0x153)]['x']-=0x2,_0x335d00[_0x5098d8(0x11c)]={'vx':_0x5c8081,'vy':0x0,'time':0x0},scene[_0x5098d8(0x158)](_0x335d00),waterParticles[_0x5098d8(0x167)](_0x335d00);}water2Height-=flowRate;if(water2Height<0x0)water2Height=0x0;water2['scale']['y']=water2Height/0x7,water2[_0x5098d8(0x153)]['y']=base2+water2Height/0x2;}water2Height>0x0&&simulationTime>=0x2&&(waterHeight+=flowRate,water['scale']['y']=waterHeight/0xa,water[_0x5098d8(0x153)]['y']=base1+waterHeight/0x2);for(let _0x17a8e7=waterParticles[_0x5098d8(0x135)]-0x1;_0x17a8e7>=0x0;_0x17a8e7--){const _0x26d2c2=waterParticles[_0x17a8e7];_0x26d2c2[_0x5098d8(0x11c)][_0x5098d8(0x12d)]+=_0x23405b,_0x26d2c2[_0x5098d8(0x153)]['x']-=0.6*_0x26d2c2[_0x5098d8(0x11c)]['vx']*_0x23405b,_0x26d2c2['position']['y']+=_0x26d2c2[_0x5098d8(0x11c)]['vy']*_0x23405b-0.5*g*Math[_0x5098d8(0x117)](_0x26d2c2[_0x5098d8(0x11c)]['time'],0x2)*_0x23405b,_0x26d2c2[_0x5098d8(0x153)]['y']<-0x14&&(scene[_0x5098d8(0x12c)](_0x26d2c2),waterParticles[_0x5098d8(0x11d)](_0x17a8e7,0x1));}}function createHole(_0x56f3c9){const _0x8185a7=_0x38eff5,_0x450a82=new THREE[(_0x8185a7(0x15c))](0.2,0.2,0x5,0x20),_0x58332b=new THREE[(_0x8185a7(0x164))]({'color':0xffff00}),_0x56c60e=new THREE['Mesh'](_0x450a82,_0x58332b);return _0x56c60e[_0x8185a7(0x148)]['z']=Math['PI']/0x2,_0x56c60e[_0x8185a7(0x153)]['set'](0xc,_0x56f3c9,0x0),scene[_0x8185a7(0x158)](_0x56c60e),waterHoles[_0x8185a7(0x167)](_0x56c60e),_0x56c60e;}function setupLights(){const _0x39b3cd=_0x38eff5,_0x1ff166=new THREE[(_0x39b3cd(0x145))](0xffffff);_0x1ff166[_0x39b3cd(0x153)][_0x39b3cd(0x166)](0xa,0x28,0x14),_0x1ff166[_0x39b3cd(0x140)]=!![],scene[_0x39b3cd(0x158)](_0x1ff166);const _0x2c7f25=new THREE[(_0x39b3cd(0x16c))](0xffffff);_0x2c7f25['position'][_0x39b3cd(0x166)](0xa,0x28,0x1e),_0x2c7f25['castShadow']=!![],_0x2c7f25['lookAt'](-0x1e,0xa,0x0),scene[_0x39b3cd(0x158)](_0x2c7f25);}function addLabel(_0x18edaa,_0x489017,_0x3d5adc,_0x2f17c1,_0x4357cb){const _0x317cdd=_0x38eff5;fontloader[_0x317cdd(0x115)](_0x317cdd(0x142),function(_0x1bb9fc){const _0x3961d3=_0x317cdd;var _0x404f35=new TextGeometry(_0x18edaa,{'size':1.5,'height':0.2,'curveSegments':0x6,'font':_0x1bb9fc}),_0x36d05e=new THREE[(_0x3961d3(0x15d))]({'color':_0x4357cb}),_0x20e2db=new THREE[(_0x3961d3(0x11b))](_0x404f35,_0x36d05e);_0x20e2db[_0x3961d3(0x153)][_0x3961d3(0x166)](_0x489017,_0x3d5adc,_0x2f17c1),scene[_0x3961d3(0x158)](_0x20e2db);});}function calculateFinalTemp(){const _0x25b9a1=_0x38eff5,_0x43cb44=0x5dc,_0x5aa367=0x60,_0x2827da=4.184,_0x32190b=parseFloat(document[_0x25b9a1(0x14f)](_0x25b9a1(0x132))['value']),_0x4a08a5=parseFloat(document[_0x25b9a1(0x14f)](_0x25b9a1(0x121))[_0x25b9a1(0x136)]),_0x2097c0=parseFloat(document[_0x25b9a1(0x14f)](_0x25b9a1(0x14e))['value']),_0x4e5f67=_0x43cb44*_0x2827da*_0x5aa367+_0x32190b*_0x2097c0*_0x4a08a5,_0x33fe24=_0x43cb44*_0x2827da+_0x32190b*_0x2097c0,_0x164c3b=_0x4e5f67/_0x33fe24;document[_0x25b9a1(0x14f)]('finalTemp')[_0x25b9a1(0x136)]=_0x164c3b[_0x25b9a1(0x157)](0x1)+_0x25b9a1(0x12e);}function onWindowResize(){const _0x4c6390=_0x38eff5;camera[_0x4c6390(0x144)]=window[_0x4c6390(0x13e)]/window['innerHeight'],camera[_0x4c6390(0x143)](),renderer['setSize'](window[_0x4c6390(0x13e)],window['innerHeight']);}const render=()=>{const _0x3cec80=_0x38eff5;console[_0x3cec80(0x123)](_0x3cec80(0x13b),camera[_0x3cec80(0x153)]['y']),controls[_0x3cec80(0x127)](),requestAnimationFrame(render),isStart&&updateParticles(),updateBoilingBubbles(),water2Height>0x0?fire[_0x3cec80(0x127)](performance[_0x3cec80(0x12f)]()/0x3e8):!finalTempCalculated&&(calculateFinalTemp(),finalTempCalculated=!![],scene[_0x3cec80(0x12c)](fire[_0x3cec80(0x139)])),renderer[_0x3cec80(0x111)](scene,camera);};
+	    
+		window.onload = initScene;	
+</script>
+  
+</head>
+  
+<body>
+	<div id="info" style="text-align: left"> 
+		<h1 style="text-align: center">Heat Transfer in Liquid</h1>
+		
+ <!-- Left Panel -->  
+	    <div class="control-panel">
+		
+		<div class="control-group">
+		  Cold Liquid:
+		  <div class="slider-row">
+		    <select id="liquidSelector">
+		      <option value="2.44">Ethanol</option>
+		      <option value="4.0">Vinegar</option>
+		      <option value="4.184" selected>Water</option>
+		      <option value="2.14">Coconut Oil</option>
+		    </select>
+		  </div>
+		</div>		
+		    
+		<div class="control-group">
+		  Mass (g):
+		  <div class="slider-row" style="display: flex; align-items: center;">
+		    <input type="range" id="massSlider" min="1000" max="2000" step="10" value="1500" style="flex: 1; margin-right: 8px;">
+		    <input type="text" id="massValue" value="1500" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+		  </div>
+		  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+		    <span>1000</span>
+		    <span>2000</span>
+		  </div>
+		</div>
+		    
+		  <div class="control-group">
+		    Temperature (°C):
+		    <div class="slider-row">
+		      <input type="range" id="tempSlider" min="20" max="50" step="1" value="20">
+		      <input type="text" id="tempValue" value="20" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>20</span>
+		      <span>50</span>
+		    </div>
+		  </div>
+		 <button class="btn btn-danger" id="start">Start</button>
+		    
+		  <div class="control-group">
+		    Final Temp:
+		    <input type="text" id="finalTemp" value="0.0°" readonly style="width: 90px;">
+		  </div>
+
+		<button class="btn btn-warning" onclick="alert('When mixing two liquids at different temperatures (no heat loss), the final temperature is calculated using conservation of energy:\n\nm₁·c₁·(T₁ - T_f) = m₂·c₂·(T_f - T₂)\n\nSolving for T_f:\n\nT_f = (m₁·c₁·T₁ + m₂·c₂·T₂) / (m₁·c₁ + m₂·c₂)\n\nwhere:\n- m₁, m₂: masses of hot and cold liquids (g)\n- c₁, c₂: specific heat capacities (J/g·°C)\n- T₁, T₂: initial temperatures (°C)\n- T_f: final temperature (°C)\n\nSpecific heat values used:\n- Water: 4.184 J/g·°C\n- Ethanol: 2.44 J/g·°C\n- Vinegar: 4.00 J/g·°C\n- Coconut Oil: 2.14 J/g·°C')">
+		    What is Mixing Liquid?
+		</button><br>
+		<button class="btn btn-success" id="reset">Reset</button>
+		
+	
+	</div>
+	</div>
+	<div id="viewport"></div>
+</body>
+</html>

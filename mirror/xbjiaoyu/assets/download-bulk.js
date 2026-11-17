@@ -7,7 +7,7 @@ export function createDownloadBulkUI({api,esc,getUser,modal,close,toast,document
  const body=()=>doc.querySelector('[data-bulk-download-view]');
  const visible=serial=>serial===viewSerial&&dialog.open&&!!body()&&viewer()===viewUser;
  const stop=()=>{if(timer!==null)clearTimer(timer);timer=null;};
- const key=scope=>`xiaobai:bulk-download:${viewer()}:${scope}`;
+ const key=scope=>`leqixiang:bulk-download:${viewer()}:${scope}`;
  const time=value=>typeof value==='number'?value:Date.parse(value);
  const expired=job=>Number.isFinite(time(job?.expiresAt))&&time(job.expiresAt)<=now();
  const remember=(scope,job)=>{if(!job?.id)return;jobs.set(key(scope),job);try{storage?.setItem(key(scope),JSON.stringify({id:job.id,expiresAt:job.expiresAt}));}catch{}};

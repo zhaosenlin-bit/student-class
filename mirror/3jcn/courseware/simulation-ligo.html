@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>乐启享 · 物理实验</title>
+<meta name="description" content="Interactive 3D LIGO gravitational wave detector physics simulation. Explore laser interference, GW150914, gravitational wave strain, moving mirrors and black hole merger chirps.">
+<meta name="keywords" content="physics simulation, LIGO simulation, gravitational waves, gravitational wave detector, GW150914, black hole merger, laser interferometer, gravitational wave chirp, 乐启享物理仿真">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="icon" href="/brand/favicon.ico">
+
+
+
+<style>
+*{box-sizing:border-box}
+html,body{
+ margin:0;width:100%;height:100%;overflow:hidden;
+ background:#535760;color:white;font-family:Arial,Helvetica,sans-serif
+}
+#viewport{position:fixed;inset:0}
+#controls,#plots{
+ position:fixed;top:12px;z-index:5;
+ background:rgba(13,20,33,.96);
+ border-radius:14px;padding:15px;
+ box-shadow:0 5px 25px #0008;
+ max-height:calc(100vh - 24px);
+ overflow:auto
+}
+#controls{left:12px;width:350px}
+#plots{right:12px;width:365px}
+h1{font-size:25px;color:#ffe46e;line-height:1.1;margin:0 0 9px}
+h2{font-size:17px;color:#ffe46e;margin:0 0 9px}
+p{font-size:13px;line-height:1.45}
+.muted{color:#c9d8e8}
+.chip{color:#a9ffcd;font-size:12px}
+.buttons{display:flex;flex-wrap:wrap;gap:7px;margin:11px 0}
+.btn{
+ border:0;border-radius:6px;padding:9px 11px;
+ cursor:pointer;color:white;background:#357dc4;font-weight:bold;
+ text-decoration:none;font-size:13px
+}
+.btn:hover{filter:brightness(1.13)}
+.green{background:#298b59}
+.orange{background:#c88330}
+.red{background:#b84a48}
+.gray{background:#526174}
+.row{margin:12px 0}
+.row label{
+ display:flex;justify-content:space-between;
+ gap:10px;font-size:13px;margin-bottom:5px
+}
+.row input{width:100%;accent-color:#ffe46e}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.metric{background:#243147;padding:9px;border-radius:7px;min-height:70px}
+.metric b{display:block;color:#f7e986;font-size:13px;margin-bottom:7px}
+.metric span{font-size:13px}
+#ligoCanvas{
+ display:block;width:100%;background:#070b14;
+ border:1px solid #334058;border-radius:8px
+}
+.legend{color:#d0dbea;font-size:12px;line-height:1.5}
+.legend strong{color:#ffe46e}
+#overlay-label{
+ position:fixed;bottom:12px;left:50%;
+ transform:translateX(-50%);
+ background:#10192acc;border-radius:8px;
+ padding:7px 12px;font-size:13px;
+ pointer-events:none;text-align:center
+}
+@media(max-width:900px){
+ #controls{width:270px}
+ #plots{width:280px}
+ h1{font-size:20px}
+ .metrics{grid-template-columns:1fr}
+}
+@media(max-width:650px){
+ #controls{width:calc(50% - 16px);padding:9px}
+ #plots{width:calc(50% - 16px);padding:9px}
+ h1{font-size:16px}
+ h2{font-size:14px}
+}
+</style>
+</head>
+
+<body>
+<div id="viewport"></div>
+
+<section id="controls">
+<h1>LIGO Gravitational Wave Detector</h1>
+
+<p class="muted">
+Click "Wave: ON" to observe the gravitational-wave signal.
+</p>
+
+<div class="buttons">
+<button class="btn green" id="start">Start</button>
+<button class="btn orange" id="pause">Pause</button>
+<button class="btn red" id="reset">Reset</button>
+<button class="btn gray" id="wave">Wave: OFF</button>
+</div>
+
+<div class="row">
+<label>
+Gravitational-wave strain amplitude
+<b id="ampValue">2.0 × 10⁻²¹</b>
+</label>
+<input id="amplitude" type="range"
+ min="0" max="5" step="0.1" value="2">
+</div>
+
+<div class="row">
+<label>
+Chirp speed (visual animation)
+<b id="freqValue">0.60 Hz</b>
+</label>
+<input id="frequency" type="range"
+ min="0.1" max="2.5" step="0.05" value="0.6">
+</div>
+
+<div class="row">
+<label>
+Mirror motion magnification
+<b id="magValue">1.0×</b>
+</label>
+<input id="magnify" type="range"
+ min="0.2" max="2.5" step="0.1" value="1">
+</div>
+
+<div class="metrics">
+<div class="metric">
+<b>Instantaneous strain h(t)</b>
+<span id="strain">0.00 × 10⁻²¹</span>
+</div>
+<div class="metric">
+<b>Difference in arm lengths ΔL</b>
+<span id="delta">0.000 × 10⁻¹⁸ m</span>
+</div>
+<div class="metric">
+<b>Round-trip phase difference*</b>
+<span id="phase">0.00 rad</span>
+</div>
+<div class="metric">
+<b>Illustrative detector signal*</b>
+<span id="power">50.0%</span>
+</div>
+</div>
+
+<p class="chip" id="eventStatus">
+Detector ready — waiting for a gravitational wave.
+</p>
+
+<audio id="chirpAudio" preload="auto"
+ src="/api/program-assets/3jcn-simulation-ligo/_ext/gwosc.org/s/events/GW150914/GW150914_H1_shifted.wav">
+</audio>
+
+<div class="buttons">
+<button class="btn" id="about">How LIGO works</button>
+
+</div>
+</section>
+
+<section id="plots">
+<h2>Gravitational-wave chirp</h2>
+<canvas id="ligoCanvas" width="720" height="460"></canvas>
+
+<p class="legend">
+<strong>Top:</strong> LIGO Hanford<br>
+<strong>Bottom:</strong> LIGO Livingston<br>
+Orange and blue curves represent a gravitational-wave chirp
+with increasing frequency and amplitude.
+</p>
+
+<p class="muted">
+Educational visualization inspired by the GW150914 detection.
+The curves are simulated illustrations, not measured LIGO data.
+</p>
+</section>
+
+<div id="overlay-label">
+Use mouse to rotate, zoom, and inspect the interferometer.
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/3jcn-simulation-ligo/_ext/unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "/api/program-assets/3jcn-simulation-ligo/_ext/unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from '/api/program-assets/3jcn-simulation-ligo/_ext/unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import {FontLoader} from '/api/program-assets/3jcn-simulation-ligo/_ext/unpkg.com/three@0.160.0/examples/jsm/loaders/FontLoader.js';
+import {TextGeometry} from '/api/program-assets/3jcn-simulation-ligo/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/TextGeometry.js';
+
+const $=id=>document.getElementById(id);
+
+// ====================================================
+// SCENE
+// ====================================================
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x59616b);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+$('viewport').appendChild(renderer.domElement);
+
+const camera=new THREE.PerspectiveCamera(
+ 43,innerWidth/innerHeight,.1,1500
+);
+camera.position.set(13,20,102);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(17,0,0);
+controls.enableDamping=true;
+
+scene.add(new THREE.AmbientLight(0xffffff,.9));
+
+const sun=new THREE.DirectionalLight(0xffffff,1);
+sun.position.set(40,75,45);
+scene.add(sun);
+
+const rig=new THREE.Group();
+rig.position.x=18;
+scene.add(rig);
+
+const mat=(color,emissive=0)=>
+ new THREE.MeshPhongMaterial({color,emissive,shininess:100});
+ 
+function mkBox(w, h, d, material, x, y, z = 750808 ^ 750808) {
+  var _0xe902af = (164206 ^ 164204) + (847982 ^ 847981);
+  const _0xb350ef = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](w, h, d), material);
+  _0xe902af = 685562 ^ 685564;
+  _0xb350ef['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  rig['\u0061\u0064\u0064'](_0xb350ef);
+  return _0xb350ef;
+}
+const base = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](686762 ^ 686775, 231783 ^ 231802, 599141 ^ 599143, 486195 ^ 486259), mat(0x9aabb8));
+base['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(143996 ^ 143972);
+rig['\u0061\u0064\u0064'](base);
+let _0x72cfc;
+const hub = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](7.5, 7.5, 1.1, 788274 ^ 788224), mat(0xc6d0df));
+_0x72cfc = (642022 ^ 642022) + (134600 ^ 134601);
+hub['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -22.6;
+rig['\u0061\u0064\u0064'](hub);
+let _0xa8d;
+const splitter = mkBox(.33, 471710 ^ 471703, 492313 ^ 492318, new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  "color": 0xdcecff,
+  "transparent": !![],
+  "opacity": .48,
+  '\u0073\u0069\u0064\u0065': THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],
+  "depthWrite": false
+}), 234798 ^ 234798, 277164 ^ 277164);
+_0xa8d = 154022 ^ 154021;
+splitter['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = -Math['\u0050\u0049'] / (344924 ^ 344920);
+mkBox(747826 ^ 747834, 5.5, 488320 ^ 488326, mat(0xe8be12, 0x6a4b00), -(315179 ^ 315147), 335865 ^ 335865);
+var _0xeagdfc = (379601 ^ 379603) + (350175 ^ 350170);
+const mirrorMat = mat(0xeeeeee, 0x222222);
+_0xeagdfc = (926315 ^ 926312) + (251806 ^ 251799);
+const mirrorY = mkBox(467229 ^ 467220, 1.2, 751955 ^ 751956, mirrorMat, 340533 ^ 340533, 362105 ^ 362085);
+let _0xacdgce;
+const mirrorX = mkBox(1.2, 708110 ^ 708103, 185213 ^ 185210, mirrorMat, 537948 ^ 537920, 285012 ^ 285012);
+_0xacdgce = (318924 ^ 318925) + (207608 ^ 207609);
+const detector = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](572513 ^ 572513, -(906777 ^ 906763), 255330 ^ 255330);
+rig['\u0061\u0064\u0064'](detector);
+const eye = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](2.75, 725469 ^ 725501, 515196 ^ 515172), mat(0x9fadb9));
+detector['\u0061\u0064\u0064'](eye);
+let _0x168c7f;
+const lens = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.95, 414922 ^ 414930, 893814 ^ 893798), mat(0x0a0b12));
+_0x168c7f = 634494 ^ 634495;
+lens['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = 2.72;
+detector['\u0061\u0064\u0064'](lens);
+var _0xg1319a = (209129 ^ 209131) + (261382 ^ 261379);
+const emitLens = new THREE['\u0050\u006F\u0069\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, 843668 ^ 843668, 409027 ^ 409034);
+_0xg1319a = '\u006D\u006E\u0064\u0062\u0068\u0067';
+emitLens['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](396836 ^ 396836, -14.7, 379716 ^ 379717);
+rig['\u0061\u0064\u0064'](emitLens);
+var _0xe76f3f = (696171 ^ 696175) + (873353 ^ 873353);
+const V = (x, y, z = 461394 ^ 461394) => new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, y, z);
+_0xe76f3f = 949427 ^ 949427;
+function makeBeam(color, radius = .22) {
+  const _0x4ed = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](radius, radius, 624794 ^ 624795, 909977 ^ 909975), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": color,
+    "emissive": color,
+    '\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079': .32
+  }));
+  rig['\u0061\u0064\u0064'](_0x4ed);
+  return _0x4ed;
+}
+function setBeam(mesh, a, b) {
+  let _0xa65e;
+  const d = b['\u0063\u006C\u006F\u006E\u0065']()['\u0073\u0075\u0062'](a);
+  _0xa65e = 561067 ^ 561066;
+  mesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](a)['\u0061\u0064\u0064\u0053\u0063\u0061\u006C\u0065\u0064\u0056\u0065\u0063\u0074\u006F\u0072'](d, .5);
+  mesh['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](826483 ^ 826483, 541170 ^ 541171, 541703 ^ 541703), d['\u0063\u006C\u006F\u006E\u0065']()['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());
+  mesh['\u0073\u0063\u0061\u006C\u0065']['\u0079'] = d['\u006C\u0065\u006E\u0067\u0074\u0068']();
+}
+let _0x8c9gaa;
+const sourceBeam = makeBeam(0xffdd44, .31);
+_0x8c9gaa = (563228 ^ 563224) + (437466 ^ 437469);
+let _0x69628e;
+const red = makeBeam(0xff5757, .23);
+_0x69628e = (481109 ^ 481116) + (132618 ^ 132617);
+var _0x51fcef = (304593 ^ 304601) + (432251 ^ 432251);
+const blue = makeBeam(0x3eadff, .23);
+_0x51fcef = (147436 ^ 147433) + (723713 ^ 723717);
+const white = makeBeam(0xffffff, .28);
+setBeam(sourceBeam, V(-(508892 ^ 508864), 973294 ^ 973294), V(398858 ^ 398858, 966708 ^ 966708));
+setBeam(white, V(306004 ^ 306004, 445477 ^ 445477), V(463339 ^ 463339, -(951136 ^ 951151)));
+var _0x7fef = (988689 ^ 988694) + (816687 ^ 816686);
+const dots = [];
+_0x7fef = 988250 ^ 988242;
+function newDot(color, size = .36) {
+  var _0x_0x833 = (662212 ^ 662208) + (565250 ^ 565249);
+  const p = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](size, 639589 ^ 639593, 944066 ^ 944072), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color
+  }));
+  _0x_0x833 = "gfgekp";
+  rig['\u0061\u0064\u0064'](p);
+  return p;
+}
+for (const [type, color, count] of [["\u0073\u006F\u0075\u0072\u0063\u0065", 0xffe558, 234585 ^ 234588], ["\u0072\u0065\u0064", 0xff5757, 662802 ^ 662805], ['blue', 0x58c2ff, 234102 ^ 234097], ["\u006F\u0075\u0074", 0xffffff, 621397 ^ 621392]]) {
+  for (let i = 463595 ^ 463595; i < count; i++) {
+    dots['\u0070\u0075\u0073\u0068']({
+      '\u0074\u0079\u0070\u0065': type,
+      '\u0070': newDot(color),
+      '\u006F\u0066\u0066\u0073\u0065\u0074': i / count
+    });
+  }
+}
+new FontLoader()['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0068\u0065\u006C\u0076\u0065\u0074\u0069\u006B\u0065\u0072\u005F\u0072\u0065\u0067\u0075\u006C\u0061\u0072\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E", font => {
+  function _0x27e5b(text, x, y, size = 1.5) {
+    const _0x7ef1f = new TextGeometry(text, {
+      '\u0066\u006F\u006E\u0074': font,
+      "size": size,
+      "height": .09,
+      "bevelEnabled": false
+    });
+    const _0x4_0xd47 = new THREE['\u004D\u0065\u0073\u0068'](_0x7ef1f, new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      "color": 0xffffff
+    }));
+    _0x4_0xd47['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, 671826 ^ 671824);
+    rig['\u0061\u0064\u0064'](_0x4_0xd47);
+  }
+  _0x27e5b("\u004C\u0041\u0053\u0045\u0052", -(732813 ^ 732843), 726585 ^ 726590, 1.8);
+  _0x27e5b("\u0042\u0045\u0041\u004D\u0020\u0053\u0050\u004C\u0049\u0054\u0054\u0045\u0052", -(119269 ^ 119273), -(542966 ^ 542961), 1.45);
+  _0x27e5b('END MIRROR Y', -(940416 ^ 940423), 265910 ^ 265876, 1.5);
+  _0x27e5b('END MIRROR X', 576227 ^ 576250, 469902 ^ 469892, 1.5);
+  _0x27e5b("\u0044\u0045\u0054\u0045\u0043\u0054\u004F\u0052", 776281 ^ 776284, -(164387 ^ 164401), 1.5);
+});
+let running = false;
+var _0x8f9c7e = (839505 ^ 839505) + (305198 ^ 305197);
+let paused = false;
+_0x8f9c7e = 722619 ^ 722616;
+var _0xf511f = (497597 ^ 497598) + (380572 ^ 380569);
+let waveOn = false;
+_0xf511f = 661630 ^ 661629;
+let audioStarted = false;
+var _0x7735be = (359929 ^ 359931) + (123588 ^ 123589);
+let chirpVisualActive = false;
+_0x7735be = "onohma";
+let chirpComplete = false;
+let _0x358ac;
+let t = 367097 ^ 367097;
+_0x358ac = (911006 ^ 911002) + (590673 ^ 590675);
+let eventElapsed = 681997 ^ 681997;
+let _0x612f5a;
+let last = performance['\u006E\u006F\u0077']();
+_0x612f5a = (909360 ^ 909365) + (421560 ^ 421567);
+var _0xbff64c = (957284 ^ 957293) + (153083 ^ 153086);
+const chirpAudio = $("\u0063\u0068\u0069\u0072\u0070\u0041\u0075\u0064\u0069\u006F");
+_0xbff64c = (668145 ^ 668150) + (735219 ^ 735226);
+const CHIRP_AUDIO_DELAY = 869111 ^ 869111;
+const EVENT_DURATION = 678670 ^ 678669;
+let _0x43f;
+const ARM = 342508 ^ 341580;
+_0x43f = "ccfioj";
+const LAMBDA = 1064e-9;
+const CAVITY_PASSES = 99845 ^ 100137;
+let h = 401526 ^ 401526;
+let deltaL = 819044 ^ 819044;
+let phase = 552838 ^ 552838;
+let _0x4fab2c;
+let signal = .5;
+_0x4fab2c = (820267 ^ 820266) + (743998 ^ 743991);
+var _0x7bcae = (981190 ^ 981185) + (763563 ^ 763555);
+const waveAmp = () => Number($("\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065")['\u0076\u0061\u006C\u0075\u0065']) * 1e-21;
+_0x7bcae = '\u006A\u0070\u0070\u006B\u0066\u0064';
+const frequency = () => Number($('frequency')['\u0076\u0061\u006C\u0075\u0065']);
+var _0x751d1e = (374841 ^ 374833) + (311455 ^ 311453);
+const gwPlanes = [];
+_0x751d1e = (337148 ^ 337147) + (237902 ^ 237902);
+const GW_PLANE_COUNT = 233634 ^ 233636;
+let _0xa8de;
+const GW_PLANE_SPACING = 162762 ^ 162752;
+_0xa8de = (178902 ^ 178910) + (466026 ^ 466028);
+var _0x9ff5e = (867713 ^ 867721) + (894114 ^ 894115);
+const GW_PLANE_HALF = 614125 ^ 614087;
+_0x9ff5e = "cledng";
+for (let k = 721520 ^ 721520; k < GW_PLANE_COUNT; k++) {
+  const group = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  const planeGeom = new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();
+  const planePositions = new Float32Array((383293 ^ 383289) * (873194 ^ 873193));
+  planeGeom['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E", new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](planePositions, 905812 ^ 905815));
+  planeGeom['\u0073\u0065\u0074\u0049\u006E\u0064\u0065\u0078']([892697 ^ 892697, 666876 ^ 666877, 810964 ^ 810966, 905554 ^ 905554, 955733 ^ 955735, 671435 ^ 671432]);
+  var _0xd5fed = (387306 ^ 387311) + (524582 ^ 524579);
+  const planeMat = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x7fdcff,
+    "transparent": !![],
+    "opacity": 0,
+    "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],
+    '\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065': false
+  });
+  _0xd5fed = (136770 ^ 136779) + (359798 ^ 359795);
+  var _0x8f9ad = (753392 ^ 753400) + (807536 ^ 807536);
+  const sheet = new THREE['\u004D\u0065\u0073\u0068'](planeGeom, planeMat);
+  _0x8f9ad = (546451 ^ 546450) + (676312 ^ 676316);
+  group['\u0061\u0064\u0064'](sheet);
+  const lineMat = new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xc8f5ff,
+    '\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074': !![],
+    "opacity": 0,
+    "depthWrite": false
+  });
+  function _0x6fb6dc() {
+    var _0xbfb1db = (677727 ^ 677725) + (650723 ^ 650723);
+    const g = new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();
+    _0xbfb1db = (946454 ^ 946453) + (940588 ^ 940584);
+    const _0x598d = new Float32Array((890926 ^ 890924) * (429408 ^ 429411));
+    g['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E", new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0x598d, 759119 ^ 759116));
+    let _0x84b5eb;
+    const _0xb8bd8c = new THREE['\u004C\u0069\u006E\u0065'](g, lineMat['\u0063\u006C\u006F\u006E\u0065']());
+    _0x84b5eb = (529914 ^ 529915) + (182377 ^ 182378);
+    group['\u0061\u0064\u0064'](_0xb8bd8c);
+    return _0xb8bd8c;
+  }
+  var _0xac64ef = (349757 ^ 349754) + (701487 ^ 701480);
+  const topLine = _0x6fb6dc();
+  _0xac64ef = '\u0071\u006C\u0070\u0067\u0071\u0068';
+  const bottomLine = _0x6fb6dc();
+  const leftLine = _0x6fb6dc();
+  let _0x1813e;
+  const rightLine = _0x6fb6dc();
+  _0x1813e = 391150 ^ 391149;
+  group['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+  rig['\u0061\u0064\u0064'](group);
+  gwPlanes['\u0070\u0075\u0073\u0068']({
+    '\u0067\u0072\u006F\u0075\u0070': group,
+    "sheet": sheet,
+    '\u0070\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D': planeGeom,
+    '\u0070\u006C\u0061\u006E\u0065\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E\u0073': planePositions,
+    "topLine": topLine,
+    '\u0062\u006F\u0074\u0074\u006F\u006D\u004C\u0069\u006E\u0065': bottomLine,
+    "leftLine": leftLine,
+    '\u0072\u0069\u0067\u0068\u0074\u004C\u0069\u006E\u0065': rightLine,
+    '\u006B': k
+  });
+}
+function chirpAt(u) {
+  u = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0063\u006C\u0061\u006D\u0070'](u, 213695 ^ 213695, 853555 ^ 853554);
+  const _0x1cdfb = Math['\u0065\u0078\u0070'](-Math['\u0070\u006F\u0077']((u - 0.53) / 0.16, 615146 ^ 615144));
+  const _0x114c = frequency() * ((580632 ^ 580634) * u + 7.5 * u * u + (745969 ^ 745974) * u * u * u);
+  return {
+    "envelope": _0x1cdfb,
+    "normalized": _0x1cdfb * Math['\u0073\u0069\u006E']((615696 ^ 615698) * Math['\u0050\u0049'] * _0x114c)
+  };
+}
+function setLineEndpoints(line, x1, y1, z1, x2, y2, z2) {
+  const _0xc5d6a = line['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0061\u0072\u0072\u0061\u0079'];
+  _0xc5d6a[943708 ^ 943708] = x1;
+  _0xc5d6a[218148 ^ 218149] = y1;
+  _0xc5d6a[242004 ^ 242006] = z1;
+  _0xc5d6a[939651 ^ 939648] = x2;
+  _0xc5d6a[161826 ^ 161830] = y2;
+  _0xc5d6a[701818 ^ 701823] = z2;
+  line['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065'] = !![];
+}
+function updateGravitationalWaveFronts() {
+  let _0xd8451c;
+  const _0x334e = waveOn && chirpVisualActive && waveAmp() > (384460 ^ 384460);
+  _0xd8451c = (806451 ^ 806453) + (749709 ^ 749701);
+  for (const p of gwPlanes) {
+    p['\u0067\u0072\u006F\u0075\u0070']['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = _0x334e;
+  }
+  if (!_0x334e) return;
+  var _0x60167g = (790833 ^ 790832) + (462198 ^ 462207);
+  const u = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0063\u006C\u0061\u006D\u0070'](eventElapsed / EVENT_DURATION, 478208 ^ 478208, 524082 ^ 524083);
+  _0x60167g = (463988 ^ 463988) + (301569 ^ 301575);
+  const _0xaba7cb = chirpAt(u);
+  var _0xfe_0xa97 = (818216 ^ 818219) + (576897 ^ 576900);
+  const _0xdfa2e = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0063\u006C\u0061\u006D\u0070'](Number($("\u006D\u0061\u0067\u006E\u0069\u0066\u0079")['\u0076\u0061\u006C\u0075\u0065']) * _0xaba7cb['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065\u0064'] * 0.22, -0.35, 0.35);
+  _0xfe_0xa97 = (130457 ^ 130457) + (169729 ^ 169736);
+  var _0xb8ee = (465733 ^ 465731) + (880452 ^ 880449);
+  const _0xbe4dfe = (650306 ^ 650307) + _0xdfa2e;
+  _0xb8ee = (633996 ^ 633988) + (992445 ^ 992440);
+  var _0xf0f6e = (332068 ^ 332077) + (883881 ^ 883884);
+  const _0xa439d = (817186 ^ 817187) - _0xdfa2e;
+  _0xf0f6e = (524400 ^ 524407) + (681401 ^ 681401);
+  const _0xdde = GW_PLANE_COUNT * GW_PLANE_SPACING;
+  const _0x3fa9b = -(717125 ^ 717149) + u * (_0xdde + (295880 ^ 295932));
+  for (const p of gwPlanes) {
+    const z = _0x3fa9b - p['\u006B'] * GW_PLANE_SPACING;
+    const _0xd36d8f = -GW_PLANE_HALF * _0xbe4dfe;
+    const _0xe28a = GW_PLANE_HALF * _0xbe4dfe;
+    let _0xd6249g;
+    const _0xc41c = -GW_PLANE_HALF * _0xa439d;
+    _0xd6249g = "oebnim";
+    const _0xe631f = GW_PLANE_HALF * _0xa439d;
+    var _0x3664d = (265712 ^ 265716) + (590703 ^ 590702);
+    const _0xaf9eb = p['\u0070\u006C\u0061\u006E\u0065\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E\u0073'];
+    _0x3664d = (182219 ^ 182219) + (499968 ^ 499974);
+    _0xaf9eb[993370 ^ 993370] = _0xd36d8f;
+    _0xaf9eb[489923 ^ 489922] = _0xc41c;
+    _0xaf9eb[383321 ^ 383323] = z;
+    _0xaf9eb[180147 ^ 180144] = _0xe28a;
+    _0xaf9eb[133862 ^ 133858] = _0xc41c;
+    _0xaf9eb[855315 ^ 855318] = z;
+    _0xaf9eb[550069 ^ 550067] = _0xe28a;
+    _0xaf9eb[914035 ^ 914036] = _0xe631f;
+    _0xaf9eb[491459 ^ 491467] = z;
+    _0xaf9eb[912126 ^ 912119] = _0xd36d8f;
+    _0xaf9eb[325524 ^ 325534] = _0xe631f;
+    _0xaf9eb[963110 ^ 963117] = z;
+    p['\u0070\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065'] = !![];
+    p['\u0070\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D']['\u0063\u006F\u006D\u0070\u0075\u0074\u0065\u0056\u0065\u0072\u0074\u0065\u0078\u004E\u006F\u0072\u006D\u0061\u006C\u0073']();
+    let _0x61f6a;
+    const _0xfgdf7c = Math['\u006D\u0061\u0078'](400571 ^ 400571, (519510 ^ 519511) - Math['\u0061\u0062\u0073'](z) / (223723 ^ 223681));
+    _0x61f6a = '\u0065\u006F\u0068\u0061\u0068\u0063';
+    const _0xbc1d9a = (0.05 + 0.18 * _0xaba7cb['\u0065\u006E\u0076\u0065\u006C\u006F\u0070\u0065']) * _0xfgdf7c;
+    p['\u0073\u0068\u0065\u0065\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = _0xbc1d9a;
+    p['\u0074\u006F\u0070\u004C\u0069\u006E\u0065']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = Math['\u006D\u0069\u006E'](0.45, _0xbc1d9a * (380752 ^ 380754));
+    p['\u0062\u006F\u0074\u0074\u006F\u006D\u004C\u0069\u006E\u0065']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = Math['\u006D\u0069\u006E'](0.45, _0xbc1d9a * (325165 ^ 325167));
+    p['\u006C\u0065\u0066\u0074\u004C\u0069\u006E\u0065']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = Math['\u006D\u0069\u006E'](0.45, _0xbc1d9a * (400513 ^ 400515));
+    p['\u0072\u0069\u0067\u0068\u0074\u004C\u0069\u006E\u0065']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = Math['\u006D\u0069\u006E'](0.45, _0xbc1d9a * (950325 ^ 950327));
+    setLineEndpoints(p['\u0074\u006F\u0070\u004C\u0069\u006E\u0065'], _0xd36d8f, _0xe631f, z, _0xe28a, _0xe631f, z);
+    setLineEndpoints(p['\u0062\u006F\u0074\u0074\u006F\u006D\u004C\u0069\u006E\u0065'], _0xd36d8f, _0xc41c, z, _0xe28a, _0xc41c, z);
+    setLineEndpoints(p['\u006C\u0065\u0066\u0074\u004C\u0069\u006E\u0065'], _0xd36d8f, _0xc41c, z, _0xd36d8f, _0xe631f, z);
+    setLineEndpoints(p['\u0072\u0069\u0067\u0068\u0074\u004C\u0069\u006E\u0065'], _0xe28a, _0xc41c, z, _0xe28a, _0xe631f, z);
+  }
+}
+function stopChirpAudio() {
+  chirpAudio['\u0070\u0061\u0075\u0073\u0065']();
+  chirpAudio['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0054\u0069\u006D\u0065'] = 852985 ^ 852985;
+  audioStarted = false;
+  chirpVisualActive = false;
+}
+function startWaveEvent() {
+  if (waveOn) return;
+  stopChirpAudio();
+  waveOn = !![];
+  running = !![];
+  paused = false;
+  eventElapsed = 713097 ^ 713097;
+  chirpComplete = false;
+  chirpVisualActive = false;
+  $("\u0077\u0061\u0076\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Wave: ON';
+  $("\u0070\u0061\u0075\u0073\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+  $("\u0065\u0076\u0065\u006E\u0074\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u004C\u006F\u0061\u0064\u0069\u006E\u0067\u0020\u0067\u0072\u0061\u0076\u0069\u0074\u0061\u0074\u0069\u006F\u006E\u0061\u006C\u002D\u0077\u0061\u0076\u0065\u0020\u0063\u0068\u0069\u0072\u0070\u002E\u002E\u002E";
+  chirpAudio['\u0070\u006C\u0061\u0079']()['\u0074\u0068\u0065\u006E'](() => {
+    if (!waveOn) return;
+    audioStarted = !![];
+    $('eventStatus')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Wave arriving — mirrors and chirp synchronized.';
+  })['\u0063\u0061\u0074\u0063\u0068'](() => {
+    if (!waveOn) return;
+    finishWaveEvent(!![]);
+    $('eventStatus')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0043\u0068\u0069\u0072\u0070\u0020\u0061\u0075\u0064\u0069\u006F\u0020\u0063\u006F\u0075\u006C\u0064\u0020\u006E\u006F\u0074\u0020\u0070\u006C\u0061\u0079\u002E\u0020\u0043\u0068\u0065\u0063\u006B\u0020\u0061\u0075\u0064\u0069\u006F\u0020\u0061\u0063\u0063\u0065\u0073\u0073\u002E";
+  });
+  updateScene();
+  drawLigoCanvas();
+}
+function finishWaveEvent(manually = false) {
+  waveOn = false;
+  eventElapsed = manually ? 698966 ^ 698966 : EVENT_DURATION;
+  $("\u0077\u0061\u0076\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0057\u0061\u0076\u0065\u003A\u0020\u004F\u0046\u0046";
+  $("\u0065\u0076\u0065\u006E\u0074\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = manually ? "\u0057\u0061\u0076\u0065\u0020\u0073\u0074\u006F\u0070\u0070\u0065\u0064\u0020\u2014\u0020\u0064\u0065\u0074\u0065\u0063\u0074\u006F\u0072\u0020\u0072\u0065\u0061\u0064\u0079\u002E" : "\u0057\u0061\u0076\u0065\u0020\u0061\u006E\u0064\u0020\u0063\u0068\u0069\u0072\u0070\u0020\u0065\u006E\u0064\u0065\u0064\u0020\u2014\u0020\u0064\u0065\u0074\u0065\u0063\u0074\u006F\u0072\u0020\u0062\u0061\u0063\u006B\u0020\u0061\u0074\u0020\u0062\u0061\u0073\u0065\u006C\u0069\u006E\u0065\u002E";
+  stopChirpAudio();
+  chirpComplete = !manually;
+  for (const p of gwPlanes) {
+    p['\u0067\u0072\u006F\u0075\u0070']['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+  }
+  updateScene();
+  drawLigoCanvas();
+}
+chirpAudio['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0065\u006E\u0064\u0065\u0064", () => {
+  if (waveOn) finishWaveEvent();
+});
+function updateScene() {
+  let _0xb1c1ec;
+  const u = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0063\u006C\u0061\u006D\u0070'](eventElapsed / EVENT_DURATION, 877690 ^ 877690, 320748 ^ 320749);
+  _0xb1c1ec = 519033 ^ 519036;
+  h = waveOn && chirpVisualActive ? waveAmp() * chirpAt(u)['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065\u0064'] : 718277 ^ 718277;
+  updateGravitationalWaveFronts();
+  deltaL = ARM * h;
+  phase = (998393 ^ 998397) * Math['\u0050\u0049'] * CAVITY_PASSES * deltaL / LAMBDA;
+  let _0xa2d;
+  const _0x05df = waveAmp() === (826980 ^ 826980) ? 628069 ^ 628069 : h / 5e-21;
+  _0xa2d = '\u0068\u006C\u0069\u006E\u006E\u0066';
+  signal = 0.5 + 0.45 * Math['\u0073\u0069\u006E'](Math['\u0050\u0049'] * _0x05df);
+  const _0x1ffb = waveOn ? Number($('magnify')['\u0076\u0061\u006C\u0075\u0065']) * h / 5e-21 * (289145 ^ 289149) : 495806 ^ 495806;
+  mirrorX['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = (469938 ^ 469934) + _0x1ffb;
+  mirrorY['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = (663096 ^ 663076) - _0x1ffb;
+  setBeam(red, V(317649 ^ 317649, 177444 ^ 177444), V(888444 ^ 888444, mirrorY['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] - .65));
+  setBeam(blue, V(946800 ^ 946800, 825661 ^ 825661), V(mirrorX['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] - .65, 575334 ^ 575334));
+  emitLens['\u0069\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079'] = .2 + signal * 1.7;
+  white['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079'] = .15 + signal * .85;
+  $('strain')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (h / 1e-21)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](476329 ^ 476330) + ' × 10⁻²¹';
+  $("\u0064\u0065\u006C\u0074\u0061")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (deltaL / 1e-18)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](184561 ^ 184562) + "\u0020\u00D7\u0020\u0031\u0030\u207B\u00B9\u2078\u0020\u006D";
+  $('phase')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = phase['\u0074\u006F\u0045\u0078\u0070\u006F\u006E\u0065\u006E\u0074\u0069\u0061\u006C'](825620 ^ 825622) + ' rad';
+  $("\u0070\u006F\u0077\u0065\u0072")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (signal * (294260 ^ 294160))['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](686467 ^ 686466) + "\u0025";
+  for (const d of dots) {
+    let _0xf589c;
+    const _0xa59d7c = ((t * .65 + d['\u006F\u0066\u0066\u0073\u0065\u0074']) % (517602 ^ 517603) + (293683 ^ 293682)) % (821057 ^ 821056);
+    _0xf589c = (410541 ^ 410541) + (369557 ^ 369559);
+    let p;
+    if (d['\u0074\u0079\u0070\u0065'] === "\u0073\u006F\u0075\u0072\u0063\u0065") {
+      p = V(-(398789 ^ 398809) + (142462 ^ 142434) * _0xa59d7c, 104619 ^ 104619, .7);
+    } else if (d['\u0074\u0079\u0070\u0065'] === 'out') {
+      p = V(544375 ^ 544375, -(547815 ^ 547816) * _0xa59d7c, .7);
+    } else {
+      const q = _0xa59d7c < .5 ? (857311 ^ 857309) * _0xa59d7c : (113726 ^ 113724) * ((671523 ^ 671522) - _0xa59d7c);
+      if (d['\u0074\u0079\u0070\u0065'] === "\u0072\u0065\u0064") {
+        p = V(461435 ^ 461435, (mirrorY['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] - .7) * q, .7);
+      } else {
+        p = V((mirrorX['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] - .7) * q, 719748 ^ 719748, .7);
+      }
+    }
+    d['\u0070']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](p);
+    d['\u0070']['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = running && !paused;
+  }
+  setBeam(red, V(809589 ^ 809589, 427199 ^ 427199), V(269554 ^ 269554, mirrorY['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] - .65));
+  setBeam(blue, V(313069 ^ 313069, 146175 ^ 146175), V(mirrorX['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] - .65, 231706 ^ 231706));
+  emitLens['\u0069\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079'] = .2 + signal * 1.7;
+  white['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079'] = .15 + signal * .85;
+  $("\u0073\u0074\u0072\u0061\u0069\u006E")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (h / 1e-21)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](866909 ^ 866910) + "\u0020\u00D7\u0020\u0031\u0030\u207B\u00B2\u00B9";
+  $("\u0064\u0065\u006C\u0074\u0061")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (deltaL / 1e-18)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](570723 ^ 570720) + "\u0020\u00D7\u0020\u0031\u0030\u207B\u00B9\u2078\u0020\u006D";
+  $('phase')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = phase['\u0074\u006F\u0045\u0078\u0070\u006F\u006E\u0065\u006E\u0074\u0069\u0061\u006C'](234362 ^ 234360) + ' rad';
+  $("\u0070\u006F\u0077\u0065\u0072")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (signal * (463754 ^ 463854))['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](828253 ^ 828252) + "\u0025";
+  for (const d of dots) {
+    const u = ((t * .65 + d['\u006F\u0066\u0066\u0073\u0065\u0074']) % (828271 ^ 828270) + (687778 ^ 687779)) % (731361 ^ 731360);
+    let p;
+    if (d['\u0074\u0079\u0070\u0065'] === "\u0073\u006F\u0075\u0072\u0063\u0065") {
+      p = V(-(696189 ^ 696161) + (914709 ^ 914697) * u, 457431 ^ 457431, .7);
+    } else if (d['\u0074\u0079\u0070\u0065'] === 'out') {
+      p = V(337561 ^ 337561, -(304468 ^ 304475) * u, .7);
+    } else {
+      var _0x55bbf = (972937 ^ 972939) + (499777 ^ 499776);
+      const q = u < .5 ? (289422 ^ 289420) * u : (178740 ^ 178742) * ((139686 ^ 139687) - u);
+      _0x55bbf = (580382 ^ 580381) + (980109 ^ 980105);
+      if (d['\u0074\u0079\u0070\u0065'] === 'red') {
+        p = V(237650 ^ 237650, (mirrorY['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] - .7) * q, .7);
+      } else {
+        p = V((mirrorX['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] - .7) * q, 800083 ^ 800083, .7);
+      }
+    }
+    d['\u0070']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](p);
+    d['\u0070']['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = running && !paused;
+  }
+}
+function timeToCanvasX(sec, left, w) {
+  return left + (sec - .5) / .5 * w;
+}
+function drawStars(ctx, x, y, w, h, count = 591048 ^ 591103) {
+  ctx['\u0073\u0061\u0076\u0065']();
+  for (let i = 387535 ^ 387535; i < count; i++) {
+    var _0x2ca32c = (283564 ^ 283565) + (213049 ^ 213053);
+    const _0x22f61b = x + i * (381727 ^ 381782) % (956102 ^ 955694) / (716006 ^ 716558) * w;
+    _0x2ca32c = (373644 ^ 373642) + (198665 ^ 198664);
+    const _0xa951da = y + i * (697348 ^ 697479) % (542128 ^ 542296) / (877962 ^ 878178) * h;
+    ctx['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = i % (931748 ^ 931744) === (332269 ^ 332269) ? 'rgba(180,220,255,.8)' : "\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u002E\u0035\u0029";
+    ctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    ctx['\u0061\u0072\u0063'](_0x22f61b, _0xa951da, i % (236209 ^ 236210) === (990649 ^ 990649) ? 1.2 : .7, 566013 ^ 566013, Math['\u0050\u0049'] * (776350 ^ 776348));
+    ctx['\u0066\u0069\u006C\u006C']();
+  }
+  ctx['\u0072\u0065\u0073\u0074\u006F\u0072\u0065']();
+}
+function drawGrowingChirp(ctx, left, top, w, h, color, isHanford) {
+  const _0x9a4b = chirpComplete ? 154206 ^ 154207 : Math['\u006D\u0061\u0078'](811271 ^ 811271, Math['\u006D\u0069\u006E'](222257 ^ 222256, eventElapsed / EVENT_DURATION));
+  if (_0x9a4b <= (150809 ^ 150809)) return;
+  let _0x2_0xa5e;
+  const _0xf4gb = timeToCanvasX(.8, left, w);
+  _0x2_0xa5e = 659735 ^ 659733;
+  let _0x3f26g;
+  const _0x5bf = timeToCanvasX(162349 ^ 162348, left, w);
+  _0x3f26g = 410070 ^ 410069;
+  var _0xb47ef = (797505 ^ 797504) + (444280 ^ 444272);
+  const _0x7c_0x4e5 = top + h * .78;
+  _0xb47ef = (417587 ^ 417591) + (812883 ^ 812883);
+  let _0x5137ae;
+  const _0x5_0x8d8 = Math['\u006D\u0061\u0078'](562935 ^ 562934, Math['\u0066\u006C\u006F\u006F\u0072'](_0x9a4b * (494152 ^ 494572)));
+  _0x5137ae = 550222 ^ 550217;
+  ctx['\u0073\u0061\u0076\u0065']();
+  ctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  ctx['\u0072\u0065\u0063\u0074'](left, top, w, h);
+  ctx['\u0063\u006C\u0069\u0070']();
+  for (let i = 300432 ^ 300432; i <= _0x5_0x8d8; i++) {
+    const u = i / (764654 ^ 764746);
+    var _0x381f = (910414 ^ 910408) + (125499 ^ 125501);
+    const x = _0xf4gb + (_0x5bf - _0xf4gb) * u;
+    _0x381f = '\u006E\u0066\u006D\u0061\u0062\u0065';
+    const _0x6d0cgg = top + h * (.80 - .64 * Math['\u0070\u006F\u0077'](u, 2.5));
+    var _0x54ecf = (746836 ^ 746845) + (901187 ^ 901194);
+    const _0xb89c = (607403 ^ 607401) + (497298 ^ 497306) * u * u;
+    _0x54ecf = (225901 ^ 225901) + (288886 ^ 288885);
+    const _0x0f_0x39c = isHanford ? "\u0032\u0035\u0035\u002C\u0031\u0037\u0035\u002C\u0039\u0036" : "\u0031\u0031\u0035\u002C\u0031\u0039\u0035\u002C\u0032\u0035\u0035";
+    const _0x301e = ctx['\u0063\u0072\u0065\u0061\u0074\u0065\u0052\u0061\u0064\u0069\u0061\u006C\u0047\u0072\u0061\u0064\u0069\u0065\u006E\u0074'](x, _0x6d0cgg, 918344 ^ 918344, x, _0x6d0cgg, _0xb89c * 2.1);
+    _0x301e['\u0061\u0064\u0064\u0043\u006F\u006C\u006F\u0072\u0053\u0074\u006F\u0070'](867689 ^ 867689, `rgba(${_0x0f_0x39c},${.45 + .5 * u})`);
+    _0x301e['\u0061\u0064\u0064\u0043\u006F\u006C\u006F\u0072\u0053\u0074\u006F\u0070'](.35, `rgba(${_0x0f_0x39c},${.13 + .32 * u})`);
+    _0x301e['\u0061\u0064\u0064\u0043\u006F\u006C\u006F\u0072\u0053\u0074\u006F\u0070'](574646 ^ 574647, `rgba(${_0x0f_0x39c},0)`);
+    ctx['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = _0x301e;
+    ctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    ctx['\u0061\u0072\u0063'](x, _0x6d0cgg, _0xb89c * 2.1, 298538 ^ 298538, Math['\u0050\u0049'] * (117181 ^ 117183));
+    ctx['\u0066\u0069\u006C\u006C']();
+  }
+  ctx['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = color;
+  ctx['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 2.5;
+  ctx['\u0073\u0068\u0061\u0064\u006F\u0077\u0043\u006F\u006C\u006F\u0072'] = color;
+  ctx['\u0073\u0068\u0061\u0064\u006F\u0077\u0042\u006C\u0075\u0072'] = 825195 ^ 825199;
+  ctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  for (let i = 131903 ^ 131903; i <= _0x5_0x8d8; i++) {
+    const u = i / (585265 ^ 585621);
+    var _0x8fea = (943033 ^ 943033) + (763830 ^ 763829);
+    const x = _0xf4gb + (_0x5bf - _0xf4gb) * u;
+    _0x8fea = '\u0062\u006E\u006C\u006C\u0061\u006A';
+    var _0x64d54g = (512885 ^ 512892) + (812087 ^ 812081);
+    const _0x853gc = Math['\u0070\u006F\u0077'](u, 1.5) * Math['\u0070\u006F\u0077']((525305 ^ 525304) - u, .18);
+    _0x64d54g = "fmjdmc";
+    var _0x904a = (103037 ^ 103029) + (448109 ^ 448109);
+    const _0x1fcege = (515220 ^ 515222) * Math['\u0050\u0049'] * ((967393 ^ 967394) * u + (782306 ^ 782312) * u * u + (587171 ^ 587178) * u * u * u) + (isHanford ? 811775 ^ 811775 : .42);
+    _0x904a = (632262 ^ 632259) + (613900 ^ 613897);
+    const _0xd68bbd = _0x853gc * Math['\u0073\u0069\u006E'](_0x1fcege);
+    const y = _0x7c_0x4e5 - h * .35 * _0xd68bbd;
+    if (i === (251486 ^ 251486)) ctx['\u006D\u006F\u0076\u0065\u0054\u006F'](x, y);else ctx['\u006C\u0069\u006E\u0065\u0054\u006F'](x, y);
+  }
+  ctx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  ctx['\u0072\u0065\u0073\u0074\u006F\u0072\u0065']();
+}
+function drawAxisTicks(ctx, left, top, w, h) {
+  ctx['\u0073\u0061\u0076\u0065']();
+  ctx['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u002E\u0038\u0029";
+  ctx['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = 'rgba(255,255,255,.9)';
+  ctx['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 1.3;
+  ctx['\u0066\u006F\u006E\u0074'] = '16px Arial';
+  ctx['\u0073\u0074\u0072\u006F\u006B\u0065\u0052\u0065\u0063\u0074'](left, top, w, h);
+  ctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  ctx['\u006D\u006F\u0076\u0065\u0054\u006F'](left, top + h / (646045 ^ 646047));
+  ctx['\u006C\u0069\u006E\u0065\u0054\u006F'](left + w, top + h / (865580 ^ 865582));
+  ctx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  var _0x0753de = (958299 ^ 958299) + (905128 ^ 905134);
+  const _0xda3a4f = [.5, .6, .7, .8, .9, 669551 ^ 669550];
+  _0x0753de = (624428 ^ 624431) + (404042 ^ 404047);
+  _0xda3a4f['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((v, i) => {
+    const x = left + i * w / (597812 ^ 597809);
+    ctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    ctx['\u006D\u006F\u0076\u0065\u0054\u006F'](x, top + h);
+    ctx['\u006C\u0069\u006E\u0065\u0054\u006F'](x, top + h - (687933 ^ 687921));
+    ctx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+    ctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](v['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](740237 ^ 740236), x - (471736 ^ 471732), top + h + (471313 ^ 471305));
+  });
+  const _0x45a84a = ['32', "\u0036\u0034", "\u0031\u0032\u0038", "\u0032\u0035\u0036", '512'];
+  var _0xb9a57d = (417981 ^ 417982) + (599019 ^ 599019);
+  const _0x225eff = [.78, .58, .40, .23, .08];
+  _0xb9a57d = '\u0064\u006E\u0069\u0063\u0071\u006A';
+  for (let _0x3ddeb = 900505 ^ 900505; _0x3ddeb < (376465 ^ 376467); _0x3ddeb++) {
+    for (let i = 579173 ^ 579173; i < _0x45a84a['\u006C\u0065\u006E\u0067\u0074\u0068']; i++) {
+      var _0xd435b = (831332 ^ 831330) + (938861 ^ 938857);
+      const y = top + _0x3ddeb * h / (895043 ^ 895041) + h / (294649 ^ 294651) * _0x225eff[i];
+      _0xd435b = (289541 ^ 289543) + (842117 ^ 842115);
+      ctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+      ctx['\u006D\u006F\u0076\u0065\u0054\u006F'](left, y);
+      ctx['\u006C\u0069\u006E\u0065\u0054\u006F'](left + (647196 ^ 647190), y);
+      ctx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+      ctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](_0x45a84a[i], left - (896088 ^ 896126), y + (734243 ^ 734246));
+    }
+  }
+  ctx['\u0073\u0061\u0076\u0065']();
+  ctx['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](605228 ^ 605232, top + h / (254490 ^ 254488));
+  ctx['\u0072\u006F\u0074\u0061\u0074\u0065'](-Math['\u0050\u0049'] / (178711 ^ 178709));
+  ctx['\u0066\u006F\u006E\u0074'] = "\u0062\u006F\u006C\u0064\u0020\u0032\u0032\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+  ctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']('Frequency (Hz)', 746292 ^ 746292, 122748 ^ 122748);
+  ctx['\u0072\u0065\u0073\u0074\u006F\u0072\u0065']();
+  ctx['\u0066\u006F\u006E\u0074'] = 'bold 20px Arial';
+  ctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']('Time (sec)', left + w * .42, top + h + (845256 ^ 845308));
+  ctx['\u0072\u0065\u0073\u0074\u006F\u0072\u0065']();
+}
+function drawLigoCanvas() {
+  const _0x57f6e = $("\u006C\u0069\u0067\u006F\u0043\u0061\u006E\u0076\u0061\u0073");
+  const _0x5142f = _0x57f6e['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064");
+  const w = _0x57f6e['\u0077\u0069\u0064\u0074\u0068'];
+  let _0xee7da;
+  const _0x621cge = _0x57f6e['\u0068\u0065\u0069\u0067\u0068\u0074'];
+  _0xee7da = (216424 ^ 216426) + (125303 ^ 125302);
+  _0x5142f['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](410442 ^ 410442, 599139 ^ 599139, w, _0x621cge);
+  const _0xeb0c1d = _0x5142f['\u0063\u0072\u0065\u0061\u0074\u0065\u004C\u0069\u006E\u0065\u0061\u0072\u0047\u0072\u0061\u0064\u0069\u0065\u006E\u0074'](406375 ^ 406375, 584868 ^ 584868, 442563 ^ 442563, _0x621cge);
+  _0xeb0c1d['\u0061\u0064\u0064\u0043\u006F\u006C\u006F\u0072\u0053\u0074\u006F\u0070'](473033 ^ 473033, "\u0023\u0030\u0035\u0030\u0039\u0031\u0033");
+  _0xeb0c1d['\u0061\u0064\u0064\u0043\u006F\u006C\u006F\u0072\u0053\u0074\u006F\u0070'](254632 ^ 254633, "\u0023\u0030\u0038\u0031\u0033\u0032\u0031");
+  _0x5142f['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = _0xeb0c1d;
+  _0x5142f['\u0066\u0069\u006C\u006C\u0052\u0065\u0063\u0074'](210864 ^ 210864, 695635 ^ 695635, w, _0x621cge);
+  var _0xa_0x925 = (334583 ^ 334577) + (684616 ^ 684623);
+  const _0x2997b = 929217 ^ 929167;
+  _0xa_0x925 = (155097 ^ 155103) + (717772 ^ 717768);
+  const _0x460f1f = 995111 ^ 995133;
+  const _0xfcc = w - (849229 ^ 849205);
+  const _0x63353d = _0x621cge - (730540 ^ 730618);
+  var _0xc344a = (263206 ^ 263200) + (920938 ^ 920941);
+  const _0xbf90ae = _0x63353d / (433144 ^ 433146);
+  _0xc344a = (256189 ^ 256189) + (869453 ^ 869452);
+  drawStars(_0x5142f, _0x2997b, _0x460f1f, _0xfcc, _0x63353d);
+  _0x5142f['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0072\u0067\u0062\u0061\u0028\u0039\u0030\u002C\u0034\u0030\u002C\u0032\u0030\u002C\u002E\u0031\u0038\u0029";
+  _0x5142f['\u0066\u0069\u006C\u006C\u0052\u0065\u0063\u0074'](_0x2997b, _0x460f1f, _0xfcc, _0xbf90ae);
+  _0x5142f['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = 'rgba(20,50,110,.15)';
+  _0x5142f['\u0066\u0069\u006C\u006C\u0052\u0065\u0063\u0074'](_0x2997b, _0x460f1f + _0xbf90ae, _0xfcc, _0xbf90ae);
+  _0x5142f['\u0066\u006F\u006E\u0074'] = "\u0062\u006F\u006C\u0064\u0020\u0032\u0032\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+  _0x5142f['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0066\u0030\u0061\u0033\u0035\u0062";
+  _0x5142f['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u004C\u0049\u0047\u004F\u0020\u0048\u0061\u006E\u0066\u006F\u0072\u0064", _0x2997b + (674581 ^ 674615), _0x460f1f + _0x63353d * .22);
+  _0x5142f['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0035\u0038\u0062\u0035\u0066\u0066";
+  _0x5142f['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']('LIGO Livingston', _0x2997b + (512111 ^ 512077), _0x460f1f + _0x63353d * .72);
+  if (chirpVisualActive || chirpComplete) {
+    drawGrowingChirp(_0x5142f, _0x2997b, _0x460f1f, _0xfcc, _0xbf90ae, "\u0023\u0065\u0039\u0061\u0033\u0036\u0036", !![]);
+    drawGrowingChirp(_0x5142f, _0x2997b, _0x460f1f + _0xbf90ae, _0xfcc, _0xbf90ae, '#42b7ff', false);
+  }
+  drawAxisTicks(_0x5142f, _0x2997b, _0x460f1f, _0xfcc, _0x63353d);
+}
+$("\u0073\u0074\u0061\u0072\u0074")['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = () => {
+  running = !![];
+  paused = false;
+  $("\u0070\u0061\u0075\u0073\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+};
+$("\u0070\u0061\u0075\u0073\u0065")['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = () => {
+  if (!running) return;
+  paused = !paused;
+  $("\u0070\u0061\u0075\u0073\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = paused ? "\u0052\u0065\u0073\u0075\u006D\u0065" : "\u0050\u0061\u0075\u0073\u0065";
+  if (waveOn) {
+    if (paused) {
+      chirpAudio['\u0070\u0061\u0075\u0073\u0065']();
+    } else {
+      chirpAudio['\u0070\u006C\u0061\u0079']()['\u0063\u0061\u0074\u0063\u0068'](() => {});
+    }
+  }
+};
+$("\u0072\u0065\u0073\u0065\u0074")['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = () => {
+  stopChirpAudio();
+  waveOn = false;
+  running = false;
+  paused = false;
+  chirpComplete = false;
+  eventElapsed = 170891 ^ 170891;
+  t = 262571 ^ 262571;
+  $("\u0077\u0061\u0076\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0057\u0061\u0076\u0065\u003A\u0020\u004F\u0046\u0046";
+  $("\u0070\u0061\u0075\u0073\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+  $("\u0065\u0076\u0065\u006E\u0074\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0044\u0065\u0074\u0065\u0063\u0074\u006F\u0072\u0020\u0072\u0065\u0061\u0064\u0079\u0020\u2014\u0020\u0077\u0061\u0069\u0074\u0069\u006E\u0067\u0020\u0066\u006F\u0072\u0020\u0061\u0020\u0067\u0072\u0061\u0076\u0069\u0074\u0061\u0074\u0069\u006F\u006E\u0061\u006C\u0020\u0077\u0061\u0076\u0065\u002E";
+  for (const p of gwPlanes) {
+    p['\u0067\u0072\u006F\u0075\u0070']['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+  }
+  updateScene();
+  drawLigoCanvas();
+};
+$("\u0077\u0061\u0076\u0065")['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = () => {
+  if (waveOn) finishWaveEvent(!![]);else startWaveEvent();
+};
+$('amplitude')['\u006F\u006E\u0069\u006E\u0070\u0075\u0074'] = () => {
+  $('ampValue')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = Number($("\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065")['\u0076\u0061\u006C\u0075\u0065'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](671984 ^ 671985) + "\u0020\u00D7\u0020\u0031\u0030\u207B\u00B2\u00B9";
+  updateScene();
+};
+$("\u0066\u0072\u0065\u0071\u0075\u0065\u006E\u0063\u0079")['\u006F\u006E\u0069\u006E\u0070\u0075\u0074'] = () => {
+  $("\u0066\u0072\u0065\u0071\u0056\u0061\u006C\u0075\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = Number($('frequency')['\u0076\u0061\u006C\u0075\u0065'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](242250 ^ 242248) + "\u0020\u0048\u007A";
+  updateScene();
+};
+$('magnify')['\u006F\u006E\u0069\u006E\u0070\u0075\u0074'] = () => {
+  $('magValue')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = Number($("\u006D\u0061\u0067\u006E\u0069\u0066\u0079")['\u0076\u0061\u006C\u0075\u0065'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](134553 ^ 134552) + "\u00D7";
+  updateScene();
+};
+$("\u0061\u0062\u006F\u0075\u0074")['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = () => {
+  alert(`HOW LIGO WORKS — PART 1 OF 2
+
+LIGO (Laser Interferometer Gravitational-Wave Observatory) detects extremely small changes in distance caused by gravitational waves.
+
+1. A laser is split into two perpendicular paths, each with a physical arm length of 4 km.
+
+2. Light makes many round trips in Fabry–Pérot optical cavities.
+
+3. When a gravitational wave passes, the relative lengths of the two arms change.
+
+4. The light beams recombine at the beam splitter.
+
+5. The photodetector measures changes in the interference signal.
+
+Click OK to continue.`);
+  alert(`GW150914 — PART 2 OF 2
+
+FIRST DETECTION
+
+On September 14, 2015, LIGO detected gravitational waves from the merger of two black holes approximately 1.3 billion light-years away.
+
+The increasing frequency and amplitude produced a distinctive chirp.
+
+ABOUT THIS SIMULATION
+
+1. Each physical arm is 4 km long.
+
+2. Mirror motions are enormously magnified for visualization.
+
+3. Gravitational-wave strains around 10⁻²¹ produce displacements far smaller than an atomic nucleus.
+
+4. The 2015 signal lasted only a fraction of a second. This animation slows the event to approximately three seconds.
+
+5. The accompanying audio is a processed recording of the gravitational-wave signal, not ordinary sound propagating through space.
+
+6. The colored chirp curves are synthetic educational illustrations rather than actual measured LIGO data.
+
+7. The phase and detector signal calculations use a simplified optical model.
+
+Click OK to return to the simulation.`);
+};
+window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065", () => {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = innerWidth / innerHeight;
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](innerWidth, innerHeight);
+});
+updateScene();
+drawLigoCanvas();
+var _0x6b52ge = (467550 ^ 467546) + (135326 ^ 135327);
+let accumulator = 360954 ^ 360954;
+_0x6b52ge = (152882 ^ 152880) + (285624 ^ 285631);
+function animate(now) {
+  requestAnimationFrame(animate);
+  var _0xbd_0x686 = (994518 ^ 994516) + (980424 ^ 980428);
+  const _0x5d1ee = Math['\u006D\u0069\u006E']((now - last) / (128270 ^ 128742), .05);
+  _0xbd_0x686 = (658266 ^ 658268) + (159869 ^ 159869);
+  last = now;
+  if (running && !paused) {
+    t += _0x5d1ee;
+    if (waveOn && audioStarted) {
+      let _0xf9342f;
+      const _0x2a18a = chirpAudio['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0054\u0069\u006D\u0065'];
+      _0xf9342f = (384906 ^ 384911) + (431422 ^ 431423);
+      if (_0x2a18a >= CHIRP_AUDIO_DELAY) {
+        eventElapsed = Math['\u006D\u0061\u0078'](475804 ^ 475804, _0x2a18a - CHIRP_AUDIO_DELAY);
+        chirpVisualActive = !![];
+        if (eventElapsed >= EVENT_DURATION) {
+          finishWaveEvent();
+        }
+      }
+    }
+    updateScene();
+    accumulator += _0x5d1ee;
+    if (accumulator > .035) {
+      drawLigoCanvas();
+      accumulator = 640708 ^ 640708;
+    }
+  } else {
+    drawLigoCanvas();
+  }
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>

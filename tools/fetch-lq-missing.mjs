@@ -33,6 +33,7 @@ const RUNTIME_HOSTS = new Set(
       [
       'cdn.jsdelivr.net',
       'unpkg.com',
+      'threejs.org',
       'cdnjs.cloudflare.com',
       'esm.sh',
       'cdn.tailwindcss.com',

@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-thermometer/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-thermometer/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-thermometer/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-thermometer/_ext/vendor/css/final.css">
+	<style>
+		
+		body {
+		  color: black !important;
+		}
+	.control-panel {
+	  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 250px;
+	  font-family: Arial, sans-serif;
+	  text-align: center;
+	}
+	.control-panel-right {
+	  position: absolute;
+	  top: 90px;
+	  right: 50px;
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  text-align: center;
+	}
+	
+	.control-group {
+	  margin-bottom: 15px;
+	}
+	
+	.slider-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+	
+	input[type="range"] {
+	  width: 65%;
+	  accent-color: blue;
+	}
+	
+	input[type="text"] {
+	  width: 80px;
+	  font-weight: bold;
+	  text-align: center;
+	  color: blue;
+	}
+	
+	.minmax {
+	  display: flex;
+	  justify-content: space-between;
+	  font-size: 12px;
+	  margin-top: 5px;
+	}
+	</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 31 May 2025       -->
+	
+	<script type="module">   
+		
+	import THREE from '../jsm/three.js';
+		
+	import { OrbitControls } from '/api/program-assets/lab-phyc140-thermometer/_ext/vendor/jsm/OrbitControls.js';
+	import { FontLoader } from '/api/program-assets/lab-phyc140-thermometer/_ext/vendor/jsm/FontLoader.js';
+	import { TextGeometry } from '/api/program-assets/lab-phyc140-thermometer/_ext/vendor/jsm/TextGeometry.js';	
+	import { LineGeometry } from '/api/program-assets/lab-phyc140-thermometer/_ext/vendor/jsm/LineGeometry.js';
+	import { Line2 } from '/api/program-assets/lab-phyc140-thermometer/_ext/vendor/jsm/Line2.js';
+	import { LineMaterial } from '/api/program-assets/lab-phyc140-thermometer/_ext/vendor/jsm/LineMaterial.js';
+        import { RoundedBoxGeometry } from '/api/program-assets/lab-phyc140-thermometer/_ext/vendor/jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  30 June 2025
+		 **  All rights reserved **/
+		
+	var initScene, dragcontrols, controls, light, referenceLine;
+	let temperature, arrow, arrowArray = [];
+	let mercury;
+	temperature = 300; // Initial temperature in Kelvin
+	const maxTemp = 600, minTemp = 0;
+	const maxHeight = 50, minHeight = 1.5;
+	const normalized = (temperature - minTemp) / (maxTemp - minTemp);
+	const initialHeight = minHeight + normalized * (maxHeight - minHeight);
+	const topY = -20 + initialHeight; 
+	let tempLabelMesh = null;
+    let labelFont = null;        // cache the loaded font
+    let labelRequestId = 0;      // used to ignore stale async loads
+
+	const specialLabels = [
+	    { temp: 0, label: "Absolute zero — the lowest possible temperature in nature" },
+	    { temp: 4.22, label: "Boiling point of liquid helium at 1 atm (used in superconductivity)" },
+	    { temp: 20.28, label: "Boiling point of liquid hydrogen at 1 atm" },
+	    { temp: 44, label: "Average surface temperature on Mars" },
+	    { temp: 77.36, label: "Boiling point of liquid nitrogen (cryogenic coolant)" },
+	    { temp: 100, label: "Roughly the coldest night temperature on the Moon" },
+	    { temp: 195, label: "Dry ice sublimates at −78°C (solid CO₂ disappears into gas)" },
+	    { temp: 187, label: "Lowest recorded natural temperature on Earth (Antarctica)" },
+	    { temp: 273.15, label: "Water freezes: 0°C (ice point)" },
+	    { temp: 300, label: "Standard 'room temperature' for scientific calculations" },
+	    { temp: 310.15, label: "Human biological core temperature (~37°C)" },
+	    { temp: 332.15, label: "Earth's highest recorded surface temperature (Libyan desert)" },
+	    { temp: 373.15, label: "Water boils at 100°C — steam forms" },
+	    { temp: 400, label: "Typical temperature on the Sun-lit side of the Moon" },
+	    { temp: 500, label: "Surface temperature of Venus — hotter than any planet" },
+	    { temp: 573, label: "Incandescent metal begins glowing visibly red" },
+	    { temp: 600, label: "Red giant star atmospheres and lava lake surfaces reach here" }
+	];
+	
+	const _0x116d68=_0x5409;(function(_0x45bd0f,_0x4dd881){const _0x43f7c1=_0x5409,_0x3a821d=_0x45bd0f();while(!![]){try{const _0x1db98c=-parseInt(_0x43f7c1(0x123))/0x1*(parseInt(_0x43f7c1(0x128))/0x2)+parseInt(_0x43f7c1(0x124))/0x3*(-parseInt(_0x43f7c1(0x12a))/0x4)+parseInt(_0x43f7c1(0x10e))/0x5*(-parseInt(_0x43f7c1(0x14b))/0x6)+-parseInt(_0x43f7c1(0x11e))/0x7+-parseInt(_0x43f7c1(0x14f))/0x8+-parseInt(_0x43f7c1(0x10f))/0x9*(-parseInt(_0x43f7c1(0x146))/0xa)+parseInt(_0x43f7c1(0x113))/0xb*(parseInt(_0x43f7c1(0x119))/0xc);if(_0x1db98c===_0x4dd881)break;else _0x3a821d['push'](_0x3a821d['shift']());}catch(_0x369414){_0x3a821d['push'](_0x3a821d['shift']());}}}(_0x4c52,0xc5526));const textureloader=new THREE[(_0x116d68(0x142))](),fontloader=new FontLoader();var scene=new THREE[(_0x116d68(0x143))](),camera=new THREE[(_0x116d68(0x13f))](0x23,window[_0x116d68(0x14c)]/window[_0x116d68(0x139)],0x1,0x3e8);const renderer=new THREE['WebGLRenderer']({'antialias':!![]});initScene=function(){const _0x45ca58=_0x116d68;scene[_0x45ca58(0x130)]=new THREE[(_0x45ca58(0x135))](0x87ceeb),camera=new THREE[(_0x45ca58(0x13f))](0x23,window[_0x45ca58(0x14c)]/window[_0x45ca58(0x139)],0x1,0x3e8),camera[_0x45ca58(0x116)]['set'](0x0,-0x8,0x5f),camera['lookAt'](scene[_0x45ca58(0x116)]),scene['add'](camera),controls=new OrbitControls(camera,renderer[_0x45ca58(0x127)]),renderer[_0x45ca58(0x118)](window[_0x45ca58(0x14c)],window[_0x45ca58(0x139)]),renderer['shadowMap']['enabled']=!![],document['getElementById']('viewport')['appendChild'](renderer['domElement']),setupLights(),createThermo(),mercury=addMercury(initialHeight);const _0x2b5a98=mercury[_0x45ca58(0x116)]['y']+mercury[_0x45ca58(0x10c)]['y']*mercury[_0x45ca58(0x126)][_0x45ca58(0x13e)][_0x45ca58(0x121)]/0x2;arrow=addArrows(_0x2b5a98),updateFluidColumn();var _0x30d1ce=new THREE['BoxGeometry'](0x3c,0x2,0x28);const _0x571006=new THREE[(_0x45ca58(0x11c))](_0x30d1ce,new THREE[(_0x45ca58(0x11d))]({'color':0x8b}));_0x571006[_0x45ca58(0x116)][_0x45ca58(0x141)](0x0,-0x18,0x0),scene[_0x45ca58(0x136)](_0x571006),document['getElementById']('temp')[_0x45ca58(0x149)](_0x45ca58(0x12d),function(){const _0x124dcc=_0x45ca58;temperature=parseFloat(this[_0x124dcc(0x11b)]),document[_0x124dcc(0x140)](_0x124dcc(0x114))[_0x124dcc(0x11b)]=temperature+'\x20K',updateFluidColumn();}),document[_0x45ca58(0x140)]('reset')[_0x45ca58(0x149)](_0x45ca58(0x13b),function(){const _0x4035bc=_0x45ca58;location[_0x4035bc(0x120)]();}),window[_0x45ca58(0x149)](_0x45ca58(0x14e),onWindowResize,![]),requestAnimationFrame(render),render();};function _0x5409(_0xc2a107,_0x4e1f5f){const _0x4c5207=_0x4c52();return _0x5409=function(_0x5409e5,_0x34c7a8){_0x5409e5=_0x5409e5-0x10b;let _0x27de6e=_0x4c5207[_0x5409e5];return _0x27de6e;},_0x5409(_0xc2a107,_0x4e1f5f);}function addMercury(_0x2b2993){const _0x5d17d8=_0x116d68,_0x23fc6d=new THREE[(_0x5d17d8(0x13a))](1.2,1.2,_0x2b2993,0x20),_0x453f88=new THREE[(_0x5d17d8(0x133))]({'color':0xff0000,'transparent':!![],'opacity':0.7});return mercury=new THREE['Mesh'](_0x23fc6d,_0x453f88),mercury['position'][_0x5d17d8(0x141)](0x19,-0x14+_0x2b2993/0x2,0x0),scene[_0x5d17d8(0x136)](mercury),mercury;}function createThermo(){const _0x33aa64=_0x116d68,_0x2f427b=new THREE[(_0x33aa64(0x13a))](1.2,1.2,0x32,0x20),_0x288b0e=new THREE[(_0x33aa64(0x134))](0x2,0x20,0x10),_0x582171=new THREE[(_0x33aa64(0x133))]({'color':0xff0000,'transparent':!![],'opacity':0.7}),_0x1d318f=new THREE['MeshBasicMaterial']({'color':0xffffff,'transparent':!![],'opacity':0.4}),_0xc80e0a=new THREE[(_0x33aa64(0x11c))](_0x288b0e,_0x582171),_0x94d005=new THREE[(_0x33aa64(0x11c))](_0x2f427b,_0x1d318f);_0xc80e0a[_0x33aa64(0x116)][_0x33aa64(0x141)](0x19,-0x15,0x0),_0xc80e0a['add'](_0x94d005),_0x94d005['position']['set'](0x0,0x19,0x0),scene[_0x33aa64(0x136)](_0xc80e0a);}function updateFluidColumn(){const _0x547da1=_0x116d68,_0x108d58=0x258,_0x4c9504=0x0,_0x39753c=0x32,_0x250a3c=1.5,_0x2e302e=(temperature-_0x4c9504)/(_0x108d58-_0x4c9504),_0x1d74bf=_0x250a3c+_0x2e302e*(_0x39753c-_0x250a3c);mercury[_0x547da1(0x10c)]['y']=_0x1d74bf/mercury[_0x547da1(0x126)][_0x547da1(0x13e)][_0x547da1(0x121)],mercury[_0x547da1(0x116)]['y']=-0x14+_0x1d74bf/0x2;const _0x31676b=mercury['position']['y']+mercury['scale']['y']*mercury[_0x547da1(0x126)][_0x547da1(0x13e)]['height']/0x2;arrow['position']['y']=_0x31676b,showTemperatureLabel(temperature,_0x31676b);const _0x43e8c1=(temperature-273.15)[_0x547da1(0x111)](0x2),_0x148e64=((temperature-273.15)*0x9/0x5+0x20)[_0x547da1(0x111)](0x2);document[_0x547da1(0x140)]('censius')[_0x547da1(0x11b)]=_0x43e8c1+_0x547da1(0x148),document[_0x547da1(0x140)](_0x547da1(0x14d))[_0x547da1(0x11b)]=_0x148e64+_0x547da1(0x144);}function showTemperatureLabel(_0x394ef5,_0x363027){const _0x43d4d6=_0x116d68;labelRequestId++;const _0x2972fe=labelRequestId;tempLabelMesh&&(scene[_0x43d4d6(0x14a)](tempLabelMesh),tempLabelMesh[_0x43d4d6(0x126)][_0x43d4d6(0x12e)](),tempLabelMesh[_0x43d4d6(0x13c)][_0x43d4d6(0x12e)](),tempLabelMesh=null);const _0x4c3c0d=specialLabels[_0x43d4d6(0x117)](_0x2a00b6=>Math[_0x43d4d6(0x131)](_0x2a00b6[_0x43d4d6(0x122)]-_0x394ef5)<0x2);if(!_0x4c3c0d)return;function _0x59e272(_0x7d4caa){const _0xb75137=_0x43d4d6;if(_0x2972fe!==labelRequestId)return;const _0x4f025a=new TextGeometry(_0x4c3c0d[_0xb75137(0x115)],{'font':_0x7d4caa,'size':1.2,'height':0.2,'curveSegments':0x6}),_0x4b9750=new THREE[(_0xb75137(0x133))]({'color':_0xb75137(0x125)});tempLabelMesh=new THREE[(_0xb75137(0x11c))](_0x4f025a,_0x4b9750),tempLabelMesh[_0xb75137(0x116)]['set'](-0x1e,_0x363027+0x2,0x0),scene[_0xb75137(0x136)](tempLabelMesh);}labelFont?_0x59e272(labelFont):fontloader[_0x43d4d6(0x11a)](_0x43d4d6(0x10d),function(_0x179557){labelFont=_0x179557,_0x59e272(_0x179557);});}function _0x4c52(){const _0x48dfed=['MeshBasicMaterial','SphereGeometry','Color','add','update','DirectionalLight','innerHeight','CylinderGeometry','click','material','referenceLine','parameters','PerspectiveCamera','getElementById','set','TextureLoader','Scene','\x20°F','Vector3','470gkvDow','render','\x20°C','addEventListener','remove','6RHysWM','innerWidth','fahrenheit','resize','5856928zoWlcD','castShadow','scale','/api/program-assets/lab-phyc140-thermometer/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','6062585sgkebZ','307647HkhIQR','setFromPoints','toFixed','lookAt','2057XZfBkU','tempValue','label','position','find','setSize','278652DWYzJc','load','value','Mesh','MeshPhongMaterial','1469335VHhiWU','name','reload','height','temp','705139SziQIE','12507dvcTSG','black','geometry','domElement','4uSXfWr','MeshLambertMaterial','1512DLbHHG','yellow','push','input','dispose','aspect','background','abs','Line'];_0x4c52=function(){return _0x48dfed;};return _0x4c52();}function setupLights(){const _0x513dd6=_0x116d68,_0x3ec761=new THREE[(_0x513dd6(0x138))](0xffffff);_0x3ec761[_0x513dd6(0x116)][_0x513dd6(0x141)](0xa,0x28,0x14),_0x3ec761[_0x513dd6(0x10b)]=!![],scene[_0x513dd6(0x136)](_0x3ec761);const _0x2ed5e0=new THREE['SpotLight'](0xffffff);_0x2ed5e0[_0x513dd6(0x116)][_0x513dd6(0x141)](0xa,0x28,0x1e),_0x2ed5e0[_0x513dd6(0x10b)]=!![],_0x2ed5e0[_0x513dd6(0x112)](-0x1e,0xa,0x0),scene[_0x513dd6(0x136)](_0x2ed5e0);}function addArrows(_0x43e605){const _0x339a42=_0x116d68;let _0x37421e=new THREE['ArrowHelper'](new THREE[(_0x339a42(0x145))](0x1,0x0,0x0),new THREE[(_0x339a42(0x145))](-0x1e,_0x43e605,0x0),0x36,0x0,0x2,0x1);return scene[_0x339a42(0x136)](_0x37421e),arrowArray[_0x339a42(0x12c)](_0x37421e),_0x37421e;}function addLabel(_0x3aa80e,_0x1884d1,_0x1b13df,_0x214f5c){const _0x299a5d=_0x116d68;fontloader[_0x299a5d(0x11a)](_0x299a5d(0x10d),function(_0x2d652f){const _0x45b768=_0x299a5d;var _0x4eabac=new TextGeometry(_0x3aa80e,{'size':1.5,'height':0.2,'curveSegments':0x6,'font':_0x2d652f}),_0x1334c4=new THREE[(_0x45b768(0x129))]({'color':_0x45b768(0x125)}),_0x2abd74=new THREE[(_0x45b768(0x11c))](_0x4eabac,_0x1334c4);_0x2abd74[_0x45b768(0x116)][_0x45b768(0x141)](_0x1884d1,_0x1b13df,_0x214f5c),scene[_0x45b768(0x136)](_0x2abd74);});}function cleanArrows(){for(let _0x1ca61c of arrowArray){scene['remove'](_0x1ca61c);}arrowArray=[];}function createReferenceLine(_0x1c876e){const _0x497d92=_0x116d68,_0x56f7b5=[new THREE['Vector3'](-0x14,_0x1c876e,0x0),new THREE['Vector3'](0x14,_0x1c876e,0x0)],_0x53d9b6=new THREE['LineBasicMaterial']({'color':_0x497d92(0x12b)}),_0x1f4096=new THREE['BufferGeometry']()[_0x497d92(0x110)](_0x56f7b5),_0x5730b4=new THREE[(_0x497d92(0x132))](_0x1f4096,_0x53d9b6);return _0x5730b4[_0x497d92(0x11f)]=_0x497d92(0x13d),scene[_0x497d92(0x136)](_0x5730b4),_0x5730b4;}function onWindowResize(){const _0x1ada92=_0x116d68;camera[_0x1ada92(0x12f)]=window[_0x1ada92(0x14c)]/window['innerHeight'],camera['updateProjectionMatrix'](),renderer[_0x1ada92(0x118)](window[_0x1ada92(0x14c)],window[_0x1ada92(0x139)]);}const render=()=>{const _0x544601=_0x116d68;controls[_0x544601(0x137)](),requestAnimationFrame(render),renderer[_0x544601(0x147)](scene,camera);};
+	    
+		window.onload = initScene;	
+</script>
+  
+</head>
+  
+<body>
+	<div id="info" > 
+		<h1 style="text-align: center">Thermometer</h1>
+		<div class="control-panel">
+			<div class="control-group">
+			  Slowly Change Temperature (K):
+			  <div class="slider-row" style="display: flex; align-items: center;">
+			    <input type="range" id="temp" min="0" max="600" step="0.5" value="300" style="flex: 1; margin-right: 8px;">
+			    <input type="text" id="tempValue" value="300 K" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+			  </div>
+			  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+			    <span>0</span>
+			    <span>600</span>
+			  </div>
+			</div> 
+			
+		  <div class="control-group">
+  		    Temp in &deg;C:   
+		    <input type="text" id="censius" value="26.85 °C" readonly style="width: 90px;">
+		  </div>
+		  <div class="control-group">
+		    Temp in &deg;F:   
+		    <input type="text" id="fahrenheit" value="80.33 °F" readonly style="width: 90px;">
+		  </div>
+			
+			<button class="btn btn-danger" id="reset">Reset</button>
+			<br>
+			<button class="btn btn-success" onclick="
+			  alert(
+			    'A thermometer is a device used to measure temperature.\n' +
+			    'It usually contains a liquid that expands or contracts based on temperature changes.\n\n' +
+			    '🌡Temperature Scales:\n' +
+			    '- Celsius (°C): Common in science and most countries.\n' +
+			    '- Fahrenheit (°F): Used primarily in the United States.\n' +
+			    '- Kelvin (K): Absolute temperature scale used in science.\n\n' +
+			    'Conversion Formulas:\n' +
+			    '  °C = K - 273.15\n' +
+			    '  °F = (°C × 9/5) + 32\n' +
+			    '  K = °C + 273.15\n\n' +
+			    'These formulas help convert temperatures between the three major scales.'
+			  );
+			">
+			  What is a Thermometer?
+			</button>
+
+		</div>
+	</div>
+	<div id="viewport"></div>
+</body>
+</html>

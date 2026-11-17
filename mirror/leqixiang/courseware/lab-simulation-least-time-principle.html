@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <!-- ================= BASIC ================= -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+
+  <!-- ================= TITLE (MOST IMPORTANT SEO ELEMENT) ================= -->
+  <title>乐启享 · 物理实验</title>
+
+  <!-- ================= PRIMARY DESCRIPTION ================= -->
+  <meta name="description" content="
+    Free interactive 3D physics simulation of Fermat’s Principle (Least Time Principle).
+    Visualize the lifeguard problem, Snell’s Law, and light refraction at a boundary.
+    Explore how different speeds in air and water produce a bent least-time path.
+    Ideal for teaching optics, physics, and calculus of variations.
+  ">
+
+  <!-- ================= KEYWORDS (LESS IMPORTANT TODAY BUT STILL HELPFUL) ================= -->
+  <meta name="keywords" content="physics simulation, 3D physics simulation, least time principle, Fermat's principle,
+    Fermat principle simulation,
+    Snell's law,
+    refraction simulation,
+    optics simulation,
+    interactive physics simulation,
+    virtual physics lab,
+    light refraction,
+    lifeguard problem,
+    boundary refraction,
+    educational physics tools,
+    physics visualization,
+    3JCN physics simulation
+  ">
+
+  <meta name="author" content="乐启享课件库（改编自 Thomas Nguyen 的开源物理仿真）">
+
+  <!-- ================= CANONICAL ================= -->
+  <link rel="canonical" href="/courseware/lab-simulation-fermat?local=1">
+
+  <!-- ================= OPEN GRAPH (SOCIAL SHARING SEO) ================= -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Fermat’s Principle (Least Time) – 3D Physics Simulation">
+  <meta property="og:description" content="Interactive 3D physics simulation demonstrating the Least Time Principle and Snell’s Law refraction.">
+  <meta property="og:url" content="/courseware/simulation-least-time-principle">
+  <meta property="og:image" content="https://www.new3jcn.com/images/fermat-preview.png">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Fermat’s Principle Physics Simulation (3D)">
+  <meta name="twitter:description" content="Explore the Least Time Principle with this interactive optics physics simulation.">
+  <meta name="twitter:image" content="https://www.new3jcn.com/images/fermat-preview.png">
+
+  <!-- ================= STRUCTURED DATA (VERY IMPORTANT FOR GOOGLE) ================= -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LearningResource",
+    "name": "Fermat’s Principle (Least Time) Physics Simulation (3D)",
+    "description": "Interactive 3D physics simulation demonstrating Fermat’s Principle, the Least Time Principle, and Snell’s Law refraction.",
+    "@id":"/courseware/lab-simulation-least-time-principle.html",
+    "inLanguage": "en",
+    "learningResourceType": ["Simulation", "InteractiveResource", "VirtualLab"],
+    "educationalUse": ["Instruction", "Demonstration", "Practice"],
+    "about": [
+      { "@type": "Thing", "name": "Fermat's principle" },
+      { "@type": "Thing", "name": "Least time principle" },
+      { "@type": "Thing", "name": "Snell's law" },
+      { "@type": "Thing", "name": "Refraction" },
+      { "@type": "Thing", "name": "Optics physics" }
+    ],
+    "publisher": {
+      "@type": "Organization",
+      "name": "乐启享物理仿真",
+      "@id":"/courseware/lab-simulation-least-time-principle.html"
+    }
+  }
+  </script>
+
+  <!-- ================= FAVICON ================= -->
+  <link rel="icon" href="/brand/favicon.ico">
+
+  <!-- ================= STYLES ================= -->
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/css/main3.css">
+
+  <!-- ================= LIBRARIES ================= -->
+  <script src="/api/program-assets/lab-simulation-least-time-principle/_ext/cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/ParticlesLibs/SPE.min.js"></script>
+  <script src="/api/program-assets/lab-simulation-least-time-principle/_ext/cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+		
+<style>
+	input { text-align: center;}
+	label {color: black;}
+	h1 {color: blue;}
+</style>	
+</head>
+<body>
+
+		<div id="container"></div>
+		<div id="info">
+			<h1>Life Guard & Drowning Victim Problem</h1>
+			<label>A lifeguard tries to save a drowning victim. 
+			His speed on sand = 3 m/s; His speed on water = 1 m/s. Where should be the target?</label><br>
+			<label>Set the target point:</label> 
+			<input type="range" id="dividerSlider" min="-100" max="40" value="0" step="1">
+			<button type="button" class="button" id="start" style="background-color:yellow">Start Animation</button>	
+			<label>Total Time: </label><input type="text" id="total_time" value="">
+			<label> Student's name: </label><input type="text" id="studentname" value=""><br>
+			<label>What is the least time in minutes? </label> 
+			<input type="number" id="answer" size="6" value="0.00"> 
+			<button type="button" class="button" id="check" style="background-color:lightgreen">Check Answer</button>
+			<label> Result: </label><input type="text" size="8" id="result" value="">
+			<input type="checkbox" name="check-box" id="check-box"><br>
+		</div>
+		
+
+		<script type="module">
+			/** @author: Thomas Nguyen  28 August 2024 **/
+			import * as THREE from '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/js/three.module.js';
+			import Stats from '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/jsm/stats.module.js';
+			import { GUI } from '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/jsm/dat.gui.module.js';
+			import { OrbitControls } from '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/jsm/OrbitControls.js';
+			import { GLTFLoader } from '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/jsm/GLTFLoader.js';
+			import { Water } from '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/js/Water.js';
+			import { Sky } from '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/js/Sky.js';
+			import { FontLoader } from '../jsm/FontLoader.js';
+			import { TextGeometry } from '../jsm/TextGeometry.js';	
+
+			var container, stats, particleGroup, emitter;
+			var gltfLoader;
+			var url3 = '/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/models/liquid_splash/scene.gltf';
+			var camera, scene, renderer, light, loader, density;
+			var controls, water, sphere, cylinder, splash, geometry, material, plane, boat;
+			const sand_speed = 15, water_speed = 5;
+    			var totalTime = 0;
+			var guard, target, divider;
+			
+			var is_start = false; var is_fin = false;
+			
+			var audio = new Audio('/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/Audio/cheer.mp3');
+			var audio1 = new Audio('/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/Audio/correct.mp3');
+			var audio2 = new Audio('/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/Audio/wrong.mp3');
+			const fontloader = new FontLoader();
+
+			init();
+			animate();
+			
+			function init() {
+
+				var _0x500038=_0x59d1;(function(_0xd9e187,_0x51fa2d){var _0x56190d=_0x59d1,_0x32e629=_0xd9e187();while(!![]){try{var _0x31d1f5=-parseInt(_0x56190d(0x1e7))/0x1*(-parseInt(_0x56190d(0x21a))/0x2)+-parseInt(_0x56190d(0x1fe))/0x3*(parseInt(_0x56190d(0x1ed))/0x4)+parseInt(_0x56190d(0x225))/0x5+-parseInt(_0x56190d(0x22a))/0x6*(-parseInt(_0x56190d(0x1ea))/0x7)+parseInt(_0x56190d(0x1e4))/0x8+parseInt(_0x56190d(0x1ec))/0x9*(parseInt(_0x56190d(0x231))/0xa)+-parseInt(_0x56190d(0x219))/0xb;if(_0x31d1f5===_0x51fa2d)break;else _0x32e629['push'](_0x32e629['shift']());}catch(_0x3ea3e5){_0x32e629['push'](_0x32e629['shift']());}}}(_0x23c2,0x5371c),container=document[_0x500038(0x22d)]('container'),loader=new THREE[(_0x500038(0x23f))](),renderer=new THREE[(_0x500038(0x238))](),renderer[_0x500038(0x242)](window[_0x500038(0x233)]),renderer[_0x500038(0x23d)](window[_0x500038(0x237)],window[_0x500038(0x1ee)]),container[_0x500038(0x212)](renderer[_0x500038(0x214)]),scene=new THREE[(_0x500038(0x20a))](),camera=new THREE[(_0x500038(0x226))](0x37,window[_0x500038(0x237)]/window['innerHeight'],0x1,0x4e20),camera[_0x500038(0x229)][_0x500038(0x23b)](0x3c,0x1e,0x64),light=new THREE[(_0x500038(0x23a))](0xffffff,0.8),scene[_0x500038(0x1fb)](light));var pointlight=new THREE[(_0x500038(0x223))](0xff0000,0x1,0x64);pointlight[_0x500038(0x229)]['set'](0x32,0x5,0x32),scene[_0x500038(0x1fb)](pointlight);const axesHelper=new THREE[(_0x500038(0x1ef))](0x3f);scene[_0x500038(0x1fb)](axesHelper),addText(-0x64,0x6,-0x96,'VICTIM',0.8,0x6,0x0),addText(0x28,0x2,0x3c,'Guard',0.2,1.5,0x0),addLine(0x28,0x0,0x3c,0x0,0x0,0x3c,0.05),addText(0x14,0x1,0x3c,_0x500038(0x228),0.2,0x2,0x0),addLine(0x28,0x0,0x3c,0x28,0x0,0x0,0.05),addText(0x28,0x1,0x1e,_0x500038(0x1fc),0.2,0x2,0x0),addLine(-0x64,0x0,-0x96,-0x64,0x0,0x0,0.3),addText(-0x64,0x6,-0x37,_0x500038(0x1e9),0.8,0x6,Math['PI']/0x2),addLine(-0x64,0x0,-0x96,0x0,0x0,-0x96,0.3),addText(-0x23,0x6,-0x96,_0x500038(0x206),0.8,0x6,0x0);var waterGeometry=new THREE[(_0x500038(0x216))](0x2710,0x2710);water=new Water(waterGeometry,{'textureWidth':0x200,'textureHeight':0x200,'waterNormals':new THREE[(_0x500038(0x23f))]()['load'](_0x500038(0x20c),function(_0x41758f){var _0x4e2b8e=_0x500038;_0x41758f[_0x4e2b8e(0x1e0)]=_0x41758f['wrapT']=THREE[_0x4e2b8e(0x245)];}),'alpha':0x1,'sunDirection':light[_0x500038(0x229)]['clone']()[_0x500038(0x1e5)](),'sunColor':0xffffff,'waterColor':0x1e0f,'distortionScale':3.7,'fog':scene[_0x500038(0x209)]!==undefined}),water[_0x500038(0x1e2)]['x']=-Math['PI']/0x2,water[_0x500038(0x229)][_0x500038(0x23b)](0x0,0x0,-0x1388),water[_0x500038(0x1e2)]['z']=0x0,scene[_0x500038(0x1fb)](water);var sandGeometry=new THREE[(_0x500038(0x216))](0x2710,0x2710);const sand_texture=loader['load'](_0x500038(0x235));var sandMaterial=new THREE[(_0x500038(0x213))]({'map':sand_texture}),sand=new THREE['Mesh'](sandGeometry,sandMaterial);sand[_0x500038(0x1e2)]['x']=-Math['PI']/0x2,sand['position']['set'](0x0,0x0,0x1388),sand[_0x500038(0x1e2)]['z']=0x0,scene[_0x500038(0x1fb)](sand);function _0x23c2(){var _0x7d3899=['TextureLoader','studentname','\x20mins','setPixelRatio','distance','CubeCamera','RepeatWrapping','Tween','onUpdate','toFixed','maxPolarAngle','None','Target','wrapS','uniforms','rotation','inclination','96800GIpDjz','normalize','red','19EwsHfy','CylinderBufferGeometry','150\x20m','7KKwYIv','minDistance','225zsoMbt','1748576bGCrhP','innerHeight','AxesHelper','check','Mesh','check-box','easing','sin','load','addEventListener','copy','\x20minutes','minFilter','value','add','60\x20m','generateMipmaps','3dXduvR','texture','background','renderTarget','sunDirection','luminance','pow','close','100\x20m','mieDirectionalG','BufferGeometry','fog','Scene','/api/program-assets/lab-simulation-least-time-principle/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/pictures/waternormals.jpg','Easing','\x20\x27s\x20failed.','material','azimuth','MeshLambertMaterial','appendChild','MeshPhongMaterial','domElement','mieCoefficient','PlaneBufferGeometry','Sky','start','10050205oTyERM','50374vsAiED','onChange','turbidity','black','getPoints','result','addFolder','Water','LinearMipmapLinearFilter','PointLight','Linear','2919540fnuMcO','PerspectiveCamera','total_time','40\x20m','position','422106llpIhU','sqrt','rayleigh','getElementById','onComplete','dividerSlider','update','219070qxzACk','play','devicePixelRatio','cos','textures/sand_texture.jfif','Vector2','innerWidth','WebGLRenderer','sunPosition','DirectionalLight','set','click','setSize','\x20passed\x20the\x20test'];_0x23c2=function(){return _0x7d3899;};return _0x23c2();}function _0x59d1(_0x3fbebf,_0x23f179){var _0x23c254=_0x23c2();return _0x59d1=function(_0x59d1f2,_0x17782c){_0x59d1f2=_0x59d1f2-0x1dc;var _0x5e1e57=_0x23c254[_0x59d1f2];return _0x5e1e57;},_0x59d1(_0x3fbebf,_0x23f179);}var curve=new THREE['SplineCurve']([new THREE[(_0x500038(0x236))](-0x1388,0x0),new THREE[(_0x500038(0x236))](-0x9c4,0xc8),new THREE[(_0x500038(0x236))](0x0,-0x64),new THREE['Vector2'](0x9c4,0xc8),new THREE[(_0x500038(0x236))](0x1388,0x0)]),points=curve[_0x500038(0x21e)](0x32),geometry=new THREE[(_0x500038(0x208))]()['setFromPoints'](points),material=new THREE['LineBasicMaterial']({'color':0xff0000}),curveObject=new THREE['Line'](geometry,material);curveObject[_0x500038(0x1e2)]['x']=Math['PI']/0x2;var cylinderMaterial=new THREE[(_0x500038(0x211))]({'map':loader[_0x500038(0x1f5)]('/api/program-assets/lab-simulation-least-time-principle/_ext/vendor/textures/soccer_texture.jpg')}),cylinderGeometry=new THREE['CylinderBufferGeometry'](0x4,0x4,0x4,0x20);target=new THREE[(_0x500038(0x1f1))](cylinderGeometry,cylinderMaterial),target[_0x500038(0x229)][_0x500038(0x23b)](-0x64,0x0,-0x96),scene[_0x500038(0x1fb)](target);var gMaterial=new THREE[(_0x500038(0x211))]({'color':_0x500038(0x21d)}),gGeometry=new THREE[(_0x500038(0x1e8))](0x2,0x2,0x1,0x20);guard=new THREE[(_0x500038(0x1f1))](gGeometry,gMaterial),guard[_0x500038(0x229)][_0x500038(0x23b)](0x28,0x0,0x3c),scene[_0x500038(0x1fb)](guard);var dMaterial=new THREE[(_0x500038(0x211))]({'color':_0x500038(0x1e6)}),dGeometry=new THREE[(_0x500038(0x1e8))](0x2,0x2,0x1,0x20);divider=new THREE[(_0x500038(0x1f1))](dGeometry,dMaterial),divider[_0x500038(0x229)][_0x500038(0x23b)](0x0,0x0,0x0),fontloader[_0x500038(0x1f5)](_0x500038(0x20b),function(_0x21d7b2){var _0xbec68c=_0x500038,_0xc443db=new TextGeometry(_0xbec68c(0x1df),{'size':0x3,'height':0.7,'curveSegments':0x6,'font':_0x21d7b2}),_0x30d3fb=new THREE['MeshBasicMaterial']({'color':'yellow'}),_0x483691=new THREE[(_0xbec68c(0x1f1))](_0xc443db,_0x30d3fb);_0x483691[_0xbec68c(0x229)][_0xbec68c(0x23b)](0x0,0x2,0x0),divider[_0xbec68c(0x1fb)](_0x483691);}),scene[_0x500038(0x1fb)](divider);var sky=new Sky(),uniforms=sky[_0x500038(0x20f)][_0x500038(0x1e1)];uniforms[_0x500038(0x21c)][_0x500038(0x1fa)]=0xa,uniforms[_0x500038(0x22c)][_0x500038(0x1fa)]=0x2,uniforms[_0x500038(0x203)]['value']=0x1,uniforms[_0x500038(0x215)]['value']=0.005,uniforms[_0x500038(0x207)][_0x500038(0x1fa)]=0.8;var parameters={'distance':0x190,'inclination':0.24,'azimuth':0.205},cubeCamera=new THREE[(_0x500038(0x244))](0.1,0x1,0x200);cubeCamera[_0x500038(0x201)][_0x500038(0x1ff)][_0x500038(0x1fd)]=!![],cubeCamera[_0x500038(0x201)][_0x500038(0x1ff)][_0x500038(0x1f9)]=THREE[_0x500038(0x222)],scene[_0x500038(0x200)]=cubeCamera['renderTarget'];function updateSun(){var _0x32a539=_0x500038,_0x3339ce=Math['PI']*(parameters[_0x32a539(0x1e3)]-0.5),_0x2cb6e5=0x2*Math['PI']*(parameters[_0x32a539(0x210)]-0.5);light['position']['x']=parameters['distance']*Math[_0x32a539(0x234)](_0x2cb6e5),light[_0x32a539(0x229)]['y']=parameters[_0x32a539(0x243)]*Math[_0x32a539(0x1f4)](_0x2cb6e5)*Math[_0x32a539(0x1f4)](_0x3339ce),light[_0x32a539(0x229)]['z']=parameters[_0x32a539(0x243)]*Math['sin'](_0x2cb6e5)*Math['cos'](_0x3339ce),sky[_0x32a539(0x20f)][_0x32a539(0x1e1)][_0x32a539(0x239)][_0x32a539(0x1fa)]=light[_0x32a539(0x229)][_0x32a539(0x1f7)](light['position']),water[_0x32a539(0x20f)][_0x32a539(0x1e1)][_0x32a539(0x202)][_0x32a539(0x1fa)][_0x32a539(0x1f7)](light[_0x32a539(0x229)])[_0x32a539(0x1e5)](),cubeCamera[_0x32a539(0x230)](renderer,sky);}updateSun(),controls=new OrbitControls(camera,renderer['domElement']),controls[_0x500038(0x1dd)]=Math['PI']*0.495,controls['target'][_0x500038(0x23b)](0x0,0xa,0x0),controls[_0x500038(0x1eb)]=0x28,controls['maxDistance']=0xc8,controls[_0x500038(0x230)]();var gui=new GUI(),folder=gui[_0x500038(0x220)](_0x500038(0x217));folder[_0x500038(0x1fb)](parameters,_0x500038(0x1e3),0x0,0.5,0.0001)[_0x500038(0x21b)](updateSun),folder[_0x500038(0x1fb)](parameters,_0x500038(0x210),0x0,0x1,0.0001)[_0x500038(0x21b)](updateSun),folder[_0x500038(0x205)]();var uniforms=water['material'][_0x500038(0x1e1)],folder=gui[_0x500038(0x220)](_0x500038(0x221));folder[_0x500038(0x1fb)](uniforms['size'],_0x500038(0x1fa),0.1,0xa,0.1)['name']('size'),folder[_0x500038(0x205)](),gui['closed']=!![],gui[_0x500038(0x205)](),gui['hide'](),document['getElementById'](_0x500038(0x22f))[_0x500038(0x1f6)]('input',function(_0x506b39){var _0x2ba68e=_0x500038,_0x57ef7e=parseFloat(_0x506b39['target']['value']);divider[_0x2ba68e(0x229)]['x']=_0x57ef7e;}),document[_0x500038(0x22d)]('start')[_0x500038(0x1f6)](_0x500038(0x23c),function(){var _0x18bd63=_0x500038;is_start=!![];var _0x5cefe7=Math[_0x18bd63(0x22b)](Math[_0x18bd63(0x204)](divider[_0x18bd63(0x229)]['x']-guard[_0x18bd63(0x229)]['x'],0x2)+Math[_0x18bd63(0x204)](divider[_0x18bd63(0x229)]['z']-guard[_0x18bd63(0x229)]['z'],0x2)),_0x54948c=Math[_0x18bd63(0x22b)](Math[_0x18bd63(0x204)](target[_0x18bd63(0x229)]['x']-divider['position']['x'],0x2)+Math[_0x18bd63(0x204)](target['position']['z']-divider['position']['z'],0x2)),_0x3f5bc6=_0x5cefe7/sand_speed,_0x5421eb=_0x54948c/water_speed,_0x4d1268=0x0;new TWEEN[(_0x18bd63(0x246))](guard[_0x18bd63(0x229)])['to']({'x':divider[_0x18bd63(0x229)]['x'],'z':divider[_0x18bd63(0x229)]['z']},_0x3f5bc6*0x3e8)[_0x18bd63(0x1f3)](TWEEN['Easing'][_0x18bd63(0x224)][_0x18bd63(0x1de)])[_0x18bd63(0x247)](function(_0x430941,_0x1434eb){var _0x4ce7d3=_0x18bd63;_0x4d1268=0x5*(_0x1434eb*_0x3f5bc6),document['getElementById'](_0x4ce7d3(0x227))[_0x4ce7d3(0x1fa)]=(_0x4d1268/0x3c)['toFixed'](0x2)+_0x4ce7d3(0x1f8);})[_0x18bd63(0x22e)](function(){var _0x5bbec4=_0x18bd63;new TWEEN[(_0x5bbec4(0x246))](guard[_0x5bbec4(0x229)])['to']({'x':target['position']['x'],'z':target[_0x5bbec4(0x229)]['z']},_0x5421eb*0x3e8)[_0x5bbec4(0x1f3)](TWEEN[_0x5bbec4(0x20d)][_0x5bbec4(0x224)][_0x5bbec4(0x1de)])['onUpdate'](function(_0x227dbc,_0x440114){var _0x404f60=_0x5bbec4;_0x4d1268=0x5*(_0x3f5bc6+_0x440114*_0x5421eb),document[_0x404f60(0x22d)]('total_time')[_0x404f60(0x1fa)]=(_0x4d1268/0x3c)[_0x404f60(0x1dc)](0x2)+_0x404f60(0x1f8);})[_0x5bbec4(0x22e)](function(){var _0x368841=_0x5bbec4;document[_0x368841(0x22d)]('total_time')[_0x368841(0x1fa)]=(0x5*(_0x3f5bc6+_0x5421eb)/0x3c)[_0x368841(0x1dc)](0x2)+_0x368841(0x241);})[_0x5bbec4(0x218)]();})[_0x18bd63(0x218)]();}),document[_0x500038(0x22d)](_0x500038(0x1f0))['addEventListener'](_0x500038(0x23c),function(){var _0x199280=_0x500038,_0xa83ee=document['getElementById']('answer')['value'];Math['abs'](_0xa83ee-3.33)<0.5?(audio1[_0x199280(0x232)](),document[_0x199280(0x22d)](_0x199280(0x1f2))['checked']=!![],document[_0x199280(0x22d)](_0x199280(0x21f))[_0x199280(0x1fa)]=document[_0x199280(0x22d)](_0x199280(0x240))[_0x199280(0x1fa)]+_0x199280(0x23e)):(audio2[_0x199280(0x232)](),document[_0x199280(0x22d)](_0x199280(0x21f))[_0x199280(0x1fa)]=document[_0x199280(0x22d)](_0x199280(0x240))[_0x199280(0x1fa)]+_0x199280(0x20e));}),window[_0x500038(0x1f6)]('resize',onWindowResize,![]);
+				
+			}
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}	
+			function addText(x,y,z, t, h, s, alpha){
+				fontloader.load( '/api/program-assets/lab-simulation-least-time-principle/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+					var  textGeo = new TextGeometry(t, {
+					    size: s,  
+					    height: h, 
+					    curveSegments: 6,
+					    font: tex,
+				        }); 
+			
+				    	var  textMaterial = new THREE.MeshBasicMaterial({color: "white"});  
+				    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+				    	textMesh.position.set(x,y,z);
+				    	textMesh.rotateY(alpha);
+				    	scene.add(textMesh);
+				});
+			}	
+			function addLine(x1,y1,z1,x2,y2,z2, t){
+				var arr = [new THREE.Vector3(x1,y1,z1),
+					   new THREE.Vector3(x2,y2,z2)]; 
+				var mat = new THREE.MeshLambertMaterial({color: "yellow"}); 
+				var curve = new THREE.CatmullRomCurve3( arr );
+				var geometry = new THREE.TubeGeometry( curve, 100, t, 36, false ); 
+				var  str = new THREE.Mesh(geometry, mat);
+				scene.add(str);
+				return str;
+			}	
+			function animate() {
+				requestAnimationFrame( animate );
+				TWEEN.update();
+				render();
+			}
+			function render() { 
+				var time = performance.now() * 0.001;			
+				water.material.uniforms[ 'time' ].value += 1.0 / 60.0;
+				renderer.render( scene, camera );
+			}
+
+		</script>   
+</body>
+</html>

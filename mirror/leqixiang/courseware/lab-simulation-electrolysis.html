@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-simulation-electrolysis.html",
+		  "name": "Best Physics Simulations",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Education",
+		    "name": "3JCN"
+		  }
+		}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-simulation-electrolysis/_ext/vendor/css/main3.css">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-simulation-electrolysis/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations for Education">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-simulation-electrolysis/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/simulation-electrolysis">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/api/program-assets/lab-simulation-electrolysis/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-simulation-electrolysis/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-simulation-electrolysis/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/api/program-assets/lab-simulation-electrolysis/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+<style>
+  body { color:black; }
+
+ /* Control panel box */
+ #infoPanel{
+  position:absolute;
+  top:15px;
+  left:50%;
+  transform:translateX(-50%);
+  width:900px;              /* wider */
+  max-width:95%;
+  background: rgba(255,255,255,0.95);
+  border: 2px solid #d0d0d0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+  z-index: 10;
+
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+}
+#infoPanel label{
+  font-size:13px;
+  font-weight:600;
+  margin-bottom:4px;
+}
+
+#infoPanel input[type="range"]{
+  width:180px;
+}
+
+.control-group{
+  display:flex;
+  flex-direction:column;
+  min-width:170px;
+}
+
+.mass-box{
+  width:120px;
+  height:30px;
+  text-align:center;
+  font-weight:600;
+}
+
+.panel-buttons{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+</style>
+<!--   Thomas Nguyen; Date: Feb 17, 2026 -->
+	
+<script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/lab-simulation-electrolysis/_ext/unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "/api/program-assets/lab-simulation-electrolysis/_ext/unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '/api/program-assets/lab-simulation-electrolysis/_ext/unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from '/api/program-assets/lab-simulation-electrolysis/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from '/api/program-assets/lab-simulation-electrolysis/_ext/unpkg.com/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js';
+import { FontLoader } from '/api/program-assets/lab-simulation-electrolysis/_ext/unpkg.com/three@0.160.0/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from '/api/program-assets/lab-simulation-electrolysis/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/TextGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  19 October 2024
+		 **  All rights reserved **/
+		
+	var initScene, controls, renderer, scene, light, camera, arrowCurrent;
+	var wire, sensor, textMesh, textMesh1, textMesh2, label_mesh;
+	var step, springMesh, coilMesh, lock, onoff = true;
+	var lineArray = []; 
+	let chart; let previousValue = 0;
+	var electrolysisCell, anodeStrip, cathodeStrip;
+	
+	let isRunning = false;
+	let simSpeed = 60;           // default 60× faster than real time
+	let elapsedSim = 0;          // simulated seconds elapsed
+	let targetSim = 60;          // simulated total seconds to run
+	let lastFrameT = 0;          // ms time stamp
+	
+	let I_amp = 0.50;            // current (A)
+	let mCathode_g = 0.0;        // accumulated +mass on cathode (g)
+	let mAnodeLoss_g = 0.0;      // accumulated mass loss magnitude at anode (g)
+  	
+	var NTWISTS = 35;
+	var spring_end = -40;
+	var sbase_end = 0, offsetX = 7;
+	// --- BUBBLES ---
+	let bubblesGroup = null;
+	let bubblesMesh = null;
+	let bubbles = [];     // per-bubble state
+	let bubblesOn = false;
+	
+// globals (you already declared some - keep only one set)
+let boilingBubbles = [];
+let maxBubbles = 80;
+
+// beaker / liquid parameters (match addElectrolysisCell)
+const BUB_outerR = 3.2;
+const BUB_innerR = 3.0;
+const BUB_beakerH = 7.5;
+const BUB_wallT = 0.25;
+const BUB_liquidH = 5.2;
+
+// electrode positions inside electrolysisCell (match addElectrolysisCell)
+const BUB_stripX_left  = -1.0;
+const BUB_stripX_right =  1.0;
+const BUB_stripZ_center = 0.0;
+
+// bubble control
+let bubbleSpawnAccumulator = 0;	
+	
+	var textureloader = new THREE.TextureLoader();
+	const fontloader = new FontLoader();
+
+	initScene = function() {
+		renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.shadowMap.enabled = true;
+		renderer.shadowMapSoft = true;
+		//renderer.physicallyCorrectLights = true;
+		document.getElementById( 'viewport' ).appendChild( renderer.domElement );
+		scene = new THREE.Scene;
+    		scene.background = new THREE.Color( 0x1DCBEA );
+		camera = new THREE.PerspectiveCamera(
+			35,
+			window.innerWidth / window.innerHeight,
+			1,
+			1000
+		);
+		camera.position.set( 0, 10, 60 );
+		camera.lookAt( scene.position );
+		scene.add( camera );
+		controls = new OrbitControls( camera, renderer.domElement );
+		
+// --- LIGHTS (better for glass/liquid/bubbles) ---
+
+// 1) Soft overall light so bubbles are visible from side angles
+const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+scene.add(ambient);
+
+// 2) Sky/ground light gives nice shading without killing transparency
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.55);
+hemi.position.set(0, 60, 0);
+scene.add(hemi);
+
+// 3) Key light (directional) aimed toward the beaker region
+light = new THREE.DirectionalLight(0xffffff, 0.85);
+light.position.set(20, 25, 35);
+light.target.position.set(5, -12, 0);   // aim near your beaker at (x~5, y~-17, z~0)
+scene.add(light.target);
+light.castShadow = true;
+
+// Shadow settings (optional but recommended)
+light.shadow.mapSize.width = 1024;
+light.shadow.mapSize.height = 1024;
+light.shadow.camera.near = 1;
+light.shadow.camera.far = 200;
+light.shadow.camera.left = -80;
+light.shadow.camera.right = 80;
+light.shadow.camera.top = 80;
+light.shadow.camera.bottom = -80;
+
+scene.add(light);
+
+// 4) Fill spot light from the front-right to add highlights on bubbles
+const spotlight = new THREE.SpotLight(0xffffff, 0.9, 200, Math.PI / 6, 0.35, 1.0);
+spotlight.position.set(25, 18, 15);
+spotlight.target.position.set(5, -12, 0); // aim at beaker
+scene.add(spotlight.target);
+spotlight.castShadow = false; // keep false unless you really need spot shadows
+scene.add(spotlight);
+
+// 5) Rim/back light to make bubbles “pop” (very helpful)
+const rim = new THREE.DirectionalLight(0xffffff, 0.45);
+rim.position.set(-25, 15, -30);
+rim.target.position.set(5, -12, 0);
+scene.add(rim.target);
+scene.add(rim);
+
+		const axesHelper = new THREE.AxesHelper( 25 );
+		axesHelper.position.y = -12;
+		//scene.add( axesHelper );
+				
+		addText(-20,0,-19,'Electron Charge Via Electrolysis',2, "black");
+		addText(5.5,-6,0,'+',2, "red");
+		addText(3.4,-6,0,'-',2, "blue");
+		addText(-25.5,-8,-20,'DC power supply',1, "black");
+		addText(15,-10,-20,'Digital Scale',1, "black");
+		addText(-14,-11.5,0,'Rheostat',0.7, "black");
+		addText(10,-13,0,'Copper Sulfate Solution',1, "blue");
+		addText(10,-14.5,0,'Copper Electrodes',1, "blue");
+		createSpring(31,-7,0); 
+		addElectrolysisCell(5, -17, 0); 
+		addPowerSupply(-20,-12,-20, 0);
+		addDigitalScale(20,-14,-20);
+				
+		// create three wires:
+		var arr = [new THREE.Vector3(-21.9,-14,-19),   // negative wire, sliding on top of Rheostate
+			  new THREE.Vector3(-21.9,-15,-12),
+			  new THREE.Vector3(-16,-12,-5),
+			  new THREE.Vector3(-16,-12,0)]; 
+		addSphere(-16,-12,0, 0.4); // add a sphere at the end
+		var mat = new THREE.MeshLambertMaterial({color: "brown"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 50, 0.1, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		scene.add(str); 
+		
+		var arr2 = [new THREE.Vector3(-20.5,-14.8,-19),   // positive wire to Anode
+			  new THREE.Vector3(-20.1,-14,-15),
+			  new THREE.Vector3(7.5,-12,-15),
+			  new THREE.Vector3(6,-7, 0)]; 
+		addSphere(6,-7, 0, 0.2);
+		var curve2 = new THREE.CatmullRomCurve3( arr2 );
+		var geometry2 = new THREE.TubeGeometry( curve2, 50, 0.1, 36, false ); 
+		var  str2 = new THREE.Mesh(geometry2, mat);
+		scene.add(str2);
+		
+		var arr3 = [new THREE.Vector3(3.8, -7, 0),   // from Cathode to the right of Rheostate
+			  new THREE.Vector3(-3,-7,0),
+			  new THREE.Vector3(-4,-12.5,0),
+			  new THREE.Vector3(-5,-12.5, 0)]; 
+		addSphere(3.8,-7,0, 0.2); // right end
+		addSphere(-5,-12.5, 0, 0.25);  // left end
+		var curve3 = new THREE.CatmullRomCurve3( arr3 );
+		var geometry3 = new THREE.TubeGeometry( curve3, 50, 0.1, 36, false ); 
+		var  str3 = new THREE.Mesh(geometry3, mat);
+		scene.add(str3);
+		
+		var geometry = new THREE.BoxGeometry( 60,2,60 ); 
+		var base = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial( { color: 0x654321 , shading: THREE.FlatShading } ));
+		base.position.set(1,-17,0);
+		scene.add(base);	
+	    setupElectrolysisUI();
+		requestAnimationFrame( render );
+	}
+
+	// -------------------- BUBBLES (between the 2 copper strips) --------------------
+
+	// This group will be added inside electrolysisCell, so all bubble positions are LOCAL to the beaker.
+	function createBubblesSystemSimple(){
+	  bubblesGroup = new THREE.Group();
+	  bubblesGroup.name = "bubblesGroup";
+	  return bubblesGroup;
+	}
+	
+	// Random bubble position INSIDE liquid and BETWEEN the two strips area.
+	// NOTE: local coordinates relative to electrolysisCell group.
+	function randomBubblePositionBetweenStrips(){
+	  // x: between the strips, small margin
+	  const xMin = BUB_stripX_left + 0.15;
+	  const xMax = BUB_stripX_right - 0.15;
+	
+	  // z: keep near center region (between strips), but still random
+	  const zMin = -0.45;
+	  const zMax =  0.45;
+	
+	  // y: start near lower part of liquid
+	  const liquidBottomY = BUB_wallT;              // bottom glass thickness top
+	  const liquidTopY    = BUB_wallT + BUB_liquidH;
+	  const yMin = liquidBottomY + 0.2;
+	  const yMax = liquidBottomY + BUB_liquidH * 0.45;
+	
+	  const x = xMin + Math.random() * (xMax - xMin);
+	  const y = yMin + Math.random() * (yMax - yMin);
+	  const z = zMin + Math.random() * (zMax - zMin);
+	
+	  return new THREE.Vector3(x, y, z);
+	}
+	
+	function generateBoilingBubble(){
+	  if (!bubblesOn) return;
+	  if (!bubblesGroup) return;
+	  if (boilingBubbles.length >= maxBubbles) return;
+	
+	  const radius = Math.random() * 0.18 + 0.06; // 0.06..0.24
+	  const geometry = new THREE.SphereGeometry(radius, 10, 10);
+	
+	  const material = new THREE.MeshBasicMaterial({
+	    color: 0xffffff
+	    //transparent: true,
+	    //opacity: 0.55
+	  });
+	
+	  const bubble = new THREE.Mesh(geometry, material);
+	
+	  // random start inside liquid between strips
+	  bubble.position.copy(randomBubblePositionBetweenStrips());
+	
+	  // rise speed (units/sec) and slight wobble
+	  bubble.userData = {
+	    riseSpeed: 0.8 + Math.random() * 0.9,     // 0.8..1.7 units/sec
+	    driftSpeed: 0.15 + Math.random() * 0.2,   // lateral wobble
+	    phase: Math.random() * Math.PI * 2,
+	    r: radius
+	  };
+	
+	  bubblesGroup.add(bubble);
+	  boilingBubbles.push(bubble);
+	}
+	
+	function updateBoilingBubbles(dt){
+	  if (!bubblesOn) return;
+	  if (!bubblesGroup) return;
+	
+	  // spawn rate: bubbles per second (adjust if you want more/less)
+	  const spawnRate = 10; // bubbles/sec
+	  bubbleSpawnAccumulator += dt * spawnRate;
+	
+	  while (bubbleSpawnAccumulator >= 1){
+	    bubbleSpawnAccumulator -= 1;
+	    // add some randomness: sometimes skip
+	    if (Math.random() < 0.85) generateBoilingBubble();
+	  }
+	
+	  // liquid surface in local coordinates
+	  const liquidTopY = BUB_wallT + BUB_liquidH;
+	
+	  for (let i = boilingBubbles.length - 1; i >= 0; i--){
+	    const bubble = boilingBubbles[i];
+	
+	    // rise
+	    bubble.position.y += bubble.userData.riseSpeed * dt;
+	
+	    // gentle wobble (stay between strips)
+	    bubble.userData.phase += dt * 2.2;
+	    bubble.position.x += Math.sin(bubble.userData.phase) * bubble.userData.driftSpeed * dt * 0.6;
+	    bubble.position.z += Math.cos(bubble.userData.phase * 1.3) * bubble.userData.driftSpeed * dt * 0.5;
+	
+	    // clamp to remain between strips region
+	    bubble.position.x = clamp(bubble.position.x, BUB_stripX_left + 0.15, BUB_stripX_right - 0.15);
+	    bubble.position.z = clamp(bubble.position.z, -0.55, 0.55);
+	
+	    // remove when it reaches near surface
+	    if (bubble.position.y > liquidTopY - 0.1){
+	      bubblesGroup.remove(bubble);
+	      boilingBubbles.splice(i, 1);
+	    }
+	  }
+	}
+	
+	// API you already call in your UI
+	function startBubbles(){
+	  bubblesOn = true;
+	  bubbleSpawnAccumulator = 0;
+	}
+	
+	function stopBubbles(){
+	  bubblesOn = false;
+	  bubbleSpawnAccumulator = 0;
+	
+	  // remove existing bubbles
+	  if (bubblesGroup){
+	    for (let i = boilingBubbles.length - 1; i >= 0; i--){
+	      bubblesGroup.remove(boilingBubbles[i]);
+	    }
+	  }
+	  boilingBubbles.length = 0;
+	}
+	
+	// This is what your __updateElectrolysis calls:
+	function updateBubbles(dtReal){
+	  updateBoilingBubbles(dtReal);
+	}
+
+	function addDigitalScale(x,y,z){
+		var loader = new THREE.CubeTextureLoader();
+		loader.setCrossOrigin( "" );
+		loader.setPath( '/api/program-assets/lab-simulation-electrolysis/_ext/threejs.org/examples/textures/cube/pisa/' );
+
+		var cubeTexture = loader.load( [
+		  'px.png', 'nx.png',
+		  'py.png', 'ny.png',
+		  'pz.png', 'nz.png'
+		] );
+
+		var settings = {
+		  segments: 9,
+		  radius: {value: 0.5},
+		  size: {
+		    value: new THREE.Vector3(
+		      5,
+		      2,
+		      5
+		    )
+		  }
+		}
+		var boxGeom = new THREE.BoxGeometry(2, 2, 2, 5, 5, 5);
+		var boxMat = new THREE.MeshPhongMaterial({ color: "aqua", envMap: cubeTexture });
+		boxMat.onBeforeCompile = shader => {
+
+		  shader.uniforms.boxSize = settings.size;
+		  shader.uniforms.radius = settings.radius;
+
+
+		  shader.vertexShader = `
+		  uniform vec3 boxSize;
+		  uniform float radius;
+		  ` + shader.vertexShader;
+
+		  shader.vertexShader = shader.vertexShader.replace(
+		    `#include <begin_vertex>`,
+		    `#include <begin_vertex>
+		    vec3 signs = sign(position);
+		    vec3 box = boxSize - vec3(radius);
+		    box = vec3(max(0.0, box.x), max(0.0, box.y), max(0.0, box.z));
+		    vec3 p = signs * box;
+		    transformed = signs * box + normalize(position) * radius;
+		    // re-compute normals for correct shadows and reflections
+		    objectNormal = all(equal(p, transformed)) ? normal : normalize(position); 
+		    transformedNormal = normalize(normalMatrix * objectNormal);
+		    vNormal = transformedNormal;
+		    `
+		  );
+		};
+		var box = new THREE.Mesh(boxGeom, boxMat);
+		let diskMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.1 });
+		let diskGeo = new THREE.CylinderGeometry(4, 4, 0.5, 32);
+		let disk = new THREE.Mesh(diskGeo, diskMat);
+		box.add(disk);
+		disk.position.set(0,2.5,0);
+		// Load scale texture:
+	    var texture = textureloader.load('textures/scale-screen.png');
+	    const read_geometry = new THREE.BoxGeometry(5, 3, 0.2);
+	    const read_material = new THREE.MeshPhongMaterial({ map: texture });
+	    // Create screen for scale:
+	    const screen = new THREE.Mesh(read_geometry, read_material);
+	    screen.position.set(0, 0, 5.1); // slightly in front of the box
+	    box.add(screen);
+		
+		box.position.set(x,y,z);
+		scene.add(box);   
+	}
+	function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+	// Interpolate a factor between the lab points at 0.8A and 1.0A
+	function interpFactor(I, f08, f10){
+	  const x = clamp((I - 0.8) / 0.2, 0, 1);
+	  return f08 + (f10 - f08) * x;
+	}
+	function copperMassRate_g_per_s(I){
+	  const F = 96485;    // C/mol
+	  const M = 63.54;    // g/mol copper (lab uses 63.54g) :contentReference[oaicite:4]{index=4}
+	  const n = 2;        // Cu2+ needs 2 electrons :contentReference[oaicite:5]{index=5}
+	  return (M / (n * F)) * I; // g/s
+	}
+	function setupElectrolysisUI(){
+	  const currentSlider = document.getElementById('currentSlider');
+	  const timeSlider = document.getElementById('timeSlider');
+	  const speedSlider = document.getElementById('speedSlider');
+	
+	  const currentValue = document.getElementById('currentValue');
+	  const timeValue = document.getElementById('timeValue');
+	  const speedValue = document.getElementById('speedValue');
+	
+	  const massCathode = document.getElementById('massCathode');
+	  const massAnode = document.getElementById('massAnode');
+	
+	  const runningTimeText = document.getElementById('runningTimeText');
+	  const targetTimeText = document.getElementById('targetTimeText');
+	
+	  // init
+	  I_amp = parseFloat(currentSlider.value);
+	  targetSim = parseFloat(timeSlider.value);
+	  simSpeed = parseFloat(speedSlider.value);
+	
+	  currentValue.textContent = I_amp.toFixed(2);
+	  timeValue.textContent = targetSim.toFixed(0);
+	  speedValue.textContent = simSpeed.toFixed(0);
+	
+	  runningTimeText.textContent = "0";
+	  targetTimeText.textContent = targetSim.toFixed(0);
+	
+		currentSlider.addEventListener('input', () => {
+		  I_amp = parseFloat(currentSlider.value);
+		  currentValue.textContent = I_amp.toFixed(2);
+		});
+		
+		timeSlider.addEventListener('input', () => {
+		  targetSim = parseFloat(timeSlider.value);
+		  timeValue.textContent = targetSim.toFixed(0);
+		  targetTimeText.textContent = targetSim.toFixed(0);
+		});
+		
+		speedSlider.addEventListener('input', () => {
+		  simSpeed = parseFloat(speedSlider.value);
+		  speedValue.textContent = simSpeed.toFixed(0);
+		});
+	
+	    document.getElementById('electrolysisInfoBtn').addEventListener('click', () => {
+		  alert(
+		    "Electrolysis uses electric current to drive a chemical reaction.\n\n" +
+		
+		    "In CuSO₄ solution with copper electrodes:\n" +
+		    "• Cathode (−): Cu²⁺ + 2e⁻ → Cu(s)  (mass increases)\n" +
+		    "• Anode (+):  Cu(s) → Cu²⁺ + 2e⁻  (mass decreases - oxidation reaction)\n\n" +
+		
+		    "Charge delivered: Q = I·t\n\n" +
+		
+		    "Faraday’s Law:\n" +
+		    "Δm = (M / (nF)) · Q\n" +
+		    "where:\n" +
+		    "M = 63.54 g/mol (molar mass of Cu)\n" +
+		    "n = 2 electrons per Cu²⁺ ion\n" +
+		    "F = Faraday constant\n\n" +
+		
+		    "From the measured cathode mass increase (Δm):\n" +
+		    "Δm = (M / nF).(I.t) = (M.I.t)  / ( n.Nₐ·e) \n\n" +
+		
+		    "Since F = Nₐ · e (total electric charge carried by one mole of electrons),\n" +
+		    "hence, the electron charge is calculated by:\n" +
+		    "e = (M · I · t) / (Δm . n. Nₐ)\n\n" +
+		
+		    "Thus, by measuring Δm at the cathode and knowing I and t,\n" +
+		    "we experimentally determine the elementary charge of the electron.\n\n" +
+		
+		    "Initial mass of cathode: 13.6802 g\n" +
+		    "Initial mass of anode: 12.8314 g"
+		  );
+	  });
+
+	  document.getElementById('runBtn').addEventListener('click', () => {
+	    // Start / restart a run
+	    isRunning = true;
+	    elapsedSim = 0;
+	    mCathode_g = 0;
+	    mAnodeLoss_g = 0;
+		  startBubbles();
+	
+	    massCathode.value = "0.0000";
+	    massAnode.value = "0.0000";
+	
+	    runningTimeText.textContent = "0";
+	    targetTimeText.textContent = targetSim.toFixed(0);
+	
+	    // lock sliders while running
+	    currentSlider.disabled = true;
+	    timeSlider.disabled = true;
+	
+	    // reset visuals
+	    if (cathodeStrip) cathodeStrip.scale.set(1,1,1);
+	    if (anodeStrip) anodeStrip.scale.set(1,1,1);
+	
+	    lastFrameT = performance.now();
+		  currentSlider.disabled = true;
+		  timeSlider.disabled = true;
+	  });
+	
+	  document.getElementById('resetBtn').addEventListener('click', () => {
+	    isRunning = false;
+	    stopBubbles();
+	    currentSlider.disabled = false;
+	    timeSlider.disabled = false;
+	
+	    elapsedSim = 0;
+	    mCathode_g = 0;
+	    mAnodeLoss_g = 0;
+	
+	    runningTimeText.textContent = "0";
+	    massCathode.value = "0.0000";
+	    massAnode.value = "0.0000";
+	
+	    if (cathodeStrip) cathodeStrip.scale.set(1,1,1);
+	    if (anodeStrip) anodeStrip.scale.set(1,1,1);
+	  });
+	
+	  // helper you can call from render loop:
+	  window.__updateElectrolysis = function updateElectrolysis(){
+	    if (!isRunning) return;
+	
+	    const now = performance.now();
+	    const dtReal = (now - lastFrameT) / 1000;     // real seconds
+	    lastFrameT = now;
+	    updateBubbles(dtReal);
+		  
+	    const dtSim = dtReal * simSpeed;              // simulated seconds
+	
+	    const dtUsed = Math.min(dtSim, targetSim - elapsedSim);
+	    elapsedSim += dtUsed;
+	
+	    // Base Faraday rate
+	    const baseRate = copperMassRate_g_per_s(I_amp); // g/s ideal copper plating rate
+	
+	    // Empirical scale factors to match the attached lab results (0.8A and 1.0A points)
+	    // From the lab table: +0.39g at 1A 20min; +0.335g at 0.8A 20min :contentReference[oaicite:6]{index=6}
+	    // And anode loss magnitude: 0.43g at 1A; 0.321g at 0.8A :contentReference[oaicite:7]{index=7}
+	    const cathodeFactor = interpFactor(I_amp, 1.06, 0.99); // ~1.06 at 0.8A, ~0.99 at 1.0A
+	    const anodeFactor   = interpFactor(I_amp, 1.02, 1.09); // ~1.02 at 0.8A, ~1.09 at 1.0A
+	
+	    const dmc = baseRate * cathodeFactor * dtUsed;
+	    const dma = baseRate * anodeFactor   * dtUsed;
+	
+	    mCathode_g += dmc;
+	    mAnodeLoss_g += dma;
+	
+	    // Update UI continuously
+	    document.getElementById('runningTimeText').textContent = elapsedSim.toFixed(0);
+	    massCathode.value = mCathode_g.toFixed(4);
+	    massAnode.value   = (-mAnodeLoss_g).toFixed(4);  // negtative delta m
+	
+	    // Visual growth/shrink (small)
+	    if (cathodeStrip) cathodeStrip.scale.y = 1 + Math.min(0.6, mCathode_g * 1.2);
+	    if (anodeStrip)   anodeStrip.scale.y   = 1 - Math.min(0.35, mAnodeLoss_g * 0.9);
+	
+	    // Stop condition
+	    if (elapsedSim >= targetSim - 1e-9){
+		  isRunning = false;
+		  document.getElementById('currentSlider').disabled = false;
+		  document.getElementById('timeSlider').disabled = false;
+		  stopBubbles();
+		}
+
+	  };
+	}
+	function createWater(x,y,base){  // for big tank
+			const geo = new THREE.CylinderGeometry( 10, 10, y, 32 ); 
+			const mat = new THREE.MeshPhongMaterial( { color: "#0000ff",    
+				side:THREE.DoubleSide,
+				transparent:true,
+				opacity:0.8
+			});
+			const wat = new THREE.Mesh(geo, mat);
+			wat.position.set(x, base + y/2);
+			scene.add(wat);
+			return wat;
+	}
+	function addElectrolysisCell(x, y, z) {
+		  electrolysisCell = new THREE.Group();
+		
+		  // ---- Beaker dimensions (tweak as you like)
+		  const outerR = 3.2;
+		  const innerR = 3.0;
+		  const beakerH = 7.5;
+		  const wallT = 0.25;
+		
+		  // ---- Glass (transparent)
+		  // MeshPhysicalMaterial works well for glass-like look
+		  const glassMat = new THREE.MeshPhysicalMaterial({
+		    color: 0xffffff,
+		    transparent: true,
+		    opacity: 0.25,
+		    roughness: 0.05,
+		    metalness: 0.0,
+		    transmission: 0.95,   // makes it "real glass" (needs WebGL2-ish support)
+		    thickness: 0.4,
+		    side: THREE.DoubleSide
+		  });
+		
+		  // Use a cylinder "shell" by making a hollow shape: outer cylinder minus inner cylinder
+		  // Quick practical trick: draw outer cylinder with low opacity + inner cylinder that "carves" visually (not true CSG).
+		  // For education sims, this looks good enough.
+		  const beakerOuterGeo = new THREE.CylinderGeometry(outerR, outerR, beakerH, 48, 1, true);
+		  const beakerOuter = new THREE.Mesh(beakerOuterGeo, glassMat);
+		  beakerOuter.position.set(0, beakerH / 2, 0);
+		  electrolysisCell.add(beakerOuter);
+		
+		  // Bottom (glass disk)
+		  const bottomGeo = new THREE.CylinderGeometry(outerR, outerR, wallT, 48);
+		  const bottom = new THREE.Mesh(bottomGeo, glassMat);
+		  bottom.position.set(0, wallT / 2, 0);
+		  electrolysisCell.add(bottom);
+		
+		  // ---- Copper sulfate solution (blue)
+		  const liquidH = 5.2;
+		  const liquidGeo = new THREE.CylinderGeometry(innerR, innerR, liquidH, 48);
+		const mat = new THREE.MeshPhongMaterial( { color: "#0000ff",    
+				side:THREE.DoubleSide,
+				transparent:true,
+				opacity:0.8
+			});
+		  const liquidMat = new THREE.MeshPhysicalMaterial({
+		    color: 0x66ccff,
+		    transparent: true,
+		    opacity: 0.45,
+		    transmission: 0.9,     // makes it look like glass/liquid
+		    roughness: 0.1,
+		    metalness: 0.0,
+		    clearcoat: 0.2,
+		    thickness: 0.5,
+		    side: THREE.DoubleSide
+		  });
+
+		  const liquid = new THREE.Mesh(liquidGeo, liquidMat);
+		  liquid.position.set(0, wallT + liquidH / 2, 0);
+		  electrolysisCell.add(liquid);
+		
+		  // ---- Copper electrodes (thin vertical strips)
+		  const stripW = 0.22;
+		  const stripH = 5.8;
+		  const stripD = 1.4;
+		
+		  const copperMat = new THREE.MeshStandardMaterial({
+		    color: 0xb87333,   // copper-like
+		    roughness: 0.35,
+		    metalness: 0.7
+		  });
+		
+		  const stripGeo = new THREE.BoxGeometry(stripW, stripH, stripD);
+		
+		  // Cathode (left strip inside beaker)
+		  cathodeStrip = new THREE.Mesh(stripGeo, copperMat);
+		  cathodeStrip.position.set(-1.0, wallT + stripH / 2, 0);
+		  electrolysisCell.add(cathodeStrip);
+		
+		  // Anode (right strip inside beaker)
+		  anodeStrip = new THREE.Mesh(stripGeo, copperMat);
+		  anodeStrip.position.set(1.0, wallT + stripH / 2, 0);
+		  electrolysisCell.add(anodeStrip);
+		
+		  // Optional: small top clips (just for looks)
+		  const clipGeo = new THREE.CylinderGeometry(0.15, 0.15, 5, 18);
+		  const clipMat = new THREE.MeshLambertMaterial({ color: 0x808080 });
+		
+		  const clip1 = new THREE.Mesh(clipGeo, clipMat);
+		  clip1.position.set(-1.0, beakerH + 0.25, 0);
+		  electrolysisCell.add(clip1);
+		
+		  const clip2 = new THREE.Mesh(clipGeo, clipMat);
+		  clip2.position.set(1.0, beakerH + 0.25, 0);
+		  electrolysisCell.add(clip2);
+		
+		  // ---- Place cell in the scene
+		  electrolysisCell.position.set(x, y, z);
+		  scene.add(electrolysisCell);
+		 
+			// --- bubbles inside the beaker
+			const bsys = createBubblesSystemSimple();
+			electrolysisCell.add(bsys);
+	}
+	function addSphere(x, y, z, r){
+		  var ballGeom = new THREE.SphereGeometry(r, 32, 24);
+		  var ball = new THREE.Mesh(ballGeom, new THREE.MeshPhongMaterial({color:"gray"}));
+		  ball.position.set(x, y, z);
+		  scene.add(ball);
+	}	
+	function addPowerSupply(x, y, z, alpha) {
+	    // Dimensions
+	    const width = 11;
+	    const height = 7;
+	    const depth = 5;
+	    const radius = 0.4;      // Corner radius
+	    const smoothness = 4;  // Smoothness of rounded corners
+	
+	    // Create rounded box
+	    const geometry = new RoundedBoxGeometry(width, height, depth, smoothness, radius);
+	    const material = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4, metalness: 0.1 });
+	    const box = new THREE.Mesh(geometry, material);
+	    box.castShadow = true;
+	    box.receiveShadow = true;
+	
+	    // Load screen texture
+	    var texture = textureloader.load('/api/program-assets/lab-simulation-electrolysis/_ext/vendor/Phyc240/textures/power-supply.png');
+	    const volt_geometry = new THREE.BoxGeometry(9.8, 5.8, 0.2);
+	    const volt_material = new THREE.MeshPhongMaterial({ map: texture });
+	
+	    // Create screen
+	    const screen = new THREE.Mesh(volt_geometry, volt_material);
+	    screen.position.set(0, 0, depth / 2 + 0.1); // slightly in front of the box
+	    box.add(screen);
+	
+	    // Position and rotate FG
+	    box.position.set(x, y, z);
+	    box.rotation.y = alpha;
+	
+	    // Add to scene
+	    scene.add(box);
+	}
+  	function createSpring( posX,posY,posZ) {   
+		    var TWO_PI = Math.PI * 2.0;	    
+		    var ANGLE_INCR = Math.PI / 12;  
+
+		    var height = (-65 - posX);  // -65
+		    var cylX = (-20 - height * 0.5);  // spring's top -70
+			
+		    var y,z;
+		    var x = height/2;
+		    var radius = 1.5; 
+		    var n = 0;
+		    var xIncr = height / (TWO_PI / ANGLE_INCR * NTWISTS );
+		    var helix = [];
+		    var springMaterial = new THREE.MeshLambertMaterial({color: "brown"});  
+
+		    for( var phi=0; phi <= TWO_PI*NTWISTS; phi+=ANGLE_INCR ) {
+			y = posY + Math.cos(phi) * radius;
+			x -= xIncr/8;  
+			z = posZ + Math.sin(phi) * radius;
+			helix.push( new THREE.Vector3(x, y, z));
+			n++;
+		    }   
+
+		    var curve = new THREE.CatmullRomCurve3( helix );
+		    var geometry = new THREE.TubeGeometry( curve, n, 0.15, 36, false ); 
+		    springMesh = new THREE.Mesh(geometry, springMaterial);
+		    springMesh.position.set(posX,posY,posZ); 
+		  
+		    scene.add( springMesh );
+	}   
+	function addText(x,y,z,t,s, colo){
+		fontloader.load("/api/program-assets/lab-simulation-electrolysis/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+		    var  textGeo = new TextGeometry(t, {
+			    size: s,  
+			    height: 0.2, 
+			    curveSegments: 6,
+			    font: tex,
+		    });
+		    var  textMaterial = new THREE.MeshLambertMaterial({color: colo});  
+		    var textMesh = new THREE.Mesh(textGeo , textMaterial);
+		    textMesh.position.set(x,y,z);
+		    scene.add(textMesh);
+		});
+	}
+	function render() {
+		controls.update(); 
+		// electrolysis time-accelerated simulation update
+	    if (window.__updateElectrolysis) window.__updateElectrolysis();
+		requestAnimationFrame( render );
+		renderer.render( scene, camera );
+	};	
+	window.onload = initScene;	
+</script>	
+</head>
+<body>
+	<div id="infoPanel">
+	
+		  <div class="control-group">
+		    <label>Current: <span id="currentValue">0.50</span> A</label>
+		    <input type="range" id="currentSlider" min="0" max="1.05" value="0.50" step="0.01">
+		  </div>
+		
+		  <div class="control-group">
+		    <label>Time: <span id="timeValue">1200</span> s</label>
+		   <input type="range" id="timeSlider" min="0" max="1320" value="1200" step="1">
+		  </div>
+		
+		  <div class="control-group">
+		    <label>Simulation Speed: <span id="speedValue">60</span>×</label>
+		   <input type="range" id="speedSlider" min="1" max="100" value="60" step="1">
+		  </div>
+		
+		  <div class="control-group">
+		    <label>Running Time</label>
+		    <div>
+		      <b><span id="runningTimeText">0</span></b> s /
+		      <span id="targetTimeText">1200</span> s
+		    </div>
+		  </div>
+		
+		  <div class="control-group">
+			   <label>Δm Cathode (g)</label>
+	           <input id="massCathode" class="mass-box" readonly value="0.0000">
+		  </div>
+		
+		  <div class="control-group">
+			    <label>Δm Anode (g)</label>
+	            <input id="massAnode" class="mass-box" readonly value="0.0000">
+		  </div>
+		
+		  <div class="panel-buttons">
+		    <button id="runBtn" class="btn btn-primary btn-sm">Run</button>
+		    <button id="resetBtn" class="btn btn-danger btn-sm">Reset</button>
+		    <button id="electrolysisInfoBtn" class="btn btn-warning btn-sm">What is Electrolysis?</button>
+		    
+		  </div>
+	
+	</div>
+	<div id="viewport"></div>
+	
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+
+  <!-- SEO: include the exact phrase "physics simulation" early -->
+  <title>乐启享 · 物理实验</title>
+  <meta name="description" content="Interactive 3D physics simulation of the Ideal Otto Cycle with a P–V diagram and 4-stroke engine animation. Free educational physics simulation by 乐启享物理仿真." />
+  <meta name="keywords" content="physics simulation, 3D physics simulation, otto cycle physics simulation, pv diagram physics simulation, thermodynamics physics simulation, internal combustion engine simulation, 4 stroke engine simulation, ideal gas simulation, 乐启享物理仿真" />
+  <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1" />
+
+  <!-- Canonical (update to your real page URL) -->
+  <link rel="canonical" href="/courseware/lab-phyc240-cylinder-engine.html" />
+
+  <!-- Open Graph (better previews + relevance) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Ideal Otto Cycle Physics Simulation (P–V Diagram) | 乐启享物理仿真" />
+  <meta property="og:description" content="Interactive 3D physics simulation of the Ideal Otto Cycle with a P–V diagram and 4-stroke engine animation. Free educational physics simulation by 3JCN." />
+  <meta property="og:url" content="/courseware/phyc240-cylinder-engine">
+  <meta property="og:site_name" content="乐启享课件库" />
+  <meta property="og:image" content="/api/program-assets/lab-phyc240-cylinder-engine/_ext/vendor/pictures/physics-simulations.jpg" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ideal Otto Cycle Physics Simulation (P–V Diagram) | 乐启享物理仿真" />
+  <meta name="twitter:description" content="Interactive 3D physics simulation of the Ideal Otto Cycle with P–V diagram and 4-stroke engine animation. Free physics simulation by 3JCN." />
+  <meta name="twitter:image" content="/api/program-assets/lab-phyc240-cylinder-engine/_ext/vendor/pictures/physics-simulations.jpg" />
+
+  <link rel="icon" href="/brand/favicon.ico">
+  <link rel="stylesheet" href="/api/program-assets/lab-phyc240-cylinder-engine/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+</head>
+
+<style>
+  body{margin:0; overflow:hidden; color:black; font-family:Arial, sans-serif;}
+  #viewport{position:fixed; inset:0;}
+  
+    h1{
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      margin: 0;
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.85);
+      border: 2px solid #333;
+      border-radius: 10px;
+      z-index: 10;           /* higher than #viewport */
+      pointer-events: none;  /* so mouse controls still work */
+    }
+  #ui{
+    position: fixed;
+    left: 15px; top: 15px;
+    width: 390px;
+    z-index: 10;
+    background:#eee;
+    border:2px solid #333;
+    border-radius:10px;
+    padding:12px;
+    box-sizing: border-box;
+  }
+  #ui h3{margin:0 0 8px 0;}
+  .row{display:flex; align-items:center; gap:10px; margin:8px 0;}
+  .row label{width:150px; margin:0;}
+  .row input[type="range"]{flex:1;}
+  #ui input[type="text"]{width:78px; box-sizing:border-box;}
+  .small{font-size:12px; line-height:1.25;}
+  #pvCanvas{
+    width:360px; height:240px;
+    border:2px inset white; background:white; display:block; margin-top:10px;
+  }
+  .pill{
+    display:inline-block; padding:2px 8px; border-radius:999px;
+    border:1px solid #666; background:#fafafa; font-size:12px;
+  }
+  #readout{font-family: ui-monospace, Consolas, monospace; min-height: 72px;}
+</style>
+</head>
+
+<body>
+<div id="viewport"></div>
+<h1>4-Stroke Engine</h1>
+<div id="ui">
+  <h3>Pure Ideal Otto Cycle (P–V)</h3>
+
+  <div class="row">
+    <button id="startBtn" class="btn btn-success btn-sm">Start</button>
+    <button id="pauseBtn" class="btn btn-warning btn-sm">Pause</button>
+    <button id="stepBtn"  class="btn btn-info btn-sm">Step</button>
+    <span id="phasePill" class="pill">Next: Compression</span>
+  </div>
+
+  <div class="row">
+    <label>Compression ratio r</label>
+    <input id="cr" type="range" min="6" max="18" step="0.1" value="10">
+    <input id="crVal" type="text" value="10.0">
+  </div>
+
+  <div class="row">
+    <label>Gamma γ</label>
+    <input id="gamma" type="range" min="1.20" max="1.45" step="0.01" value="1.40">
+    <input id="gammaVal" type="text" value="1.40">
+  </div>
+
+  <div class="row">
+    <label>Heat ratio (P₃/P₂)</label>
+    <input id="q" type="range" min="2" max="10" step="0.1" value="6">
+    <input id="qVal" type="text" value="6.0">
+  </div>
+
+  <div class="row">
+    <label>P₁ (kPa)</label>
+    <input id="p1" type="range" min="60" max="120" step="0.5" value="101.3">
+    <input id="p1Val" type="text" value="101.3">
+  </div>
+
+  <div class="row">
+    <label>Cycle speed</label>
+    <input id="spd" type="range" min="0.2" max="3.0" step="0.1" value="1.0">
+    <input id="spdVal" type="text" value="1.0">
+  </div>
+
+  <div class="small">
+    <div id="readout"></div>
+   <button class="btn btn-info btn-sm"
+        onclick="
+          alert(`HOW TO READ THIS SIMULATION (IDEAL OTTO CYCLE)
+      
+      This animation links the MECHANICAL engine motion
+      (piston, valves, injector, ignition)
+      to the THERMODYNAMIC P–V diagram on the left.
+      
+      ENGINE STROKES (right animation):
+      
+      1) Intake stroke
+         • Intake valve opens
+         • Piston moves DOWN
+         • Fuel–air mixture enters the cylinder (yellow spray)
+      
+      2) Compression stroke
+         • Both valves closed
+         • Piston moves UP
+         • Gas is compressed (pressure rises)
+      `);
+      
+          alert(`ENGINE STROKES (continued):
+      
+      3) Power (combustion) stroke
+         • Spark plug ignites the mixture (orange flash)
+         • Heat is added at (approximately) CONSTANT VOLUME
+         • High-pressure gas pushes the piston DOWN
+      
+      4) Exhaust stroke
+         • Exhaust valve opens
+         • Piston moves UP
+         • Burned gases leave the cylinder
+      
+      P–V DIAGRAM (left graph):
+      • 1→2  Isentropic (adiabatic) compression
+      • 2→3  Constant-volume heat addition (vertical line)
+      • 3→4  Isentropic (adiabatic) expansion (power output)
+      • 4→1  Constant-volume heat rejection (vertical line)
+      
+      IMPORTANT NOTES:
+      • This is an IDEAL OTTO CYCLE, not a full real-engine pumping loop
+      • Intake and exhaust are shown at nearly constant pressure
+      • Valve timing, friction, and losses are simplified for clarity
+      
+      Use the START button for continuous motion
+      Use the STEP button to study each stroke carefully.`);
+        ">
+        Information
+      </button>
+
+    <button id="resetBtn" class="btn btn-default btn-sm">Reset</button>
+  </div>
+
+  <canvas id="pvCanvas" width="360" height="240"></canvas>
+</div>
+
+<script type="module">
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+
+const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+const fmt = (x,n=2)=>Number(x).toFixed(n);
+const lerp = (a,b,t)=> a + (b-a)*t;
+function smoothstep(t){
+  t = clamp(t, 0, 1);
+  return t*t*(3 - 2*t);
+}
+
+/* ---------------- UI ---------------- */
+const crEl = document.getElementById("cr");
+const crVal= document.getElementById("crVal");
+const gEl  = document.getElementById("gamma");
+const gVal = document.getElementById("gammaVal");
+const qEl  = document.getElementById("q");
+const qVal = document.getElementById("qVal");
+const p1El = document.getElementById("p1");
+const p1Val= document.getElementById("p1Val");
+const spdEl= document.getElementById("spd");
+const spdVal=document.getElementById("spdVal");
+
+const startBtn = document.getElementById("startBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const stepBtn  = document.getElementById("stepBtn");
+const resetBtn = document.getElementById("resetBtn");
+
+const phasePill = document.getElementById("phasePill");
+const readout   = document.getElementById("readout");
+
+crEl.oninput=()=>{ crVal.value=(+crEl.value).toFixed(1); };
+crVal.onchange=()=>{ crEl.value=clamp(+crVal.value,6,18); crVal.value=(+crEl.value).toFixed(1); };
+
+gEl.oninput=()=>{ gVal.value=(+gEl.value).toFixed(2); };
+gVal.onchange=()=>{ gEl.value=clamp(+gVal.value,1.2,1.45); gVal.value=(+gEl.value).toFixed(2); };
+
+qEl.oninput=()=>{ qVal.value=(+qEl.value).toFixed(1); };
+qVal.onchange=()=>{ qEl.value=clamp(+qVal.value,2,10); qVal.value=(+qEl.value).toFixed(1); };
+
+p1El.oninput=()=>{ p1Val.value=(+p1El.value).toFixed(1); };
+p1Val.onchange=()=>{ p1El.value=clamp(+p1Val.value,60,120); p1Val.value=(+p1El.value).toFixed(1); };
+
+spdEl.oninput=()=>{ spdVal.value=(+spdEl.value).toFixed(1); };
+spdVal.onchange=()=>{ spdEl.value=clamp(+spdVal.value,0.2,3.0); spdVal.value=(+spdEl.value).toFixed(1); };
+
+/* ---------------- PV canvas ---------------- */
+const pv = document.getElementById("pvCanvas");
+const pvCtx = pv.getContext("2d");
+
+/* ---------------- 3D Scene ---------------- */
+let scene, camera, renderer, controls;
+let cyl, head, piston, rod, crank, crankPin, flywheel, floor;
+let sparkFlash = null;
+let intakeValve = null, exhaustValve = null;
+const valveSeatY  = 3.215;  // where the valve assembly sits (head cover reference)
+
+// ---------------- VALVES (photo-style: closed high, open moves DOWN) ----------------
+const valveLift = 0.28;          // how far valve opens (moves DOWN)
+const valveXOffset = 0.28;       // left/right spacing
+const valveZOffset = 0.0;
+const valveClosedY = 3.34;
+// ----- Step animation for valves (and piston) -----
+let stepAnimating = false;
+let stepAnimPhase = 0;
+let stepNextPhase = 0;  
+let stepAnimT = 0;          // 0..1 progress
+const stepAnimSeconds = 0.7; // duration of one step motion (feel free to tune)
+let sparkPlug = null;
+let fuelInjector = null;
+let fuelSpray = null;
+let fuelParticles = null;     // THREE.Points
+let fuelPData = [];           // array of per-particle state
+let ignitionRays = null;      // THREE.LineSegments
+let ignitionActive = false;
+let smokeParticles = null;
+let smokeData = []; const fuelYLimit = 2.0; let fuelEmitAcc = 0; 
+
+// “Fixed big cylinder guides” dimensions
+const guideH = 0.20;
+const guideR = 0.055;
+
+// Moving rod+cone dimensions
+const rodH   = 0.50;
+const rodR   = 0.018;
+
+const coneR  = 0.07;
+const coneH  = 0.12;  
+/* ---------------- Cycle state ---------------- */
+// --- STEP-DRAW state (new) ---
+
+let pvTrace = [];     // progressive points for Start mode
+let lastTraceT = 0;   // for downsampling
+let stepBuild = false;   // true when user is building the diagram via Step
+let stepParts = [];      // stores arrays of points, one array per completed phase
+
+const phaseNames = [
+  "Intake (1→2)",
+  "Compres. (2→3)",
+  "Power (3→4)",
+  "Exhaust (4→1)"
+];
+
+let running = false;
+let paused  = false;
+
+let phase = 0;     // 0..3
+let u = 0;         // 0..1 within phase
+
+let S1=null, S2=null, S3=null, S4=null;
+let Vcur=0, Pcur=0;
+
+startBtn.onclick = ()=>{ running = true; paused = false; };
+pauseBtn.onclick = ()=>{ paused = !paused; };
+resetBtn.onclick = ()=> resetCycle();
+stepBtn.onclick = ()=> stepPhase();
+
+/* ---------------- Engine geometry mapping ---------------- */
+const stroke = 1.2;
+const rCrank = stroke/2;
+const Lrod   = 2.2;
+const pistonTopY = 2.5;
+const pistonBottomY = pistonTopY - stroke + 0.5;
+
+/* ---------------- Init order ---------------- */
+init3D();
+resetCycle();
+requestAnimationFrame(animate);
+
+function init3D(_0x92e6fb){scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0x0f752a);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](754828^754852,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],0.1,765443^765419);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](451246^451240,677331^677335,928803^928811);renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u0069\u0065\u0077\u0070\u006F\u0072\u0074")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](469509^469509,1.35,827960^827960);controls['\u0075\u0070\u0064\u0061\u0074\u0065']();const _0xfaf7ed=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,1.1);_0x92e6fb="djljgp".split("").reverse().join("");_0xfaf7ed['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](981816^981821,780763^780754,305875^305878);scene['\u0061\u0064\u0064'](_0xfaf7ed);scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.45));floor=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0050\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](809896^809910,406431^406411),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x6b4a2b,"side":THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']}));floor['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=-Math['\u0050\u0049']/(152441^152443);floor['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=913506^913506;scene['\u0061\u0064\u0064'](floor);buildEngineObjects();window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065",onResize);}function makeValve(colorHex,_0x2d377c,_0x4ea){const _0x37e20g=new THREE['\u0047\u0072\u006F\u0075\u0070']();_0x2d377c=749601^749603;var _0x63b=(168594^168596)+(468538^468541);const _0x7e5g=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.06,0.06,0.55,866697^866717),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xaaaaaa}));_0x63b=(186137^186137)+(673378^673381);_0x7e5g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=820592^820592;_0x37e20g['\u0061\u0064\u0064'](_0x7e5g);const _0x1cf=new THREE['\u0047\u0072\u006F\u0075\u0070']();const _0xd535e=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.03,0.03,0.55,821108^821092),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x666666}));_0xd535e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-0.30;_0x1cf['\u0061\u0064\u0064'](_0xd535e);const _0x00d=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u006F\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.10,0.14,727377^727365),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":colorHex}));_0x4ea=313829^313831;_0x00d['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=839085^839085;_0x00d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-0.60;_0x1cf['\u0061\u0064\u0064'](_0x00d);_0x37e20g['\u0061\u0064\u0064'](_0x1cf);_0x37e20g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0067\u0075\u0069\u0064\u0065']=_0x7e5g;_0x37e20g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006D\u006F\u0076\u0065\u0072']=_0x1cf;_0x37e20g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006D\u006F\u0076\u0065\u0072\u0043\u006C\u006F\u0073\u0065\u0064\u0059']=210617^210617;return _0x37e20g;}function buildTopHardware(){sparkPlug=new THREE['\u0047\u0072\u006F\u0075\u0070']();const _0x5b8c6d=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.05,0.05,0.16,535723^535737),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x777777}));_0x5b8c6d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=844636^844636;sparkPlug['\u0061\u0064\u0064'](_0x5b8c6d);var _0x1f942d=(673383^673383)+(917278^917275);const _0xed897a=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.042,0.042,0.18,424203^424217),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xf2f2f2}));_0x1f942d=(273662^273655)+(237973^237968);_0xed897a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=0.17;sparkPlug['\u0061\u0064\u0064'](_0xed897a);var _0xacb37b=(580071^580068)+(788463^788457);const _0x5528b=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.018,400663^400647,270505^270501),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x222222}));_0xacb37b=(737979^737983)+(274015^274012);_0x5528b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-0.10;sparkPlug['\u0061\u0064\u0064'](_0x5528b);sparkPlug['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](885250^885250,3.36,0.08);scene['\u0061\u0064\u0064'](sparkPlug);fuelInjector=new THREE['\u0047\u0072\u006F\u0075\u0070']();const _0xf054e=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.045,0.045,0.22,948239^948253),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x444444}));_0xf054e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=0.12;fuelInjector['\u0061\u0064\u0064'](_0xf054e);var _0x4333a=(503003^503006)+(688205^688196);const _0x6f_0x3gb=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u006F\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.030,0.08,312915^312897),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x888888}));_0x4333a="ollecj".split("").reverse().join("");_0x6f_0x3gb['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049'];_0x6f_0x3gb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-0.03;fuelInjector['\u0061\u0064\u0064'](_0x6f_0x3gb);fuelInjector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-0.28,3.36,-0.05);scene['\u0061\u0064\u0064'](fuelInjector);fuelSpray=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u006F\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.14,0.40,860031^860007,769787^769786,!![]),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x33ccff,"transparent":!![],"opacity":0.0,'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],"depthTest":false}));fuelSpray['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049'];fuelSpray['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-0.28,3.18,-0.05);fuelSpray['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=394808^394718;scene['\u0061\u0064\u0064'](fuelSpray);if(sparkFlash){sparkFlash['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](932903^932903,3.16,0.08);sparkFlash['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](679486^679487,227442^227443,981921^981920);}}function buildValves(){intakeValve=makeValve(0x1e90ff);exhaustValve=makeValve(0xff4040);intakeValve['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-valveXOffset,valveClosedY,valveZOffset);exhaustValve['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](+valveXOffset,valveClosedY,valveZOffset);scene['\u0061\u0064\u0064'](intakeValve);scene['\u0061\u0064\u0064'](exhaustValve);}function updateValves(_0x3732b){if(!intakeValve||!exhaustValve)return;const _0x47g=intakeValve['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']?.mover;_0x3732b=565140^565143;const _0xc96c=exhaustValve['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']?.mover;if(!_0x47g||!_0xc96c)return;const _0x1688c=phase===(942050^942050);var _0x8e_0x527=(519516^519518)+(250594^250603);const _0x5828da=phase===(540016^540019);_0x8e_0x527=(804494^804486)+(997897^997897);const _0xc7a6b=smoothstep(u)*((499624^499625)-smoothstep(clamp((u-0.85)/0.15,830176^830176,537295^537294)));var _0xeccd4b=(596307^596314)+(431196^431195);const _0xbc5eed=_0x1688c?valveLift*_0xc7a6b:873613^873613;_0xeccd4b=471478^471478;const _0x178bb=_0x5828da?valveLift*_0xc7a6b:334597^334597;_0x47g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=0.3+intakeValve['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006D\u006F\u0076\u0065\u0072\u0043\u006C\u006F\u0073\u0065\u0064\u0059']-_0xbc5eed;_0xc96c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=0.3+exhaustValve['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006D\u006F\u0076\u0065\u0072\u0043\u006C\u006F\u0073\u0065\u0064\u0059']-_0x178bb;}function buildEngineObjects(){cyl=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.8,0.8,3.2,516839^516823,621421^621420,!![]),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffffff,"transparent":!![],'\u006F\u0070\u0061\u0063\u0069\u0074\u0079':0.35,"side":THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']}));cyl['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](415088^415088,1.6,643199^643199);scene['\u0061\u0064\u0064'](cyl);head=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.82,0.82,0.25,877095^877079),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x333333}));head['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](904954^904954,3.25,768649^768649);scene['\u0061\u0064\u0064'](head);piston=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.78,0.78,0.35,960397^960445),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x222222}));scene['\u0061\u0064\u0064'](piston);crank=new THREE['\u004F\u0062\u006A\u0065\u0063\u0074\u0033\u0044']();crank['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](500557^500557,0.6,677455^677455);scene['\u0061\u0064\u0064'](crank);flywheel=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.58,0.58,0.18,127173^127221),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x111111}));flywheel['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049']/(347673^347675);crank['\u0061\u0064\u0064'](flywheel);crankPin=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.08,579045^579069,724529^724515),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffaa00}));crank['\u0061\u0064\u0064'](crankPin);rod=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.05,0.05,989853^989852,383347^383329),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x444444}));scene['\u0061\u0064\u0064'](rod);sparkFlash=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.08,678365^678345,541588^541572),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffff00,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],"opacity":1.0}));sparkFlash['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=false;sparkFlash['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](121466^121466,3.16,0.08);sparkFlash['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=471289^471838;sparkFlash['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074']=false;scene['\u0061\u0064\u0064'](sparkFlash);buildValves();buildTopHardware();buildParticlesAndRays();buildSmokeParticles();window['\u005F\u005F\u0069\u006E\u0074\u0061\u006B\u0065\u0056\u0061\u006C\u0076\u0065']=intakeValve;window['\u005F\u005F\u0065\u0078\u0068\u0061\u0075\u0073\u0074\u0056\u0061\u006C\u0076\u0065']=exhaustValve;window['\u005F\u005F\u0076\u0061\u006C\u0076\u0065\u004C\u0069\u0066\u0074']=valveLift;}function buildSmokeParticles(N,_0x9ce78a,_0xe6c4ga){N=261990^262098;const _0xa766fd=new Float32Array(N*(648766^648765));_0x9ce78a="okmigb".split("").reverse().join("");const _0xcae0gg=new Float32Array(N*(709970^709969));_0xe6c4ga='\u0063\u0063\u0069\u0071\u0067\u0063';smokeData=[];for(let i=775209^775209;i<N;i++){_0xa766fd[(717020^717023)*i+(361843^361843)]=120236^120236;_0xa766fd[(563470^563469)*i+(250743^250742)]=3.05;_0xa766fd[(504659^504656)*i+(778247^778245)]=560413^560413;var _0x3d6e5d=(106215^106209)+(232196^232199);const c=new THREE['\u0043\u006F\u006C\u006F\u0072']()['\u0073\u0065\u0074\u0048\u0053\u004C'](0.08,0.15+0.1*Math['\u0072\u0061\u006E\u0064\u006F\u006D'](),0.35+0.15*Math['\u0072\u0061\u006E\u0064\u006F\u006D']());_0x3d6e5d=(300720^300724)+(826762^826755);_0xcae0gg[(615572^615575)*i+(559810^559810)]=c['\u0072'];_0xcae0gg[(472371^472368)*i+(416074^416075)]=c['\u0067'];_0xcae0gg[(593672^593675)*i+(790147^790145)]=c['\u0062'];smokeData['\u0070\u0075\u0073\u0068']({'\u0076\u0078':0,'\u0076\u0079':0,'\u0076\u007A':0,"life":-(678065^678064)});}var _0xea9eag=(983686^983683)+(323585^323589);const g=new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();_0xea9eag=(549841^549848)+(473915^473914);g['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E",new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0xa766fd,165036^165039));g['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0063\u006F\u006C\u006F\u0072",new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0xcae0gg,548002^548001));const m=new THREE['\u0050\u006F\u0069\u006E\u0074\u0073\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"size":0.08,'\u0076\u0065\u0072\u0074\u0065\u0078\u0043\u006F\u006C\u006F\u0072\u0073':!![],'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],'\u006F\u0070\u0061\u0063\u0069\u0074\u0079':0.55,'\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074':false});smokeParticles=new THREE['\u0050\u006F\u0069\u006E\u0074\u0073'](g,m);smokeParticles['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=150416^150204;scene['\u0061\u0064\u0064'](smokeParticles);}function buildParticlesAndRays(N,R){N=178870^179098;const _0xa221fe=new Float32Array(N*(829964^829967));var _0x2d8ga=(124700^124698)+(868522^868527);const _0x8eeb=new Float32Array(N*(901272^901275));_0x2d8ga=(356456^356457)+(526608^526612);fuelPData=[];for(let i=642416^642416;i<N;i++){_0xa221fe[(169914^169913)*i+(773389^773389)]=-0.28;_0xa221fe[(624715^624712)*i+(857099^857098)]=3.18;_0xa221fe[(831924^831927)*i+(314094^314092)]=-0.05;const _0x8d_0x311=0.12+0.06*Math['\u0072\u0061\u006E\u0064\u006F\u006D']();var _0xba6e8d=(489669^489671)+(480490^480482);const _0xda73d=0.90;_0xba6e8d=(428377^428383)+(788457^788461);const _0x8000bf=0.55+0.15*Math['\u0072\u0061\u006E\u0064\u006F\u006D']();const c=new THREE['\u0043\u006F\u006C\u006F\u0072']()['\u0073\u0065\u0074\u0048\u0053\u004C'](_0x8d_0x311,_0xda73d,_0x8000bf);_0x8eeb[(432830^432829)*i+(866645^866645)]=c['\u0072'];_0x8eeb[(122500^122503)*i+(894218^894219)]=c['\u0067'];_0x8eeb[(388220^388223)*i+(141672^141674)]=c['\u0062'];fuelPData['\u0070\u0075\u0073\u0068']({'\u0076\u0078':0,'\u0076\u0079':0,'\u0076\u007A':0,"life":-(568564^568565)});}const _0x090f2g=new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();_0x090f2g['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E",new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0xa221fe,390469^390470));_0x090f2g['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0063\u006F\u006C\u006F\u0072",new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0x8eeb,454917^454918));var _0xe88cfe=(239247^239244)+(940642^940646);const _0xe80afd=new THREE['\u0050\u006F\u0069\u006E\u0074\u0073\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"size":0.055,"vertexColors":!![],'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],"opacity":0.95,'\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074':false});_0xe88cfe=558547^558554;fuelParticles=new THREE['\u0050\u006F\u0069\u006E\u0074\u0073'](_0x090f2g,_0xe80afd);fuelParticles['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=482093^481483;fuelParticles['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=!![];scene['\u0061\u0064\u0064'](fuelParticles);var _0xcg6a2b=(849762^849760)+(579442^579444);R=618218^618202;_0xcg6a2b=(183066^183066)+(906936^906938);const _0x641a1g=new Float32Array(R*(630377^630379)*(778964^778967));var _0x589b4b=(250439^250434)+(334124^334126);const _0x2_0x0e6=new Float32Array(R*(926824^926826)*(871669^871670));_0x589b4b=(544190^544189)+(611088^611097);for(let i=157759^157759;i<R;i++){const _0x76g9c=i*(374388^374386);_0x641a1g[_0x76g9c+(103127^103127)]=153106^153106;_0x641a1g[_0x76g9c+(758020^758021)]=3.16;_0x641a1g[_0x76g9c+(706698^706696)]=0.08;_0x641a1g[_0x76g9c+(800737^800738)]=475913^475913;_0x641a1g[_0x76g9c+(592381^592377)]=3.16;_0x641a1g[_0x76g9c+(850771^850774)]=0.08;const _0x67b9b=new THREE['\u0043\u006F\u006C\u006F\u0072'](0xff2200);const _0xe596e=new THREE['\u0043\u006F\u006C\u006F\u0072'](0xffaa00);_0x2_0x0e6[_0x76g9c+(959319^959319)]=_0x67b9b['\u0072'];_0x2_0x0e6[_0x76g9c+(928439^928438)]=_0x67b9b['\u0067'];_0x2_0x0e6[_0x76g9c+(241755^241753)]=_0x67b9b['\u0062'];_0x2_0x0e6[_0x76g9c+(197249^197250)]=_0xe596e['\u0072'];_0x2_0x0e6[_0x76g9c+(412851^412855)]=_0xe596e['\u0067'];_0x2_0x0e6[_0x76g9c+(233222^233219)]=_0xe596e['\u0062'];}const _0x1d4d0d=new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();_0x1d4d0d['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("noitisop".split("").reverse().join(""),new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0x641a1g,741680^741683));_0x1d4d0d['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0063\u006F\u006C\u006F\u0072",new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](_0x2_0x0e6,490209^490210));var _0x28b6ee=(726392^726395)+(973511^973505);const _0x97a9ge=new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"vertexColors":!![],'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],'\u006F\u0070\u0061\u0063\u0069\u0074\u0079':0.0,"depthTest":false});_0x28b6ee=792510^792509;ignitionRays=new THREE['\u004C\u0069\u006E\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073'](_0x1d4d0d,_0x97a9ge);ignitionRays['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072']=724626^724341;ignitionRays['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=!![];scene['\u0061\u0064\u0064'](ignitionRays);if(fuelSpray)fuelSpray['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=false;if(sparkFlash)sparkFlash['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=false;}function updateTopHardware(dt){const _0x852c2b=running&&!paused||stepAnimating&&paused;if(fuelParticles&&fuelPData&&fuelPData['\u006C\u0065\u006E\u0067\u0074\u0068']){const _0x0f23ff=fuelParticles['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0067\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E");var _0xc_0xb6e=(647230^647225)+(654697^654699);const _0xd2_0xea8=_0x0f23ff['\u0061\u0072\u0072\u0061\u0079'];_0xc_0xb6e=(218757^218758)+(938797^938798);const _0xb5642a=-0.28,_0xb_0xf66=3.18,_0x889gf=-0.05;if(!_0x852c2b){fuelParticles['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=832592^832592;for(let i=425670^425670;i<fuelPData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){var _0xd3267b=(107776^107781)+(995369^995370);const p=fuelPData[i];_0xd3267b="bpdpfd".split("").reverse().join("");p['\u006C\u0069\u0066\u0065']=-(862317^862316);p['\u0076\u0078']=p['\u0076\u0079']=p['\u0076\u007A']=134716^134716;_0xd2_0xea8[(404970^404969)*i+(623410^623410)]=_0xb5642a;_0xd2_0xea8[(472079^472076)*i+(855088^855089)]=_0xb_0xf66;_0xd2_0xea8[(788454^788453)*i+(488137^488139)]=_0x889gf;}_0x0f23ff['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}else{var _0x28a=(487978^487980)+(902707^902715);const _0x3_0x8ac=phase===(823881^823881);_0x28a=(777805^777797)+(928095^928089);if(!_0x3_0x8ac){fuelParticles['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=426305^426305;for(let i=787486^787486;i<fuelPData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){var _0xeec11f=(553360^553369)+(624699^624702);const p=fuelPData[i];_0xeec11f="ibjgfe".split("").reverse().join("");p['\u006C\u0069\u0066\u0065']=-(869379^869378);p['\u0076\u0078']=p['\u0076\u0079']=p['\u0076\u007A']=473594^473594;_0xd2_0xea8[(192430^192429)*i+(774147^774147)]=_0xb5642a;_0xd2_0xea8[(817935^817932)*i+(889475^889474)]=_0xb_0xf66;_0xd2_0xea8[(506726^506725)*i+(908108^908110)]=_0x889gf;}_0x0f23ff['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}else{var _0x19cdd=(807872^807872)+(509862^509856);const _0x7496f=(919779^919778)-smoothstep(clamp((u-0.85)/0.15,631398^631398,648711^648710));_0x19cdd='\u0068\u0069\u006C\u006B\u0063\u0071';var _0x45712e=(619439^619436)+(869833^869837);const _0x7436cc=_0x7496f;_0x45712e=507667^507669;fuelParticles['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=0.95*_0x7436cc;let _0x66ag;const g=1.2;_0x66ag=(663603^663606)+(572338^572342);const _0xe9f=154012^153920;fuelEmitAcc+=dt*_0xe9f*_0x7436cc;const _0x585a=Math['\u0066\u006C\u006F\u006F\u0072'](fuelEmitAcc);fuelEmitAcc-=_0x585a;for(let k=499393^499393;k<_0x585a;k++){let _0x2c6ba;const i=Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*fuelPData['\u006C\u0065\u006E\u0067\u0074\u0068']|859727^859727;_0x2c6ba=512079^512079;const p=fuelPData[i];p['\u006C\u0069\u0066\u0065']=0.5+0.6*Math['\u0072\u0061\u006E\u0064\u006F\u006D']();const _0x8aaf=Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*Math['\u0050\u0049']*(528497^528499);const _0x9646f=0.35+0.35*Math['\u0072\u0061\u006E\u0064\u006F\u006D']();p['\u0076\u0078']=Math['\u0063\u006F\u0073'](_0x8aaf)*_0x9646f+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.18;p['\u0076\u007A']=Math['\u0073\u0069\u006E'](_0x8aaf)*_0x9646f+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.18;p['\u0076\u0079']=-(0.15+0.25*Math['\u0072\u0061\u006E\u0064\u006F\u006D']());_0xd2_0xea8[(710009^710010)*i+(156485^156485)]=_0xb5642a+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.03;_0xd2_0xea8[(822221^822222)*i+(976518^976519)]=_0xb_0xf66+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.02;_0xd2_0xea8[(124282^124281)*i+(146242^146240)]=_0x889gf+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.03;}for(let i=842153^842153;i<fuelPData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){const p=fuelPData[i];if(p['\u006C\u0069\u0066\u0065']<=(645991^645991)){_0xd2_0xea8[(645405^645406)*i+(119907^119907)]=_0xb5642a;_0xd2_0xea8[(393050^393049)*i+(551230^551231)]=_0xb_0xf66;_0xd2_0xea8[(233742^233741)*i+(296159^296157)]=_0x889gf;continue;}p['\u006C\u0069\u0066\u0065']-=dt;p['\u0076\u0079']-=g*dt;_0xd2_0xea8[(791973^791974)*i+(878354^878354)]+=p['\u0076\u0078']*dt;_0xd2_0xea8[(250046^250045)*i+(109770^109771)]+=p['\u0076\u0079']*dt;_0xd2_0xea8[(532593^532594)*i+(601774^601772)]+=p['\u0076\u007A']*dt;if(_0xd2_0xea8[(499109^499110)*i+(716931^716930)]<=fuelYLimit){_0xd2_0xea8[(929252^929255)*i+(713174^713175)]=fuelYLimit;p['\u006C\u0069\u0066\u0065']=-(374333^374332);p['\u0076\u0078']=p['\u0076\u0079']=p['\u0076\u007A']=478251^478251;}}_0x0f23ff['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}}}if(smokeParticles&&smokeData&&smokeData['\u006C\u0065\u006E\u0067\u0074\u0068']){fuelEmitAcc=626498^626498;let _0x680dbf;const _0xf4a8ga=smokeParticles['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0067\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E");_0x680dbf=(134897^134902)+(987333^987340);let _0xaa2f6a;const _0xca3b=_0xf4a8ga['\u0061\u0072\u0072\u0061\u0079'];_0xaa2f6a="mlcbeh".split("").reverse().join("");if(!_0x852c2b){smokeParticles['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=628947^628947;for(let i=906829^906829;i<smokeData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){const p=smokeData[i];p['\u006C\u0069\u0066\u0065']=-(528812^528813);p['\u0076\u0078']=p['\u0076\u0079']=p['\u0076\u007A']=857821^857821;_0xca3b[(570663^570660)*i+(540226^540226)]=529887^529887;_0xca3b[(144647^144644)*i+(266141^266140)]=2.85;_0xca3b[(279006^279005)*i+(204398^204396)]=589965^589965;}_0xf4a8ga['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}else{smokeParticles['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=phase===(143994^143992)||phase===(121312^121315)?0.55:512443^512443;if(!(phase===(920581^920583)||phase===(394697^394698))){for(let i=770776^770776;i<smokeData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++)smokeData[i]['\u006C\u0069\u0066\u0065']=-(836913^836912);_0xf4a8ga['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}else{let _0x3df6cb=833864^833865,_0x6a74a=3.18,_0x2480cc=630026^630026;if(exhaustValve){_0x3df6cb=exhaustValve['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']+0.08;_0x6a74a=exhaustValve['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']-0.10;_0x2480cc=exhaustValve['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'];}const _0x965ad=535546^535546,_0xa6f=164584^164584,_0x823g=2.85;var _0xb470d=(935434^935434)+(870747^870739);const _0xcd86a=0.1;_0xb470d=(459058^459059)+(396576^396581);let _0x06c;const _0x9cb=0.25;_0x06c=874674^874678;var _0x6d_0x640=(895948^895941)+(657497^657488);const _0x4_0xeb6=276112^276119;_0x6d_0x640=142332^142330;const _0xbd7d1c=521080^521086;let _0x8ab;const _0xce465b=0.10;_0x8ab=(922155^922155)+(561906^561906);if(phase===(132483^132481)){for(let k=296249^296249;k<(561498^561501);k++){const i=Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*smokeData['\u006C\u0065\u006E\u0067\u0074\u0068']|733606^733606;var _0x295d=(931747^931744)+(226424^226425);const p=smokeData[i];_0x295d=936375^936373;p['\u006C\u0069\u0066\u0065']=1.2+0.8*Math['\u0072\u0061\u006E\u0064\u006F\u006D']();_0xca3b[(618811^618808)*i+(546888^546888)]=_0x965ad+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.25;_0xca3b[(587570^587569)*i+(466046^466047)]=_0x823g+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.25;_0xca3b[(134088^134091)*i+(184675^184673)]=_0xa6f+(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*0.25;p['\u0076\u0078']=(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*_0xce465b;p['\u0076\u0079']=-(_0xcd86a/(352134^352132)+Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*0.25);p['\u0076\u007A']=(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()-0.5)*_0xce465b;}}for(let i=811097^811097;i<smokeData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){let _0x48a;const p=smokeData[i];_0x48a=608398^608393;if(p['\u006C\u0069\u0066\u0065']<=(363335^363335))continue;p['\u006C\u0069\u0066\u0065']-=dt;const x=_0xca3b[(833624^833627)*i+(198106^198106)];const y=_0xca3b[(539304^539307)*i+(873336^873337)];const z=_0xca3b[(991430^991429)*i+(220077^220079)];if(phase===(683256^683258)){p['\u0076\u0079']-=_0x9cb*dt;p['\u0076\u0078']*=(840556^840557)-0.30*dt;p['\u0076\u007A']*=(114777^114776)-0.30*dt;}else if(phase===(450990^450989)){const dx=_0x3df6cb-x;const dy=_0x6a74a-y;const dz=_0x2480cc-z;var _0xfab2ef=(134334^134330)+(997031^997038);const d=Math['\u0073\u0071\u0072\u0074'](dx*dx+dy*dy+dz*dz)+1e-6;_0xfab2ef=(938182^938176)+(351635^351642);p['\u0076\u0078']+=dx/d*_0x4_0xeb6*dt;p['\u0076\u0079']+=dy/d*_0x4_0xeb6*dt;p['\u0076\u007A']+=dz/d*_0x4_0xeb6*dt;if(d<0.25){p['\u0076\u0078']+=_0xbd7d1c*dt;p['\u0076\u0079']+=0.10*dt;}}_0xca3b[(454793^454794)*i+(952145^952145)]+=p['\u0076\u0078']*dt;_0xca3b[(403684^403687)*i+(434224^434225)]+=p['\u0076\u0079']*dt;_0xca3b[(522484^522487)*i+(765701^765703)]+=p['\u0076\u007A']*dt;if(_0xca3b[(325748^325751)*i+(465088^465088)]>_0x3df6cb+(265421^265422)||_0xca3b[(686536^686539)*i+(905687^905686)]<1.15||_0xca3b[(387109^387110)*i+(836414^836415)]>4.4){p['\u006C\u0069\u0066\u0065']=-(315705^315704);}}_0xf4a8ga['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}}}if(ignitionRays){fuelEmitAcc=647847^647847;if(!_0x852c2b){ignitionRays['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=501288^501288;}else{var _0xcf7d=(614064^614068)+(230068^230068);const _0x58b0b=phase===(747178^747176)&&u<0.35;_0xcf7d=332060^332062;let _0xcf36f;const _0x93d1d=_0x58b0b?783058^783059:577137^577137;_0xcf36f=564046^564040;ignitionRays['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']+=(_0x93d1d-ignitionRays['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'])*((792873^792872)-Math['\u0070\u006F\u0077'](0.001,dt));ignitionRays['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=clamp(ignitionRays['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'],255706^255706,381464^381465);const _0x81cf6a=249907^249907,_0x47g6c=3.16,_0xg01d=0.08;const _0xge7g7f=ignitionRays['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0067\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E");const a=_0xge7g7f['\u0061\u0072\u0072\u0061\u0079'];if(ignitionRays['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']>0.01){let _0x2345c;const R=a['\u006C\u0065\u006E\u0067\u0074\u0068']/(720391^720385);_0x2345c=(829485^829483)+(169865^169864);let _0x1869f;const _0x64aec=0.25+0.12*Math['\u0073\u0069\u006E'](performance['\u006E\u006F\u0077']()*0.02);_0x1869f='\u006A\u006F\u0068\u0065\u006F\u006D';for(let i=801577^801577;i<R;i++){let _0x63242a;const _0x1431a=i*(129256^129262);_0x63242a=(657015^657008)+(433634^433633);const t=i*12.9898;const _0xb2_0x8ef=Math['\u0073\u0069\u006E'](t)*0.6+Math['\u0063\u006F\u0073'](t*1.7)*0.4;var _0xd60dc=(655603^655603)+(748754^748753);const _0x5_0x8b1=-0.25+0.45*Math['\u0073\u0069\u006E'](t*0.9);_0xd60dc=(202884^202883)+(709189^709190);const _0x29ee5a=Math['\u0063\u006F\u0073'](t)*0.6+Math['\u0073\u0069\u006E'](t*1.3)*0.4;const L=Math['\u0073\u0071\u0072\u0074'](_0xb2_0x8ef*_0xb2_0x8ef+_0x5_0x8b1*_0x5_0x8b1+_0x29ee5a*_0x29ee5a)||545004^545005;const dx=_0xb2_0x8ef/L,dy=_0x5_0x8b1/L,dz=_0x29ee5a/L;a[_0x1431a+(702146^702146)]=_0x81cf6a;a[_0x1431a+(359628^359629)]=_0x47g6c;a[_0x1431a+(157987^157985)]=_0xg01d;a[_0x1431a+(510071^510068)]=_0x81cf6a+dx*_0x64aec;a[_0x1431a+(916451^916455)]=_0x47g6c+dy*_0x64aec;a[_0x1431a+(119190^119187)]=_0xg01d+dz*_0x64aec;}_0xge7g7f['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}}}}function resetCycle(){stepBuild=false;stepParts=[];running=false;paused=false;phase=794607^794607;u=612790^612790;computeStates();Vcur=S1['\u0056'];Pcur=S1['\u0050'];pvTrace=[];lastTraceT=750611^750611;pvTrace['\u0070\u0075\u0073\u0068']({'\u0056':Vcur,'\u0050':Pcur});update3DFromVolume(Vcur);drawPV();updateUI();if(fuelParticles){let _0x2b2c4c;const pos=fuelParticles['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0067\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E")['\u0061\u0072\u0072\u0061\u0079'];_0x2b2c4c=405041^405045;for(let i=132764^132764;i<fuelPData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){fuelPData[i]['\u006C\u0069\u0066\u0065']=-(164546^164547);fuelPData[i]['\u0076\u0078']=fuelPData[i]['\u0076\u0079']=fuelPData[i]['\u0076\u007A']=464547^464547;pos[(898634^898633)*i+(629083^629083)]=-0.28;pos[(431272^431275)*i+(723016^723017)]=3.18;pos[(873857^873858)*i+(782965^782967)]=-0.05;}fuelParticles['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0067\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("noitisop".split("").reverse().join(""))['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}if(smokeParticles){let _0x9c5aa;const pos=smokeParticles['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0067\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("noitisop".split("").reverse().join(""))['\u0061\u0072\u0072\u0061\u0079'];_0x9c5aa=649845^649847;for(let i=331438^331438;i<smokeData['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){smokeData[i]['\u006C\u0069\u0066\u0065']=-(105705^105704);smokeData[i]['\u0076\u0078']=smokeData[i]['\u0076\u0079']=smokeData[i]['\u0076\u007A']=121872^121872;pos[(287172^287175)*i+(953386^953386)]=654154^654154;pos[(661848^661851)*i+(648561^648560)]=3.05;pos[(719125^719126)*i+(725591^725589)]=642715^642715;}smokeParticles['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0067\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E")['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];}}function getPhaseEnd(ph){if(ph===(714641^714641))return S2;if(ph===(607050^607051))return S3;if(ph===(374487^374485))return S4;return S1;}function stepPhase(_0x9cga,N){running=false;paused=!![];computeStates();if(!stepBuild||stepParts['\u006C\u0065\u006E\u0067\u0074\u0068']>=(122024^122028)){stepBuild=!![];stepParts=[];phase=647738^647738;u=477516^477516;Vcur=S1['\u0056'];Pcur=S1['\u0050'];pvTrace=[{'\u0056':Vcur,'\u0050':Pcur}];lastTraceT=101236^101236;stepAnimating=false;stepAnimT=869404^869404;update3DFromVolume(Vcur);updateValves();drawPV();updateUI();return;}const _0x7e_0xc88=[];N=929864^930044;_0x9cga=(627270^627269)+(526845^526844);for(let i=685949^685949;i<=N;i++)_0x7e_0xc88['\u0070\u0075\u0073\u0068'](evalAtPhase(phase,i/N));stepParts['\u0070\u0075\u0073\u0068'](_0x7e_0xc88);stepAnimating=!![];stepAnimPhase=phase;stepNextPhase=(phase+(880080^880081))%(864786^864790);stepAnimT=614252^614252;u=753299^753299;var _0x73321g=(330090^330089)+(954319^954316);const _0x7eed2c=evalAtPhase(stepAnimPhase,151341^151341);_0x73321g=(240912^240917)+(934385^934384);Vcur=_0x7eed2c['\u0056'];Pcur=_0x7eed2c['\u0050'];update3DFromVolume(Vcur);updateValves();drawPV();updateUI();}function computeStates(_0xe06dde,_0x67b6a){const r=+crEl['\u0076\u0061\u006C\u0075\u0065'];const g=+gEl['\u0076\u0061\u006C\u0075\u0065'];const q=+qEl['\u0076\u0061\u006C\u0075\u0065'];var _0x4g1a=(333127^333127)+(392487^392486);const _0x66f4b=+p1El['\u0076\u0061\u006C\u0075\u0065'];_0x4g1a=(225828^225827)+(414335^414335);_0xe06dde=282959^282953;const _0xcg4egf=_0xe06dde/r;var _0xg_0x99c=(250759^250754)+(924146^924155);const _0xd913ga=_0x66f4b*Math['\u0070\u006F\u0077'](_0xe06dde/_0xcg4egf,g);_0xg_0x99c=176416^176421;const _0x8bb=_0xd913ga*q;const _0x39g=_0x8bb*Math['\u0070\u006F\u0077'](_0xcg4egf/_0xe06dde,g);_0x67b6a="ijcfhp".split("").reverse().join("");S1={'\u0056':_0xe06dde,'\u0050':_0x66f4b};S2={'\u0056':_0xcg4egf,'\u0050':_0xd913ga};S3={'\u0056':_0xcg4egf,'\u0050':_0x8bb};S4={'\u0056':_0xe06dde,'\u0050':_0x39g};}function getPhaseStart(ph){if(ph===(967887^967887))return S1;if(ph===(964860^964861))return S2;if(ph===(663758^663756))return S3;return S4;}function evalAtPhase(ph,t01,_0xb5eab,_0x7ga01f){const g=+gEl['\u0076\u0061\u006C\u0075\u0065'];_0xb5eab=749877^749875;const _0x8f060b=S1['\u0056'];var _0x45deg=(352058^352056)+(739104^739112);const _0xc2_0x271=S2['\u0056'];_0x45deg=817061^817068;const _0xc826fg=S1['\u0050'];_0x7ga01f=(201831^201838)+(986931^986935);const _0xb3d1d=S2['\u0050'];const _0xbdd9d=S3['\u0050'];var _0x_0x1gb=(870396^870389)+(113216^113217);const _0xb17c5e=S4['\u0050'];_0x_0x1gb=617622^617620;const t=smoothstep(t01);if(ph===(185030^185030)){const V=lerp(_0xc2_0x271,_0x8f060b,t);var _0xdfc=(754561^754562)+(454949^454945);const P=_0xc826fg;_0xdfc=(701604^701605)+(812605^812604);return{'\u0056':V,'\u0050':P};}if(ph===(703101^703100)){const V=lerp(_0x8f060b,_0xc2_0x271,t);const P=_0xc826fg*Math['\u0070\u006F\u0077'](_0x8f060b/V,g);return{'\u0056':V,'\u0050':P};}if(ph===(661387^661385)){var _0x71d7cc=(990124^990124)+(723358^723350);const split=0.18;_0x71d7cc=(522761^522752)+(821166^821162);if(t01<split){const a=smoothstep(t01/split);var _0x53aa5a=(447098^447102)+(902252^902252);const V=_0xc2_0x271;_0x53aa5a='\u0067\u0062\u0062\u006A\u0069\u0070';var _0xef42fc=(950033^950041)+(839504^839508);const P=lerp(_0xb3d1d,_0xbdd9d,a);_0xef42fc='\u0067\u0061\u006B\u006D\u0064\u0071';return{'\u0056':V,'\u0050':P};}else{var _0x497a0d=(795480^795484)+(640628^640636);const b=smoothstep((t01-split)/((114228^114229)-split));_0x497a0d=(147926^147923)+(446469^446471);var _0xc59fb=(467992^467984)+(625098^625098);const V=lerp(_0xc2_0x271,_0x8f060b,b);_0xc59fb=731489^731491;var _0x39683c=(873176^873182)+(631931^631922);const P=_0xbdd9d*Math['\u0070\u006F\u0077'](_0xc2_0x271/V,g);_0x39683c=(519484^519482)+(463433^463438);return{'\u0056':V,'\u0050':P};}}{let _0xf5bcdf;const split=0.18;_0xf5bcdf="jgocnp".split("").reverse().join("");if(t01<split){var _0x28d25d=(425598^425596)+(977916^977909);const a=smoothstep(t01/split);_0x28d25d=(321100^321098)+(755067^755068);const V=_0x8f060b;let _0x85f68e;const P=lerp(_0xb17c5e,_0xc826fg,a);_0x85f68e=(612358^612358)+(212299^212296);return{'\u0056':V,'\u0050':P};}else{var _0xa8e=(233183^233179)+(729779^729786);const b=smoothstep((t01-split)/((391723^391722)-split));_0xa8e="flohbl".split("").reverse().join("");const V=lerp(_0x8f060b,_0xc2_0x271,b);const P=_0xc826fg;return{'\u0056':V,'\u0050':P};}}}function update3DFromVolume(V,_0xe182bd,_0x17eg3f,_0xb15fgf){if(!S1||!S2)return;const _0xe3_0xa62=S2['\u0056'];_0xe182bd='\u006A\u006C\u0071\u006D\u0062\u0071';const _0x2d_0x305=S1['\u0056'];_0x17eg3f=(426909^426904)+(590186^590184);const _0xeebb8b=clamp((V-_0xe3_0xa62)/(_0x2d_0x305-_0xe3_0xa62),868034^868034,241689^241688);_0xb15fgf=421912^421912;if(phase===(133573^133573)||phase===(875506^875504)){_0xb15fgf=_0xeebb8b*Math['\u0050\u0049'];}else{_0xb15fgf=((293432^293433)-_0xeebb8b)*Math['\u0050\u0049'];}var _0x28b=(936132^936140)+(784278^784275);const _0xfb330g=phase*Math['\u0050\u0049']+_0xb15fgf;_0x28b=(419036^419034)+(951937^951943);crank['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=_0xfb330g;const _0xb0ff7g=rCrank*Math['\u0073\u0069\u006E'](_0xfb330g);const _0x8dd87e=rCrank*Math['\u0063\u006F\u0073'](_0xfb330g);crankPin['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](_0xb0ff7g,_0x8dd87e,499290^499290);const _0xc4b1b=lerp(pistonTopY,pistonBottomY,_0xeebb8b);piston['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](250647^250647,_0xc4b1b,912691^912691);const _0x207ee=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']();crankPin['\u0067\u0065\u0074\u0057\u006F\u0072\u006C\u0064\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E'](_0x207ee);var _0x557be=(588254^588249)+(492539^492539);const _0xc5bff=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](310639^310639,_0xc4b1b-0.15,707328^707328);_0x557be=482698^482701;const _0x5484bc=_0x207ee['\u0063\u006C\u006F\u006E\u0065']()['\u0061\u0064\u0064'](_0xc5bff)['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](0.5);rod['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x5484bc);const _0xb0e=_0xc5bff['\u0063\u006C\u006F\u006E\u0065']()['\u0073\u0075\u0062'](_0x207ee);const _0x55599f=_0xb0e['\u006C\u0065\u006E\u0067\u0074\u0068']();rod['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](465963^465962,_0x55599f,549444^549445);rod['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](361845^361845,146138^146139,172757^172757),_0xb0e['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());var _0x981a=(450159^450156)+(211493^211491);const _0x6_0x54c=phase===(382349^382351);_0x981a=(970022^970021)+(340590^340585);if(sparkFlash?.material?.emissive){sparkFlash['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065']['\u0073\u0065\u0074\u0048\u0065\u0078'](_0x6_0x54c?0xffff00:665663^665663);}else if(sparkFlash?.material?.color){sparkFlash['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=_0x6_0x54c;sparkFlash['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](0xffff00);}}function drawPV(_0x52fge,_0x42afeb,_0x5e5c9c,_0xe_0x7fe,_0xe2_0xb53,_0xd295g,_0x37b5cb){if(!S1||!S2||!S3||!S4)return;const _0xcdbafc2=pvCtx;const W=pv['\u0077\u0069\u0064\u0074\u0068'],H=pv['\u0068\u0065\u0069\u0067\u0068\u0074'];_0xcdbafc2['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](873551^873551,676273^676273,W,H);const _0x29cce=543202^543176,_0x5dd13f=748223^748208,_0x04e5ec=111603^111612,_0x2gcd4c=804643^804669;const _0x1753e=_0x29cce,_0x957bea=H-_0x2gcd4c;const w=W-_0x29cce-_0x5dd13f;var _0x104f=(648045^648045)+(581286^581294);const h=H-_0x04e5ec-_0x2gcd4c;_0x104f='\u0069\u0061\u006F\u006C\u0062\u0065';_0xcdbafc2['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065']="000#".split("").reverse().join("");_0xcdbafc2['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068']=845857^845859;_0xcdbafc2['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();_0xcdbafc2['\u006D\u006F\u0076\u0065\u0054\u006F'](_0x1753e,_0x04e5ec);_0xcdbafc2['\u006C\u0069\u006E\u0065\u0054\u006F'](_0x1753e,_0x957bea);_0xcdbafc2['\u006C\u0069\u006E\u0065\u0054\u006F'](_0x1753e+w,_0x957bea);_0xcdbafc2['\u0073\u0074\u0072\u006F\u006B\u0065']();_0xcdbafc2['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065']="\u0023\u0030\u0030\u0030";_0xcdbafc2['\u0066\u006F\u006E\u0074']="\u0031\u0032\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";_0xcdbafc2['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u0050\u0020\u0028\u006B\u0050\u0061\u0029",566628^566626,962165^962149);_0xcdbafc2['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u0056",_0x1753e+w-(934062^934059),_0x957bea+(926882^926902));var _0xfbc1ab=(469959^469953)+(544997^544998);const _0x9215f=Math['\u006D\u0069\u006E'](S1['\u0056'],S2['\u0056'],S3['\u0056'],S4['\u0056']);_0xfbc1ab=(549856^549856)+(622499^622503);var _0xa75e=(377740^377737)+(405784^405788);const _0x4bed3b=Math['\u006D\u0061\u0078'](S1['\u0056'],S2['\u0056'],S3['\u0056'],S4['\u0056']);_0xa75e='\u006D\u0063\u006A\u006E\u0062\u0068';_0x52fge=606060^606060;const _0x9gd3ab=Math['\u006D\u0061\u0078'](S1['\u0050'],S2['\u0050'],S3['\u0050'],S4['\u0050']);var _0x41f=(277811^277815)+(647445^647446);const _0x76be8c=0.06*(_0x4bed3b-_0x9215f||590037^590036);_0x41f='\u0066\u006A\u006A\u0067\u0066\u0067';const _0xa762b=0.12*(_0x9gd3ab||497055^497054);_0x42afeb="hjfmip".split("").reverse().join("");const _0xbec93c=_0x9215f-_0x76be8c;const _0x8e99ec=_0x4bed3b+_0x76be8c;_0x5e5c9c=(825987^825987)+(711915^711919);const _0x7e451e=_0x52fge;_0xe_0x7fe=563718^563714;const _0xgd137c=_0x9gd3ab+_0xa762b;const X=V=>_0x1753e+(V-_0xbec93c)/(_0x8e99ec-_0xbec93c)*w;_0xe2_0xb53=784022^784030;const Y=P=>_0x957bea-(P-_0x7e451e)/(_0xgd137c-_0x7e451e)*h;_0xcdbafc2['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065']="\u006F\u0072\u0061\u006E\u0067\u0065";_0xcdbafc2['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068']=945518^945516;function _0xg37b(arr){if(!arr||arr['\u006C\u0065\u006E\u0067\u0074\u0068']<(190708^190710))return;_0xcdbafc2['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();_0xcdbafc2['\u006D\u006F\u0076\u0065\u0054\u006F'](X(arr[481393^481393]['\u0056']),Y(arr[665596^665596]['\u0050']));for(let i=455107^455106;i<arr['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){_0xcdbafc2['\u006C\u0069\u006E\u0065\u0054\u006F'](X(arr[i]['\u0056']),Y(arr[i]['\u0050']));}_0xcdbafc2['\u0073\u0074\u0072\u006F\u006B\u0065']();}if(stepBuild){for(const _0xaf11cf of stepParts)_0xg37b(_0xaf11cf);return;}if(running&&!paused){_0xg37b(pvTrace);return;}const _0xc3dffe=[];_0xd295g=594470^594471;function _0xc64a(ph,N){for(let i=890457^890457;i<=N;i++){const t=i/N;_0xc3dffe['\u0070\u0075\u0073\u0068'](evalAtPhase(ph,t));}}_0xc64a(231764^231764,166636^166496);_0xc64a(255230^255231,860113^859997);_0xc64a(143054^143052,860486^860618);_0xc64a(287975^287972,750741^750617);_0xg37b(_0xc3dffe);_0xcdbafc2['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065']="\u0023\u0030\u0030\u0030";const _0xd3_0x8b3=[S1,S2,S3,S4];_0x37b5cb='\u0065\u006D\u006B\u0066\u006C\u0068';for(const p of _0xd3_0x8b3){_0xcdbafc2['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();_0xcdbafc2['\u0061\u0072\u0063'](X(p['\u0056']),Y(p['\u0050']),2.5,476650^476650,Math['\u0050\u0049']*(161255^161253));_0xcdbafc2['\u0066\u0069\u006C\u006C']();}}let _0xe11b3c;let lastT=536429^536429;_0xe11b3c=898670^898671;function animate(t){requestAnimationFrame(animate);if(!lastT)lastT=t;const _0x5f_0xf45=Math['\u006D\u0069\u006E'](0.03,(t-lastT)/(567061^566525));lastT=t;computeStates();if(paused&&stepAnimating){let _0xcdbafc;const _0x8a113c=_0x5f_0xf45/stepAnimSeconds;_0xcdbafc=(786334^786329)+(910604^910606);stepAnimT=Math['\u006D\u0069\u006E'](332257^332256,stepAnimT+_0x8a113c);phase=stepAnimPhase;u=stepAnimT;let _0xf4fb7f;const pt=evalAtPhase(phase,u);_0xf4fb7f=(679387^679379)+(720236^720236);Vcur=pt['\u0056'];Pcur=pt['\u0050'];update3DFromVolume(Vcur);updateValves();updateTopHardware(_0x5f_0xf45);drawPV();updateUI();if(stepAnimT>=(889641^889640)){const _0xe83c5e=evalAtPhase(stepAnimPhase,879478^879479);Vcur=_0xe83c5e['\u0056'];Pcur=_0xe83c5e['\u0050'];update3DFromVolume(Vcur);updateValves();updateTopHardware(_0x5f_0xf45);drawPV();updateUI();stepAnimating=false;phase=stepNextPhase;u=645640^645640;}controls['\u0075\u0070\u0064\u0061\u0074\u0065']();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);return;}if(running&&!paused){let _0xdf7b;const _0xfce7g=+spdEl['\u0076\u0061\u006C\u0075\u0065'];_0xdf7b='\u006A\u006D\u006A\u0062\u0069\u006C';const _0x70g88a=1.6/_0xfce7g;const _0x15bc=0.35/_0xfce7g;var _0xe80bd=(663518^663516)+(599074^599079);const _0xc3afd=phase===(407522^407522)||phase===(672486^672484)?_0x70g88a:_0x15bc;_0xe80bd='\u0068\u006D\u006F\u0066\u0069\u006D';u+=_0x5f_0xf45/_0xc3afd;let _0x3dg=false;if(u>=(856718^856719)){u=509654^509654;const _0xc3c=phase;phase=(phase+(441879^441878))%(766925^766921);if(_0xc3c===(178722^178721)&&phase===(484387^484387))_0x3dg=!![];}const pt=evalAtPhase(phase,u);Vcur=pt['\u0056'];Pcur=pt['\u0050'];lastTraceT+=_0x5f_0xf45;if(lastTraceT>=0.02){lastTraceT=197474^197474;if(_0x3dg){pvTrace=[{'\u0056':S1['\u0056'],'\u0050':S1['\u0050']}];}pvTrace['\u0070\u0075\u0073\u0068']({'\u0056':Vcur,'\u0050':Pcur});if(pvTrace['\u006C\u0065\u006E\u0067\u0074\u0068']>(312322^311474))pvTrace['\u0073\u0068\u0069\u0066\u0074']();}}else{var _0x2a6c=(556938^556930)+(224217^224217);const pt=evalAtPhase(phase,u);_0x2a6c=(906130^906130)+(667102^667096);Vcur=pt['\u0056'];Pcur=pt['\u0050'];}update3DFromVolume(Vcur);updateValves();updateTopHardware(_0x5f_0xf45);drawPV();updateUI();controls['\u0075\u0070\u0064\u0061\u0074\u0065']();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}function updateUI(){var _0x25eg=(484062^484061)+(528624^528626);const _0x133ffc=stepAnimating?stepAnimPhase:phase;_0x25eg=(802744^802737)+(499716^499715);phasePill['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=`Next: ${phaseNames[_0x133ffc]}`;readout['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`V = ${fmt(Vcur,548005^548006)}   P = ${fmt(Pcur,792106^792107)} kPa<br>`+`S1: (V1=${fmt(S1['\u0056'],395273^395274)}, P1=${fmt(S1['\u0050'],104382^104383)})<br>`+`S2: (V2=${fmt(S2['\u0056'],655823^655820)}, P2=${fmt(S2['\u0050'],211055^211054)})<br>`+`S3: (V2=${fmt(S3['\u0056'],143434^143433)}, P3=${fmt(S3['\u0050'],552312^552313)})<br>`+`S4: (V1=${fmt(S4['\u0056'],576489^576490)}, P4=${fmt(S4['\u0050'],775382^775383)})`;}
+
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+</script>
+</body>
+</html>

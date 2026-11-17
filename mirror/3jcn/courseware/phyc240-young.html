@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<!-- Google tag (gtag.js) -->
+
+
+
+<!-- End Google Tag Manager -->
+  
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>乐启享 · 物理实验</title>
+<meta name="description" content="Explore Young's double-slit experiment in an interactive 3D physics simulation. Adjust wavelength, slit separation, and screen distance; observe interference fringes and a live intensity graph.">
+<meta name="keywords" content="Young double slit experiment, physics simulation, light interference, constructive interference, destructive interference, diffraction, wave optics">
+<link rel="icon" href="/brand/favicon.ico">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#071324;color:#edf4ff;font-family:Arial,Helvetica,sans-serif}
+#view{position:fixed;inset:0}
+#top{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:3;text-align:center;width:min(96vw,950px);pointer-events:none}
+h1{font-size:clamp(21px,2.5vw,33px);margin:0 0 8px;text-shadow:0 2px 8px #000}
+#toolbar{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;pointer-events:auto}
+button,.home{border:1px solid #648cbd;border-radius:5px;background:#22639e;color:white;font-size:13px;padding:9px 12px;cursor:pointer;text-decoration:none}
+button:hover,.home:hover{background:#327dbd}
+button:focus-visible,input:focus-visible{outline:2px solid #ffd86b;outline-offset:2px}
+.home{background:#27804d;border-color:#499b6a}
+.secondary{background:#394a62}
+.panel{position:fixed;z-index:3;background:rgba(11,25,46,.94);border:1px solid #426080;box-shadow:0 4px 22px #0007;border-radius:10px;padding:13px}
+#controls{left:14px;top:115px;width:280px}
+#chartPanel{right:14px;bottom:14px;width:min(380px,34vw)}
+.panel h2{font-size:16px;margin:0 0 10px}
+.control{margin:11px 0}
+.control label{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:5px}
+.control output{color:#ffd46b;font-weight:bold}
+input[type=range]{width:100%;accent-color:#51b9f4;cursor:pointer}
+.metrics{border-top:1px solid #426080;padding-top:9px;font-size:13px;line-height:1.7}
+.metrics strong{color:#ffd46b}
+#chart{display:block;width:100%;height:190px;background:#061120;border-radius:5px}
+#legend{font-size:11px;color:#d0d8e7;margin:6px 0 0}
+#hint{position:fixed;left:50%;bottom:17px;transform:translateX(-50%);font-size:12px;color:#b1c6da;background:#0b1930b8;padding:7px 10px;border-radius:5px;pointer-events:none}
+#status{font-size:12px;color:#b5d7fc;margin-top:8px}
+#modal{position:fixed;inset:0;z-index:10;background:#000a;display:none;align-items:center;justify-content:center;padding:15px}
+#modal.open{display:flex}
+#modalContent{background:#10243e;border:1px solid #648cbd;border-radius:10px;width:min(600px,95vw);max-height:85vh;overflow:auto;padding:22px;line-height:1.55}
+#modalContent h2{margin-top:0}
+#modalContent li{margin:7px 0}
+#modalContent p{font-size:14px}
+#closeInfo{float:right}
+#chartPanel[hidden]{display:none}
+@media(max-width:900px){
+#controls{top:110px;left:8px;width:240px}
+#chartPanel{width:310px;right:8px}
+#chart{height:140px}
+}
+@media(max-width:650px){
+#top{top:6px}
+#controls{top:105px;width:215px;padding:9px}
+#chartPanel{bottom:7px;right:7px;width:min(290px,55vw);padding:8px}
+#chart{height:110px}
+#hint{display:none}
+button,.home{padding:7px 9px;font-size:12px}
+#status{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="view"></div>
+
+<div id="top">
+<h1>Young's Double-Slit Experiment</h1>
+<div id="toolbar">
+<button id="start">Start Simulation</button>
+<button id="pause" class="secondary">Pause</button>
+<button id="reset" class="secondary">Reset</button>
+<button id="toggleWaves" class="secondary">Hide Waves</button>
+<button id="toggleGraph" class="secondary">Hide Graph</button>
+<button id="infoBtn" class="secondary">Information</button>
+
+</div>
+<div id="status">Set parameters and click Start Simulation.</div>
+</div>
+
+<aside id="controls" class="panel">
+<h2>Experiment Parameters</h2>
+
+<div class="control">
+<label for="lambda">Wavelength (λ) <output id="lambdaVal">640 nm</output></label>
+<input id="lambda" type="range" min="400" max="700" value="640" step="10">
+</div>
+
+<div class="control">
+<label for="slitSep">Slit separation (d) <output id="slitSepVal">0.20 mm</output></label>
+<input id="slitSep" type="range" min="0.10" max="1.00" value="0.20" step="0.05">
+</div>
+
+<div class="control">
+<label for="distance">Screen distance (L) <output id="distanceVal">3.3 m</output></label>
+<input id="distance" type="range" min="0.5" max="5.0" value="3.3" step="0.1">
+</div>
+
+<div class="metrics">
+Fringe spacing: <strong id="spacing">2.20 mm</strong><br>
+Central maximum: <strong>y = 0</strong><br>
+<small>Δy ≈ λL/d (small-angle approximation)</small><br>
+<small>Screen scale: ±25 mm (diagram illustrative)</small>
+</div>
+</aside>
+
+<aside id="chartPanel" class="panel" hidden>
+<h2>Light Intensity vs. Position</h2>
+<canvas id="chart"></canvas>
+<p id="legend">
+Relative intensity; screen position from −25 to +25 mm.
+Includes single-slit diffraction envelope.
+</p>
+</aside>
+
+<div id="hint">Note: This simulation is not drawn to scale; the slit separation and the distance from the slits to the screen use different scales for better visualization.</div>
+
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="infoHeading">
+<div id="modalContent">
+<button id="closeInfo" class="secondary" aria-label="Close information">Close</button>
+<h2 id="infoHeading">About Young's Double-Slit Experiment</h2>
+<p>Light passing through two narrow slits produces two coherent waves. The waves overlap and create an interference pattern of bright and dark fringes on the observation screen.</p>
+<ul>
+<li><b>Bright fringes (constructive interference):</b> path difference ≈ mλ.</li>
+<li><b>Dark fringes (destructive interference):</b> path difference ≈ (m + ½)λ.</li>
+<li><b>Wavelength:</b> increasing λ makes fringes farther apart.</li>
+<li><b>Slit separation:</b> increasing d brings fringes closer together.</li>
+<li><b>Screen distance:</b> increasing L makes fringes farther apart.</li>
+</ul>
+<p>Click <b>Start Simulation</b> to animate wavefronts from the light source and the two slits. Use the sliders to change the calculated fringe pattern in real time. Click <b>Hide Waves</b> or <b>Hide Graph</b> to focus on a particular feature; use <b>Pause</b> and <b>Reset</b> to control the animation.</p>
+<p><b>Physics:</b> the graph and screen brightness use two-slit interference together with a finite-slit diffraction envelope. Animated arcs are schematic: their visual size and speed are not to physical scale.</p>
+</div>
+</div>
+
+<script type="module">
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+
+var _0x2cbfb = (694562 ^ 694560) + (780115 ^ 780112);
+const $ = id => document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);
+_0x2cbfb = (734181 ^ 734182) + (683653 ^ 683653);
+const defaults = {
+  '\u006C\u0061\u006D\u0062\u0064\u0061': 550,
+  '\u0073\u006C\u0069\u0074\u0053\u0065\u0070': 0.5,
+  '\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065': 2
+};
+let params = {
+  ...defaults
+};
+let started = false,
+  paused = false,
+  showWaves = !![],
+  showGraph = !![];
+let elapsed = 502595 ^ 502595,
+  lastFrame = performance['\u006E\u006F\u0077']();
+let primaryEmission = 298000 ^ 298000,
+  secondaryEmission = 372217 ^ 372217,
+  secondaryActive = false;
+let _0x13b;
+let lastScreenFrame = -(586263 ^ 586262);
+_0x13b = (964694 ^ 964691) + (898487 ^ 898483);
+const WAVE_SPEED = 355703 ^ 355684;
+const SCREEN_FADE = 0.8;
+const primary = [],
+  secondary = [];
+let _0xec52b;
+const world = {
+  "screenX": 48,
+  "slitY": 7
+};
+_0xec52b = '\u0070\u0064\u0068\u006B\u006E\u0068';
+const scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0x071324);
+var _0xga5c = (129375 ^ 129366) + (585870 ^ 585867);
+const camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](788380 ^ 788396, innerWidth / innerHeight, 0.1, 557143 ^ 558015);
+_0xga5c = '\u006F\u0064\u0069\u006F\u0064\u0064';
+camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](997739 ^ 997756, 210243 ^ 210264, 144152 ^ 144279);
+camera['\u006C\u006F\u006F\u006B\u0041\u0074'](405649 ^ 405661, 434276 ^ 434276, 939487 ^ 939487);
+var _0xg_0x8c7 = (173559 ^ 173554) + (471683 ^ 471690);
+const renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+  '\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073': !![]
+});
+_0xg_0x8c7 = "dbolom";
+renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](devicePixelRatio, 907206 ^ 907204));
+renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](innerWidth, innerHeight);
+$("\u0076\u0069\u0065\u0077")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+const controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067'] = !![];
+controls['\u0064\u0061\u006D\u0070\u0069\u006E\u0067\u0046\u0061\u0063\u0074\u006F\u0072'] = 0.06;
+controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](751785 ^ 751781, 422808 ^ 422808, 941436 ^ 941436);
+controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0.8));
+const directional = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 1.4);
+directional['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](777087 ^ 777057, 774862 ^ 774905, 657822 ^ 657870);
+scene['\u0061\u0064\u0064'](directional);
+const source = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](1.2, 922350 ^ 922364, 846041 ^ 846039), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xff6842
+}));
+source['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(113152 ^ 113190), 519279 ^ 519279, 848323 ^ 848322);
+scene['\u0061\u0064\u0064'](source);
+const sourceGlow = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](2.4, 618058 ^ 618074, 607566 ^ 607554), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xff6842,
+  '\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074': !![],
+  '\u006F\u0070\u0061\u0063\u0069\u0074\u0079': 0.16
+}));
+source['\u0061\u0064\u0064'](sourceGlow);
+var _0x_0x5ga = (389351 ^ 389344) + (458181 ^ 458181);
+const barrierMat = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0x8492a3,
+  "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+});
+_0x_0x5ga = (835028 ^ 835027) + (203646 ^ 203647);
+const barrierParts = [];
+function addBarrierPart(y, height, z, width) {
+  var _0x9d9g = (419772 ^ 419774) + (601694 ^ 601687);
+  const _0x9883cg = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](675468 ^ 675469, height, width), barrierMat);
+  _0x9d9g = '\u0062\u0061\u006F\u0070\u0067\u0064';
+  _0x9883cg['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](378639 ^ 378639, y, z);
+  scene['\u0061\u0064\u0064'](_0x9883cg);
+  barrierParts['\u0070\u0075\u0073\u0068'](_0x9883cg);
+}
+function buildBarrier() {
+  barrierParts['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m => {
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](m);
+    m['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+  });
+  barrierParts['\u006C\u0065\u006E\u0067\u0074\u0068'] = 300947 ^ 300947;
+  const s = world['\u0073\u006C\u0069\u0074\u0059'],
+    _0x1638g = 1.5,
+    _0x33c = 365840 ^ 365875;
+  const _0x5c74dc = [[-_0x33c, -s - _0x1638g / (312123 ^ 312121)], [-s + _0x1638g / (342991 ^ 342989), s - _0x1638g / (878029 ^ 878031)], [s + _0x1638g / (426120 ^ 426122), _0x33c]];
+  _0x5c74dc['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](([a, b]) => {
+    if (b > a) addBarrierPart((a + b) / (182355 ^ 182353), b - a, 210958 ^ 210958, 738574 ^ 738578);
+  });
+}
+var _0x5d_0xg6d = (309607 ^ 309605) + (110931 ^ 110939);
+const slitMarkers = [];
+_0x5d_0xg6d = (417102 ^ 417098) + (341122 ^ 341122);
+let _0xaba4c;
+const markMat = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xffe06e
+});
+_0xaba4c = '\u006A\u006B\u006B\u0068\u0065\u006E';
+for (let i = 458560 ^ 458560; i < (399374 ^ 399372); i++) {
+  const marker = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.65, 247852 ^ 247840, 881535 ^ 881527), markMat);
+  scene['\u0061\u0064\u0064'](marker);
+  slitMarkers['\u0070\u0075\u0073\u0068'](marker);
+}
+const screenTextureCanvas = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0063\u0061\u006E\u0076\u0061\u0073");
+screenTextureCanvas['\u0077\u0069\u0064\u0074\u0068'] = 533134 ^ 533262;
+screenTextureCanvas['\u0068\u0065\u0069\u0067\u0068\u0074'] = 512442 ^ 512698;
+let _0xda65g;
+const screenCtx = screenTextureCanvas['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']('2d');
+_0xda65g = (872873 ^ 872877) + (107376 ^ 107382);
+var _0x5275ef = (637675 ^ 637679) + (225859 ^ 225856);
+const screenTexture = new THREE['\u0043\u0061\u006E\u0076\u0061\u0073\u0054\u0065\u0078\u0074\u0075\u0072\u0065'](screenTextureCanvas);
+_0x5275ef = (342139 ^ 342142) + (465290 ^ 465294);
+screenTexture['\u0063\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065'] = THREE['\u0053\u0052\u0047\u0042\u0043\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065'];
+const screenMesh = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0050\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](744832 ^ 744862, 779446 ^ 779504), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u006D\u0061\u0070': screenTexture,
+  "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+}));
+screenMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = Math['\u0050\u0049'] / (797797 ^ 797799);
+scene['\u0061\u0064\u0064'](screenMesh);
+const frame = new THREE['\u004C\u0069\u006E\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073'](new THREE['\u0045\u0064\u0067\u0065\u0073\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](240033 ^ 240032, 434469 ^ 434531, 922554 ^ 922532)), new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  "color": 0xd9e1ef
+}));
+scene['\u0061\u0064\u0064'](frame);
+const chartCanvas = $('chart');
+const chartCtx = chartCanvas['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064");
+const YMAX = 148406 ^ 148399;
+function wavesReachedScreen() {
+  if (!started) return false;
+  const _0xg9ffbe = (747526 ^ 747552) / WAVE_SPEED;
+  var _0xc716b = (294298 ^ 294302) + (474086 ^ 474084);
+  const x = world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'] - (237385 ^ 237384);
+  _0xc716b = (200792 ^ 200796) + (882606 ^ 882600);
+  const a = world['\u0073\u006C\u0069\u0074\u0059'];
+  const _0x3578c = Math['\u0068\u0079\u0070\u006F\u0074'](x, a) / WAVE_SPEED;
+  return elapsed >= _0xg9ffbe + _0x3578c;
+}
+function updateGraphVisibility() {
+  const _0x6adbb = showGraph && wavesReachedScreen();
+  $("\u0063\u0068\u0061\u0072\u0074\u0050\u0061\u006E\u0065\u006C")['\u0068\u0069\u0064\u0064\u0065\u006E'] = !_0x6adbb;
+  if (_0x6adbb) drawChart();
+}
+function wavelengthRGB(w) {
+  let r = 901902 ^ 901902,
+    g = 406871 ^ 406871,
+    b = 545680 ^ 545680;
+  if (w < (186846 ^ 186470)) {
+    r = -(w - (359492 ^ 359932)) / (661793 ^ 661789);
+    b = 218854 ^ 218855;
+  } else if (w < (637909 ^ 637503)) {
+    g = (w - (919944 ^ 919600)) / (611848 ^ 611898);
+    b = 126215 ^ 126214;
+  } else if (w < (236672 ^ 236926)) {
+    g = 776648 ^ 776649;
+    b = -(w - (574254 ^ 574160)) / (914010 ^ 913998);
+  } else if (w < (193529 ^ 192957)) {
+    r = (w - (144938 ^ 145364)) / (557211 ^ 557277);
+    g = 957037 ^ 957036;
+  } else if (w < (787965 ^ 788344)) {
+    r = 949564 ^ 949565;
+    g = -(w - (737552 ^ 738197)) / (321654 ^ 321591);
+  } else {
+    r = 613505 ^ 613504;
+  }
+  const f = w < (866901 ^ 867313) ? 0.5 + 0.5 * (w - (973611 ^ 973499)) / (422368 ^ 422388) : w > (130775 ^ 130175) ? 0.5 + 0.5 * ((249236 ^ 249640) - w) / (824895 ^ 824875) : 705932 ^ 705933;
+  return [r, g, b]['\u006D\u0061\u0070'](c => Math['\u0072\u006F\u0075\u006E\u0064']((873320 ^ 873367) * Math['\u006D\u0061\u0078'](154809 ^ 154809, c) * f));
+}
+function colorFromWavelength(w) {
+  const [r, g, b] = wavelengthRGB(w);
+  return new THREE['\u0043\u006F\u006C\u006F\u0072'](`rgb(${r},${g},${b})`);
+}
+function sinc(x) {
+  return Math['\u0061\u0062\u0073'](x) < 1e-9 ? 111087 ^ 111086 : Math['\u0073\u0069\u006E'](x) / x;
+}
+function visualWavelength() {
+  const _0xaee2b = params['\u006C\u0061\u006D\u0062\u0064\u0061'] * 1e-3 * params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] / params['\u0073\u006C\u0069\u0074\u0053\u0065\u0070'];
+  const _0xe_0x49d = _0xaee2b * (870875 ^ 870904) / YMAX;
+  const x = world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'] - (196385 ^ 196384);
+  let _0x9d3f;
+  const a = world['\u0073\u006C\u0069\u0074\u0059'];
+  _0x9d3f = '\u006F\u0069\u0062\u006A\u006B\u0065';
+  var _0x5ef4g = (873604 ^ 873607) + (387455 ^ 387452);
+  const _0x4cg4g = Math['\u0068\u0079\u0070\u006F\u0074'](x, _0xe_0x49d - a);
+  _0x5ef4g = "bnonbj";
+  let _0x89232a;
+  const _0xa476g = Math['\u0068\u0079\u0070\u006F\u0074'](x, _0xe_0x49d + a);
+  _0x89232a = 672411 ^ 672409;
+  return Math['\u0061\u0062\u0073'](_0x4cg4g - _0xa476g);
+}
+function intensity(yMM) {
+  var _0x58ddcd = (948279 ^ 948272) + (696441 ^ 696440);
+  const y = yMM * (750966 ^ 750933) / YMAX;
+  _0x58ddcd = (921644 ^ 921636) + (399768 ^ 399768);
+  var _0x61da = (897141 ^ 897140) + (759229 ^ 759228);
+  const x = world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'] - (786000 ^ 786001);
+  _0x61da = (920503 ^ 920496) + (209939 ^ 209947);
+  var _0x1120f = (692720 ^ 692724) + (456818 ^ 456822);
+  const a = world['\u0073\u006C\u0069\u0074\u0059'];
+  _0x1120f = (763472 ^ 763480) + (915979 ^ 915982);
+  const _0x47062c = Math['\u0068\u0079\u0070\u006F\u0074'](x, y - a);
+  const _0xfcga = Math['\u0068\u0079\u0070\u006F\u0074'](x, y + a);
+  const _0x2c4e = _0xfcga - _0x47062c;
+  var _0x7c6c = (575513 ^ 575519) + (765585 ^ 765590);
+  const _0x989e = visualWavelength();
+  _0x7c6c = (853544 ^ 853548) + (745176 ^ 745181);
+  var _0x3ac = (880845 ^ 880844) + (866614 ^ 866608);
+  const _0x8dcgbg = Math['\u0050\u0049'] * _0x2c4e / _0x989e;
+  _0x3ac = (894532 ^ 894532) + (585816 ^ 585808);
+  let _0x3g_0xf83;
+  const _0x0efc = Math['\u0063\u006F\u0073'](_0x8dcgbg) ** (944151 ^ 944149);
+  _0x3g_0xf83 = '\u006F\u0070\u0065\u006B\u0068\u0062';
+  var _0xc45a = (716079 ^ 716075) + (102856 ^ 102861);
+  const _0x2g_0xabd = yMM * 1e-3;
+  _0xc45a = 102517 ^ 102517;
+  var _0x2_0x749 = (486930 ^ 486938) + (306516 ^ 306524);
+  const L = params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'];
+  _0x2_0x749 = (816171 ^ 816169) + (228536 ^ 228536);
+  var _0xb4a = (268427 ^ 268418) + (361533 ^ 361532);
+  const _0xc1f80e = params['\u006C\u0061\u006D\u0062\u0064\u0061'] * 1e-9;
+  _0xb4a = (197275 ^ 197267) + (918353 ^ 918355);
+  var _0xfb867c = (545342 ^ 545341) + (105267 ^ 105268);
+  const _0x4_0xdf8 = Math['\u006D\u0069\u006E'](0.07, params['\u0073\u006C\u0069\u0074\u0053\u0065\u0070'] * 0.35) * 1e-3;
+  _0xfb867c = 138500 ^ 138503;
+  let _0x68bcf;
+  const _0x9a2ec = Math['\u0050\u0049'] * _0x4_0xdf8 * (_0x2g_0xabd / Math['\u0068\u0079\u0070\u006F\u0074'](L, _0x2g_0xabd)) / _0xc1f80e;
+  _0x68bcf = 732009 ^ 732015;
+  const _0xa25c7e = sinc(_0x9a2ec) ** (322523 ^ 322521);
+  return _0x0efc * _0xa25c7e;
+}
+function drawScreen() {
+  const W = screenTextureCanvas['\u0077\u0069\u0064\u0074\u0068'];
+  var _0x92d = (406516 ^ 406525) + (462607 ^ 462602);
+  const H = screenTextureCanvas['\u0068\u0065\u0069\u0067\u0068\u0074'];
+  _0x92d = "biflcb";
+  const _0x8ea8a = screenCtx['\u0063\u0072\u0065\u0061\u0074\u0065\u0049\u006D\u0061\u0067\u0065\u0044\u0061\u0074\u0061'](W, H);
+  const _0xbfgd = wavelengthRGB(params['\u006C\u0061\u006D\u0062\u0064\u0061']);
+  const _0xgf_0x437 = (357405 ^ 357435) / WAVE_SPEED;
+  const x = world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'] - (190178 ^ 190179);
+  var _0x95119f = (502977 ^ 502978) + (676091 ^ 676094);
+  const a = world['\u0073\u006C\u0069\u0074\u0059'];
+  _0x95119f = (155445 ^ 155443) + (250296 ^ 250299);
+  for (let _0xb9e8b = 268571 ^ 268571; _0xb9e8b < H; _0xb9e8b++) {
+    var _0x386cdb = (257617 ^ 257619) + (957811 ^ 957815);
+    const _0xf2_0xa6b = (0.5 - _0xb9e8b / (H - (320488 ^ 320489))) * (577953 ^ 577955) * YMAX;
+    _0x386cdb = 110706 ^ 110715;
+    const _0xd_0xbd1 = _0xf2_0xa6b * (374228 ^ 374263) / YMAX;
+    let _0xa04gdd;
+    const _0xfc4g = Math['\u0068\u0079\u0070\u006F\u0074'](x, _0xd_0xbd1 - a);
+    _0xa04gdd = (414012 ^ 414008) + (346626 ^ 346627);
+    const _0xcc3fa = Math['\u0068\u0079\u0070\u006F\u0074'](x, _0xd_0xbd1 + a);
+    let _0xf_0xfe6;
+    const _0xbcb = _0xgf_0x437 + Math['\u006D\u0061\u0078'](_0xfc4g, _0xcc3fa) / WAVE_SPEED;
+    _0xf_0xfe6 = 232395 ^ 232392;
+    var _0xbe1ca = (860365 ^ 860360) + (183437 ^ 183429);
+    const _0x3883d = started ? Math['\u006D\u0061\u0078'](250497 ^ 250497, Math['\u006D\u0069\u006E'](382413 ^ 382412, (elapsed - _0xbcb) / SCREEN_FADE)) : 996744 ^ 996744;
+    _0xbe1ca = '\u0070\u0067\u0067\u0067\u0069\u0068';
+    const _0x55299b = intensity(_0xf2_0xa6b) * _0x3883d;
+    for (let _0x5bg = 873007 ^ 873007; _0x5bg < W; _0x5bg++) {
+      var _0xf92f = (369852 ^ 369849) + (356524 ^ 356525);
+      const k = (_0xb9e8b * W + _0x5bg) * (842249 ^ 842253);
+      _0xf92f = 957294 ^ 957288;
+      var _0x4f6b = (261949 ^ 261946) + (286428 ^ 286427);
+      const v = _0x55299b * (0.94 + 0.06 * Math['\u0063\u006F\u0073']((_0x5bg - W / (654976 ^ 654978)) * Math['\u0050\u0049'] / W));
+      _0x4f6b = 843306 ^ 843306;
+      _0x8ea8a['\u0064\u0061\u0074\u0061'][k] = Math['\u006D\u0069\u006E'](575597 ^ 575634, (607420 ^ 607416) + _0xbfgd[485802 ^ 485802] * v);
+      _0x8ea8a['\u0064\u0061\u0074\u0061'][k + (991813 ^ 991812)] = Math['\u006D\u0069\u006E'](306557 ^ 306562, (183515 ^ 183516) + _0xbfgd[780722 ^ 780723] * v);
+      _0x8ea8a['\u0064\u0061\u0074\u0061'][k + (395537 ^ 395539)] = Math['\u006D\u0069\u006E'](679609 ^ 679494, (874904 ^ 874901) + _0xbfgd[394779 ^ 394777] * v);
+      _0x8ea8a['\u0064\u0061\u0074\u0061'][k + (518388 ^ 518391)] = 202737 ^ 202510;
+    }
+  }
+  screenCtx['\u0070\u0075\u0074\u0049\u006D\u0061\u0067\u0065\u0044\u0061\u0074\u0061'](_0x8ea8a, 437595 ^ 437595, 139343 ^ 139343);
+  screenTexture['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065'] = !![];
+}
+function drawChart() {
+  if (!showGraph || !wavesReachedScreen()) return;
+  const _0x3a_0x817 = chartCanvas['\u0067\u0065\u0074\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0043\u006C\u0069\u0065\u006E\u0074\u0052\u0065\u0063\u0074']();
+  let _0xad668d;
+  const _0xbbbcaf = Math['\u006D\u0069\u006E'](devicePixelRatio, 147642 ^ 147640);
+  _0xad668d = (474070 ^ 474078) + (138140 ^ 138142);
+  var _0x023bca = (922432 ^ 922434) + (774201 ^ 774204);
+  const w = Math['\u006D\u0061\u0078'](322897 ^ 322869, Math['\u0072\u006F\u0075\u006E\u0064'](_0x3a_0x817['\u0077\u0069\u0064\u0074\u0068']));
+  _0x023bca = (649898 ^ 649897) + (301003 ^ 301006);
+  const h = Math['\u006D\u0061\u0078'](642592 ^ 642628, Math['\u0072\u006F\u0075\u006E\u0064'](_0x3a_0x817['\u0068\u0065\u0069\u0067\u0068\u0074']));
+  chartCanvas['\u0077\u0069\u0064\u0074\u0068'] = Math['\u0072\u006F\u0075\u006E\u0064'](w * _0xbbbcaf);
+  chartCanvas['\u0068\u0065\u0069\u0067\u0068\u0074'] = Math['\u0072\u006F\u0075\u006E\u0064'](h * _0xbbbcaf);
+  chartCtx['\u0073\u0065\u0074\u0054\u0072\u0061\u006E\u0073\u0066\u006F\u0072\u006D'](_0xbbbcaf, 311018 ^ 311018, 165782 ^ 165782, _0xbbbcaf, 586001 ^ 586001, 123399 ^ 123399);
+  chartCtx['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](728107 ^ 728107, 679069 ^ 679069, w, h);
+  const _0x2b001e = 967268 ^ 967233,
+    _0xa3f = 237693 ^ 237687,
+    _0x95b = 182111 ^ 182099,
+    _0x9fe20d = 189755 ^ 189735;
+  const _0x27e5e = w - _0x2b001e - _0xa3f,
+    _0xf520a = h - _0x95b - _0x9fe20d;
+  chartCtx['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = '#40516a';
+  chartCtx['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 859928 ^ 859929;
+  chartCtx['\u0066\u006F\u006E\u0074'] = "\u0031\u0031\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+  chartCtx['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0062\u0036\u0063\u0061\u0065\u0032";
+  for (let i = 989108 ^ 989108; i <= (662770 ^ 662774); i++) {
+    var _0x66e = (211572 ^ 211573) + (341127 ^ 341127);
+    const y = _0x95b + _0xf520a * i / (104657 ^ 104661);
+    _0x66e = (999003 ^ 999004) + (585210 ^ 585210);
+    chartCtx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    chartCtx['\u006D\u006F\u0076\u0065\u0054\u006F'](_0x2b001e, y);
+    chartCtx['\u006C\u0069\u006E\u0065\u0054\u006F'](_0x2b001e + _0x27e5e, y);
+    chartCtx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+    chartCtx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](((960467 ^ 960466) - i / (502261 ^ 502257))['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](958845 ^ 958847), 496504 ^ 496507, y + (530527 ^ 530523));
+  }
+  for (let j = 161114 ^ 161114; j <= (310847 ^ 310843); j++) {
+    const x = _0x2b001e + _0x27e5e * j / (698871 ^ 698867);
+    chartCtx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    chartCtx['\u006D\u006F\u0076\u0065\u0054\u006F'](x, _0x95b);
+    chartCtx['\u006C\u0069\u006E\u0065\u0054\u006F'](x, _0x95b + _0xf520a);
+    chartCtx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+    chartCtx['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = 'center';
+    chartCtx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](String(Math['\u0072\u006F\u0075\u006E\u0064'](-YMAX + (792639 ^ 792637) * YMAX * j / (560283 ^ 560287))), x, h - (771769 ^ 771763));
+  }
+  chartCtx['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = 'left';
+  var _0x36234e = (334525 ^ 334525) + (782256 ^ 782258);
+  const _0x8c8a = wavelengthRGB(params['\u006C\u0061\u006D\u0062\u0064\u0061']);
+  _0x36234e = (970828 ^ 970830) + (470411 ^ 470403);
+  chartCtx['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = `rgb(${_0x8c8a['\u006A\u006F\u0069\u006E']("\u002C")})`;
+  chartCtx['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 598853 ^ 598855;
+  chartCtx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  for (let i = 396631 ^ 396631; i <= _0x27e5e; i++) {
+    var _0xd9a = (247024 ^ 247032) + (363934 ^ 363929);
+    const _0xf369ef = -YMAX + (958740 ^ 958742) * YMAX * i / _0x27e5e;
+    _0xd9a = (791991 ^ 791984) + (735179 ^ 735178);
+    const _0xb852cf = intensity(_0xf369ef);
+    const _0x778a = _0x2b001e + i,
+      _0x54891f = _0x95b + _0xf520a * ((860985 ^ 860984) - _0xb852cf);
+    if (i === (709630 ^ 709630)) chartCtx['\u006D\u006F\u0076\u0065\u0054\u006F'](_0x778a, _0x54891f);else chartCtx['\u006C\u0069\u006E\u0065\u0054\u006F'](_0x778a, _0x54891f);
+  }
+  chartCtx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+}
+function changeParameters() {
+  params = {
+    "lambda": +$("\u006C\u0061\u006D\u0062\u0064\u0061")['\u0076\u0061\u006C\u0075\u0065'],
+    '\u0073\u006C\u0069\u0074\u0053\u0065\u0070': +$("\u0073\u006C\u0069\u0074\u0053\u0065\u0070")['\u0076\u0061\u006C\u0075\u0065'],
+    '\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065': +$("\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065")['\u0076\u0061\u006C\u0075\u0065']
+  };
+  $("\u006C\u0061\u006D\u0062\u0064\u0061\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${params['\u006C\u0061\u006D\u0062\u0064\u0061']} nm`;
+  $("\u0073\u006C\u0069\u0074\u0053\u0065\u0070\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${params['\u0073\u006C\u0069\u0074\u0053\u0065\u0070']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](587988 ^ 587990)} mm`;
+  $("\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](640979 ^ 640978)} m`;
+  $("\u0073\u0070\u0061\u0063\u0069\u006E\u0067")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${(params['\u006C\u0061\u006D\u0062\u0064\u0061'] * 1e-3 * params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] / params['\u0073\u006C\u0069\u0074\u0053\u0065\u0070'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](498617 ^ 498619)} mm`;
+  world['\u0073\u006C\u0069\u0074\u0059'] = 4.5 + params['\u0073\u006C\u0069\u0074\u0053\u0065\u0070'] * (938011 ^ 938012);
+  world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'] = (555846 ^ 555865) + params['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] * (940361 ^ 940352);
+  buildBarrier();
+  slitMarkers['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((m, i) => m['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](261437 ^ 261436, (i === (687384 ^ 687384) ? 732117 ^ 732116 : -(146241 ^ 146240)) * world['\u0073\u006C\u0069\u0074\u0059'], 338755 ^ 338754));
+  screenMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'], 819037 ^ 819037, 581281 ^ 581281);
+  frame['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](screenMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);
+  markMat['\u0063\u006F\u006C\u006F\u0072']['\u0063\u006F\u0070\u0079'](colorFromWavelength(params['\u006C\u0061\u006D\u0062\u0064\u0061']));
+  clearWaves();
+  elapsed = 172098 ^ 172098;
+  primaryEmission = 627018 ^ 627018;
+  secondaryEmission = 711260 ^ 711260;
+  secondaryActive = false;
+  lastScreenFrame = -(667886 ^ 667887);
+  drawScreen();
+  updateGraphVisibility();
+  $('status')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0072\u0061\u006D\u0065\u0074\u0065\u0072\u0073\u0020\u0075\u0070\u0064\u0061\u0074\u0065\u0064\u002E\u0020\u0057\u0061\u0069\u0074\u0069\u006E\u0067\u0020\u0066\u006F\u0072\u0020\u0077\u0061\u0076\u0065\u0066\u0072\u006F\u006E\u0074\u0073\u0020\u0074\u006F\u0020\u0072\u0065\u0061\u0063\u0068\u0020\u0074\u0068\u0065\u0020\u0073\u0063\u0072\u0065\u0065\u006E\u002E";
+}
+let _0xee0fd;
+const WAVE_SEGMENTS = 881006 ^ 881134;
+_0xee0fd = 917646 ^ 917642;
+function makeArc(origin, r, semicircle, color) {
+  let _0xd434a;
+  const _0xf6ec5d = new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();
+  _0xd434a = 877888 ^ 877890;
+  _0xf6ec5d['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']('position', new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](new Float32Array(WAVE_SEGMENTS * (837193 ^ 837195) * (402374 ^ 402373)), 507288 ^ 507291));
+  _0xf6ec5d['\u0073\u0065\u0074\u0044\u0072\u0061\u0077\u0052\u0061\u006E\u0067\u0065'](631205 ^ 631205, 666863 ^ 666863);
+  var _0x7e0c = (452307 ^ 452311) + (565979 ^ 565977);
+  const _0xfaa4f = new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": color,
+    "transparent": !![],
+    '\u006F\u0070\u0061\u0063\u0069\u0074\u0079': 0.75,
+    '\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074': !![],
+    '\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065': false
+  });
+  _0x7e0c = "jdhhck";
+  const _0xc93d = new THREE['\u004C\u0069\u006E\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073'](_0xf6ec5d, _0xfaa4f);
+  _0xc93d['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061'] = {
+    "origin": origin['\u0063\u006C\u006F\u006E\u0065'](),
+    '\u0072\u0061\u0064\u0069\u0075\u0073': r,
+    '\u0073\u0065\u006D\u0069\u0063\u0069\u0072\u0063\u006C\u0065': semicircle
+  };
+  _0xc93d['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = showWaves;
+  scene['\u0061\u0064\u0064'](_0xc93d);
+  updateOneWave(_0xc93d, 520970 ^ 520970);
+  return _0xc93d;
+}
+function removeWave(w) {
+  scene['\u0072\u0065\u006D\u006F\u0076\u0065'](w);
+  w['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+  w['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+}
+function clearWaves() {
+  primary['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](removeWave);
+  secondary['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](removeWave);
+  primary['\u006C\u0065\u006E\u0067\u0074\u0068'] = 930520 ^ 930520;
+  secondary['\u006C\u0065\u006E\u0067\u0074\u0068'] = 476532 ^ 476532;
+}
+function updateOneWave(w, dr) {
+  w['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0061\u0064\u0069\u0075\u0073'] += dr;
+  const {
+    '\u006F\u0072\u0069\u0067\u0069\u006E': origin,
+    "radius": r,
+    '\u0073\u0065\u006D\u0069\u0063\u0069\u0072\u0063\u006C\u0065': semicircle
+  } = w['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061'];
+  let _0xc_0x4dc;
+  const _0x4c2d = w['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'];
+  _0xc_0x4dc = (805406 ^ 805402) + (954009 ^ 954015);
+  let _0x52e6e;
+  const _0x14cb8b = semicircle ? -Math['\u0050\u0049'] / (539142 ^ 539140) : 533781 ^ 533781;
+  _0x52e6e = "elghfe";
+  const _0x9g8g = semicircle ? Math['\u0050\u0049'] / (932035 ^ 932033) : (670880 ^ 670882) * Math['\u0050\u0049'];
+  const _0x0425da = world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'] - 0.15;
+  var _0x3e_0x577 = (793523 ^ 793530) + (952035 ^ 952033);
+  let _0x74a = 362747 ^ 362747;
+  _0x3e_0x577 = (121242 ^ 121240) + (849539 ^ 849547);
+  for (let i = 771817 ^ 771817; i < WAVE_SEGMENTS; i++) {
+    let _0x83f46f;
+    const _0x95g5cf = _0x14cb8b + (_0x9g8g - _0x14cb8b) * i / WAVE_SEGMENTS;
+    _0x83f46f = (969196 ^ 969199) + (783031 ^ 783039);
+    const _0x8541a = _0x14cb8b + (_0x9g8g - _0x14cb8b) * (i + (171175 ^ 171174)) / WAVE_SEGMENTS;
+    var _0x88bf9f = (420251 ^ 420254) + (761575 ^ 761583);
+    let _0x81b = origin['\u0078'] + r * Math['\u0063\u006F\u0073'](_0x95g5cf);
+    _0x88bf9f = (996153 ^ 996152) + (182943 ^ 182934);
+    var _0x12a5bd = (241476 ^ 241475) + (273641 ^ 273633);
+    let _0xb2fg4c = origin['\u0079'] + r * Math['\u0073\u0069\u006E'](_0x95g5cf);
+    _0x12a5bd = 689540 ^ 689536;
+    let _0xa7e2e = origin['\u0078'] + r * Math['\u0063\u006F\u0073'](_0x8541a);
+    var _0x1b_0x947 = (915625 ^ 915629) + (443126 ^ 443124);
+    let _0x5c_0xe99 = origin['\u0079'] + r * Math['\u0073\u0069\u006E'](_0x8541a);
+    _0x1b_0x947 = (317735 ^ 317730) + (566900 ^ 566897);
+    if (_0x81b > _0x0425da && _0xa7e2e > _0x0425da) {
+      continue;
+    }
+    if (_0x81b > _0x0425da) {
+      let _0xf7063f;
+      const f = (_0x0425da - _0xa7e2e) / (_0x81b - _0xa7e2e);
+      _0xf7063f = (592479 ^ 592478) + (786116 ^ 786115);
+      _0x81b = _0xa7e2e + f * (_0x81b - _0xa7e2e);
+      _0xb2fg4c = _0x5c_0xe99 + f * (_0xb2fg4c - _0x5c_0xe99);
+    } else if (_0xa7e2e > _0x0425da) {
+      const f = (_0x0425da - _0x81b) / (_0xa7e2e - _0x81b);
+      _0xa7e2e = _0x81b + f * (_0xa7e2e - _0x81b);
+      _0x5c_0xe99 = _0xb2fg4c + f * (_0x5c_0xe99 - _0xb2fg4c);
+    }
+    _0x4c2d['\u0073\u0065\u0074\u0058\u0059\u005A'](_0x74a++, _0x81b, _0xb2fg4c, 475472 ^ 475474);
+    _0x4c2d['\u0073\u0065\u0074\u0058\u0059\u005A'](_0x74a++, _0xa7e2e, _0x5c_0xe99, 558839 ^ 558837);
+  }
+  w['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0073\u0065\u0074\u0044\u0072\u0061\u0077\u0052\u0061\u006E\u0067\u0065'](562500 ^ 562500, _0x74a);
+  _0x4c2d['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065'] = !![];
+  w['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = Math['\u006D\u0061\u0078'](0.12, 0.8 - r / (279736 ^ 279598));
+}
+function animateSimulation(dt) {
+  elapsed += dt;
+  if (showGraph && wavesReachedScreen() && $("\u0063\u0068\u0061\u0072\u0074\u0050\u0061\u006E\u0065\u006C")['\u0068\u0069\u0064\u0064\u0065\u006E']) {
+    updateGraphVisibility();
+  }
+  const _0xabf = visualWavelength() / WAVE_SPEED;
+  primaryEmission += dt;
+  const _0xbae7ba = (484472 ^ 484446) / WAVE_SPEED;
+  while (primaryEmission >= _0xabf) {
+    primaryEmission -= _0xabf;
+    primary['\u0070\u0075\u0073\u0068'](makeArc(source['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'], 0.5, false, colorFromWavelength(params['\u006C\u0061\u006D\u0062\u0064\u0061'])));
+  }
+  if (elapsed >= _0xbae7ba && !secondaryActive) {
+    secondaryActive = !![];
+    secondaryEmission = 923309 ^ 923309;
+    for (const y of [world['\u0073\u006C\u0069\u0074\u0059'], -world['\u0073\u006C\u0069\u0074\u0059']]) {
+      secondary['\u0070\u0075\u0073\u0068'](makeArc(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](699711 ^ 699710, y, 733498 ^ 733496), 0.4, !![], colorFromWavelength(params['\u006C\u0061\u006D\u0062\u0064\u0061'])));
+    }
+  }
+  if (secondaryActive) {
+    secondaryEmission += dt;
+    while (secondaryEmission >= _0xabf) {
+      secondaryEmission -= _0xabf;
+      for (const y of [world['\u0073\u006C\u0069\u0074\u0059'], -world['\u0073\u006C\u0069\u0074\u0059']]) {
+        secondary['\u0070\u0075\u0073\u0068'](makeArc(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](540998 ^ 540999, y, 245883 ^ 245881), 0.4, !![], colorFromWavelength(params['\u006C\u0061\u006D\u0062\u0064\u0061'])));
+      }
+    }
+  }
+  for (const _0xc0eb of [primary, secondary]) {
+    for (let i = _0xc0eb['\u006C\u0065\u006E\u0067\u0074\u0068'] - (298099 ^ 298098); i >= (168387 ^ 168387); i--) {
+      var _0x89826b = (778426 ^ 778419) + (350296 ^ 350299);
+      const w = _0xc0eb[i];
+      _0x89826b = 817644 ^ 817636;
+      updateOneWave(w, WAVE_SPEED * dt);
+      let _0x9ag;
+      const _0xec453b = _0xc0eb === primary ? 304881 ^ 304855 : Math['\u0068\u0079\u0070\u006F\u0074'](world['\u0073\u0063\u0072\u0065\u0065\u006E\u0058'] + (130197 ^ 130196), (467567 ^ 467532) + world['\u0073\u006C\u0069\u0074\u0059']) + (977755 ^ 977758);
+      _0x9ag = '\u006C\u0066\u006E\u006D\u0069\u0064';
+      if (w['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0061\u0064\u0069\u0075\u0073'] > _0xec453b) {
+        removeWave(w);
+        _0xc0eb['\u0073\u0070\u006C\u0069\u0063\u0065'](i, 191744 ^ 191745);
+      }
+    }
+  }
+  const _0x96dd9c = Math['\u0066\u006C\u006F\u006F\u0072'](elapsed * (720855 ^ 720859));
+  if (_0x96dd9c !== lastScreenFrame) {
+    lastScreenFrame = _0x96dd9c;
+    drawScreen();
+  }
+}
+function animate(now) {
+  requestAnimationFrame(animate);
+  const _0x8f6c7e = Math['\u006D\u0069\u006E']((now - lastFrame) / (791007 ^ 791095), 0.05);
+  lastFrame = now;
+  if (started && !paused) {
+    animateSimulation(_0x8f6c7e);
+  }
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+function reset() {
+  started = false;
+  paused = false;
+  elapsed = 889053 ^ 889053;
+  primaryEmission = 818851 ^ 818851;
+  secondaryEmission = 706449 ^ 706449;
+  secondaryActive = false;
+  lastScreenFrame = -(242808 ^ 242809);
+  clearWaves();
+  drawScreen();
+  updateGraphVisibility();
+  $('start')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Start Simulation';
+  $("\u0070\u0061\u0075\u0073\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+  $("\u0073\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Reset complete. Click Start Simulation.';
+}
+$('start')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  if (!started) {
+    started = !![];
+    paused = false;
+    elapsed = 539683 ^ 539683;
+    primaryEmission = 632489 ^ 632489;
+    secondaryEmission = 923959 ^ 923959;
+    secondaryActive = false;
+    lastScreenFrame = -(708427 ^ 708426);
+    drawScreen();
+    updateGraphVisibility();
+    $('start')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0052\u0065\u0073\u0074\u0061\u0072\u0074\u0020\u0053\u0069\u006D\u0075\u006C\u0061\u0074\u0069\u006F\u006E";
+    $("\u0073\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0057\u0061\u0076\u0065\u0066\u0072\u006F\u006E\u0074\u0073\u0020\u0070\u0072\u006F\u0070\u0061\u0067\u0061\u0074\u0069\u006E\u0067\u0020\u0074\u006F\u0077\u0061\u0072\u0064\u0020\u0062\u006F\u0074\u0068\u0020\u0073\u006C\u0069\u0074\u0073\u002E";
+  } else {
+    clearWaves();
+    elapsed = 177502 ^ 177502;
+    primaryEmission = 568535 ^ 568535;
+    secondaryEmission = 564288 ^ 564288;
+    secondaryActive = false;
+    lastScreenFrame = -(958668 ^ 958669);
+    drawScreen();
+    updateGraphVisibility();
+    paused = false;
+    $('pause')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+    $("\u0073\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Simulation restarted.';
+  }
+});
+$("\u0070\u0061\u0075\u0073\u0065")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  if (!started) return;
+  paused = !paused;
+  $('pause')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = paused ? "\u0052\u0065\u0073\u0075\u006D\u0065" : 'Pause';
+  $("\u0073\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = paused ? 'Animation paused.' : "\u0041\u006E\u0069\u006D\u0061\u0074\u0069\u006F\u006E\u0020\u0072\u0065\u0073\u0075\u006D\u0065\u0064\u002E";
+});
+$('reset')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", reset);
+$('toggleWaves')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  showWaves = !showWaves;
+  [...primary, ...secondary]['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](w => w['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = showWaves);
+  $("\u0074\u006F\u0067\u0067\u006C\u0065\u0057\u0061\u0076\u0065\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = showWaves ? 'Hide Waves' : "\u0053\u0068\u006F\u0077\u0020\u0057\u0061\u0076\u0065\u0073";
+});
+$('toggleGraph')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', () => {
+  showGraph = !showGraph;
+  $("\u0074\u006F\u0067\u0067\u006C\u0065\u0047\u0072\u0061\u0070\u0068")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = showGraph ? "\u0048\u0069\u0064\u0065\u0020\u0047\u0072\u0061\u0070\u0068" : "\u0053\u0068\u006F\u0077\u0020\u0047\u0072\u0061\u0070\u0068";
+  updateGraphVisibility();
+});
+for (const id of ['lambda', "\u0073\u006C\u0069\u0074\u0053\u0065\u0070", 'distance']) {
+  $(id)['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074", changeParameters);
+}
+var _0x83c = (485469 ^ 485470) + (380286 ^ 380285);
+const modal = $("\u006D\u006F\u0064\u0061\u006C");
+_0x83c = (824252 ^ 824248) + (828912 ^ 828917);
+$('infoBtn')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  modal['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0061\u0064\u0064']("\u006F\u0070\u0065\u006E");
+  $("\u0063\u006C\u006F\u0073\u0065\u0049\u006E\u0066\u006F")['\u0066\u006F\u0063\u0075\u0073']();
+});
+$("\u0063\u006C\u006F\u0073\u0065\u0049\u006E\u0066\u006F")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  modal['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065']("\u006F\u0070\u0065\u006E");
+});
+modal['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', e => {
+  if (e['\u0074\u0061\u0072\u0067\u0065\u0074'] === modal) {
+    modal['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065']('open');
+  }
+});
+document['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('keydown', e => {
+  if (e['\u006B\u0065\u0079'] === "\u0045\u0073\u0063\u0061\u0070\u0065") {
+    modal['\u0063\u006C\u0061\u0073\u0073\u004C\u0069\u0073\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065']('open');
+  }
+});
+window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065", () => {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = innerWidth / innerHeight;
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](innerWidth, innerHeight);
+  drawChart();
+});
+changeParameters();
+requestAnimationFrame(animate);
+</script>
+
+</body>
+</html>

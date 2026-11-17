@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <title>乐启享 · 物理实验</title>
+  <link rel="icon" href="/brand/favicon.ico">
+  <link rel="canonical" href="/courseware/lab-simulation-infinite-square-well-3d?local=1" />
+  <meta name="description" content="Free interactive 3D physics simulation of non-interacting particles in a one-dimensional infinite square well. Explore bosons, fermions, quantized energy levels, Pauli exclusion principle, system energy, and ground or excited states in a visualization." />
+  <meta name="keywords" content="physics simulation, 3D physics simulation, infinite square well, particle in a box, quantum mechanics, bosons, fermions, non-interacting particles, energy levels, Pauli exclusion principle, system energy, one dimensional infinite square well" />
+
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #0d203e 0%, #071121 45%, #02060d 100%);
+      font-family: Arial, Helvetica, sans-serif;
+      color: #fff;
+    }
+
+    #app {
+      position: fixed;
+      inset: 0;
+    }
+
+    #titleBox {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      min-width: 520px;
+      max-width: 860px;
+      text-align: center;
+      background: rgba(0,0,0,0.38);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 14px;
+      padding: 10px 16px;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 0 20px rgba(0,0,0,0.35);
+    }
+
+    #titleBox h1 {
+      margin: 0 0 5px 0;
+      font-size: 22px;
+      color: #ffe77a;
+      font-weight: 700;
+    }
+
+    #titleBox .sub {
+      font-size: 14px;
+      line-height: 1.35;
+      color: #e9eefc;
+    }
+
+    .panel {
+      position: absolute;
+      top: 92px;
+      z-index: 20;
+      width: 310px;
+      max-height: calc(100vh - 110px);
+      overflow-y: auto;
+      background: rgba(8,12,22,0.80);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.35);
+      backdrop-filter: blur(6px);
+    }
+
+    #leftPanel { left: 14px; }
+    #rightPanel { right: 14px; }
+
+    .panelTitle {
+      font-size: 18px;
+      color: #7fd7ff;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .controlRow {
+      display: grid;
+      grid-template-columns: 1fr 120px 50px;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+
+    .controlRow label, .fullRow label {
+      font-size: 13px;
+      color: #cfe9ff;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .controlRow input[type="range"] {
+      width: 100%;
+      accent-color: #4fd1ff;
+    }
+
+    .valueBox {
+      text-align: right;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .fullRow {
+      margin-bottom: 10px;
+    }
+
+    select, button {
+      width: 100%;
+      height: 36px;
+      border-radius: 9px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: #10203a;
+      color: #fff;
+      padding: 4px 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .btnRow {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btnPrimary { background: #17457d; }
+    .btnGreen { background: #1d6e4f; }
+    .btnOrange { background: #86551b; }
+    .btnRed { background: #8a2e2e; }
+
+    .checkRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #cfe9ff;
+    }
+
+    .energyBox, .readout {
+      margin-top: 10px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: #eef6ff;
+    }
+
+    .energyBox {
+      background: rgba(255, 233, 135, 0.16);
+      border: 1px solid rgba(255, 233, 135, 0.16);
+    }
+
+    .smallNote {
+      margin-top: 10px;
+      color: #cad9f8;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .legend {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 5px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.2);
+    }
+
+    #hintBox {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(0,0,0,0.36);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #dde8ff;
+      max-width: 520px;
+      text-align: center;
+    }
+
+    .tabRow {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .tabBtn.active {
+      outline: 2px solid rgba(255,255,255,0.45);
+      filter: brightness(1.08);
+    }
+</style>
+<!-- Author: Thomas Nguyen - 3jcn.us
+     Credit: St. Andrews University "https://www.st-andrews.ac.uk/physics/quvis/simulations_html5/sims/Particles-infwell/particles-infwell.html"
+     Date: March 1st, 2026 -->
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="titleBox">
+    <h1>Particles in a 1D Infinite Square Well</h1>
+    <div class="sub">Build ground and excited states in a 3D quantum simulation.</div>
+  </div>
+
+  <div id="leftPanel" class="panel">
+    <div class="panelTitle">Controls:</div>
+
+    <div class="tabRow">
+        <button class="btnPrimary"
+        onclick="alert('Task:\n\nClick a glowing energy level line to add particles.\n\nBosons may share levels freely. Fermions may place at most two particles in each level in this simplified model.\n\nYou can choose the type of particle and set the number in the well.\n\nFor a given number of bosons or fermions, can you arrange the particles to build the ground state of the system?\n\nCan you build the first, second, ..., sixth excited states of the system?\n\nAfter successfully completing this, try some of the challenges in the Challenges tab!')">
+        Information
+        </button>
+       <select id="challengeSelect" class="btnGreen" style="height:36px;">
+          <option value="none">Challenges</option>
+          <option value="boson12">4 spin 0 bosons → system energy 12 E₁</option>
+          <option value="fermionGS">Ground state with all spin 1/2 fermions</option>
+          <option value="fermion42">All spin 1/2 fermions → system energy 42 E₁</option>
+          <option value="boson4th">Spin 0 bosons → Fourth Excited State</option>
+          <option value="fermion2nd">Spin 1/2 fermions → Second Excited State</option>
+        </select>
+    </div>
+
+    <div class="fullRow">
+      <label for="particleType">Particle type</label>
+      <select id="particleType">
+        <option value="boson">Identical spin 0 bosons</option>
+        <option value="fermion">Identical spin 1/2 fermions</option>
+      </select>
+    </div>
+
+    <div class="controlRow">
+      <label for="particleCount">No. of particles N</label>
+      <input id="particleCount" type="range" min="1" max="8" step="1" value="3" />
+      <div id="particleCountVal" class="valueBox">3</div>
+    </div>
+
+    <div class="controlRow">
+      <label for="wellLength">Well length L</label>
+      <input id="wellLength" type="range" min="6" max="20" step="1" value="12" />
+      <div id="wellLengthVal" class="valueBox">12</div>
+    </div>
+
+    <div class="controlRow">
+      <label for="massScale">Particle mass factor</label>
+      <input id="massScale" type="range" min="0.5" max="4.0" step="0.1" value="1.0" />
+      <div id="massScaleVal" class="valueBox">1.0</div>
+    </div>
+
+    <div class="checkRow">
+      <label><input type="checkbox" id="showWaveBoxes" checked /> Show 3D standing waves</label>
+      <label><input type="checkbox" id="showParticles" checked /> Show particles</label>
+      <label><input type="checkbox" id="autoRotate" checked /> Auto rotate</label>
+    </div>
+
+    <div class="btnRow">
+      <button id="groundBtn" class="btnPrimary">Ground State</button>
+      <button id="randomExcitedBtn" class="btnGreen">Random Excited</button>
+    </div>
+
+    <div class="btnRow">
+      <button id="clearBtn" class="btnOrange">Clear</button>
+      <button id="resetBtn" class="btnRed">Reset</button>
+    </div>
+
+    <div id="energyBox" class="energyBox"></div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:#ff5757"></span>bosons / particles</span>
+      <span><span class="swatch" style="background:#61a8ff"></span>fermions / particles</span>
+      <span><span class="swatch" style="background:#ffe66e"></span>energy highlight</span>
+    </div>
+  </div>
+
+  <div id="rightPanel" class="panel">
+    <div class="panelTitle">Quantum Information:</div>
+    <div id="infoBox" class="readout"></div>
+    
+    <div id="challengeBox" class="readout"></div>
+    <div class="btnRow" style="margin-top:8px;">
+     <button id="checkAnswerBtn" class="btnGreen" style="display:none;">Check Answer</button>
+    </div>
+    
+    <div class="btnRow" style="margin-bottom:10px;">
+      <button id="instructionBtn" class="btnPrimary">Instruction</button>  
+    </div>
+
+  </div>
+
+  <div id="hintBox">Click a glowing energy level line inside the big box to place one particle. Shift-click an occupied level to remove one particle. Camera: drag to orbit, wheel to zoom, right-drag to pan.</div>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/lab-simulation-square-well/_ext/unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "/api/program-assets/lab-simulation-square-well/_ext/unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from '/api/program-assets/lab-simulation-square-well/_ext/unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from '/api/program-assets/lab-simulation-square-well/_ext/unpkg.com/three@0.160.0/examples/jsm/renderers/CSS2DRenderer.js';
+
+    const app = document.getElementById('app');
+    const particleType = document.getElementById('particleType');
+    const particleCount = document.getElementById('particleCount');
+    const particleCountVal = document.getElementById('particleCountVal');
+    const wellLength = document.getElementById('wellLength');
+    const wellLengthVal = document.getElementById('wellLengthVal');
+    const massScale = document.getElementById('massScale');
+    const massScaleVal = document.getElementById('massScaleVal');
+    const showWaveBoxes = document.getElementById('showWaveBoxes');
+    const showParticles = document.getElementById('showParticles');
+    const autoRotate = document.getElementById('autoRotate');
+    const groundBtn = document.getElementById('groundBtn');
+    const randomExcitedBtn = document.getElementById('randomExcitedBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const energyBox = document.getElementById('energyBox');
+    const infoBox = document.getElementById('infoBox');
+    const challengeBox = document.getElementById('challengeBox');
+    const challengeSelect = document.getElementById('challengeSelect');
+    const instructionBtn = document.getElementById('instructionBtn');
+    const checkAnswerBtn = document.getElementById('checkAnswerBtn');
+
+    let scene, camera, renderer, labelRenderer, controls, raycaster, mouse;
+    let wellGroup, levelGroup, particleGroup, waveGroup, dragSourceGroup;
+    let currentHovered = null;
+    let levelData = [];
+    let placements = [];
+    let usingChallenges = false;
+    let activeChallenge = 'none';
+    let challengeBaseEnergy = 0;
+    let flyingParticles = [];
+    const clock = new THREE.Clock();
+
+    const MAX_LEVELS = 6;
+    const BASE_WIDTH = 22;
+    const BASE_DEPTH = 7;
+    const BASE_HEIGHT = 18;
+    const occupancyLimits = { boson: Infinity, fermion: 2 };
+    const bosonColor = 0xff5757;
+    const fermionColor = 0x61a8ff;
+    const challengeSet = [
+      'Build the ground state for the current particle type and N.',
+      'Create the first excited state by changing only one particle from the ground state.',
+      'Can you make two different arrangements with the same total energy?',
+      'For fermions, fill the lowest states according to the Pauli principle.',
+      'For bosons, test how many particles can share n = 1.'
+    ];
+    
+    const challengeData = {
+      none: {
+        type: 'boson',
+        N: 3,
+        description: 'No challenge selected.'
+      },
+      boson12: {
+        type: 'boson',
+        N: 4,
+        targetEnergyMultiple: 12,
+        description: 'Arrange the four spin 0 bosons onto the energy levels to create a state with system energy: 12 E₁'
+      },
+      fermionGS: {
+        type: 'fermion',
+        N: 4,
+        targetState: 'ground',
+        description: 'Set up the ground state using all the spin 1/2 fermions provided.'
+      },
+      fermion42: {
+        type: 'fermion',
+        N: 4,
+        targetEnergyMultiple: 42,
+        description: 'Using all the spin 1/2 fermions provided, create a state with system energy: 42 E₁'
+      },
+      boson4th: {
+        type: 'boson',
+        N: 4,
+        targetExcitedIndex: 4,
+        description: 'Using all of the spin 0 bosons provided set up the following state: Fourth Excited State'
+      },
+      fermion2nd: {
+        type: 'fermion',
+        N: 4,
+        targetExcitedIndex: 2,
+        description: 'Using all the spin 1/2 fermions given, set up the following state: Second Excited State'
+      }
+    };
+    // --- SFX (must be triggered after a user gesture at least once) ---
+    const sfx = {
+      cheer: new Audio("/api/program-assets/lab-simulation-square-well/_ext/vendor/Audio/cheer.mp3"),
+      wrong: new Audio("/api/program-assets/lab-simulation-square-well/_ext/vendor/Audio/wrong.mp3"), 
+    };
+    
+    Object.values(sfx).forEach(a => {
+      a.preload = "auto";
+      a.volume = 1.0;
+    });
+    
+    let audioUnlocked = false;
+    function unlockAudio(){
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+    
+      // tiny silent play/pause to satisfy some browsers
+      Object.values(sfx).forEach(a => {
+        try {
+          a.muted = true;
+          a.play().then(() => {
+            a.pause();
+            a.currentTime = 0;
+            a.muted = false;
+          }).catch(()=>{ a.muted = false; });
+        } catch(e){}
+      });
+    }
+    
+    function playSFX(a){
+      if (!a) return;
+      try {
+        a.pause();
+        a.currentTime = 0;
+        a.play().catch(()=>{});
+      } catch(e){}
+    }
+    
+    // play-once flags
+    let didPlayCheer = false;
+    let didPlayWrong = false;
+    
+    init();
+    animate();
+
+   function init(_0xefbfc){scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=null;scene['\u0066\u006F\u0067']=new THREE['\u0046\u006F\u0067\u0045\u0078\u0070\u0032'](0x02060d,0.018);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](967984^967936,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],0.1,715030^716486);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](680946^680942,743308^743327,631507^631501);renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({"antialias":!![],'\u0061\u006C\u0070\u0068\u0061':!![]});renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'],321006^321004));renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u006F\u0075\u0074\u0070\u0075\u0074\u0043\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065']=THREE['\u0053\u0052\u0047\u0042\u0043\u006F\u006C\u006F\u0072\u0053\u0070\u0061\u0063\u0065'];app['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);labelRenderer=new CSS2DRenderer();labelRenderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);labelRenderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']="\u0061\u0062\u0073\u006F\u006C\u0075\u0074\u0065";labelRenderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0074\u006F\u0070']="xp0".split("").reverse().join("");labelRenderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0045\u0076\u0065\u006E\u0074\u0073']="\u006E\u006F\u006E\u0065";app['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](labelRenderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067']=!![];controls['\u0064\u0061\u006D\u0070\u0069\u006E\u0067\u0046\u0061\u0063\u0074\u006F\u0072']=0.06;controls['\u006D\u0069\u006E\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065']=324937^324933;controls['\u006D\u0061\u0078\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065']=770893^770845;controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](813200^813200,898207^898200,117619^117619);raycaster=new THREE['\u0052\u0061\u0079\u0063\u0061\u0073\u0074\u0065\u0072']();mouse=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0032']();scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.45));const _0x3fag=new THREE['\u0048\u0065\u006D\u0069\u0073\u0070\u0068\u0065\u0072\u0065\u004C\u0069\u0067\u0068\u0074'](0xbfd6ff,0x102040,1.35);_0xefbfc=(997355^997352)+(498569^498571);scene['\u0061\u0064\u0064'](_0x3fag);var _0xf55aca=(408812^408810)+(227871^227862);const _0xag2f=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,1.15);_0xf55aca=(252161^252163)+(962992^962998);_0xag2f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](212415^212399,151853^151861,200171^200167);scene['\u0061\u0064\u0064'](_0xag2f);wellGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();levelGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();particleGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();waveGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();dragSourceGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();scene['\u0061\u0064\u0064'](wellGroup,levelGroup,particleGroup,waveGroup,dragSourceGroup);buildWell();rebuildLevels();placements=[];rebuildParticles();updateAllUI();renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u006D\u006F\u0075\u0073\u0065\u006C\u0065\u0061\u0076\u0065",()=>{renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0063\u0075\u0072\u0073\u006F\u0072']="tluafed".split("").reverse().join("");});checkAnswerBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),checkChallengeAnswer);particleType['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",()=>{clampOccupancyToRules();refreshDragParticles();rebuildParticles();updateAllUI();});particleCount['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",()=>{particleCountVal['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=particleCount['\u0076\u0061\u006C\u0075\u0065'];trimOrExpandPlacements();refreshDragParticles();rebuildParticles();updateAllUI();});wellLength['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",()=>{wellLengthVal['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=wellLength['\u0076\u0061\u006C\u0075\u0065'];buildWell();rebuildLevels();rebuildParticles();updateAllUI();});massScale['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),()=>{massScaleVal['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=parseFloat(massScale['\u0076\u0061\u006C\u0075\u0065'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](479232^479233);rebuildLevels();rebuildParticles();updateAllUI();});challengeSelect['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",e=>{const _0xae37e=e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065'];applyChallenge(_0xae37e);if(_0xae37e==="enon".split("").reverse().join("")){checkAnswerBtn['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']="enon".split("").reverse().join("");}else{checkAnswerBtn['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']="kcolb".split("").reverse().join("");}});showWaveBoxes['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("egnahc".split("").reverse().join(""),()=>waveGroup['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=showWaveBoxes['\u0063\u0068\u0065\u0063\u006B\u0065\u0064']);showParticles['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("egnahc".split("").reverse().join(""),()=>particleGroup['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=showParticles['\u0063\u0068\u0065\u0063\u006B\u0065\u0064']);groundBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),makeGroundState);randomExcitedBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",makeRandomExcitedState);instructionBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",showInstruction);clearBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",()=>{placements=[];refreshDragParticles();rebuildParticles();updateAllUI();});resetBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),resetSimulation);renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0064\u006F\u0077\u006E",unlockAudio);document['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("nwodyek".split("").reverse().join(""),unlockAudio);renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u006D\u006F\u0076\u0065",onPointerMove);renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("nwodretniop".split("").reverse().join(""),onPointerDown);window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("eziser".split("").reverse().join(""),onWindowResize);}function applyChallenge(key){activeChallenge=key;const _0xa4c4d=challengeData[key];if(!_0xa4c4d)return;particleType['\u0076\u0061\u006C\u0075\u0065']=_0xa4c4d['\u0074\u0079\u0070\u0065'];particleCount['\u0076\u0061\u006C\u0075\u0065']=String(_0xa4c4d['\u004E']);particleCountVal['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=String(_0xa4c4d['\u004E']);placements=[];clampOccupancyToRules();refreshDragParticles();rebuildParticles();challengeBaseEnergy=getLevelEnergy(178722^178723);challengeBox['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`<b>Challenge:</b><br>${_0xa4c4d['\u0064\u0065\u0073\u0063\u0072\u0069\u0070\u0074\u0069\u006F\u006E']}<br><br>
+        <b>Status:</b> Build the state and press <b>Check Answer</b>.`;infoBox['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`
+        <b>Current configuration</b><br>
+        Particle type: ${particleType['\u0076\u0061\u006C\u0075\u0065']==="nosob".split("").reverse().join("")?"\u0062\u006F\u0073\u006F\u006E\u0073":"\u0066\u0065\u0072\u006D\u0069\u006F\u006E\u0073"}<br>
+        Occupancy by level: none<br>
+        Ground-state rule: ${particleType['\u0076\u0061\u006C\u0075\u0065']==="nosob".split("").reverse().join("")?"\u0061\u006C\u006C\u0020\u0070\u0061\u0072\u0074\u0069\u0063\u006C\u0065\u0073\u0020\u006D\u0061\u0079\u0020\u006F\u0063\u0063\u0075\u0070\u0079\u0020\u006E\u003D\u0031":"drawpu mottob eht morf level rep owt llif".split("").reverse().join("")}<br><br>
+        <b>Single-particle energies</b><br>
+        ${levelData['\u006D\u0061\u0070'](d=>`n=${d['\u006E']} → ${formatEnergy(d['\u0045'])}`)['\u006A\u006F\u0069\u006E']("\u003C\u0062\u0072\u003E")}
+      `;updateAllUI();}function makeSpinArrow(up=!![],_0x19ef){const _0xfdbcg=new THREE['\u0047\u0072\u006F\u0075\u0070']();_0x19ef=(410168^410173)+(789489^789495);const _0xdb01e=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.08,0.08,1.4,546031^546019),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xffffff,'\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065':0xffffff,"emissiveIntensity":0.4}));_0xfdbcg['\u0061\u0064\u0064'](_0xdb01e);const _0x4158f=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u006F\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.22,0.38,297678^297694),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffffff,"emissive":0xffffff,'\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079':0.4}));if(up){_0x4158f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=0.9;}else{_0x4158f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-0.9;_0x4158f['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=Math['\u0050\u0049'];}_0xfdbcg['\u0061\u0064\u0064'](_0x4158f);return _0xfdbcg;}function getGroundStatePlacements(type,N){const _0x6b95bb=[];if(type==="\u0062\u006F\u0073\u006F\u006E"){for(let i=867073^867073;i<N;i++)_0x6b95bb['\u0070\u0075\u0073\u0068'](480032^480033);}else{var _0x4b8f=(732958^732957)+(478883^478891);let _0xf5c1fd=N;_0x4b8f=393016^393018;let n=388223^388222;while(_0xf5c1fd>(744697^744697)){const _0x586ca=Math['\u006D\u0069\u006E'](370495^370493,_0xf5c1fd);for(let i=864660^864660;i<_0x586ca;i++)_0x6b95bb['\u0070\u0075\u0073\u0068'](n);_0xf5c1fd-=_0x586ca;n++;}}return _0x6b95bb['\u0073\u006F\u0072\u0074']((a,b)=>a-b);}function sortedCopy(arr){return[...arr]['\u0073\u006F\u0072\u0074']((a,b)=>a-b);}function arraysEqual(a,b){if(a['\u006C\u0065\u006E\u0067\u0074\u0068']!==b['\u006C\u0065\u006E\u0067\u0074\u0068'])return false;for(let i=311201^311201;i<a['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){if(a[i]!==b[i])return false;}return!![];}function enumerateStates(type,N,maxLevel=MAX_LEVELS){const _0x4c42ea=[];function _0xe3ac(startLevel,remaining,current){if(remaining===(716487^716487)){_0x4c42ea['\u0070\u0075\u0073\u0068'](sortedCopy(current));return;}for(let n=262786^262787;n<=maxLevel;n++){const _0x1916ce=current['\u0066\u0069\u006C\u0074\u0065\u0072'](v=>v===n)['\u006C\u0065\u006E\u0067\u0074\u0068'];if(type==="\u0066\u0065\u0072\u006D\u0069\u006F\u006E"&&_0x1916ce>=(293910^293908))continue;current['\u0070\u0075\u0073\u0068'](n);_0xe3ac(n,remaining-(519607^519606),current);current['\u0070\u006F\u0070']();}}_0xe3ac(180467^180466,N,[]);var _0x89fee=(653067^653068)+(126103^126099);const _0x2dabfe=[];_0x89fee=(929427^929425)+(517661^517656);var _0x538d3e=(435651^435648)+(758924^758922);const _0xdb9ae=new Set();_0x538d3e='\u0063\u006E\u006C\u0068\u0068\u0070';for(const s of _0x4c42ea){let _0xe1ad6c;const _0xc49gc=s['\u006A\u006F\u0069\u006E']("\u002C");_0xe1ad6c=480607^480601;if(!_0xdb9ae['\u0068\u0061\u0073'](_0xc49gc)){_0xdb9ae['\u0061\u0064\u0064'](_0xc49gc);_0x2dabfe['\u0070\u0075\u0073\u0068'](s);}}_0x2dabfe['\u0073\u006F\u0072\u0074']((a,b)=>{let _0x28eb;const _0xg1d5f=a['\u0072\u0065\u0064\u0075\u0063\u0065']((sum,n)=>sum+n*n,460569^460569);_0x28eb='\u0062\u006E\u0062\u0063\u006B\u0071';var _0x6gd=(899994^899992)+(761886^761880);const _0x87c40a=b['\u0072\u0065\u0064\u0075\u0063\u0065']((sum,n)=>sum+n*n,809166^809166);_0x6gd=802655^802651;if(_0xg1d5f!==_0x87c40a)return _0xg1d5f-_0x87c40a;return a['\u006A\u006F\u0069\u006E']("\u002C")['\u006C\u006F\u0063\u0061\u006C\u0065\u0043\u006F\u006D\u0070\u0061\u0072\u0065'](b['\u006A\u006F\u0069\u006E']("\u002C"));});return _0x2dabfe;}function getExcitedStatePlacements(type,N,excitedIndex,_0xgd0aa){const _0xb_0x92d=enumerateStates(type,N);_0xgd0aa=921079^921086;if(!_0xb_0x92d['\u006C\u0065\u006E\u0067\u0074\u0068'])return[];return _0xb_0x92d[Math['\u006D\u0069\u006E'](excitedIndex,_0xb_0x92d['\u006C\u0065\u006E\u0067\u0074\u0068']-(709630^709631))];}function checkChallengeAnswer(_0x5d4f4f,_0x3f_0x969){if(activeChallenge==="\u006E\u006F\u006E\u0065")return;var _0x3d7ba=(328917^328925)+(823836^823832);const _0xd89fec=challengeData[activeChallenge];_0x3d7ba=(792347^792351)+(590338^590339);var _0xacbbda=(622876^622879)+(892376^892383);const _0x5g96c=sortedCopy(placements);_0xacbbda=(198423^198422)+(588759^588758);var _0xg18be=(955474^955474)+(402492^402484);const N=parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],452248^452242);_0xg18be=(610179^610186)+(698541^698543);let _0x7d6ab=false;_0x5d4f4f=(906934^906935)+(775780^775778);_0x3f_0x969='';if(_0x5g96c['\u006C\u0065\u006E\u0067\u0074\u0068']!==N){_0x3f_0x969=`❌ Not complete yet. Place all ${N} particles first.`;if(audioUnlocked){if(!didPlayWrong){playSFX(sfx['\u0077\u0072\u006F\u006E\u0067']);didPlayWrong=!![];didPlayCheer=false;}}challengeBox['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`<b>Challenge:</b><br>${_0xd89fec['\u0064\u0065\u0073\u0063\u0072\u0069\u0070\u0074\u0069\u006F\u006E']}<br><br><b>Status:</b> ${_0x3f_0x969}`;return;}if(_0xd89fec['\u0074\u0061\u0072\u0067\u0065\u0074\u0053\u0074\u0061\u0074\u0065']==="dnuorg".split("").reverse().join("")){const expected=getGroundStatePlacements(_0xd89fec['\u0074\u0079\u0070\u0065'],_0xd89fec['\u004E']);_0x7d6ab=arraysEqual(_0x5g96c,expected);_0x3f_0x969=_0x7d6ab?`✅ Correct. You built the ground state: [${expected['\u006A\u006F\u0069\u006E']("\u002C\u0020")}].`:`❌ Incorrect. This is not the ground state.`;}else if(typeof _0xd89fec['\u0074\u0061\u0072\u0067\u0065\u0074\u0045\u006E\u0065\u0072\u0067\u0079\u004D\u0075\u006C\u0074\u0069\u0070\u006C\u0065']==="\u006E\u0075\u006D\u0062\u0065\u0072"){const _0x_0xf67=_0x5g96c['\u0072\u0065\u0064\u0075\u0063\u0065']((sum,n)=>sum+n*n,910873^910873);_0x7d6ab=_0x_0xf67===_0xd89fec['\u0074\u0061\u0072\u0067\u0065\u0074\u0045\u006E\u0065\u0072\u0067\u0079\u004D\u0075\u006C\u0074\u0069\u0070\u006C\u0065'];_0x3f_0x969=_0x7d6ab?`✅ Correct. Your system energy is ${_0x_0xf67} E₁.`:`❌ Incorrect. Your state gives ${_0x_0xf67} E₁, not ${_0xd89fec['\u0074\u0061\u0072\u0067\u0065\u0074\u0045\u006E\u0065\u0072\u0067\u0079\u004D\u0075\u006C\u0074\u0069\u0070\u006C\u0065']} E₁.`;}else if(typeof _0xd89fec['\u0074\u0061\u0072\u0067\u0065\u0074\u0045\u0078\u0063\u0069\u0074\u0065\u0064\u0049\u006E\u0064\u0065\u0078']==="\u006E\u0075\u006D\u0062\u0065\u0072"){let _0xd991ed;const expected=getExcitedStatePlacements(_0xd89fec['\u0074\u0079\u0070\u0065'],_0xd89fec['\u004E'],_0xd89fec['\u0074\u0061\u0072\u0067\u0065\u0074\u0045\u0078\u0063\u0069\u0074\u0065\u0064\u0049\u006E\u0064\u0065\u0078']);_0xd991ed=(637760^637766)+(688590^688585);_0x7d6ab=arraysEqual(_0x5g96c,expected);_0x3f_0x969=_0x7d6ab?`✅ Correct. You built the requested excited state: [${expected['\u006A\u006F\u0069\u006E'](" ,".split("").reverse().join(""))}].`:`❌ Incorrect. This is not the requested excited state.`;}if(audioUnlocked){if(_0x7d6ab){playSFX(sfx['\u0063\u0068\u0065\u0065\u0072']);didPlayCheer=!![];didPlayWrong=false;setTimeout(()=>{didPlayCheer=false;},921781^923493);}else{if(!didPlayWrong){playSFX(sfx['\u0077\u0072\u006F\u006E\u0067']);didPlayWrong=!![];didPlayCheer=false;setTimeout(()=>{didPlayWrong=false;},994548^993576);}}}challengeBox['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`<b>Challenge:</b><br>${_0xd89fec['\u0064\u0065\u0073\u0063\u0072\u0069\u0070\u0074\u0069\u006F\u006E']}<br><br><b>Status:</b> ${_0x3f_0x969}`;}function showInstruction(){alert(`How to use this simulation
+    
+    1. Choose particle type: bosons or fermions.
+    2. Set the number of particles N, well length L, and particle mass factor.
+    3. Click a glowing energy level to place one particle into that level.
+    4. Shift-click an occupied level to remove one particle.
+    5. Use Ground State to fill the lowest allowed levels automatically.
+    6. Use Random Excited to create a random excited configuration.
+    7. Clear removes all placed particles. Reset returns the default setup.
+    
+    Physics information
+    
+    In a 1D infinite square well, the single-particle energy levels satisfy
+    
+    E_n ∝ n² / (mL²)
+    
+    with quantum number n = 1, 2, 3, ...
+    
+    Bosons can share the same state.
+    
+    Fermions obey the Pauli exclusion principle, so at most two particles can occupy the same energy level in this simplified spin-1/2 model.`);}function resetSimulation(){location['\u0072\u0065\u006C\u006F\u0061\u0064']();}function resetSimulation2(){particleType['\u0076\u0061\u006C\u0075\u0065']="nosob".split("").reverse().join("");particleCount['\u0076\u0061\u006C\u0075\u0065']="\u0033";particleCountVal['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="\u0033";wellLength['\u0076\u0061\u006C\u0075\u0065']="21".split("").reverse().join("");wellLengthVal['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="\u0031\u0032";massScale['\u0076\u0061\u006C\u0075\u0065']="0.1".split("").reverse().join("");massScaleVal['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="0.1".split("").reverse().join("");showWaveBoxes['\u0063\u0068\u0065\u0063\u006B\u0065\u0064']=!![];showParticles['\u0063\u0068\u0065\u0063\u006B\u0065\u0064']=!![];autoRotate['\u0063\u0068\u0065\u0063\u006B\u0065\u0064']=!![];waveGroup['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=!![];particleGroup['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=!![];placements=[];buildWell();rebuildLevels();rebuildParticles();updateAllUI();camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](186693^186713,609946^609929,749266^749260);controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](953401^953401,177595^177596,735500^735500);controls['\u0075\u0070\u0064\u0061\u0074\u0065']();checkAnswerBtn['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']="\u006E\u006F\u006E\u0065";}
+    
+   function makeParticleMesh(color,radius=0.45,emissiveIntensity=0.30){return new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](radius,109322^109340,894068^894054),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':color,'\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065':color,'\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079':emissiveIntensity}));}function getTrayParticlePosition(index,total,_0x34987g,_0x0db89d,_0x502c0d){var _0x7a6bgd=(668694^668694)+(342470^342471);_0x34987g=801746^801746;_0x7a6bgd="nnlecq".split("").reverse().join("");const _0xfc8fe=-0.55;_0x0db89d=(792688^792690)+(284516^284516);_0x502c0d=839185^839191;let x,z;if(total<=(552833^552837)){x=_0x34987g-1.8+index*1.2;z=_0x502c0d;}else{var _0x7954de=(993636^993632)+(610209^610210);const _0xe_0xg9b=Math['\u0063\u0065\u0069\u006C'](total/(251258^251256));_0x7954de=927193^927197;const _0x5_0xa74=Math['\u0066\u006C\u006F\u006F\u0072'](index/_0xe_0xg9b);const _0xf589ba=index%_0xe_0xg9b;x=_0x34987g-(867002^867000)+_0xf589ba*1.2;z=_0x502c0d-0.5+_0x5_0xa74*(911425^911424);}return new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,_0xfc8fe,z);}function getLevelParticlePosition(levelN,indexOnLevel,finalCount,type){const _0xefeab=levelData['\u0066\u0069\u006E\u0064'](d=>d['\u006E']===levelN);if(!_0xefeab)return new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']();let x,z;if(type==="\u0062\u006F\u0073\u006F\u006E"){if(finalCount<=(561419^561423)){const spread=Math['\u006D\u0061\u0078'](902902^902903,finalCount-(351762^351763));x=-1.8+3.6*indexOnLevel/spread;z=1.1;}else{const _0x8e8b4a=Math['\u0063\u0065\u0069\u006C'](finalCount/(641337^641339));const _0xcbce=Math['\u0066\u006C\u006F\u006F\u0072'](indexOnLevel/_0x8e8b4a);const _0x76d7d=indexOnLevel%_0x8e8b4a;const spread=Math['\u006D\u0061\u0078'](396839^396838,_0x8e8b4a-(167581^167580));x=-2.2+4.4*_0x76d7d/spread;z=0.82+_0xcbce*0.75;}}else{let _0xfcf;const spread=Math['\u006D\u0061\u0078'](845927^845926,finalCount-(523881^523880));_0xfcf=(639765^639763)+(934800^934805);x=-1.8+3.6*indexOnLevel/spread;z=1.1+indexOnLevel%(965627^965625)*0.7;}return new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,_0xefeab['\u0079']+0.55,z);}function animateParticleToLevel(levelN,_0xcad1cf,_0x86c8ff,_0x241a){const _0x77af9f=getUnplacedCount();_0xcad1cf=(205153^205160)+(672999^672994);if(_0x77af9f<=(756003^756003))return;const _0x6c5b3e=particleType['\u0076\u0061\u006C\u0075\u0065']==="\u0062\u006F\u0073\u006F\u006E"?bosonColor:fermionColor;var _0x50g=(828625^828624)+(935601^935601);const _0xa79bf=_0x77af9f-(176625^176624);_0x50g=(990465^990468)+(886789^886796);const _0xbe9f4d=getTrayParticlePosition(_0xa79bf,_0x77af9f);const _0xd29ecg=placements['\u0066\u0069\u006C\u0074\u0065\u0072'](n=>n===levelN)['\u006C\u0065\u006E\u0067\u0074\u0068'];const _0x5d4c3e=_0xd29ecg+(822194^822195);_0x86c8ff=211207^211215;const _0x67ac3d=getLevelParticlePosition(levelN,_0xd29ecg,_0x5d4c3e,particleType['\u0076\u0061\u006C\u0075\u0065']);var _0x898b=(379606^379603)+(613231^613228);const _0x48fd1a=makeParticleMesh(_0x6c5b3e,0.50,0.40);_0x898b='\u0066\u006F\u006B\u0066\u0067\u0062';_0x48fd1a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0xbe9f4d);scene['\u0061\u0064\u0064'](_0x48fd1a);const _0xf47a0c=_0xbe9f4d['\u0063\u006C\u006F\u006E\u0065']()['\u006C\u0065\u0072\u0070'](_0x67ac3d,0.5);_0x241a=680849^680851;_0xf47a0c['\u0079']+=971103^971101;flyingParticles['\u0070\u0075\u0073\u0068']({'\u006D\u0065\u0073\u0068':_0x48fd1a,"start":_0xbe9f4d,'\u0070\u0065\u0061\u006B':_0xf47a0c,"end":_0x67ac3d,'\u0074':0,"duration":0.55,'\u006C\u0065\u0076\u0065\u006C\u004E':levelN});}function buildWell(_0x00bba,_0xb8b,_0xdead1e){clearGroup(wellGroup);var _0x_0x1d4=(834789^834797)+(285820^285822);const L=getWellVisualLength();_0x_0x1d4=(248779^248779)+(506799^506793);var _0xf_0x5c7=(472850^472851)+(152906^152910);const W=BASE_WIDTH;_0xf_0x5c7='\u006F\u0063\u0065\u006B\u0071\u006E';const D=BASE_DEPTH;const H=BASE_HEIGHT;_0x00bba=928017^928020;const _0x5ef8ba=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](W,0.4,D),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x5b6f8e,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],'\u006F\u0070\u0061\u0063\u0069\u0074\u0079':0.42}));_0xb8b=(111850^111851)+(952003^952007);_0x5ef8ba['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](719691^719691,810772^810772,583817^583817);wellGroup['\u0061\u0064\u0064'](_0x5ef8ba);const _0x5a57fc=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x88a4c6,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],'\u006F\u0070\u0061\u0063\u0069\u0074\u0079':0.18,'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']});const _0xc44g=new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xdde8ff});const _0x152ed=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.28,H,D),_0x5a57fc);_0xdead1e=(190731^190734)+(836865^836865);_0x152ed['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-L/(601961^601963),H/(356365^356367),126438^126438);const _0xdaa=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.28,H,D),_0x5a57fc);_0xdaa['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](L/(965543^965541),H/(430922^430920),606402^606402);var _0xc19gaa=(870631^870626)+(175479^175475);const _0x2151c=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](L,H,0.16),_0x5a57fc);_0xc19gaa=(997491^997492)+(950919^950912);_0x2151c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](242536^242536,H/(450169^450171),-D/(904909^904911));var _0xe2c=(105759^105757)+(150324^150321);const _0x4f93f=new THREE['\u004C\u0069\u006E\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073'](new THREE['\u0045\u0064\u0067\u0065\u0073\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](L,H,D)),_0xc44g);_0xe2c=(727321^727326)+(559125^559126);_0x4f93f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](874642^874642,H/(205205^205207),624467^624467);wellGroup['\u0061\u0064\u0064'](_0x152ed,_0xdaa,_0x2151c,_0x4f93f);const _0xfcf66f=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](8.5,0.35,4.5),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x202a3a}));_0xfcf66f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](441820^441820,-1.6,217374^217368);const _0xbcaaab=new THREE['\u004C\u0069\u006E\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073'](new THREE['\u0045\u0064\u0067\u0065\u0073\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](8.5,2.2,4.5)),new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffffff}));_0xbcaaab['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](891821^891821,-0.5,258538^258540);wellGroup['\u0061\u0064\u0064'](_0xfcf66f,_0xbcaaab);}function rebuildLevels(){clearGroup(levelGroup);clearGroup(waveGroup);levelData=[];var _0x3ba=(470188^470187)+(859846^859841);const L=getWellVisualLength();_0x3ba=961922^961925;var _0x05d11d=(258945^258945)+(599508^599508);const _0x3260g=getLevelEnergy(MAX_LEVELS);_0x05d11d='\u0061\u0063\u0062\u006F\u0067\u0065';var _0xbf_0xc7b=(754014^754006)+(393679^393676);const _0x1495ea=BASE_HEIGHT/(_0x3260g*1.12);_0xbf_0xc7b=271131^271123;for(let n=621890^621891;n<=MAX_LEVELS;n++){const E=getLevelEnergy(n);var _0xafac=(988417^988422)+(882651^882648);const y=E*_0x1495ea;_0xafac=927046^927042;const _0x6_0x314=new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xbfe8ff});const _0xd3_0xbfd=[new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-L/(741414^741412)+0.25,y,262749^262749),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](L/(824748^824750)-0.25,y,178036^178036)];const _0x9788b=new THREE['\u004C\u0069\u006E\u0065'](new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']()['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0050\u006F\u0069\u006E\u0074\u0073'](_0xd3_0xbfd),_0x6_0x314);const _0xccc4d=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](L-0.5,0.25,0.9),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x66cfff,"transparent":!![],'\u006F\u0070\u0061\u0063\u0069\u0074\u0079':0.35}));_0xccc4d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](627408^627408,y,541405^541405);levelGroup['\u0061\u0064\u0064'](_0xccc4d);_0x9788b['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0065\u0076\u0065\u006C\u0049\u006E\u0064\u0065\u0078']=n;_0x9788b['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u0069\u0063\u006B\u0061\u0062\u006C\u0065']=!![];levelGroup['\u0061\u0064\u0064'](_0x9788b);const _0x10b84d=document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0064\u0069\u0076");_0x10b84d['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=`E${n} = ${formatEnergy(E)}`;_0x10b84d['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072']="ffffff#".split("").reverse().join("");_0x10b84d['\u0073\u0074\u0079\u006C\u0065']['\u0066\u006F\u006E\u0074\u0053\u0069\u007A\u0065']="\u0031\u0032\u0070\u0078";_0x10b84d['\u0073\u0074\u0079\u006C\u0065']['\u0066\u006F\u006E\u0074\u0057\u0065\u0069\u0067\u0068\u0074']="007".split("").reverse().join("");_0x10b84d['\u0073\u0074\u0079\u006C\u0065']['\u0074\u0065\u0078\u0074\u0053\u0068\u0061\u0064\u006F\u0077']=")9.0,0,0,0(abgr xp3 0 0".split("").reverse().join("");const _0x9f4b=new CSS2DObject(_0x10b84d);_0x9f4b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-L/(832603^832601)-1.9,y,677797^677797);levelGroup['\u0061\u0064\u0064'](_0x9f4b);var _0x8ge=(521983^521977)+(798517^798515);const _0xc08da=document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("vid".split("").reverse().join(""));_0x8ge=(467004^466996)+(214870^214878);_0xc08da['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=`E${n} = ${n*n}E₁`;_0xc08da['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072']="a77eff#".split("").reverse().join("");_0xc08da['\u0073\u0074\u0079\u006C\u0065']['\u0066\u006F\u006E\u0074\u0053\u0069\u007A\u0065']="\u0031\u0032\u0070\u0078";_0xc08da['\u0073\u0074\u0079\u006C\u0065']['\u0066\u006F\u006E\u0074\u0057\u0065\u0069\u0067\u0068\u0074']="\u0037\u0030\u0030";_0xc08da['\u0073\u0074\u0079\u006C\u0065']['\u0074\u0065\u0078\u0074\u0053\u0068\u0061\u0064\u006F\u0077']="\u0030\u0020\u0030\u0020\u0036\u0070\u0078\u0020\u0072\u0067\u0062\u0061\u0028\u0030\u002C\u0030\u002C\u0030\u002C\u0030\u002E\u0039\u0029";const _0x573bfc=new CSS2DObject(_0xc08da);_0x573bfc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](L/(422723^422721)+1.9,y,763337^763337);levelGroup['\u0061\u0064\u0064'](_0x573bfc);var _0xe49b5c=(274868^274864)+(614921^614921);const _0xd8d=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](L-0.5,0.16,0.8),new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xffea7a,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],"opacity":0.18}));_0xe49b5c=(735412^735420)+(165811^165819);_0xd8d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](230693^230693,y,846744^846744);_0xd8d['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0065\u0076\u0065\u006C\u0049\u006E\u0064\u0065\u0078']=n;_0xd8d['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u0069\u0063\u006B\u0061\u0062\u006C\u0065']=!![];levelGroup['\u0061\u0064\u0064'](_0xd8d);levelData['\u0070\u0075\u0073\u0068']({'\u006E':n,'\u0045':E,'\u0079':y,"line":_0x9788b,'\u006C\u0065\u0076\u0065\u006C\u0047\u006C\u006F\u0077':_0xd8d});addWaveVisualization(n,y,L);}}function addWaveVisualization(n,y,L,_0x3e2,_0x4c_0xe6b,_0x51gd6d,_0x07342d){_0x3e2=1.4;const _0x3c2b=[];const z=-2.1;var _0x0834c=(355373^355370)+(293009^293008);_0x4c_0xe6b=266129^266217;_0x0834c=(397029^397031)+(639685^639680);for(let i=742880^742880;i<=_0x4c_0xe6b;i++){const x=-L/(653747^653745)+L*i/_0x4c_0xe6b;var _0x3geee=(701409^701417)+(465836^465836);const _0x4b71a=(x+L/(965112^965114))/L;_0x3geee=(598534^598542)+(955167^955165);const _0xa4135c=y+_0x3e2*Math['\u0073\u0069\u006E'](n*Math['\u0050\u0049']*_0x4b71a);_0x3c2b['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,_0xa4135c,z));}const _0x38d=new THREE['\u004C\u0069\u006E\u0065'](new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']()['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0050\u006F\u0069\u006E\u0074\u0073'](_0x3c2b),new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xffc85a}));_0x51gd6d=945259^945256;waveGroup['\u0061\u0064\u0064'](_0x38d);const _0xbca78g=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](L,_0x3e2*2.2,0.24),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffc85a,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],"opacity":0.05}));_0x07342d=(398095^398086)+(911477^911478);_0xbca78g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](211481^211481,y,z);waveGroup['\u0061\u0064\u0064'](_0xbca78g);}function refreshDragParticles(_0xe619a,_0xb72f5e,_0x2f_0xddf){clearGroup(dragSourceGroup);var _0xd_0xga7=(104464^104473)+(980629^980624);const _0xfb_0xdf5=getUnplacedCount();_0xd_0xga7=(151265^151264)+(878773^878781);const _0x6c4ecd=particleType['\u0076\u0061\u006C\u0075\u0065']==="\u0062\u006F\u0073\u006F\u006E"?bosonColor:fermionColor;_0xe619a=490806^490806;var _0x2_0xcbg=(700413^700408)+(551203^551207);const _0xbf2=-0.55;_0x2_0xcbg='\u006F\u0064\u006D\u006E\u0064\u0069';_0x2f_0xddf=439924^439922;_0xb72f5e=(897855^897848)+(314217^314218);for(let i=153891^153891;i<_0xfb_0xdf5;i++){const p=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.55,722905^722895,539578^539560),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":_0x6c4ecd,"emissive":_0x6c4ecd,"emissiveIntensity":0.35}));let x,z;if(_0xfb_0xdf5<=(426040^426044)){x=_0xe619a-1.8+i*1.2;z=_0x2f_0xddf;}else{const _0x27e14d=Math['\u0063\u0065\u0069\u006C'](_0xfb_0xdf5/(509604^509606));const _0xe516gc=Math['\u0066\u006C\u006F\u006F\u0072'](i/_0x27e14d);const _0x18b=i%_0x27e14d;x=_0xe619a-(816621^816623)+_0x18b*1.2;z=_0x2f_0xddf-0.5+_0xe516gc*(468093^468092);}p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,_0xbf2,z);dragSourceGroup['\u0061\u0064\u0064'](p);if(particleType['\u0076\u0061\u006C\u0075\u0065']==="noimref".split("").reverse().join("")){var _0x673d3c=(985710^985702)+(658311^658305);const _0x2a3e2a=i%(151778^151776)===(286960^286960);_0x673d3c=(567873^567880)+(396519^396517);let _0xfc43a;const _0xe2_0xabf=makeSpinArrow(_0x2a3e2a);_0xfc43a=195778^195777;_0xe2_0xabf['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,_0xbf2,z);dragSourceGroup['\u0061\u0064\u0064'](_0xe2_0xabf);}}}function rebuildParticles(){clearGroup(particleGroup);refreshDragParticles();const _0x8fe=particleType['\u0076\u0061\u006C\u0075\u0065']==="nosob".split("").reverse().join("")?bosonColor:fermionColor;const _0x26fba=new Map();placements['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](n=>_0x26fba['\u0073\u0065\u0074'](n,(_0x26fba['\u0067\u0065\u0074'](n)||365333^365333)+(691532^691533)));_0x26fba['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((count,n)=>{const _0x113d=levelData['\u0066\u0069\u006E\u0064'](d=>d['\u006E']===n);if(!_0x113d)return;for(let i=851647^851647;i<count;i++){var _0x58ccb=(735968^735973)+(103576^103577);const _0xce5b=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.45,260845^260859,119916^119934),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":_0x8fe,"emissive":_0x8fe,"emissiveIntensity":0.28}));_0x58ccb='\u0062\u0069\u006C\u0071\u006D\u006E';let x,z;if(particleType['\u0076\u0061\u006C\u0075\u0065']==="\u0062\u006F\u0073\u006F\u006E"){if(count<=(645093^645089)){const spread=Math['\u006D\u0061\u0078'](613066^613067,count-(250636^250637));x=-1.8+3.6*i/spread;z=1.1;}else{var _0xd2_0xa30=(523465^523466)+(830210^830215);const _0xcbd=Math['\u0063\u0065\u0069\u006C'](count/(386689^386691));_0xd2_0xa30=(790133^790134)+(960166^960165);const _0x41afde=Math['\u0066\u006C\u006F\u006F\u0072'](i/_0xcbd);const _0x7_0xg3f=i%_0xcbd;const spread=Math['\u006D\u0061\u0078'](904901^904900,_0xcbd-(733122^733123));x=-2.2+4.4*_0x7_0xg3f/spread;z=0.82+_0x41afde*0.75;}}else{if(count===(230755^230754)){x=781266^781266;z=1.1;}else{x=i===(305304^305304)?-0.55:0.55;z=1.1;}}_0xce5b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,_0x113d['\u0079']+0.55,z);particleGroup['\u0061\u0064\u0064'](_0xce5b);if(particleType['\u0076\u0061\u006C\u0075\u0065']==="\u0066\u0065\u0072\u006D\u0069\u006F\u006E"){var _0xa76a=(784915^784912)+(101631^101625);const _0xgcd7e=i===(739673^739673);_0xa76a=(460574^460568)+(244112^244117);const _0xc2542e=makeSpinArrow(_0xgcd7e);_0xc2542e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,_0x113d['\u0079']+0.55,z);particleGroup['\u0061\u0064\u0064'](_0xc2542e);}}});}function getWellVisualLength(){return parseFloat(wellLength['\u0076\u0061\u006C\u0075\u0065'])*1.45;}function getLevelEnergy(n){const _0x083a8d=parseFloat(massScale['\u0076\u0061\u006C\u0075\u0065']);var _0x3e_0xacc=(185527^185535)+(613918^613918);const L=parseFloat(wellLength['\u0076\u0061\u006C\u0075\u0065']);_0x3e_0xacc=400039^400037;return n*n/(_0x083a8d*L*L)*(846903^847035);}function getCountsByLevel(){const _0x8ea3fg=new Map();placements['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](n=>_0x8ea3fg['\u0073\u0065\u0074'](n,(_0x8ea3fg['\u0067\u0065\u0074'](n)||291790^291790)+(678521^678520)));return _0x8ea3fg;}function occupancyAllowed(levelN){const _0xf821f=getCountsByLevel();const _0x1d_0x909=_0xf821f['\u0067\u0065\u0074'](levelN)||155419^155419;return _0x1d_0x909<occupancyLimits[particleType['\u0076\u0061\u006C\u0075\u0065']];}function placeParticle(levelN){if(placements['\u006C\u0065\u006E\u0067\u0074\u0068']+flyingParticles['\u006C\u0065\u006E\u0067\u0074\u0068']>=parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],173179^173169))return;if(!occupancyAllowed(levelN))return;animateParticleToLevel(levelN);refreshDragParticles();updateAllUI();}function removeParticle(levelN,_0x3_0x969){const _0x262a=placements['\u006C\u0061\u0073\u0074\u0049\u006E\u0064\u0065\u0078\u004F\u0066'](levelN);_0x3_0x969='\u0061\u0070\u0063\u006E\u0063\u006A';if(_0x262a>=(155434^155434)){placements['\u0073\u0070\u006C\u0069\u0063\u0065'](_0x262a,966996^966997);rebuildParticles();updateAllUI();checkChallengeAnswer();}}function makeGroundState(){placements=[];const N=parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],463443^463449);if(particleType['\u0076\u0061\u006C\u0075\u0065']==="nosob".split("").reverse().join("")){for(let i=816182^816182;i<N;i++)placements['\u0070\u0075\u0073\u0068'](244664^244665);}else{let _0xa65daf;let _0xa3c2eg=N;_0xa65daf='\u0071\u0069\u0062\u006B\u0067\u0066';var _0x4e49e=(515513^515517)+(907383^907380);let n=905828^905829;_0x4e49e="jfcjag".split("").reverse().join("");while(_0xa3c2eg>(997584^997584)){let _0x4_0x648;const _0x3afedg=Math['\u006D\u0069\u006E'](631320^631322,_0xa3c2eg);_0x4_0x648=309532^309528;for(let i=538212^538212;i<_0x3afedg;i++)placements['\u0070\u0075\u0073\u0068'](n);_0xa3c2eg-=_0x3afedg;n++;}}rebuildParticles();updateAllUI();checkChallengeAnswer();}function makeRandomExcitedState(_0xfef){placements=[];var _0x6e6af=(304883^304891)+(368675^368682);const N=parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],245660^245654);_0x6e6af='\u006D\u0066\u006F\u006E\u006D\u006E';_0xfef=302344^302344;while(placements['\u006C\u0065\u006E\u0067\u0074\u0068']<N&&_0xfef<(531401^526401)){const n=(550463^550462)+Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*MAX_LEVELS);if(occupancyAllowedForArray(n,placements))placements['\u0070\u0075\u0073\u0068'](n);_0xfef++;}rebuildParticles();updateAllUI();checkChallengeAnswer();}function occupancyAllowedForArray(levelN,arr){const _0xa3167d=arr['\u0066\u0069\u006C\u0074\u0065\u0072'](v=>v===levelN)['\u006C\u0065\u006E\u0067\u0074\u0068'];return _0xa3167d<occupancyLimits[particleType['\u0076\u0061\u006C\u0075\u0065']];}function trimOrExpandPlacements(){const N=parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],806344^806338);if(placements['\u006C\u0065\u006E\u0067\u0074\u0068']>N)placements=placements['\u0073\u006C\u0069\u0063\u0065'](812838^812838,N);}function clampOccupancyToRules(){if(particleType['\u0076\u0061\u006C\u0075\u0065']==="nosob".split("").reverse().join(""))return;const _0x4ee=new Map();const _0x8f21f=[];placements['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](n=>{let _0xed02f;const c=_0x4ee['\u0067\u0065\u0074'](n)||869008^869008;_0xed02f="hfpfjk".split("").reverse().join("");if(c<(919882^919880)){_0x8f21f['\u0070\u0075\u0073\u0068'](n);_0x4ee['\u0073\u0065\u0074'](n,c+(960612^960613));}});placements=_0x8f21f;trimOrExpandPlacements();}function getUnplacedCount(){return Math['\u006D\u0061\u0078'](207480^207480,parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],330856^330850)-placements['\u006C\u0065\u006E\u0067\u0074\u0068']);}function getSystemEnergy(){if(placements['\u006C\u0065\u006E\u0067\u0074\u0068']===(710162^710162))return null;return placements['\u0072\u0065\u0064\u0075\u0063\u0065']((sum,n)=>sum+getLevelEnergy(n),776593^776593);}function updateAllUI(_0x533gaa){var _0xb232ed=(517891^517891)+(876155^876158);const E=getSystemEnergy();_0xb232ed="pmicpb".split("").reverse().join("");const _0xg9f=getCountsByLevel();_0x533gaa=(199142^199141)+(178937^178937);const N=parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],331024^331034);var _0x75e0db=(614376^614381)+(825654^825653);const _0xca2f=Array['\u0066\u0072\u006F\u006D'](_0xg9f['\u0065\u006E\u0074\u0072\u0069\u0065\u0073']())['\u0073\u006F\u0072\u0074']((a,b)=>a[964358^964358]-b[103980^103980])['\u006D\u0061\u0070'](([n,c])=>`n=${n}: ${c}`)['\u006A\u006F\u0069\u006E'](" ,".split("").reverse().join(""))||"\u006E\u006F\u006E\u0065";_0x75e0db=663597^663593;energyBox['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`<b>System Energy</b><br>E<sub>system</sub> = ${E===null?"\u0075\u006E\u0064\u0065\u0066\u0069\u006E\u0065\u0064":formatEnergy(E)}<br><b>Placed / total:</b> ${placements['\u006C\u0065\u006E\u0067\u0074\u0068']} / ${N}`;infoBox['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`
+        <b>Current configuration</b><br>
+        Particle type: ${particleType['\u0076\u0061\u006C\u0075\u0065']==="nosob".split("").reverse().join("")?"\u0062\u006F\u0073\u006F\u006E\u0073":"\u0066\u0065\u0072\u006D\u0069\u006F\u006E\u0073"}<br>
+        Occupancy by level: ${_0xca2f}<br>
+        Ground-state rule: ${particleType['\u0076\u0061\u006C\u0075\u0065']==="nosob".split("").reverse().join("")?"\u0061\u006C\u006C\u0020\u0070\u0061\u0072\u0074\u0069\u0063\u006C\u0065\u0073\u0020\u006D\u0061\u0079\u0020\u006F\u0063\u0063\u0075\u0070\u0079\u0020\u006E\u003D\u0031":"drawpu mottob eht morf level rep owt llif".split("").reverse().join("")}<br><br>
+        <b>Single-particle energies (relative units)</b><br>
+        ${levelData['\u006D\u0061\u0070'](d=>`n=${d['\u006E']} → ${formatEnergy(d['\u0045'])}`)['\u006A\u006F\u0069\u006E']("\u003C\u0062\u0072\u003E")}
+      `;updateLevelGlow();}function updateLevelGlow(){const _0x9f_0x821=getCountsByLevel();levelData['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](d=>{var _0x1fef=(684382^684376)+(214534^214531);const _0x8_0x83b=_0x9f_0x821['\u0067\u0065\u0074'](d['\u006E'])||171507^171507;_0x1fef='\u006B\u0067\u0068\u006A\u006D\u0067';let _0xb5dba;const _0x248d=occupancyAllowed(d['\u006E'])&&placements['\u006C\u0065\u006E\u0067\u0074\u0068']<parseInt(particleCount['\u0076\u0061\u006C\u0075\u0065'],400401^400411);_0xb5dba=(575624^575628)+(999202^999211);d['\u006C\u0065\u0076\u0065\u006C\u0047\u006C\u006F\u0077']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=_0x8_0x83b>(297307^297307)?0.18:_0x248d?0.10:0.03;d['\u006C\u0065\u0076\u0065\u006C\u0047\u006C\u006F\u0077']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](_0x8_0x83b>(437165^437165)?0xffcf57:0x7aa8ff);});}function formatEnergy(v){return v>=(689059^689095)?v['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](669355^669354):v['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](700464^700466);}function clearGroup(group){while(group['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']>(108108^108108)){var _0x09g4c=(426789^426784)+(512115^512119);const _0x0ea6b=group['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E'][884975^884975];_0x09g4c="jpedce".split("").reverse().join("");group['\u0072\u0065\u006D\u006F\u0076\u0065'](_0x0ea6b);if(_0x0ea6b['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])_0x0ea6b['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']?.();if(_0x0ea6b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']){if(Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](_0x0ea6b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])){_0x0ea6b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m=>m['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']?.());}else{_0x0ea6b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']?.();}}if(_0x0ea6b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']&&_0x0ea6b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006D\u0061\u0070']){_0x0ea6b['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006D\u0061\u0070']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']?.();}if(_0x0ea6b['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']&&_0x0ea6b['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']){clearGroup(_0x0ea6b);}}}function onPointerMove(event,_0x14721f){const _0xdc7d4g=renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0067\u0065\u0074\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0043\u006C\u0069\u0065\u006E\u0074\u0052\u0065\u0063\u0074']();mouse['\u0078']=(event['\u0063\u006C\u0069\u0065\u006E\u0074\u0058']-_0xdc7d4g['\u006C\u0065\u0066\u0074'])/_0xdc7d4g['\u0077\u0069\u0064\u0074\u0068']*(826356^826358)-(637945^637944);mouse['\u0079']=-((event['\u0063\u006C\u0069\u0065\u006E\u0074\u0059']-_0xdc7d4g['\u0074\u006F\u0070'])/_0xdc7d4g['\u0068\u0065\u0069\u0067\u0068\u0074'])*(383015^383013)+(260724^260725);raycaster['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0043\u0061\u006D\u0065\u0072\u0061'](mouse,camera);const _0xfd12ea=raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](levelGroup['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E'],false)['\u0066\u0069\u006E\u0064'](i=>i['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u0069\u0063\u006B\u0061\u0062\u006C\u0065']);_0x14721f=144416^144425;if(currentHovered&&currentHovered['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']&&currentHovered!==(_0xfd12ea&&_0xfd12ea['\u006F\u0062\u006A\u0065\u0063\u0074'])){currentHovered['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']*=0.7;}currentHovered=_0xfd12ea?_0xfd12ea['\u006F\u0062\u006A\u0065\u0063\u0074']:null;if(currentHovered&&currentHovered['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']){currentHovered['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079']=0.45;}renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0074\u0079\u006C\u0065']['\u0063\u0075\u0072\u0073\u006F\u0072']=_0xfd12ea?"\u0070\u006F\u0069\u006E\u0074\u0065\u0072":"tluafed".split("").reverse().join("");}function onPointerDown(event){var _0xa6b=(765233^765235)+(364836^364844);const _0x7d52d=renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0067\u0065\u0074\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0043\u006C\u0069\u0065\u006E\u0074\u0052\u0065\u0063\u0074']();_0xa6b='\u006B\u0064\u006E\u0065\u0062\u0065';mouse['\u0078']=(event['\u0063\u006C\u0069\u0065\u006E\u0074\u0058']-_0x7d52d['\u006C\u0065\u0066\u0074'])/_0x7d52d['\u0077\u0069\u0064\u0074\u0068']*(586021^586023)-(303149^303148);mouse['\u0079']=-((event['\u0063\u006C\u0069\u0065\u006E\u0074\u0059']-_0x7d52d['\u0074\u006F\u0070'])/_0x7d52d['\u0068\u0065\u0069\u0067\u0068\u0074'])*(689193^689195)+(515105^515104);raycaster['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0043\u0061\u006D\u0065\u0072\u0061'](mouse,camera);const _0x65852g=raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](levelGroup['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E'],false)['\u0066\u0069\u006E\u0064'](i=>i['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u0069\u0063\u006B\u0061\u0062\u006C\u0065']);if(!_0x65852g)return;const n=_0x65852g['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0065\u0076\u0065\u006C\u0049\u006E\u0064\u0065\u0078'];if(event['\u0073\u0068\u0069\u0066\u0074\u004B\u0065\u0079'])removeParticle(n);else placeParticle(n);}function onWindowResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);labelRenderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function animate(){requestAnimationFrame(animate);const _0xa116c=clock['\u0067\u0065\u0074\u0044\u0065\u006C\u0074\u0061']();controls['\u0061\u0075\u0074\u006F\u0052\u006F\u0074\u0061\u0074\u0065']=autoRotate['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'];controls['\u0061\u0075\u0074\u006F\u0052\u006F\u0074\u0061\u0074\u0065\u0053\u0070\u0065\u0065\u0064']=0.65;controls['\u0075\u0070\u0064\u0061\u0074\u0065']();for(let i=flyingParticles['\u006C\u0065\u006E\u0067\u0074\u0068']-(439782^439783);i>=(631577^631577);i--){const _0x8fb3df=flyingParticles[i];_0x8fb3df['\u0074']+=_0xa116c/_0x8fb3df['\u0064\u0075\u0072\u0061\u0074\u0069\u006F\u006E'];var _0xe5fb2e=(258045^258045)+(536969^536969);const u=Math['\u006D\u0069\u006E'](_0x8fb3df['\u0074'],326967^326966);_0xe5fb2e=544467^544469;let _0x3b77bb;const _0x5891b=_0x8fb3df['\u0073\u0074\u0061\u0072\u0074'];_0x3b77bb=(889591^889586)+(641118^641116);let _0xb4b;const _0x14b3da=_0x8fb3df['\u0070\u0065\u0061\u006B'];_0xb4b=419937^419943;var _0xf92c=(429086^429085)+(443102^443097);const _0x02340a=_0x8fb3df['\u0065\u006E\u0064'];_0xf92c=224843^224843;const _0x87c=(146654^146655)-u;_0x8fb3df['\u006D\u0065\u0073\u0068']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](_0x87c*_0x87c*_0x5891b['\u0078']+(203863^203861)*_0x87c*u*_0x14b3da['\u0078']+u*u*_0x02340a['\u0078'],_0x87c*_0x87c*_0x5891b['\u0079']+(152056^152058)*_0x87c*u*_0x14b3da['\u0079']+u*u*_0x02340a['\u0079'],_0x87c*_0x87c*_0x5891b['\u007A']+(700910^700908)*_0x87c*u*_0x14b3da['\u007A']+u*u*_0x02340a['\u007A']);if(u>=(911975^911974)){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](_0x8fb3df['\u006D\u0065\u0073\u0068']);if(_0x8fb3df['\u006D\u0065\u0073\u0068']['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'])_0x8fb3df['\u006D\u0065\u0073\u0068']['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();if(_0x8fb3df['\u006D\u0065\u0073\u0068']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])_0x8fb3df['\u006D\u0065\u0073\u0068']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();placements['\u0070\u0075\u0073\u0068'](_0x8fb3df['\u006C\u0065\u0076\u0065\u006C\u004E']);flyingParticles['\u0073\u0070\u006C\u0069\u0063\u0065'](i,191745^191744);rebuildParticles();updateAllUI();}}renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);labelRenderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}
+ 
+  </script>
+</body>
+</html>

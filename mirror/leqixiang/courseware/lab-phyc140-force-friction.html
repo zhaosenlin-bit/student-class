@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+<title>乐启享 · 物理实验</title>
+
+<meta name="description" content="Free interactive physics simulation for static friction, kinetic friction, applied force, normal force, weight, and friction coefficients. Explore how static friction increases with applied force, when motion begins, and how kinetic friction acts on a moving object using an interactive 3D force and friction simulation by 乐启享物理仿真.">
+
+<meta name="keywords" content="physics simulation, static friction simulation, kinetic friction simulation, friction simulation, force and friction, coefficient of static friction, coefficient of kinetic friction, applied force, normal force, weight, Newton's laws simulation, free physics simulation, interactive physics simulation, 3D physics simulation, online physics lab, virtual physics lab, physics education, 乐启享物理仿真">
+
+<meta name="author" content="乐启享课件库（改编自 Thomas Nguyen 的开源物理仿真）">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+
+<link rel="canonical" href="/courseware/lab-phyc140-force-friction.html">
+<link rel="icon" href="/brand/favicon.ico">
+
+<script src="/api/program-assets/lab-phyc140-force-friction/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#dceaf2;
+  color:#17212b
+}
+
+#container{
+  position:absolute;
+  inset:0;
+  z-index:1
+}
+
+#header{
+  position:absolute;
+  top:14px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:20;
+  text-align:center;
+  pointer-events:none
+}
+
+#header h1{
+  margin:0;
+  font-size:32px;
+  font-weight:700;
+  color:#102638;
+  text-shadow:0 2px 4px rgba(255,255,255,.85)
+}
+
+#header .subtitle{
+  margin-top:3px;
+  font-size:14px;
+  color:#405565
+}
+
+.panel{
+  position:absolute;
+  z-index:20;
+  background:rgba(255,255,255,.95);
+  border:1px solid rgba(40,70,90,.18);
+  border-radius:14px;
+  box-shadow:0 8px 28px rgba(28,55,75,.18);
+  backdrop-filter:blur(7px)
+}
+
+/* =========================================================
+   LEFT UPPER CONTROL PANEL
+========================================================= */
+
+#controlPanel{
+  top:82px;
+  left:18px;
+  bottom:400px;
+  width:325px;
+  padding:13px 18px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:#1689b5 #e5eef3
+}
+
+#controlPanel::-webkit-scrollbar{
+  width:8px
+}
+
+#controlPanel::-webkit-scrollbar-track{
+  background:#e5eef3;
+  border-radius:10px
+}
+
+#controlPanel::-webkit-scrollbar-thumb{
+  background:#1689b5;
+  border-radius:10px;
+  border:2px solid #e5eef3
+}
+
+#controlPanel::-webkit-scrollbar-thumb:hover{
+  background:#0d7198
+}
+
+.panel-title{
+  font-size:18px;
+  font-weight:700;
+  color:#15364a;
+  margin-bottom:8px
+}
+
+.problem-btn{
+  width:100%;
+  border:0;
+  border-radius:8px;
+  padding:8px 13px;
+  background:#f4a62a;
+  color:#fff;
+  font-weight:700;
+  font-size:14px;
+  cursor:pointer;
+  margin-bottom:9px;
+  transition:.18s
+}
+
+.problem-btn:hover{
+  background:#e79619;
+  transform:translateY(-1px)
+}
+
+.slider-block{
+  margin:5px 0 7px
+}
+
+.label-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  margin-bottom:4px;
+  font-weight:600;
+  font-size:13px
+}
+
+.value-badge{
+  min-width:68px;
+  padding:3px 7px;
+  text-align:center;
+  background:#e8f4fb;
+  color:#087ca7;
+  border-radius:7px;
+  font-weight:700
+}
+
+input[type=range]{
+  width:100%;
+  height:18px;
+  margin:0;
+  accent-color:#1589b5;
+  cursor:pointer
+}
+
+input[type=range]:disabled{
+  opacity:.55;
+  cursor:not-allowed
+}
+
+.scale-labels{
+  display:flex;
+  justify-content:space-between;
+  font-size:10px;
+  color:#6f7f89;
+  margin-top:0
+}
+
+.parameter-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-top:6px
+}
+
+.parameter-card{
+  min-width:0;
+  padding:7px 8px;
+  border:1px solid #d7e4eb;
+  border-radius:9px;
+  background:#f9fcfe
+}
+
+.parameter-card .label-row{
+  font-size:12px;
+  margin-bottom:3px
+}
+
+.parameter-card .value-badge{
+  min-width:54px;
+  font-size:12px;
+  padding:2px 5px
+}
+
+#statusBox{
+  margin-top:8px;
+  padding:8px 10px;
+  border-radius:9px;
+  background:#eef7fb;
+  border-left:4px solid #1689b5
+}
+
+.status-line{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  margin:3px 0;
+  font-size:12px
+}
+
+.status-line span:last-child{
+  font-weight:700;
+  white-space:nowrap
+}
+
+#motionStatus{
+  margin-top:6px;
+  padding:6px;
+  border-radius:6px;
+  text-align:center;
+  font-size:12px;
+  font-weight:700;
+  background:#e7f5e8;
+  color:#247334
+}
+
+/* =========================================================
+   STUDENT ANSWER PANEL
+========================================================= */
+
+#answerPanel{
+  left:18px;
+  bottom:18px;
+  width:325px;
+  height:235px;
+  padding:13px 18px;
+  overflow-y:auto;
+  overflow-x:hidden
+}
+
+#answerPanel .panel-title{
+  margin-bottom:7px
+}
+
+.form-label{
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  color:#485b68;
+  margin:6px 0 4px
+}
+
+input[type=text],
+input[type=number]{
+  width:100%;
+  height:34px;
+  padding:6px 9px;
+  border:1px solid #bdcbd4;
+  border-radius:7px;
+  outline:none;
+  font-size:14px;
+  background:#fff
+}
+
+input[type=text]:focus,
+input[type=number]:focus{
+  border-color:#1689b5;
+  box-shadow:0 0 0 2px rgba(22,137,181,.12)
+}
+
+.button-row{
+  display:flex;
+  gap:8px;
+  margin-top:9px
+}
+
+.action-btn{
+  flex:1;
+  border:0;
+  border-radius:7px;
+  color:#fff;
+  padding:8px;
+  font-weight:700;
+  cursor:pointer;
+  transition:.16s
+}
+
+.action-btn:hover{
+  transform:translateY(-1px)
+}
+
+#check{background:#38a65a}
+#check:hover{background:#2e944d}
+
+#reset{background:#e65151}
+#reset:hover{background:#cc4141}
+
+#result{
+  margin-top:7px;
+  min-height:22px;
+  font-size:13px;
+  font-weight:700;
+  text-align:center
+}
+
+/* =========================================================
+   GRAPH
+========================================================= */
+
+#graphPanel{
+  right:18px;
+  top:82px;
+  width:430px;
+  height:305px;
+  padding:13px 15px 15px
+}
+
+#graphPanel .panel-title{
+  margin-bottom:4px
+}
+
+.graph-subtitle{
+  font-size:12px;
+  color:#6b7a85;
+  margin-bottom:5px
+}
+
+#chartWrap{
+  position:relative;
+  width:100%;
+  height:235px
+}
+
+#forceChart{
+  width:100%!important;
+  height:100%!important
+}
+
+/* =========================================================
+   LEGEND
+========================================================= */
+
+#legendPanel{
+  right:18px;
+  bottom:18px;
+  width:280px;
+  padding:12px 15px
+}
+
+.legend-item{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin:6px 0;
+  font-size:13px
+}
+
+.dot{
+  width:13px;
+  height:13px;
+  border-radius:50%;
+  flex:0 0 13px
+}
+
+.red{background:#e53935}
+.blue{background:#1565c0}
+.purple{background:#7b1fa2}
+.green{background:#169c50}
+
+.hint{
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid #dde5e9;
+  font-size:11px;
+  color:#6b7982;
+  line-height:1.4
+}
+
+@media(max-height:760px){
+  #controlPanel{
+    top:76px;
+    bottom:252px;
+    padding-top:10px;
+    padding-bottom:10px
+  }
+
+  #answerPanel{
+    bottom:10px;
+    height:228px
+  }
+
+  .panel-title{
+    font-size:17px
+  }
+
+  .problem-btn{
+    padding:7px 12px;
+    margin-bottom:7px
+  }
+
+  #statusBox{
+    margin-top:6px
+  }
+}
+
+@media(max-width:1050px){
+  #graphPanel{width:360px}
+  #legendPanel{width:250px}
+}
+
+@media(max-width:900px){
+  #controlPanel,
+  #answerPanel{width:300px}
+  #graphPanel{width:325px}
+  #legendPanel{width:235px}
+}
+</style>
+</head>
+
+<body>
+
+<div id="header">
+  <h1>Force and Friction</h1>
+  <div class="subtitle">Explore static and kinetic friction</div>
+</div>
+
+<div id="controlPanel" class="panel">
+
+  <div class="panel-title">Applied Force</div>
+
+  <button class="problem-btn" id="problemBtn">
+    ⓘ Read Problem
+  </button>
+
+  <div class="slider-block">
+
+    <div class="label-row">
+      <span>Increase applied force</span>
+      <span id="forceValue" class="value-badge">0.0 N</span>
+    </div>
+
+    <input
+      type="range"
+      id="force"
+      min="0"
+      max="45"
+      step="0.1"
+      value="0"
+    >
+
+    <div class="scale-labels">
+      <span>0 N</span>
+      <span id="forceMid">22.5 N</span>
+      <span id="forceMax">45 N</span>
+    </div>
+
+  </div>
+
+  <div class="parameter-grid">
+
+    <div class="parameter-card">
+
+      <div class="label-row">
+        <span>Weight</span>
+        <span id="weightValue" class="value-badge">50 N</span>
+      </div>
+
+      <input
+        type="range"
+        id="weight"
+        min="30"
+        max="100"
+        step="5"
+        value="50"
+      >
+
+      <div class="scale-labels">
+        <span>30 N</span>
+        <span>100 N</span>
+      </div>
+
+    </div>
+
+    <div class="parameter-card">
+
+      <div class="label-row">
+        <span>μ<sub>k</sub></span>
+        <span id="muKValue" class="value-badge">0.40</span>
+      </div>
+
+      <input
+        type="range"
+        id="muK"
+        min="0.10"
+        max="0.55"
+        step="0.05"
+        value="0.40"
+      >
+
+      <div class="scale-labels">
+        <span>0.10</span>
+        <span>0.55</span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div id="statusBox">
+
+    <div class="status-line">
+      <span>Applied force:</span>
+      <span id="appliedRead">0.0 N</span>
+    </div>
+
+    <div class="status-line">
+      <span>Friction force:</span>
+      <span id="frictionRead">0.0 N</span>
+    </div>
+
+    <div class="status-line">
+      <span>Normal force:</span>
+      <span id="normalRead">50.0 N</span>
+    </div>
+
+    <div class="status-line">
+      <span>Friction type:</span>
+      <span id="frictionType">Static</span>
+    </div>
+
+    <div id="motionStatus">
+      Box is at rest
+    </div>
+
+  </div>
+
+</div>
+
+<div id="answerPanel" class="panel">
+
+  <div class="panel-title">Student Answer</div>
+
+  <label class="form-label">
+    Student's name
+  </label>
+
+  <input
+    type="text"
+    id="studentname"
+    placeholder="Enter your name"
+  >
+
+  <label class="form-label">
+    Coefficient of static friction, μ<sub>s</sub>
+  </label>
+
+  <input
+    type="number"
+    id="answer"
+    step="0.01"
+    placeholder="Enter μs"
+  >
+
+  <div class="button-row">
+
+    <button class="action-btn" id="check">
+      Check Answer
+    </button>
+
+    <button class="action-btn" id="reset">
+      Reset
+    </button>
+
+  </div>
+
+  <div id="result"></div>
+
+</div>
+
+<div id="graphPanel" class="panel">
+
+  <div class="panel-title">
+    Friction Force vs Applied Force
+  </div>
+
+  <div class="graph-subtitle">
+    Observe static friction increase and then drop to kinetic friction.
+  </div>
+
+  <div id="chartWrap">
+    <canvas id="forceChart"></canvas>
+  </div>
+
+</div>
+
+<div id="legendPanel" class="panel">
+
+  <div class="panel-title">Force Vectors</div>
+
+  <div class="legend-item">
+    <div class="dot red"></div>
+    Applied force, F
+  </div>
+
+  <div class="legend-item">
+    <div class="dot blue"></div>
+    Friction force, f
+  </div>
+
+  <div class="legend-item">
+    <div class="dot purple"></div>
+    Normal force, N
+  </div>
+
+  <div class="legend-item">
+    <div class="dot green"></div>
+    Weight, W
+  </div>
+
+  <div class="hint">
+    Increase the applied force slowly. Static friction matches the applied
+    force until maximum static friction is reached. When the box begins
+    sliding, friction decreases to kinetic friction and remains constant.
+  </div>
+
+</div>
+
+<div id="container"></div>
+
+<script type="module">
+
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+
+const $=id=>document.getElementById(id);
+
+/* =========================================================
+   PHYSICS
+========================================================= */
+
+const g=9.8;
+const muS=.60;
+
+const startX=-12;
+const floorHalfLength=58;
+const boxHalfWidth=5;
+
+let weightMag=50;
+let muK=.40;
+
+let mass=weightMag/g;
+let normalMag=weightMag;
+
+let maxStatic=muS*normalMag;
+let kineticFriction=muK*normalMag;
+
+let appliedForce=0;
+let frictionForce=0;
+
+let moving=false;
+let velocity=0;
+let lastTime=performance.now();
+let boxRemoved=false;
+
+/* =========================================================
+   THREE.JS
+========================================================= */
+
+let renderer,scene,camera,controls;
+let ground,box;
+
+const boxGroup=new THREE.Group();
+
+let appliedVector=null;
+let frictionVector=null;
+let normalVector=null;
+let weightVector=null;
+
+/* =========================================================
+   GRAPH
+========================================================= */
+
+let forceChart=null;
+let graphFriction=[];
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+const container=$('container');
+
+init();
+initChart();
+recalculatePhysics();
+resetSimulation(false);
+animate();
+
+/* =========================================================
+   THREE.JS SETUP
+========================================================= */
+
+function init() {
+  renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+    '\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073': !![],
+    '\u0061\u006C\u0070\u0068\u0061': false
+  });
+  renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](devicePixelRatio, 571611 ^ 571609));
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](innerWidth, innerHeight);
+  renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+  renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0074\u0079\u0070\u0065'] = THREE['\u0050\u0043\u0046\u0053\u006F\u0066\u0074\u0053\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070'];
+  renderer['\u006F\u0075\u0074\u0070\u0075\u0074\u0045\u006E\u0063\u006F\u0064\u0069\u006E\u0067'] = THREE['\u0073\u0052\u0047\u0042\u0045\u006E\u0063\u006F\u0064\u0069\u006E\u0067'];
+  container['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0xbfdde9);
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](846659 ^ 846687, innerWidth / innerHeight, .1, 687009 ^ 686677);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](927590 ^ 927585, -(418812 ^ 418813), 538248 ^ 538322);
+  controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067'] = !![];
+  controls['\u0064\u0061\u006D\u0070\u0069\u006E\u0067\u0046\u0061\u0063\u0074\u006F\u0072'] = .07;
+  controls['\u006D\u0069\u006E\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] = 356401 ^ 356380;
+  controls['\u006D\u0061\u0078\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] = 222856 ^ 222724;
+  controls['\u006D\u0061\u0078\u0050\u006F\u006C\u0061\u0072\u0041\u006E\u0067\u006C\u0065'] = Math['\u0050\u0049'] * .48;
+  let _0xf8a63a;
+  const _0x7a003c = new THREE['\u0048\u0065\u006D\u0069\u0073\u0070\u0068\u0065\u0072\u0065\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0x71808c, 1.45);
+  _0xf8a63a = (448872 ^ 448873) + (763011 ^ 763014);
+  scene['\u0061\u0064\u0064'](_0x7a003c);
+  const _0x52025f = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 2.1);
+  _0x52025f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(736446 ^ 736428), 433147 ^ 433105, 622067 ^ 622061);
+  _0x52025f['\u0063\u0061\u0073\u0074\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+  _0x52025f['\u0073\u0068\u0061\u0064\u006F\u0077']['\u006D\u0061\u0070\u0053\u0069\u007A\u0065']['\u0073\u0065\u0074'](828450 ^ 830498, 804707 ^ 806755);
+  _0x52025f['\u0073\u0068\u0061\u0064\u006F\u0077']['\u0063\u0061\u006D\u0065\u0072\u0061']['\u006C\u0065\u0066\u0074'] = -(141086 ^ 141141);
+  _0x52025f['\u0073\u0068\u0061\u0064\u006F\u0077']['\u0063\u0061\u006D\u0065\u0072\u0061']['\u0072\u0069\u0067\u0068\u0074'] = 185233 ^ 185306;
+  _0x52025f['\u0073\u0068\u0061\u0064\u006F\u0077']['\u0063\u0061\u006D\u0065\u0072\u0061']['\u0074\u006F\u0070'] = 292723 ^ 292687;
+  _0x52025f['\u0073\u0068\u0061\u0064\u006F\u0077']['\u0063\u0061\u006D\u0065\u0072\u0061']['\u0062\u006F\u0074\u0074\u006F\u006D'] = -(967839 ^ 967843);
+  scene['\u0061\u0064\u0064'](_0x52025f);
+  createGround();
+  createBox();
+  addEventListener("\u0072\u0065\u0073\u0069\u007A\u0065", onWindowResize);
+  $("\u0066\u006F\u0072\u0063\u0065")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('input', e => {
+    if (boxRemoved) return;
+    updatePhysics(parseFloat(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']));
+  });
+  $("\u0077\u0065\u0069\u0067\u0068\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('input', e => {
+    if (moving) return;
+    weightMag = parseFloat(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']);
+    recalculatePhysics();
+    resetSimulation(false);
+  });
+  $("\u006D\u0075\u004B")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074", e => {
+    if (moving) return;
+    muK = parseFloat(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']);
+    recalculatePhysics();
+    resetSimulation(false);
+  });
+  $("\u0072\u0065\u0073\u0065\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', () => resetSimulation(!![]));
+  $("\u0063\u0068\u0065\u0063\u006B")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", checkAnswer);
+  $("\u0070\u0072\u006F\u0062\u006C\u0065\u006D\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", showProblem);
+}
+function recalculatePhysics() {
+  mass = weightMag / g;
+  normalMag = weightMag;
+  maxStatic = muS * normalMag;
+  kineticFriction = muK * normalMag;
+  var _0xc28cf = (485953 ^ 485960) + (874380 ^ 874377);
+  let _0x2d755e = Math['\u0063\u0065\u0069\u006C']((maxStatic + Math['\u006D\u0061\u0078'](860862 ^ 860852, weightMag * .15)) / (656914 ^ 656919)) * (296936 ^ 296941);
+  _0xc28cf = (693787 ^ 693779) + (718452 ^ 718453);
+  _0x2d755e = Math['\u006D\u0061\u0078'](_0x2d755e, 482941 ^ 482901);
+  $('force')['\u006D\u0061\u0078'] = _0x2d755e;
+  $('forceMax')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = _0x2d755e + "\u0020\u004E";
+  $('forceMid')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (_0x2d755e / (902068 ^ 902070))['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](714995 ^ 714994) + ' N';
+  $("\u0077\u0065\u0069\u0067\u0068\u0074\u0056\u0061\u006C\u0075\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = weightMag['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](189008 ^ 189008) + "\u0020\u004E";
+  $('muKValue')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = muK['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](597999 ^ 597997);
+  $('normalRead')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = normalMag['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](108361 ^ 108360) + "\u0020\u004E";
+  if (forceChart) {
+    forceChart['\u006F\u0070\u0074\u0069\u006F\u006E\u0073']['\u0073\u0063\u0061\u006C\u0065\u0073']['\u0078']['\u006D\u0061\u0078'] = Math['\u0063\u0065\u0069\u006C'](_0x2d755e / (506190 ^ 506187)) * (198739 ^ 198742);
+    forceChart['\u006F\u0070\u0074\u0069\u006F\u006E\u0073']['\u0073\u0063\u0061\u006C\u0065\u0073']['\u0079']['\u006D\u0061\u0078'] = Math['\u0063\u0065\u0069\u006C']((maxStatic + (393796 ^ 393793)) / (334141 ^ 334136)) * (616469 ^ 616464);
+    forceChart['\u0075\u0070\u0064\u0061\u0074\u0065']('none');
+  }
+  rebuildAllVectors();
+}
+function createGround() {
+  ground = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](907498 ^ 907422, 0.6, 422807 ^ 422793), new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xd8b74a,
+    '\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073': .75,
+    "metalness": .02
+  }));
+  ground['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](738682 ^ 738682, -(728688 ^ 728700), 721011 ^ 721011);
+  ground['\u0072\u0065\u0063\u0065\u0069\u0076\u0065\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+  scene['\u0061\u0064\u0064'](ground);
+  let _0xf6e19a;
+  const _0xb981ff = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](689552 ^ 689636, 1.2, 469988 ^ 469952), new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xb68d28,
+    "roughness": .85
+  }));
+  _0xf6e19a = 103355 ^ 103352;
+  _0xb981ff['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](758297 ^ 758297, -(347176 ^ 347175), 589703 ^ 589703);
+  _0xb981ff['\u0072\u0065\u0063\u0065\u0069\u0076\u0065\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+  const _0x84aegd = new THREE['\u0047\u0072\u0069\u0064\u0048\u0065\u006C\u0070\u0065\u0072'](714964 ^ 714912, 115499 ^ 115513, 0xa78628, 0xc4a13a);
+  _0x84aegd['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](395300 ^ 395300, -10.45, 483651 ^ 483651);
+  _0x84aegd['\u0073\u0063\u0061\u006C\u0065']['\u007A'] = .26;
+  scene['\u0061\u0064\u0064'](_0x84aegd);
+}
+function createBox() {
+  box = new THREE['\u004D\u0065\u0073\u0068'](new RoundedBoxGeometry(146924 ^ 146918, 556953 ^ 556945, 485373 ^ 485365, 446211 ^ 446215, 826784 ^ 826785), new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x5aaee0,
+    "roughness": .28,
+    "metalness": .03
+  }));
+  box['\u0063\u0061\u0073\u0074\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+  box['\u0072\u0065\u0063\u0065\u0069\u0076\u0065\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+  boxGroup['\u0061\u0064\u0064'](box);
+  boxGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](startX, -6.35, 674146 ^ 674146);
+  scene['\u0061\u0064\u0064'](boxGroup);
+}
+function forceLength(force) {
+  return THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0063\u006C\u0061\u006D\u0070'](force * .28, 514231 ^ 514228, 561237 ^ 561242);
+}
+function rebuildAllVectors() {
+  removeVector(appliedVector);
+  removeVector(frictionVector);
+  removeVector(normalVector);
+  removeVector(weightVector);
+  appliedVector = null;
+  frictionVector = null;
+  normalVector = null;
+  weightVector = null;
+  if (boxRemoved) return;
+  normalVector = createThickArrow(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](828203 ^ 828203, 4.15, 877880 ^ 877880), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](654382 ^ 654382, 190435 ^ 190434, 500592 ^ 500592), forceLength(normalMag), 0x7b1fa2, "\u004E");
+  weightVector = createThickArrow(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](940450 ^ 940450, -.3, 373724 ^ 373724), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](945345 ^ 945345, -(337621 ^ 337620), 114767 ^ 114767), forceLength(weightMag), 0x169c50, "\u0057");
+  boxGroup['\u0061\u0064\u0064'](normalVector, weightVector);
+  if (appliedForce > .05) {
+    appliedVector = createThickArrow(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](5.1, 1.5, 708800 ^ 708800), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](786437 ^ 786436, 779405 ^ 779405, 456060 ^ 456060), forceLength(appliedForce), 0xe53935, "\u0046");
+    boxGroup['\u0061\u0064\u0064'](appliedVector);
+  }
+  if (frictionForce > .05) {
+    frictionVector = createThickArrow(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-5.1, -1.3, 926734 ^ 926734), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(776145 ^ 776144), 685267 ^ 685267, 274974 ^ 274974), forceLength(frictionForce), 0x1565c0, moving ? "\u0066\u2096" : "\u0066\u209B");
+    boxGroup['\u0061\u0064\u0064'](frictionVector);
+  }
+}
+function createThickArrow(origin, direction, length, color, label) {
+  const _0x34cg = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  const _0x8be1a = direction['\u0063\u006C\u006F\u006E\u0065']()['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();
+  const _0x5dg6b = Math['\u006D\u0069\u006E'](2.6, Math['\u006D\u0061\u0078'](1.3, length * .28));
+  const _0x25b8b = Math['\u006D\u0061\u0078'](.15, length - _0x5dg6b);
+  const _0xc1c4af = .28;
+  const _0x174b = .78;
+  var _0x097df = (554180 ^ 554188) + (315434 ^ 315433);
+  const _0x2b_0xc72 = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color
+  });
+  _0x097df = 602986 ^ 602979;
+  let _0x1b2a3c;
+  const _0xa3b35e = new THREE['\u0051\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']()['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](444582 ^ 444582, 779298 ^ 779299, 954521 ^ 954521), _0x8be1a);
+  _0x1b2a3c = (153068 ^ 153069) + (180191 ^ 180183);
+  const _0x2d6d = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xc1c4af, _0xc1c4af, _0x25b8b, 910037 ^ 910021), _0x2b_0xc72);
+  _0x2d6d['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0xa3b35e);
+  _0x2d6d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](origin)['\u0061\u0064\u0064\u0053\u0063\u0061\u006C\u0065\u0064\u0056\u0065\u0063\u0074\u006F\u0072'](_0x8be1a, _0x25b8b / (270587 ^ 270585));
+  _0x34cg['\u0061\u0064\u0064'](_0x2d6d);
+  var _0x8d_0x303 = (882713 ^ 882714) + (793353 ^ 793345);
+  const _0x1a4e = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u006F\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x174b, _0x5dg6b, 861811 ^ 861793), _0x2b_0xc72);
+  _0x8d_0x303 = (809176 ^ 809177) + (275568 ^ 275574);
+  _0x1a4e['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0xa3b35e);
+  _0x1a4e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](origin)['\u0061\u0064\u0064\u0053\u0063\u0061\u006C\u0065\u0064\u0056\u0065\u0063\u0074\u006F\u0072'](_0x8be1a, _0x25b8b + _0x5dg6b / (469661 ^ 469663));
+  _0x34cg['\u0061\u0064\u0064'](_0x1a4e);
+  var _0x5a_0x529 = (935514 ^ 935519) + (325127 ^ 325135);
+  const _0xd662d = createTextSprite(label);
+  _0x5a_0x529 = (362490 ^ 362483) + (932509 ^ 932509);
+  _0xd662d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](origin)['\u0061\u0064\u0064\u0053\u0063\u0061\u006C\u0065\u0064\u0056\u0065\u0063\u0074\u006F\u0072'](_0x8be1a, length + 1.5);
+  if (Math['\u0061\u0062\u0073'](_0x8be1a['\u0078']) > .5) {
+    _0xd662d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] += 1.6;
+  }
+  _0x34cg['\u0061\u0064\u0064'](_0xd662d);
+  return _0x34cg;
+}
+function createTextSprite(text) {
+  const _0x2_0x1ea = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']('canvas');
+  _0x2_0x1ea['\u0077\u0069\u0064\u0074\u0068'] = 106360 ^ 106456;
+  _0x2_0x1ea['\u0068\u0065\u0069\u0067\u0068\u0074'] = 847545 ^ 847587;
+  var _0x2cgcf = (259721 ^ 259725) + (592971 ^ 592970);
+  const _0xa37a = _0x2_0x1ea['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064");
+  _0x2cgcf = 353956 ^ 353953;
+  _0xa37a['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  _0xa37a['\u0072\u006F\u0075\u006E\u0064\u0052\u0065\u0063\u0074'](694968 ^ 694950, 837133 ^ 837122, 244735 ^ 244635, 330071 ^ 330093, 203127 ^ 203130);
+  _0xa37a['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = 'rgba(255,255,255,.92)';
+  _0xa37a['\u0066\u0069\u006C\u006C']();
+  _0xa37a['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 975743 ^ 975740;
+  _0xa37a['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = '#b8c5cc';
+  _0xa37a['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  _0xa37a['\u0066\u006F\u006E\u0074'] = "\u0062\u006F\u006C\u0064\u0020\u0034\u0032\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+  _0xa37a['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = 'center';
+  _0xa37a['\u0074\u0065\u0078\u0074\u0042\u0061\u0073\u0065\u006C\u0069\u006E\u0065'] = "\u006D\u0069\u0064\u0064\u006C\u0065";
+  _0xa37a['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0032\u0038\u0033\u0036\u0034\u0030";
+  _0xa37a['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](text, 928299 ^ 928379, 169275 ^ 169238);
+  const _0x5ga2ga = new THREE['\u0043\u0061\u006E\u0076\u0061\u0073\u0054\u0065\u0078\u0074\u0075\u0072\u0065'](_0x2_0x1ea);
+  const _0xg0b6a = new THREE['\u0053\u0070\u0072\u0069\u0074\u0065'](new THREE['\u0053\u0070\u0072\u0069\u0074\u0065\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u006D\u0061\u0070': _0x5ga2ga,
+    "transparent": !![],
+    '\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074': false
+  }));
+  _0xg0b6a['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](5.4, 656175 ^ 656172, 697821 ^ 697820);
+  _0xg0b6a['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072'] = 936650 ^ 936640;
+  return _0xg0b6a;
+}
+function removeVector(vector) {
+  if (!vector) return;
+  if (vector['\u0070\u0061\u0072\u0065\u006E\u0074']) {
+    vector['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0072\u0065\u006D\u006F\u0076\u0065'](vector);
+  }
+  vector['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](object => {
+    if (object['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']) {
+      object['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+    }
+    if (object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']) {
+      if (object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006D\u0061\u0070']) {
+        object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006D\u0061\u0070']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+      }
+      object['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+    }
+  });
+}
+function updatePhysics(value) {
+  if (boxRemoved) return;
+  appliedForce = Math['\u006D\u0061\u0078'](968116 ^ 968116, Math['\u006D\u0069\u006E'](value, parseFloat($("\u0066\u006F\u0072\u0063\u0065")['\u006D\u0061\u0078'])));
+  $("\u0066\u006F\u0072\u0063\u0065")['\u0076\u0061\u006C\u0075\u0065'] = appliedForce;
+  if (!moving) {
+    if (appliedForce < maxStatic) {
+      frictionForce = appliedForce;
+      rebuildAllVectors();
+      updateReadout();
+      addGraphPoint();
+    } else {
+      appliedForce = maxStatic;
+      $("\u0066\u006F\u0072\u0063\u0065")['\u0076\u0061\u006C\u0075\u0065'] = maxStatic;
+      frictionForce = maxStatic;
+      rebuildAllVectors();
+      updateReadout();
+      addGraphPoint();
+      moving = !![];
+      frictionForce = kineticFriction;
+      $("\u0077\u0065\u0069\u0067\u0068\u0074")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+      $("\u006D\u0075\u004B")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+      $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Box is sliding';
+      $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0073\u0074\u0079\u006C\u0065']['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = "\u0023\u0066\u0066\u0066\u0030\u0064\u0038";
+      $('motionStatus')['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072'] = "\u0023\u0061\u0033\u0036\u0031\u0030\u0030";
+      $('frictionType')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Kinetic';
+      rebuildAllVectors();
+      updateReadout();
+      addGraphPoint();
+    }
+  } else {
+    frictionForce = kineticFriction;
+    rebuildAllVectors();
+    updateReadout();
+    addGraphPoint();
+  }
+}
+function updateReadout() {
+  $("\u0066\u006F\u0072\u0063\u0065\u0056\u0061\u006C\u0075\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = appliedForce['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](209479 ^ 209478) + ' N';
+  $("\u0061\u0070\u0070\u006C\u0069\u0065\u0064\u0052\u0065\u0061\u0064")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = appliedForce['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](428026 ^ 428027) + "\u0020\u004E";
+  $("\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E\u0052\u0065\u0061\u0064")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = frictionForce['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](987179 ^ 987178) + ' N';
+  $("\u006E\u006F\u0072\u006D\u0061\u006C\u0052\u0065\u0061\u0064")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = normalMag['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](853744 ^ 853745) + "\u0020\u004E";
+  if (!moving) {
+    $("\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E\u0054\u0079\u0070\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0053\u0074\u0061\u0074\u0069\u0063";
+    $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = appliedForce === (273091 ^ 273091) ? 'Box is at rest' : "\u0053\u0074\u0061\u0074\u0069\u0063\u0020\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E\u0020\u0070\u0072\u0065\u0076\u0065\u006E\u0074\u0073\u0020\u006D\u006F\u0074\u0069\u006F\u006E";
+    $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0073\u0074\u0079\u006C\u0065']['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = "\u0023\u0065\u0037\u0066\u0035\u0065\u0038";
+    $('motionStatus')['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072'] = "\u0023\u0032\u0034\u0037\u0033\u0033\u0034";
+  }
+}
+function animate(time) {
+  requestAnimationFrame(animate);
+  const _0x9f4e9a = Math['\u006D\u0069\u006E']((time - lastTime) / (808111 ^ 808775), .035);
+  lastTime = time;
+  if (moving && !boxRemoved) {
+    let _0x2c9a;
+    const _0xf22cb = appliedForce - kineticFriction;
+    _0x2c9a = 527532 ^ 527533;
+    var _0x_0x0fb = (894231 ^ 894228) + (613316 ^ 613314);
+    const _0x713efa = _0xf22cb / mass;
+    _0x_0x0fb = (125219 ^ 125219) + (581689 ^ 581693);
+    velocity += _0x713efa * _0x9f4e9a;
+    boxGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] += velocity * _0x9f4e9a * (855309 ^ 855311);
+    if (boxGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] - boxHalfWidth > floorHalfLength) {
+      scene['\u0072\u0065\u006D\u006F\u0076\u0065'](boxGroup);
+      boxRemoved = !![];
+      $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Box has left the floor';
+      $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0073\u0074\u0079\u006C\u0065']['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = "\u0023\u0066\u0034\u0064\u0064\u0064\u0064";
+      $('motionStatus')['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072'] = '#9a3333';
+      $("\u0066\u006F\u0072\u0063\u0065")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    }
+  }
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+function initChart() {
+  forceChart = new Chart($('forceChart')['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']('2d'), {
+    '\u0074\u0079\u0070\u0065': 'scatter',
+    "data": {
+      '\u0064\u0061\u0074\u0061\u0073\u0065\u0074\u0073': [{
+        "label": 'Friction force f',
+        '\u0064\u0061\u0074\u0061': graphFriction,
+        '\u0073\u0068\u006F\u0077\u004C\u0069\u006E\u0065': !![],
+        '\u0062\u006F\u0072\u0064\u0065\u0072\u0043\u006F\u006C\u006F\u0072': '#1565c0',
+        "backgroundColor": "\u0023\u0031\u0035\u0036\u0035\u0063\u0030",
+        "borderWidth": 3,
+        "pointRadius": 2,
+        '\u0070\u006F\u0069\u006E\u0074\u0048\u006F\u0076\u0065\u0072\u0052\u0061\u0064\u0069\u0075\u0073': 5,
+        "tension": 0
+      }]
+    },
+    '\u006F\u0070\u0074\u0069\u006F\u006E\u0073': {
+      '\u0072\u0065\u0073\u0070\u006F\u006E\u0073\u0069\u0076\u0065': !![],
+      '\u006D\u0061\u0069\u006E\u0074\u0061\u0069\u006E\u0041\u0073\u0070\u0065\u0063\u0074\u0052\u0061\u0074\u0069\u006F': false,
+      "animation": false,
+      '\u0070\u0061\u0072\u0073\u0069\u006E\u0067': false,
+      '\u0069\u006E\u0074\u0065\u0072\u0061\u0063\u0074\u0069\u006F\u006E': {
+        '\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074': false,
+        '\u006D\u006F\u0064\u0065': 'nearest'
+      },
+      "plugins": {
+        '\u006C\u0065\u0067\u0065\u006E\u0064': {
+          '\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E': "\u0074\u006F\u0070",
+          '\u006C\u0061\u0062\u0065\u006C\u0073': {
+            '\u0075\u0073\u0065\u0050\u006F\u0069\u006E\u0074\u0053\u0074\u0079\u006C\u0065': !![],
+            "boxWidth": 9,
+            '\u0063\u006F\u006C\u006F\u0072': "\u0023\u0032\u0036\u0033\u0038\u0034\u0036",
+            "font": {
+              '\u0073\u0069\u007A\u0065': 11,
+              '\u0077\u0065\u0069\u0067\u0068\u0074': "\u0036\u0030\u0030"
+            }
+          }
+        },
+        '\u0074\u006F\u006F\u006C\u0074\u0069\u0070': {
+          '\u0063\u0061\u006C\u006C\u0062\u0061\u0063\u006B\u0073': {
+            title(context) {
+              if (!context['\u006C\u0065\u006E\u0067\u0074\u0068']) return '';
+              return 'Applied Force: ' + context[114092 ^ 114092]['\u0070\u0061\u0072\u0073\u0065\u0064']['\u0078']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](878143 ^ 878142) + "\u0020\u004E";
+            },
+            label(context) {
+              return 'Friction Force: ' + context['\u0070\u0061\u0072\u0073\u0065\u0064']['\u0079']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](255170 ^ 255171) + ' N';
+            }
+          }
+        }
+      },
+      '\u0073\u0063\u0061\u006C\u0065\u0073': {
+        '\u0078': {
+          '\u0074\u0079\u0070\u0065': 'linear',
+          "min": 0,
+          "max": 45,
+          '\u0074\u0069\u0074\u006C\u0065': {
+            '\u0064\u0069\u0073\u0070\u006C\u0061\u0079': !![],
+            '\u0074\u0065\u0078\u0074': "\u0041\u0070\u0070\u006C\u0069\u0065\u0064\u0020\u0046\u006F\u0072\u0063\u0065\u002C\u0020\u0046\u0020\u0028\u004E\u0029",
+            "color": '#304755',
+            '\u0066\u006F\u006E\u0074': {
+              '\u0077\u0065\u0069\u0067\u0068\u0074': "\u0062\u006F\u006C\u0064"
+            }
+          },
+          "ticks": {
+            '\u0073\u0074\u0065\u0070\u0053\u0069\u007A\u0065': 5,
+            '\u0063\u006F\u006C\u006F\u0072': "\u0023\u0035\u0032\u0036\u0036\u0037\u0033"
+          },
+          '\u0067\u0072\u0069\u0064': {
+            '\u0063\u006F\u006C\u006F\u0072': 'rgba(70,95,110,.12)'
+          }
+        },
+        '\u0079': {
+          '\u006D\u0069\u006E': 0,
+          "max": 35,
+          "title": {
+            '\u0064\u0069\u0073\u0070\u006C\u0061\u0079': !![],
+            "text": "\u0046\u0072\u0069\u0063\u0074\u0069\u006F\u006E\u0020\u0046\u006F\u0072\u0063\u0065\u002C\u0020\u0066\u0020\u0028\u004E\u0029",
+            '\u0063\u006F\u006C\u006F\u0072': '#304755',
+            "font": {
+              '\u0077\u0065\u0069\u0067\u0068\u0074': "\u0062\u006F\u006C\u0064"
+            }
+          },
+          "ticks": {
+            '\u0073\u0074\u0065\u0070\u0053\u0069\u007A\u0065': 5,
+            '\u0063\u006F\u006C\u006F\u0072': "\u0023\u0035\u0032\u0036\u0036\u0037\u0033"
+          },
+          "grid": {
+            '\u0063\u006F\u006C\u006F\u0072': "\u0072\u0067\u0062\u0061\u0028\u0037\u0030\u002C\u0039\u0035\u002C\u0031\u0031\u0030\u002C\u002E\u0031\u0032\u0029"
+          }
+        }
+      }
+    }
+  });
+}
+function addGraphPoint() {
+  let _0xf9618c;
+  const _0x2c147e = graphFriction[graphFriction['\u006C\u0065\u006E\u0067\u0074\u0068'] - (332429 ^ 332428)];
+  _0xf9618c = 413078 ^ 413086;
+  if (_0x2c147e && Math['\u0061\u0062\u0073'](_0x2c147e['\u0078'] - appliedForce) < .001 && Math['\u0061\u0062\u0073'](_0x2c147e['\u0079'] - frictionForce) < .001) {
+    return;
+  }
+  graphFriction['\u0070\u0075\u0073\u0068']({
+    '\u0078': appliedForce,
+    '\u0079': frictionForce
+  });
+  forceChart['\u0064\u0061\u0074\u0061']['\u0064\u0061\u0074\u0061\u0073\u0065\u0074\u0073'][581333 ^ 581333]['\u0064\u0061\u0074\u0061'] = graphFriction;
+  const _0x0dbaa = parseFloat($("\u0066\u006F\u0072\u0063\u0065")['\u006D\u0061\u0078']);
+  forceChart['\u006F\u0070\u0074\u0069\u006F\u006E\u0073']['\u0073\u0063\u0061\u006C\u0065\u0073']['\u0078']['\u006D\u0061\u0078'] = Math['\u0063\u0065\u0069\u006C'](_0x0dbaa / (362888 ^ 362893)) * (955861 ^ 955856);
+  let _0x2bbc0e;
+  const _0xfdb = Math['\u006D\u0061\u0078'](maxStatic, kineticFriction);
+  _0x2bbc0e = (612569 ^ 612573) + (543313 ^ 543313);
+  forceChart['\u006F\u0070\u0074\u0069\u006F\u006E\u0073']['\u0073\u0063\u0061\u006C\u0065\u0073']['\u0079']['\u006D\u0061\u0078'] = Math['\u0063\u0065\u0069\u006C']((_0xfdb + (897189 ^ 897184)) / (819854 ^ 819851)) * (514296 ^ 514301);
+  forceChart['\u0075\u0070\u0064\u0061\u0074\u0065']("\u006E\u006F\u006E\u0065");
+}
+const audioCorrect = new Audio('/api/program-assets/lab-phyc140-force-friction/_ext/vendor/Audio/correct.mp3');
+let _0x3d870f;
+const audioWrong = new Audio("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0077\u0077\u0077\u002E\u006E\u0065\u0077\u0033\u006A\u0063\u006E\u002E\u0063\u006F\u006D\u002F\u0041\u0075\u0064\u0069\u006F\u002F\u0077\u0072\u006F\u006E\u0067\u002E\u006D\u0070\u0033");
+_0x3d870f = (974248 ^ 974252) + (599455 ^ 599451);
+function checkAnswer() {
+  let _0x621e4e;
+  const _0x15144e = $('studentname')['\u0076\u0061\u006C\u0075\u0065']['\u0074\u0072\u0069\u006D']();
+  _0x621e4e = 152562 ^ 152562;
+  var _0x2e_0x5c3 = (478602 ^ 478604) + (385270 ^ 385264);
+  const _0xa_0x5cf = parseFloat($("\u0061\u006E\u0073\u0077\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);
+  _0x2e_0x5c3 = (421270 ^ 421278) + (871262 ^ 871258);
+  const _0x81b9dg = $('result');
+  if (Number['\u0069\u0073\u004E\u0061\u004E'](_0xa_0x5cf)) {
+    _0x81b9dg['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072'] = "\u0023\u0062\u0032\u0036\u0061\u0030\u0030";
+    _0x81b9dg['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Please enter a value for μs.';
+    return;
+  }
+  if (Math['\u0061\u0062\u0073'](_0xa_0x5cf - muS) <= .02) {
+    audioCorrect['\u0070\u006C\u0061\u0079']()['\u0063\u0061\u0074\u0063\u0068'](() => {});
+    _0x81b9dg['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072'] = "\u0023\u0032\u0033\u0038\u0034\u0033\u0064";
+    _0x81b9dg['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (_0x15144e ? _0x15144e + "\u002C\u0020" : '') + 'Correct! μs = ' + muS['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](850964 ^ 850966);
+  } else {
+    audioWrong['\u0070\u006C\u0061\u0079']()['\u0063\u0061\u0074\u0063\u0068'](() => {});
+    _0x81b9dg['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072'] = '#c43d3d';
+    _0x81b9dg['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (_0x15144e ? _0x15144e + "\u002C\u0020" : '') + "\u0074\u0072\u0079\u0020\u0061\u0067\u0061\u0069\u006E\u002E\u0020\u0055\u0073\u0065\u0020\u0066\u0073\u002C\u006D\u0061\u0078\u0020\u003D\u0020\u03BC\u0073\u004E\u002E";
+  }
+}
+function showProblem() {
+  alert(`FORCE AND FRICTION PROBLEM
+
+A box with a weight of ${weightMag['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](681795 ^ 681795)} N is initially at rest on a horizontal surface.
+
+An applied force F is slowly increased to the right.
+
+The box remains at rest until the applied force reaches ${maxStatic['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](984741 ^ 984740)} N. At that point, the box begins to slide.
+
+The coefficient of kinetic friction is μk = ${muK['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](795855 ^ 795853)}.
+
+QUESTION:
+
+What is the coefficient of static friction μs?
+
+Use:
+
+fs,max = μsN
+
+Observe the friction-force vs. applied-force graph as the applied force increases.`);
+}
+function resetSimulation(resetParameters = !![]) {
+  moving = false;
+  velocity = 348018 ^ 348018;
+  appliedForce = 866178 ^ 866178;
+  frictionForce = 159776 ^ 159776;
+  if (resetParameters) {
+    weightMag = 892847 ^ 892829;
+    muK = .40;
+    $('weight')['\u0076\u0061\u006C\u0075\u0065'] = 364162 ^ 364208;
+    $('muK')['\u0076\u0061\u006C\u0075\u0065'] = .40;
+    recalculatePhysics();
+  }
+  if (boxRemoved) {
+    scene['\u0061\u0064\u0064'](boxGroup);
+    boxRemoved = false;
+  }
+  boxGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](startX, -6.35, 948483 ^ 948483);
+  $('force')['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+  $('weight')['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+  $("\u006D\u0075\u004B")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+  $("\u0066\u006F\u0072\u0063\u0065")['\u0076\u0061\u006C\u0075\u0065'] = 403913 ^ 403913;
+  $("\u0061\u006E\u0073\u0077\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065'] = '';
+  $('result')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = '';
+  $('motionStatus')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Box is at rest';
+  $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0073\u0074\u0079\u006C\u0065']['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = '#e7f5e8';
+  $("\u006D\u006F\u0074\u0069\u006F\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0073\u0074\u0079\u006C\u0065']['\u0063\u006F\u006C\u006F\u0072'] = "\u0023\u0032\u0034\u0037\u0033\u0033\u0034";
+  $("\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E\u0054\u0079\u0070\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Static';
+  graphFriction = [];
+  if (forceChart) {
+    forceChart['\u0064\u0061\u0074\u0061']['\u0064\u0061\u0074\u0061\u0073\u0065\u0074\u0073'][677806 ^ 677806]['\u0064\u0061\u0074\u0061'] = graphFriction;
+    const _0xccc45c = parseFloat($('force')['\u006D\u0061\u0078']);
+    forceChart['\u006F\u0070\u0074\u0069\u006F\u006E\u0073']['\u0073\u0063\u0061\u006C\u0065\u0073']['\u0078']['\u006D\u0061\u0078'] = Math['\u0063\u0065\u0069\u006C'](_0xccc45c / (581991 ^ 581986)) * (675523 ^ 675526);
+    forceChart['\u006F\u0070\u0074\u0069\u006F\u006E\u0073']['\u0073\u0063\u0061\u006C\u0065\u0073']['\u0079']['\u006D\u0061\u0078'] = Math['\u0063\u0065\u0069\u006C']((maxStatic + (886941 ^ 886936)) / (808145 ^ 808148)) * (671422 ^ 671419);
+    forceChart['\u0075\u0070\u0064\u0061\u0074\u0065']('none');
+  }
+  updateReadout();
+  rebuildAllVectors();
+  addGraphPoint();
+}
+function onWindowResize() {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = innerWidth / innerHeight;
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](innerWidth, innerHeight);
+}
+</script>
+</body>
+</html>

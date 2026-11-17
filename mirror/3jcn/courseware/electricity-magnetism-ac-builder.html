@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<title>乐启享 · 物理实验</title>
+<link rel="icon" href="/brand/favicon.ico">
+
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#9fc0ee}
+#container{position:fixed;inset:0}
+#toolbar{position:fixed;left:18px;top:18px;width:108px;background:rgba(245,245,245,.98);border:2px solid #666;border-radius:14px;overflow:hidden;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+#toolbarHeader{padding:10px 6px;text-align:center;font-weight:700;font-size:14px;color:#fff;background:#0b4fa3;border-bottom:1px solid #06356f;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+#menu{text-align:center;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1;background:rgba(255,255,255,.8);padding:10px 20px;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.toolBtn{width:100%;height:64px;border:0;border-bottom:1px solid #ccc;background:#f2f2f2;cursor:pointer;font-size:15px;font-weight:600}
+.toolBtn:hover{background:#e9eef8}.toolBtn.active{background:#d5e5ff;color:#003b8f}.toolSmall{height:44px;font-size:14px}
+#rightPanel,#editorPanel{position:fixed;right:18px;width:210px;background:rgba(250,250,250,.98);border:2px solid #666;border-radius:14px;padding:12px;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+#rightPanel{top:18px}
+#editorPanel{top:350px;max-height:calc(100vh - 418px);overflow-y:auto}
+#editorTitle{margin-bottom:8px;font-size:18px;font-weight:700;color:#003b8f}
+.editorRow{margin:8px 0}
+.editorRow label{display:block;margin-bottom:4px;font-size:13px;font-weight:600}
+.editorRow input{width:100%;padding:8px;border:1px solid #999;border-radius:8px;font-size:14px}
+.editorBtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.editorBtns button{width:100%;flex:none;padding:8px 6px;border:1px solid #777;border-radius:8px;background:#fff;cursor:pointer;font-weight:600}
+.editorBtns button:hover{background:#f0f7ff}.muted{color:#666;font-size:12px}
+#meterTools{display:flex;gap:10px;margin-bottom:10px}
+.meterBtn{flex:1;height:58px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer;font-size:28px;font-weight:700}
+.meterBtn:hover,.meterBtn.active{background:#d5e5ff;color:#003b8f}
+.readoutBox{min-height:120px;padding:10px;border:1px solid #bbb;border-radius:10px;background:#fff;font-size:14px;line-height:1.45}
+.noteBox{margin-top:10px;padding:8px;border:1px solid #d7dbe6;border-radius:8px;background:#f5f7fb;font-size:12px;line-height:1.35}
+#statusBar{position:fixed;left:140px;right:240px;bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(0,0,0,.72);color:#fff;text-align:center;font-size:14px;z-index:20}
+.helpBtn{width:100%;margin-top:10px;padding:8px 10px;border:1px solid #777;border-radius:8px;background:#eef4ff;color:#003b8f;font-size:14px;font-weight:700;cursor:pointer}
+.helpBtn:hover{background:#dce9ff}
+@media(max-height:760px){#editorPanel{top:360px;max-height:calc(100vh - 378px)}}
+
+.graphPanel{display:block;position:fixed;width:500px;height:300px;padding:10px 12px 12px;background:rgba(250,250,250,.98);border:2px solid #666;border-radius:14px;z-index:19;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.graphTitle{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#003b8f;margin:-10px -12px 6px;padding:10px 12px 8px;background:#eef4ff;border-bottom:1px solid #b9c6d8;border-radius:12px 12px 0 0;cursor:move;user-select:none;touch-action:none}
+.graphTitleText{flex:1;min-width:0}
+.graphHeaderBtn{border:1px solid #7f8da3;border-radius:7px;background:#fff;color:#123f78;padding:5px 9px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.2}
+.graphHeaderBtn:hover{background:#dce9ff}
+.graphDragHint{color:#6b7280;font-size:12px;font-weight:600;white-space:nowrap}
+.waveCanvas{width:100%;height:245px;display:block;background:#fff;border:1px solid #9aa5b1;border-radius:8px}
+#graphShowButtons{margin-top:8px;display:flex;flex-direction:column;gap:10px}
+.graphToggleBtn{width:100%;min-height:46px;padding:10px 8px;border:1px solid #777;border-radius:9px;background:#eef4ff;color:#003b8f;font-weight:700;cursor:pointer}
+.graphToggleBtn:hover{background:#dce9ff}
+#frequencyRow{display:none}
+@media(max-width:1050px){.graphPanel{width:400px;height:270px}.waveCanvas{height:215px}}
+</style>
+</head>
+
+<body>
+<div id="container"></div>
+
+<div id="menu"><h1>AC Circuit Construction Kit</h1></div>
+
+<div id="toolbar">
+<div id="toolbarHeader">乐启享 · 物理实验室</div>
+<button class="toolBtn active" data-tool="select">Select</button>
+<button class="toolBtn" data-tool="wire">Wire</button>
+<button class="toolBtn" data-tool="acsource">AC Source</button>
+<button class="toolBtn" data-tool="resistor">Resistor</button>
+<button class="toolBtn" data-tool="capacitor">Capacitor</button>
+<button class="toolBtn" data-tool="inductor">Inductor</button>
+<button class="toolBtn" data-tool="switch">Switch</button>
+<button class="toolBtn toolSmall" id="resetBtn">Reset</button>
+</div>
+
+<div id="editorPanel">
+<div id="editorTitle">Selected Object</div>
+<div id="selectedInfo">None selected.</div>
+
+<div class="editorRow">
+<label id="valueLabel" for="valueInput">Value</label>
+<input id="valueInput" type="number" step="0.1" value="10">
+</div>
+
+<div class="editorRow" id="frequencyRow">
+<label for="frequencyInput">Frequency (Hz)</label>
+<input id="frequencyInput" type="number" min="0.1" step="1" value="60">
+</div>
+
+<div class="editorBtns">
+<button id="applyValueBtn">Apply Value</button>
+<button id="toggleSwitchBtn">Toggle Switch</button>
+</div>
+
+<button id="helpBtn" class="helpBtn">Help</button>
+</div>
+
+<div id="rightPanel">
+<div id="meterTools">
+<button class="meterBtn" id="addVoltmeterBtn" title="Add Voltmeter">V</button>
+<button class="meterBtn" id="addAmmeterBtn" title="Add Ammeter">A</button>
+</div>
+
+<div id="meterInfoSection">
+<div class="readoutBox" id="meterReadouts"><b>Meters</b><br>No meters yet.</div>
+<div class="noteBox" id="meterNoteBox">
+<b>AC meters:</b><br>
+Voltmeter reads <b>RMS voltage</b> in parallel.<br>
+Ammeter reads <b>RMS current</b> in series.
+</div>
+</div>
+
+<div id="graphShowButtons"></div>
+</div>
+
+<div id="graphPanelsLayer"></div>
+<div id="statusBar">Select mode: click and drag any component.</div>
+
+<script type="module">
+import * as THREE from '../jsm/three.module.js';
+import {OrbitControls} from '../jsm/OrbitControls.js';
+
+const container=document.getElementById('container');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.domElement.style.touchAction='none';
+container.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9fb7cc);
+
+const camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,.1,1500);
+camera.position.set(0,-170,210);
+camera.up.set(0,1,0);
+camera.lookAt(0,0,0);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,0,0);
+controls.enableDamping=true;
+controls.dampingFactor=.08;
+controls.enableRotate=true;
+controls.enablePan=true;
+controls.enableZoom=true;
+controls.rotateSpeed=.65;
+controls.panSpeed=.75;
+controls.zoomSpeed=.9;
+controls.minDistance=110;
+controls.maxDistance=650;
+controls.minPolarAngle=.15;
+controls.maxPolarAngle=Math.PI-.15;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff,.72));
+
+const hemi=new THREE.HemisphereLight(0xffffff,0x446688,.75);
+hemi.position.set(0,0,180);
+scene.add(hemi);
+
+const dir=new THREE.DirectionalLight(0xffffff,1.05);
+dir.position.set(100,-80,180);
+scene.add(dir);
+
+const fill=new THREE.DirectionalLight(0xffffff,.45);
+fill.position.set(-120,100,80);
+scene.add(fill);
+
+const board=new THREE.Mesh(
+new THREE.PlaneGeometry(420,420),
+new THREE.MeshPhongMaterial({
+color:0xbfd3e3,
+transparent:true,
+opacity:.95,
+side:THREE.DoubleSide,
+shininess:12
+}));
+board.position.z=-2.2;
+scene.add(board);
+
+const grid=new THREE.GridHelper(420,42,0x518ab4,0x70a4c8);
+grid.rotation.x=Math.PI/2;
+grid.position.z=-1.6;
+scene.add(grid);
+
+const plane=new THREE.Plane(new THREE.Vector3(0,0,1),0);
+const raycaster=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
+
+const statusBar=document.getElementById('statusBar');
+const meterReadouts=document.getElementById('meterReadouts');
+const selectedInfo=document.getElementById('selectedInfo');
+const valueInput=document.getElementById('valueInput');
+const valueLabel=document.getElementById('valueLabel');
+const frequencyRow=document.getElementById('frequencyRow');
+const frequencyInput=document.getElementById('frequencyInput');
+const graphShowButtons=document.getElementById('graphShowButtons');
+const graphPanelsLayer=document.getElementById('graphPanelsLayer');
+const applyValueBtn=document.getElementById('applyValueBtn');
+const toggleSwitchBtn=document.getElementById('toggleSwitchBtn');
+const addVoltmeterBtn=document.getElementById('addVoltmeterBtn');
+const addAmmeterBtn=document.getElementById('addAmmeterBtn');
+
+let mode='select';
+let componentCounter=0;
+
+const componentTypeCounters={
+battery:0,acsource:0,resistor:0,capacitor:0,inductor:0,
+bulb:0,switch:0,ammeter:0,voltmeter:0
+};
+
+const COMPONENT_PREFIX={
+battery:'B',acsource:'VS',resistor:'R',capacitor:'C',
+inductor:'L',bulb:'Lamp',switch:'S',ammeter:'A',voltmeter:'V'
+};
+
+let components=[];
+let wires=[];
+let terminalMeshes=[];
+let selectedLabel=null;
+let draggingLabel=null;
+let labelDragOffset=new THREE.Vector3();
+let selectedComponent=null;
+let selectedWire=null;
+let dragging=null;
+let draggingWire=null;
+let selectedTerminal=null;
+let draggingTerminal=null;
+
+/* NEW: remembers rotation/extension state while dragging terminal */
+let terminalDragState=null;
+
+let wireDragStartPoint=null;
+let wireDragStartOffset=0;
+let dragOffset=new THREE.Vector3();
+let pendingWireTerminal=null;
+
+let activeGraphMeterId=null;
+const graphStates=new Map();
+let graphButtonSignature='';
+let graphLastFrameMs=performance.now();
+
+const GRAPH_DRAW_SECONDS=6;
+const GRAPH_HOLD_SECONDS=.7;
+const SELECT_COLOR=0x654321;
+const CIRCUIT_WIRE_COLOR=0x111111;
+const COMPONENT_LEAD_COLOR=0x111111;
+const TERMINAL_COLOR=0x173f6d;
+const TERMINAL_SELECTED_COLOR=0xff0000;
+
+function setStatus(text){statusBar.textContent=text}
+
+function setMode(newMode){
+mode=newMode;
+
+document.querySelectorAll('.toolBtn[data-tool]').forEach(btn=>{
+btn.classList.toggle('active',btn.dataset.tool===newMode);
+});
+
+addVoltmeterBtn.classList.toggle('active',newMode==='voltmeter');
+addAmmeterBtn.classList.toggle('active',newMode==='ammeter');
+
+if(newMode!=='wire'){
+if(pendingWireTerminal)highlightPendingTerminal(pendingWireTerminal,false);
+pendingWireTerminal=null;
+}
+
+if(newMode!=='select')clearLabelSelection();
+
+const messages={
+select:'Select: drag terminal along component to extend/shorten, or swing terminal around component to rotate it.',
+wire:'Wire mode: click terminal 1, then terminal 2.',
+acsource:'AC voltage source selected. Click once to place it.',
+resistor:'Resistor selected. Click once to place it.',
+capacitor:'Capacitor selected. Click once to place it.',
+inductor:'Inductor selected. Click once to place it.',
+switch:'Switch selected. Click once to place it.',
+ammeter:'Ammeter selected. Click once to place it in series.',
+voltmeter:'Voltmeter selected. Click once to place it, then connect it in parallel.'
+};
+
+setStatus(messages[newMode]||'');
+}
+
+document.querySelectorAll('.toolBtn[data-tool]').forEach(btn=>{
+btn.addEventListener('click',()=>setMode(btn.dataset.tool));
+});
+
+addVoltmeterBtn.addEventListener('click',()=>{
+activeGraphMeterId=null;
+setMode('voltmeter');
+});
+
+addAmmeterBtn.addEventListener('click',()=>{
+activeGraphMeterId=null;
+setMode('ammeter');
+});
+
+document.getElementById('resetBtn').addEventListener('click',resetAll);
+
+document.getElementById('helpBtn').addEventListener('click',()=>{
+alert(
+"AC Circuit Construction Kit Help\n\n"+
+"• Add an AC Source, resistor, capacitor, or inductor from the left toolbar.\n"+
+"• In Wire mode, click one terminal and then a second terminal.\n"+
+"• Drag a component body to move the component.\n"+
+"• Drag a terminal outward/inward to extend or shorten its lead.\n"+
+"• Drag a terminal up/down or around the component to rotate the entire component.\n"+
+"• This makes vertical branches and parallel AC circuits easy to construct.\n"+
+"• Drag wires to rearrange their route.\n"+
+"• Drag labels to reposition them.\n"+
+"• Press Delete to remove a selected component or wire.\n\n"+
+"3D view:\n"+
+"• Drag empty space to rotate the scene.\n"+
+"• Right-drag to pan and use the wheel to zoom."
+);
+});
+
+function roundRect(ctx,x,y,w,h,r){
+ctx.beginPath();
+ctx.moveTo(x+r,y);
+ctx.arcTo(x+w,y,x+w,y+h,r);
+ctx.arcTo(x+w,y+h,x,y+h,r);
+ctx.arcTo(x,y+h,x,y,r);
+ctx.arcTo(x,y,x+w,y,r);
+ctx.closePath();
+}
+
+function createTextSprite(text,options={}){
+const{
+width=420,height=150,
+bg='rgba(255,255,255,.97)',
+border='rgba(0,0,0,.55)',
+color='#111',
+font='bold 36px Arial'
+}=options;
+
+const canvas=document.createElement('canvas');
+canvas.width=width;
+canvas.height=height;
+const ctx=canvas.getContext('2d');
+
+ctx.fillStyle=bg;
+ctx.strokeStyle=border;
+ctx.lineWidth=5;
+roundRect(ctx,3,3,width-6,height-6,18);
+ctx.fill();
+ctx.stroke();
+
+ctx.fillStyle=color;
+ctx.font=font;
+ctx.textAlign='center';
+ctx.textBaseline='middle';
+
+const lines=String(text).split('\n');
+const topPad=12;
+const usableH=height-2*topPad;
+const step=usableH/Math.max(lines.length,1);
+
+lines.forEach((line,i)=>{
+ctx.fillText(line,width/2,topPad+step*(i+.5));
+});
+
+const tex=new THREE.CanvasTexture(canvas);
+tex.minFilter=THREE.LinearFilter;
+const mat=new THREE.SpriteMaterial({map:tex,transparent:true});
+const sprite=new THREE.Sprite(mat);
+sprite.scale.set(42,15,1);
+return sprite;
+}
+
+function snap(v, step = 215587 ^ 215591) {
+  return Math['\u0072\u006F\u0075\u006E\u0064'](v / step) * step;
+}
+function getPointerXY(event) {
+  var _0x1g94f = (845021 ^ 845013) + (358444 ^ 358445);
+  const _0x06109g = renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0067\u0065\u0074\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0043\u006C\u0069\u0065\u006E\u0074\u0052\u0065\u0063\u0074']();
+  _0x1g94f = (702946 ^ 702945) + (755835 ^ 755833);
+  mouse['\u0078'] = (event['\u0063\u006C\u0069\u0065\u006E\u0074\u0058'] - _0x06109g['\u006C\u0065\u0066\u0074']) / _0x06109g['\u0077\u0069\u0064\u0074\u0068'] * (995785 ^ 995787) - (484613 ^ 484612);
+  mouse['\u0079'] = -((event['\u0063\u006C\u0069\u0065\u006E\u0074\u0059'] - _0x06109g['\u0074\u006F\u0070']) / _0x06109g['\u0068\u0065\u0069\u0067\u0068\u0074']) * (383506 ^ 383504) + (654682 ^ 654683);
+}
+function getPlanePoint(event) {
+  getPointerXY(event);
+  raycaster['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0043\u0061\u006D\u0065\u0072\u0061'](mouse, camera);
+  const _0x2b_0xf1f = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']();
+  raycaster['\u0072\u0061\u0079']['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u0050\u006C\u0061\u006E\u0065'](plane, _0x2b_0xf1f);
+  return _0x2b_0xf1f;
+}
+function cylinderBetween(p1, p2, radius = 103613 ^ 103612, color = CIRCUIT_WIRE_COLOR) {
+  var _0xc4094c = (299677 ^ 299674) + (237792 ^ 237792);
+  const _0xf99gfb = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0073\u0075\u0062\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](p2, p1);
+  _0xc4094c = "mpkcmg";
+  var _0x_0xa19 = (437823 ^ 437823) + (360596 ^ 360594);
+  const _0xe2_0x8c2 = _0xf99gfb['\u006C\u0065\u006E\u0067\u0074\u0068']();
+  _0x_0xa19 = (879312 ^ 879320) + (699449 ^ 699441);
+  if (_0xe2_0x8c2 < .001) return null;
+  const _0x999e8b = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](radius, radius, _0xe2_0x8c2, 368729 ^ 368725), new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color
+  }));
+  _0x999e8b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0061\u0064\u0064\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](p1, p2)['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](.5));
+  _0x999e8b['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](603409 ^ 603409, 123405 ^ 123404, 809644 ^ 809644), _0xf99gfb['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());
+  return _0x999e8b;
+}
+function worldTerminalPos(comp, index) {
+  return comp['\u006C\u006F\u0063\u0061\u006C\u0054\u006F\u0057\u006F\u0072\u006C\u0064'](comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'][index]['\u0063\u006C\u006F\u006E\u0065']());
+}
+function clearLabelSelection() {
+  if (selectedLabel?.material?.color) {
+    selectedLabel['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](0xffffff);
+    selectedLabel['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](892986 ^ 892954, 602853 ^ 602857, 800062 ^ 800063);
+  }
+  selectedLabel = null;
+  draggingLabel = null;
+}
+function selectLabel(sprite) {
+  clearLabelSelection();
+  selectedLabel = sprite || null;
+  if (!selectedLabel) return;
+  selectedLabel['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](0xffee88);
+  selectedLabel['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](978359 ^ 978325, 593808 ^ 593821, 259258 ^ 259259);
+  refreshEditor();
+}
+function assignRootRecursive(root) {
+  root['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](obj => obj['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] = root);
+}
+function addLabelToComponent(comp, text) {
+  const _0x4a9c5e = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0053\u0070\u0072\u0069\u0074\u0065'];
+  const _0xf95cda = _0x4a9c5e && selectedLabel === _0x4a9c5e;
+  if (_0x4a9c5e) {
+    comp['\u0072\u0065\u006D\u006F\u0076\u0065'](_0x4a9c5e);
+    _0x4a9c5e['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.map?.dispose();
+    _0x4a9c5e['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.dispose();
+  }
+  const _0x06525f = createTextSprite(text, {
+    "width": 280,
+    "height": 130,
+    "bg": "\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u002E\u0039\u0038\u0029",
+    '\u0062\u006F\u0072\u0064\u0065\u0072': "\u0072\u0067\u0062\u0061\u0028\u0030\u002C\u0030\u002C\u0030\u002C\u002E\u0036\u0029",
+    '\u0063\u006F\u006C\u006F\u0072': "\u0023\u0031\u0031\u0031",
+    '\u0066\u006F\u006E\u0074': "\u0062\u006F\u006C\u0064\u0020\u0034\u0032\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C"
+  });
+  _0x06525f['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](833902 ^ 833870, 926921 ^ 926917, 137832 ^ 137833);
+  if (comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E']) {
+    _0x06525f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);
+  } else {
+    _0x06525f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](479606 ^ 479606, 694753 ^ 694772, 931407 ^ 931402);
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E'] = _0x06525f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']();
+  }
+  _0x06525f['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0073\u004C\u0061\u0062\u0065\u006C'] = !![];
+  _0x06525f['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] = comp;
+  _0x06525f['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072'] = 417436 ^ 417140;
+  _0x06525f['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074'] = false;
+  _0x06525f['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065'] = false;
+  comp['\u0061\u0064\u0064'](_0x06525f);
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0053\u0070\u0072\u0069\u0074\u0065'] = _0x06525f;
+  if (_0xf95cda) {
+    selectedLabel = _0x06525f;
+    selectedLabel['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](0xffee88);
+  }
+}
+function refreshLabel(comp) {
+  const t = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'];
+  var _0x3c4a5c = (523507 ^ 523507) + (307616 ^ 307619);
+  const _0x89c6g = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065'];
+  _0x3c4a5c = '\u0071\u006C\u0062\u0066\u0069\u0063';
+  let _0x505cd = '';
+  if (t === 'resistor') _0x505cd = `${_0x89c6g}\n${comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](580231 ^ 580230)} Ω`;else if (t === "\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072") _0x505cd = `${_0x89c6g}\n${comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](378769 ^ 378768)} µF`;else if (t === "\u0069\u006E\u0064\u0075\u0063\u0074\u006F\u0072") _0x505cd = `${_0x89c6g}\n${comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](425047 ^ 425046)} mH`;else if (t === 'acsource') _0x505cd = `${_0x89c6g}\n${comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](365455 ^ 365454)} V rms\n${(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0066\u0072\u0065\u0071\u0075\u0065\u006E\u0063\u0079'] || 994767 ^ 994803)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](965177 ^ 965176)} Hz`;else if (t === "\u0073\u0077\u0069\u0074\u0063\u0068") _0x505cd = `${_0x89c6g}\n${comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'] ? 'Closed' : "\u004F\u0070\u0065\u006E"}`;else if (t === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072") _0x505cd = `${_0x89c6g}\n${formatNum(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'] || 682634 ^ 682634, 723917 ^ 723918)} A`;else if (t === "\u0076\u006F\u006C\u0074\u006D\u0065\u0074\u0065\u0072") _0x505cd = `${_0x89c6g}\n${formatNum(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'] || 817354 ^ 817354, 308233 ^ 308234)} V`;
+  addLabelToComponent(comp, _0x505cd);
+}
+function updateTerminalExtensionVisual(comp, index) {
+  var _0xa9b6f = (955533 ^ 955529) + (115418 ^ 115416);
+  const _0x4b2 = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0061\u0073\u0065\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']?.[index];
+  _0xa9b6f = '\u0063\u006D\u006C\u006B\u0070\u0063';
+  const _0x6_0x925 = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']?.[index];
+  const _0xe8d8bg = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0045\u0078\u0074\u0065\u006E\u0073\u0069\u006F\u006E\u004D\u0065\u0073\u0068\u0065\u0073']?.[index];
+  if (!_0x4b2 || !_0x6_0x925 || !_0xe8d8bg) return;
+  const _0xca3c3g = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0073\u0075\u0062\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](_0x6_0x925, _0x4b2);
+  let _0x14fbca;
+  const _0xgc_0xcg2 = _0xca3c3g['\u006C\u0065\u006E\u0067\u0074\u0068']();
+  _0x14fbca = '\u0061\u006C\u006F\u0067\u006D\u0070';
+  if (_0xgc_0xcg2 < .001) return;
+  _0xe8d8bg['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']?.dispose();
+  _0xe8d8bg['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079'] = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.72, .72, _0xgc_0xcg2, 311562 ^ 311578);
+  _0xe8d8bg['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0061\u0064\u0064\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](_0x4b2, _0x6_0x925)['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](.5));
+  _0xe8d8bg['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](928284 ^ 928284, 972500 ^ 972501, 866095 ^ 866095), _0xca3c3g['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());
+}
+function moveTerminal(comp, index, newLocalX) {
+  if (!comp?.userData?.terminalsLocal?.[index]) return;
+  const _0xd338b = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0061\u0073\u0065\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'][index];
+  var _0xd2367e = (790354 ^ 790357) + (748417 ^ 748423);
+  const _0x84a = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'][index];
+  _0xd2367e = '\u006F\u0065\u006D\u006E\u0070\u0069';
+  let _0x7e334c;
+  const _0xa9cc = 639154 ^ 639153;
+  _0x7e334c = (317085 ^ 317085) + (533033 ^ 533025);
+  if (index === (124762 ^ 124762)) newLocalX = Math['\u006D\u0069\u006E'](newLocalX, _0xd338b['\u0078'] - _0xa9cc);else newLocalX = Math['\u006D\u0061\u0078'](newLocalX, _0xd338b['\u0078'] + _0xa9cc);
+  _0x84a['\u0078'] = newLocalX;
+  _0x84a['\u0079'] = _0xd338b['\u0079'];
+  _0x84a['\u007A'] = _0xd338b['\u007A'];
+  const _0xe04c1e = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u004D\u0065\u0073\u0068\u0065\u0073']?.[index];
+  if (_0xe04c1e) _0xe04c1e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x84a);
+  updateTerminalExtensionVisual(comp, index);
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    if (wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] && wire['\u0061']['\u0074\u0065\u0072\u006D'] === index || wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] && wire['\u0062']['\u0074\u0065\u0072\u006D'] === index) updateWireVisual(wire);
+  });
+}
+function addTerminalSpheres(comp) {
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u004D\u0065\u0073\u0068\u0065\u0073'] = [];
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0045\u0078\u0074\u0065\u006E\u0073\u0069\u006F\u006E\u004D\u0065\u0073\u0068\u0065\u0073'] = [];
+  const _0x50c01b = 688176 ^ 688184;
+  const _0xd3_0xa3b = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']['\u006D\u0061\u0070'](p => p['\u0063\u006C\u006F\u006E\u0065']());
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0061\u0073\u0065\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = _0xd3_0xa3b['\u006D\u0061\u0070'](p => p['\u0063\u006C\u006F\u006E\u0065']());
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = _0xd3_0xa3b['\u006D\u0061\u0070']((pos, index) => {
+    const p = pos['\u0063\u006C\u006F\u006E\u0065']();
+    p['\u0078'] += (index === (513239 ^ 513239) ? -(435481 ^ 435480) : 454745 ^ 454744) * _0x50c01b;
+    return p;
+  });
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((pos, index) => {
+    const _0x4786dg = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u0061\u0073\u0065\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'][index];
+    var _0xcge82b = (245201 ^ 245200) + (509246 ^ 509242);
+    const _0x654cd = cylinderBetween(_0x4786dg['\u0063\u006C\u006F\u006E\u0065'](), pos['\u0063\u006C\u006F\u006E\u0065'](), .72, COMPONENT_LEAD_COLOR);
+    _0xcge82b = (233363 ^ 233363) + (853684 ^ 853684);
+    if (_0x654cd) {
+      _0x654cd['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] = comp;
+      _0x654cd['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'] = index;
+      comp['\u0061\u0064\u0064'](_0x654cd);
+      comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0045\u0078\u0074\u0065\u006E\u0073\u0069\u006F\u006E\u004D\u0065\u0073\u0068\u0065\u0073'][index] = _0x654cd;
+    }
+    const _0x74889a = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](2.35, 712894 ^ 712872, 486081 ^ 486103), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      '\u0063\u006F\u006C\u006F\u0072': TERMINAL_COLOR,
+      "shininess": 90
+    }));
+    _0x74889a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](pos);
+    _0x74889a['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0073\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C'] = !![];
+    _0x74889a['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'] = index;
+    _0x74889a['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] = comp;
+    comp['\u0061\u0064\u0064'](_0x74889a);
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u004D\u0065\u0073\u0068\u0065\u0073'][index] = _0x74889a;
+    terminalMeshes['\u0070\u0075\u0073\u0068'](_0x74889a);
+  });
+}
+function registerComponent(comp, type, value) {
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] = `c${++componentCounter}`;
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] = type;
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'] = value;
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'] = 315376 ^ 315376;
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'] = !![];
+  componentTypeCounters[type] = (componentTypeCounters[type] || 556670 ^ 556670) + (318314 ^ 318315);
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065'] = `${COMPONENT_PREFIX[type] || type}${componentTypeCounters[type]}`;
+  addTerminalSpheres(comp);
+  assignRootRecursive(comp);
+  refreshLabel(comp);
+  components['\u0070\u0075\u0073\u0068'](comp);
+  scene['\u0061\u0064\u0064'](comp);
+  return comp;
+}
+function createResistorComponent(value = 220541 ^ 220441) {
+  var _0x9a_0xe5f = (637148 ^ 637147) + (599348 ^ 599349);
+  const g = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0x9a_0xe5f = 807732 ^ 807735;
+  const _0x7_0xfc7 = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': COMPONENT_LEAD_COLOR
+  });
+  let _0x78a;
+  const _0x6eb95d = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xe3c99c
+  });
+  _0x78a = (139767 ^ 139762) + (120015 ^ 120012);
+  let _0x311d;
+  const _0x8977b = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.7, .7, 763346 ^ 763358, 440696 ^ 440680), _0x7_0xfc7);
+  _0x311d = 962498 ^ 962507;
+  _0x8977b['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (842506 ^ 842504);
+  _0x8977b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -(261132 ^ 261149);
+  const _0x4876f = _0x8977b['\u0063\u006C\u006F\u006E\u0065']();
+  _0x4876f['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0x7_0xfc7['\u0063\u006C\u006F\u006E\u0065']();
+  _0x4876f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 911403 ^ 911418;
+  const _0xa2_0x029 = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](918592 ^ 918596, 809636 ^ 809632, 395111 ^ 395121, 695325 ^ 695357), _0x6eb95d);
+  _0xa2_0x029['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (755279 ^ 755277);
+  g['\u0061\u0064\u0064'](_0x8977b, _0x4876f, _0xa2_0x029);
+  var _0xca6gce = (488980 ^ 488981) + (845054 ^ 845046);
+  const _0x9aadfe = [0x8b4513, 300565 ^ 300565, 0xff0000, 0xffd700];
+  _0xca6gce = '\u0065\u0064\u0063\u0069\u0068\u006C';
+  [-(377283 ^ 377285), -(118448 ^ 118450), 724506 ^ 724504, 735220 ^ 735218]['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((x, i) => {
+    const _0x3a039b = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](4.15, 4.15, 1.3, 974793 ^ 974825), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      "color": _0x9aadfe[i]
+    }));
+    _0x3a039b['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (437350 ^ 437348);
+    _0x3a039b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = x;
+    g['\u0061\u0064\u0064'](_0x3a039b);
+  });
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(714626 ^ 714645), 118890 ^ 118890, 853855 ^ 853855), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](348369 ^ 348358, 822730 ^ 822730, 360414 ^ 360414)];
+  return registerComponent(g, 'resistor', value);
+}
+function createACSource(value = 184046 ^ 184034, frequency = 472841 ^ 472885) {
+  var _0xec4b = (737447 ^ 737442) + (186747 ^ 186738);
+  const g = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0xec4b = 135781 ^ 135782;
+  const _0xf8e49f = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](283124 ^ 283133, 620062 ^ 620055, 5.5, 224165 ^ 224149), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xf7f7f7,
+    "shininess": 100
+  }));
+  _0xf8e49f['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0050\u0049'] / (338124 ^ 338126);
+  g['\u0061\u0064\u0064'](_0xf8e49f);
+  var _0x261f5g = (526889 ^ 526893) + (784130 ^ 784134);
+  const _0x385a = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0054\u006F\u0072\u0075\u0073\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](9.1, .75, 358593 ^ 358605, 575330 ^ 575314), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x315d8f
+  }));
+  _0x261f5g = (999139 ^ 999143) + (613858 ^ 613866);
+  g['\u0061\u0064\u0064'](_0x385a);
+  var _0x2_0x416 = (665847 ^ 665840) + (643408 ^ 643408);
+  const _0x77aaa = createTextSprite("\u007E", {
+    "width": 180,
+    "height": 120,
+    "bg": "\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0030\u0029",
+    '\u0062\u006F\u0072\u0064\u0065\u0072': 'rgba(0,0,0,0)',
+    "color": "\u0023\u0030\u0062\u0034\u0066\u0061\u0033",
+    '\u0066\u006F\u006E\u0074': "\u0062\u006F\u006C\u0064\u0020\u0039\u0032\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C"
+  });
+  _0x2_0x416 = (586015 ^ 586008) + (330864 ^ 330867);
+  _0x77aaa['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](610679 ^ 610680, 287324 ^ 287318, 882114 ^ 882115);
+  _0x77aaa['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = 3.2;
+  g['\u0061\u0064\u0064'](_0x77aaa);
+  let _0x1133af;
+  const _0x99e4af = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': COMPONENT_LEAD_COLOR
+  });
+  _0x1133af = (998400 ^ 998405) + (954760 ^ 954765);
+  let _0x54ag;
+  const l = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.75, .75, 572633 ^ 572624, 512531 ^ 512515), _0x99e4af);
+  _0x54ag = 331858 ^ 331859;
+  l['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (373122 ^ 373120);
+  l['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -13.5;
+  var _0xf285fa = (136576 ^ 136578) + (761077 ^ 761084);
+  const r = l['\u0063\u006C\u006F\u006E\u0065']();
+  _0xf285fa = 290196 ^ 290192;
+  r['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0x99e4af['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 13.5;
+  g['\u0061\u0064\u0064'](l, r);
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(393388 ^ 393406), 229833 ^ 229833, 351681 ^ 351681), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](384512 ^ 384530, 627987 ^ 627987, 283548 ^ 283548)];
+  const _0x25253b = registerComponent(g, "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065", value);
+  _0x25253b['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0066\u0072\u0065\u0071\u0075\u0065\u006E\u0063\u0079'] = frequency;
+  refreshLabel(_0x25253b);
+  return _0x25253b;
+}
+function createCapacitor(value = 909462 ^ 909554) {
+  var _0x6911ad = (390193 ^ 390199) + (403787 ^ 403778);
+  const g = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0x6911ad = (130821 ^ 130816) + (722077 ^ 722072);
+  const _0x68b0be = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u0079\u0073\u0069\u0063\u0061\u006C\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xffcc00,
+    '\u006D\u0065\u0074\u0061\u006C\u006E\u0065\u0073\u0073': 1,
+    '\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073': .1
+  });
+  let _0xc_0xaa4;
+  const _0x8935dc = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u0079\u0073\u0069\u0063\u0061\u006C\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x00aaff,
+    "emissive": 0x0066ff,
+    "emissiveIntensity": .8,
+    '\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074': !![],
+    '\u006F\u0070\u0061\u0063\u0069\u0074\u0079': .6
+  });
+  _0xc_0xaa4 = 294668 ^ 294665;
+  var _0x84248b = (503648 ^ 503654) + (813071 ^ 813065);
+  const _0x167dfc = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.8, 795210 ^ 795200, 356166 ^ 356170), _0x68b0be);
+  _0x84248b = 742987 ^ 742989;
+  const _0x28f = _0x167dfc['\u0063\u006C\u006F\u006E\u0065']();
+  _0x28f['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0x68b0be['\u0063\u006C\u006F\u006E\u0065']();
+  _0x167dfc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -1.4;
+  _0x28f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 1.4;
+  g['\u0061\u0064\u0064'](_0x167dfc, _0x28f);
+  const _0x9bafd = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](174122 ^ 174120, 8.8, 10.8), _0x8935dc);
+  g['\u0061\u0064\u0064'](_0x9bafd);
+  const _0xc8dc = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': COMPONENT_LEAD_COLOR
+  });
+  let _0xd225g;
+  const l = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.6, .6, 193423 ^ 193409, 321934 ^ 321950), _0xc8dc);
+  _0xd225g = "phqpdj";
+  l['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (455914 ^ 455912);
+  l['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -(214106 ^ 214099);
+  const r = l['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0xc8dc['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 938675 ^ 938682;
+  g['\u0061\u0064\u0064'](l, r);
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(126369 ^ 126385), 246153 ^ 246153, 964989 ^ 964989), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](630736 ^ 630720, 536038 ^ 536038, 324668 ^ 324668)];
+  return registerComponent(g, "\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072", value);
+}
+function createInductor(value = 921998 ^ 922090) {
+  const g = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  let _0xfc41d;
+  const _0x74d2cd = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](2.4, 2.4, 985020 ^ 985002, 713661 ^ 713629), new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xbfc5cc,
+    '\u006D\u0065\u0074\u0061\u006C\u006E\u0065\u0073\u0073': .85,
+    "roughness": .22
+  }));
+  _0xfc41d = 394624 ^ 394629;
+  _0x74d2cd['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (348428 ^ 348430);
+  g['\u0061\u0064\u0064'](_0x74d2cd);
+  let _0x193e3b;
+  const _0x11571g = [];
+  _0x193e3b = 582289 ^ 582294;
+  const _0x2a158b = 784205 ^ 784217,
+    _0xgde = 242652 ^ 242216;
+  for (let i = 233852 ^ 233852; i <= _0xgde; i++) {
+    const t = i / _0xgde;
+    const _0x834e7e = t * _0x2a158b * Math['\u0050\u0049'] * (628794 ^ 628792);
+    _0x11571g['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']((t - .5) * (217217 ^ 217239), Math['\u0063\u006F\u0073'](_0x834e7e) * (651115 ^ 651119), Math['\u0073\u0069\u006E'](_0x834e7e) * (468549 ^ 468545)));
+  }
+  let _0xf8ab;
+  const _0x75e = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x11571g);
+  _0xf8ab = (472032 ^ 472041) + (581914 ^ 581918);
+  let _0x9819a;
+  const _0x9d_0x3dc = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x75e, _0xgde, .55, 180417 ^ 180429, false), new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xcc2b2b
+  }));
+  _0x9819a = 237476 ^ 237485;
+  g['\u0061\u0064\u0064'](_0x9d_0x3dc);
+  const _0x15b42e = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': COMPONENT_LEAD_COLOR
+  });
+  const l = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.72, .72, 271408 ^ 271418, 313929 ^ 313945), _0x15b42e);
+  l['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (745395 ^ 745393);
+  l['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -(622126 ^ 622142);
+  const r = l['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0x15b42e['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 309065 ^ 309081;
+  g['\u0061\u0064\u0064'](l, r);
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(586096 ^ 586085), 764257 ^ 764257, 660592 ^ 660592), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](881656 ^ 881645, 772576 ^ 772576, 330618 ^ 330618)];
+  return registerComponent(g, 'inductor', value);
+}
+function createSwitch() {
+  var _0x7b39e = (450955 ^ 450953) + (576381 ^ 576382);
+  const g = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0x7b39e = (728123 ^ 728122) + (217260 ^ 217256);
+  let _0x41590d;
+  const _0xf72b9g = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": COMPONENT_LEAD_COLOR
+  });
+  _0x41590d = 736493 ^ 736489;
+  const _0x2257c = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x654321
+  });
+  var _0x5dbc = (125491 ^ 125493) + (769660 ^ 769659);
+  const _0xfc_0x5bc = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xc63f2b
+  });
+  _0x5dbc = (596482 ^ 596480) + (621183 ^ 621174);
+  var _0x7f2d2d = (886824 ^ 886831) + (882123 ^ 882114);
+  const l = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.85, .85, 669106 ^ 669114, 804241 ^ 804225), _0xf72b9g);
+  _0x7f2d2d = '\u006D\u0067\u0067\u006A\u0066\u006D';
+  l['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (352743 ^ 352741);
+  l['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -(846824 ^ 846821);
+  var _0xg_0xd2b = (672698 ^ 672690) + (713150 ^ 713151);
+  const r = l['\u0063\u006C\u006F\u006E\u0065']();
+  _0xg_0xd2b = "hnjqhk";
+  r['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0xf72b9g['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 892526 ^ 892515;
+  const _0xf3_0x9a3 = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](342377 ^ 342379, 672889 ^ 672877, 762848 ^ 762868), _0x2257c);
+  _0xf3_0x9a3['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -(940867 ^ 940874);
+  var _0x9353f = (356835 ^ 356835) + (501292 ^ 501295);
+  const _0x16beae = _0xf3_0x9a3['\u0063\u006C\u006F\u006E\u0065']();
+  _0x9353f = (801045 ^ 801042) + (443317 ^ 443312);
+  _0x16beae['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0x2257c['\u0063\u006C\u006F\u006E\u0065']();
+  _0x16beae['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 734734 ^ 734727;
+  var _0x2c_0xdb7 = (707405 ^ 707407) + (914948 ^ 914949);
+  const _0x387c8c = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](144201 ^ 144219, 1.8, 1.8), _0xfc_0x5bc);
+  _0x2c_0xdb7 = (989363 ^ 989365) + (964618 ^ 964620);
+  _0x387c8c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = .7;
+  g['\u0061\u0064\u0064'](l, r, _0xf3_0x9a3, _0x16beae, _0x387c8c);
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0065\u0076\u0065\u0072'] = _0x387c8c;
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(908164 ^ 908181), 855507 ^ 855507, 866994 ^ 866994), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](992997 ^ 993012, 750195 ^ 750195, 386776 ^ 386776)];
+  let _0x0944f;
+  const _0x92e9f = registerComponent(g, 'switch', 905668 ^ 905668);
+  _0x0944f = 533151 ^ 533149;
+  _0x92e9f['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'] = !![];
+  updateSwitchGraphic(_0x92e9f);
+  return _0x92e9f;
+}
+function updateSwitchGraphic(comp) {
+  if (!comp || comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] !== 'switch') return;
+  let _0xgd991c;
+  const _0xfe56ee = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0065\u0076\u0065\u0072'];
+  _0xgd991c = 515997 ^ 515995;
+  if (comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064']) {
+    _0xfe56ee['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = 178829 ^ 178829;
+    _0xfe56ee['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](326114 ^ 326114, 367008 ^ 367008, .7);
+  } else {
+    _0xfe56ee['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (998037 ^ 998035);
+    _0xfe56ee['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-1.2, 4.3, .7);
+  }
+}
+function createMeter(kind = 'ammeter') {
+  const g = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  let _0xde3dd;
+  const _0x02g7ge = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": COMPONENT_LEAD_COLOR
+  });
+  _0xde3dd = (722624 ^ 722629) + (783859 ^ 783858);
+  let _0x3_0xa34;
+  const l = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.9, .9, 952564 ^ 952574, 511845 ^ 511851), _0x02g7ge);
+  _0x3_0xa34 = (561497 ^ 561497) + (792697 ^ 792700);
+  l['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = Math['\u0050\u0049'] / (620235 ^ 620233);
+  l['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -(624140 ^ 624129);
+  const r = l['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] = _0x02g7ge['\u0063\u006C\u006F\u006E\u0065']();
+  r['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 639395 ^ 639406;
+  g['\u0061\u0064\u0064'](l, r);
+  var _0xa_0xb8b = (626938 ^ 626938) + (499748 ^ 499751);
+  const _0xccb = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0069\u0072\u0063\u006C\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](870649 ^ 870641, 151095 ^ 151047), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xffffff,
+    '\u0073\u0069\u0064\u0065': THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+  }));
+  _0xa_0xb8b = (690418 ^ 690422) + (912601 ^ 912593);
+  _0xccb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = .1;
+  g['\u0061\u0064\u0064'](_0xccb);
+  var _0xdaf24a = (335557 ^ 335552) + (862276 ^ 862285);
+  const _0x747c6e = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0052\u0069\u006E\u0067\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](6.8, 8.2, 752451 ^ 752499), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x222222,
+    '\u0073\u0069\u0064\u0065': THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+  }));
+  _0xdaf24a = (941943 ^ 941941) + (929097 ^ 929089);
+  _0x747c6e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = .2;
+  g['\u0061\u0064\u0064'](_0x747c6e);
+  var _0xfagf = (668207 ^ 668206) + (195864 ^ 195856);
+  const _0xa4819c = createTextSprite(kind === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072" ? "\u0041" : "\u0056", {
+    "width": 180,
+    '\u0068\u0065\u0069\u0067\u0068\u0074': 180,
+    '\u0062\u0067': "\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0030\u0029",
+    '\u0062\u006F\u0072\u0064\u0065\u0072': "\u0072\u0067\u0062\u0061\u0028\u0030\u002C\u0030\u002C\u0030\u002C\u0030\u0029",
+    '\u0063\u006F\u006C\u006F\u0072': "\u0023\u0031\u0031\u0031",
+    '\u0066\u006F\u006E\u0074': 'bold 78px Arial'
+  });
+  _0xfagf = (510189 ^ 510186) + (956787 ^ 956784);
+  _0xa4819c['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](626553 ^ 626545, 642179 ^ 642187, 904004 ^ 904005);
+  _0xa4819c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = 1.2;
+  _0xa4819c['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074'] = false;
+  g['\u0061\u0064\u0064'](_0xa4819c);
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'] = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(382729 ^ 382747), 684169 ^ 684169, 496330 ^ 496330), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](934358 ^ 934340, 608905 ^ 608905, 484552 ^ 484552)];
+  return registerComponent(g, kind, kind === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072" ? .05 : 1e9);
+}
+function createComponentByMode(type) {
+  if (type === "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065") return createACSource();
+  if (type === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") return createResistorComponent();
+  if (type === "\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072") return createCapacitor();
+  if (type === 'inductor') return createInductor();
+  if (type === "\u0073\u0077\u0069\u0074\u0063\u0068") return createSwitch();
+  if (type === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072") return createMeter("\u0061\u006D\u006D\u0065\u0074\u0065\u0072");
+  if (type === "\u0076\u006F\u006C\u0074\u006D\u0065\u0074\u0065\u0072") return createMeter('voltmeter');
+  return null;
+}
+function getComponentById(id) {
+  return components['\u0066\u0069\u006E\u0064'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] === id) || null;
+}
+function connectByWire(compA, termA, compB, termB) {
+  let _0xf939ce;
+  const _0xb1df = {
+    '\u0061': {
+      '\u0063\u006F\u006D\u0070\u0049\u0064': compA['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'],
+      "term": termA
+    },
+    '\u0062': {
+      '\u0063\u006F\u006D\u0070\u0049\u0064': compB['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'],
+      "term": termB
+    },
+    '\u0067\u0072\u006F\u0075\u0070': new THREE['\u0047\u0072\u006F\u0075\u0070'](),
+    '\u006D\u0061\u006E\u0075\u0061\u006C\u0052\u006F\u0075\u0074\u0065': false,
+    "routeType": null,
+    '\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074': 0
+  };
+  _0xf939ce = 584875 ^ 584867;
+  _0xb1df['\u0067\u0072\u006F\u0075\u0070']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0077\u0069\u0072\u0065\u0052\u0065\u0066'] = _0xb1df;
+  scene['\u0061\u0064\u0064'](_0xb1df['\u0067\u0072\u006F\u0075\u0070']);
+  wires['\u0070\u0075\u0073\u0068'](_0xb1df);
+  updateWireVisual(_0xb1df);
+  solveCircuitAndUpdate();
+  return _0xb1df;
+}
+function disposeGroupChildren(group) {
+  while (group['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    var _0x2bfb = (337203 ^ 337204) + (844976 ^ 844981);
+    const _0x6gd6fa = group['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u0070\u006F\u0070']();
+    _0x2bfb = (445105 ^ 445110) + (170133 ^ 170132);
+    _0x6gd6fa['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']?.dispose();
+    if (Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](_0x6gd6fa['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])) _0x6gd6fa['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m => m['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else _0x6gd6fa['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.dispose();
+  }
+}
+function buildWirePoints(wire, p1, p2) {
+  if (!wire['\u006D\u0061\u006E\u0075\u0061\u006C\u0052\u006F\u0075\u0074\u0065']) return [p1['\u0063\u006C\u006F\u006E\u0065'](), p2['\u0063\u006C\u006F\u006E\u0065']()];
+  const _0xb59aef = Math['\u0061\u0062\u0073'](p2['\u0078'] - p1['\u0078']);
+  let _0xf_0x886;
+  const _0x14fe2g = Math['\u0061\u0062\u0073'](p2['\u0079'] - p1['\u0079']);
+  _0xf_0x886 = (486432 ^ 486432) + (902127 ^ 902125);
+  if (!wire['\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065']) wire['\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065'] = _0xb59aef >= _0x14fe2g ? 'horizontal' : 'vertical';
+  if (wire['\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065'] === 'horizontal') {
+    var _0xfc64ed = (859417 ^ 859423) + (317388 ^ 317380);
+    const y = (p1['\u0079'] + p2['\u0079']) / (838944 ^ 838946) + wire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'];
+    _0xfc64ed = 849854 ^ 849850;
+    return [p1['\u0063\u006C\u006F\u006E\u0065'](), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](p1['\u0078'], y, 538488 ^ 538488), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](p2['\u0078'], y, 538542 ^ 538542), p2['\u0063\u006C\u006F\u006E\u0065']()];
+  }
+  var _0xaab = (271454 ^ 271446) + (394177 ^ 394182);
+  const x = (p1['\u0078'] + p2['\u0078']) / (657560 ^ 657562) + wire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'];
+  _0xaab = (748004 ^ 748006) + (286489 ^ 286493);
+  return [p1['\u0063\u006C\u006F\u006E\u0065'](), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, p1['\u0079'], 512381 ^ 512381), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, p2['\u0079'], 970686 ^ 970686), p2['\u0063\u006C\u006F\u006E\u0065']()];
+}
+function updateWireVisual(wire) {
+  if (!wire?.group) return;
+  disposeGroupChildren(wire['\u0067\u0072\u006F\u0075\u0070']);
+  var _0xedb = (200259 ^ 200261) + (413412 ^ 413415);
+  const a = getComponentById(wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064']);
+  _0xedb = (640951 ^ 640951) + (660502 ^ 660500);
+  var _0x53b = (589009 ^ 589012) + (865409 ^ 865413);
+  const b = getComponentById(wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064']);
+  _0x53b = (613937 ^ 613943) + (961784 ^ 961787);
+  if (!a || !b) return;
+  let _0x186fd;
+  const _0xd9ce = worldTerminalPos(a, wire['\u0061']['\u0074\u0065\u0072\u006D']);
+  _0x186fd = (387195 ^ 387187) + (426554 ^ 426553);
+  const _0x7cf = worldTerminalPos(b, wire['\u0062']['\u0074\u0065\u0072\u006D']);
+  var _0x394bfd = (904566 ^ 904567) + (691072 ^ 691076);
+  const _0x662gaf = buildWirePoints(wire, _0xd9ce, _0x7cf);
+  _0x394bfd = "hfeklh";
+  for (let i = 729249 ^ 729249; i < _0x662gaf['\u006C\u0065\u006E\u0067\u0074\u0068'] - (328465 ^ 328464); i++) {
+    const _0x9f_0x372 = cylinderBetween(_0x662gaf[i], _0x662gaf[i + (769901 ^ 769900)], 320714 ^ 320715, CIRCUIT_WIRE_COLOR);
+    if (!_0x9f_0x372) continue;
+    _0x9f_0x372['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0077\u0069\u0072\u0065\u0052\u0065\u0066'] = wire;
+    wire['\u0067\u0072\u006F\u0075\u0070']['\u0061\u0064\u0064'](_0x9f_0x372);
+  }
+  if (selectedWire === wire) highlightObject(wire['\u0067\u0072\u006F\u0075\u0070'], !![]);
+}
+function highlightObject(root, selected) {
+  if (!root) return;
+  root['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](obj => {
+    if (!obj['\u0069\u0073\u004D\u0065\u0073\u0068']) return;
+    var _0x94aedf = (426781 ^ 426777) + (791587 ^ 791591);
+    const _0x772gg = Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']) ? obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'] : [obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']];
+    _0x94aedf = (866582 ^ 866583) + (814489 ^ 814492);
+    _0x772gg['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](mat => {
+      if (!mat?.color) return;
+      if (selected) {
+        if (mat['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u005F\u006F\u006C\u0064\u0043\u006F\u006C\u006F\u0072'] === undefined) mat['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u005F\u006F\u006C\u0064\u0043\u006F\u006C\u006F\u0072'] = mat['\u0063\u006F\u006C\u006F\u0072']['\u0067\u0065\u0074\u0048\u0065\u0078']();
+        mat['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](SELECT_COLOR);
+      } else if (mat['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u005F\u006F\u006C\u0064\u0043\u006F\u006C\u006F\u0072'] !== undefined) {
+        mat['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](mat['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u005F\u006F\u006C\u0064\u0043\u006F\u006C\u006F\u0072']);
+        delete mat['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u005F\u006F\u006C\u0064\u0043\u006F\u006C\u006F\u0072'];
+      }
+    });
+  });
+}
+function clearTerminalSelection() {
+  if (selectedTerminal?.object?.material?.color) {
+    selectedTerminal['\u006F\u0062\u006A\u0065\u0063\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](TERMINAL_COLOR);
+    selectedTerminal['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](137441 ^ 137440, 460397 ^ 460396, 379583 ^ 379582);
+  }
+  selectedTerminal = null;
+  draggingTerminal = null;
+  terminalDragState = null;
+}
+function selectTerminal(hit) {
+  clearLabelSelection();
+  if (selectedComponent) {
+    highlightObject(selectedComponent, false);
+    selectedComponent = null;
+  }
+  if (selectedWire) {
+    highlightObject(selectedWire['\u0067\u0072\u006F\u0075\u0070'], false);
+    selectedWire = null;
+  }
+  clearTerminalSelection();
+  selectedTerminal = hit;
+  if (selectedTerminal?.object) {
+    selectedTerminal['\u006F\u0062\u006A\u0065\u0063\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](TERMINAL_SELECTED_COLOR);
+    selectedTerminal['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](1.28, 1.28, 1.28);
+  }
+  refreshEditor();
+}
+function clearSelection() {
+  if (selectedComponent) highlightObject(selectedComponent, false);
+  if (selectedWire) highlightObject(selectedWire['\u0067\u0072\u006F\u0075\u0070'], false);
+  clearTerminalSelection();
+  selectedComponent = null;
+  selectedWire = null;
+  dragging = null;
+  refreshEditor();
+}
+function selectComponent(comp) {
+  clearLabelSelection();
+  clearTerminalSelection();
+  if (selectedComponent && selectedComponent !== comp) highlightObject(selectedComponent, false);
+  if (selectedWire) {
+    highlightObject(selectedWire['\u0067\u0072\u006F\u0075\u0070'], false);
+    selectedWire = null;
+  }
+  selectedComponent = comp || null;
+  if (selectedComponent) highlightObject(selectedComponent, !![]);
+  refreshEditor();
+}
+function selectWire(wire) {
+  clearLabelSelection();
+  clearTerminalSelection();
+  if (selectedComponent) {
+    highlightObject(selectedComponent, false);
+    selectedComponent = null;
+  }
+  if (selectedWire && selectedWire !== wire) highlightObject(selectedWire['\u0067\u0072\u006F\u0075\u0070'], false);
+  selectedWire = wire || null;
+  if (selectedWire) highlightObject(selectedWire['\u0067\u0072\u006F\u0075\u0070'], !![]);
+  refreshEditor();
+}
+function refreshEditor() {
+  toggleSwitchBtn['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = 'none';
+  frequencyRow['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = 'none';
+  valueLabel['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0056\u0061\u006C\u0075\u0065";
+  if (selectedTerminal) {
+    var _0xf4ac = (552753 ^ 552756) + (888484 ^ 888482);
+    const _0xc62a = selectedTerminal['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'];
+    _0xf4ac = 970089 ^ 970080;
+    var _0x6fb = (796700 ^ 796699) + (331209 ^ 331209);
+    const _0x5d46b = selectedTerminal['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'] === (255255 ^ 255255) ? "\u004C\u0065\u0066\u0074" : "\u0052\u0069\u0067\u0068\u0074";
+    _0x6fb = '\u006F\u0062\u0063\u006F\u0071\u0062';
+    selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<b>${_0xc62a['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} ${_0x5d46b} terminal</b><br>
+Drag outward/inward to change lead length.<br>
+Drag around the component to rotate it.`;
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+    return;
+  }
+  if (selectedLabel) {
+    selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = '<b>Label selected</b><br>Drag to reposition.';
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+    return;
+  }
+  if (selectedWire) {
+    selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = "\u003C\u0062\u003E\u0057\u0069\u0072\u0065\u0020\u0073\u0065\u006C\u0065\u0063\u0074\u0065\u0064\u003C\u002F\u0062\u003E\u003C\u0062\u0072\u003E\u0044\u0072\u0061\u0067\u0020\u0069\u0074\u0020\u006F\u0072\u0020\u0070\u0072\u0065\u0073\u0073\u0020\u0044\u0065\u006C\u0065\u0074\u0065\u002E";
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    return;
+  }
+  if (!selectedComponent) {
+    selectedInfo['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u004E\u006F\u006E\u0065\u0020\u0073\u0065\u006C\u0065\u0063\u0074\u0065\u0064\u002E";
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+    return;
+  }
+  const _0x76e88f = selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'];
+  selectedInfo['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<b>Component:</b> ${selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']}<br>
+<b>Type:</b> ${_0x76e88f}`;
+  const _0x4ad1c = ["\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065", 'resistor', 'capacitor', 'inductor'];
+  if (_0x4ad1c['\u0069\u006E\u0063\u006C\u0075\u0064\u0065\u0073'](_0x76e88f)) {
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+    valueInput['\u0076\u0061\u006C\u0075\u0065'] = selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'];
+  } else {
+    valueInput['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    applyValueBtn['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+    valueInput['\u0076\u0061\u006C\u0075\u0065'] = '';
+  }
+  if (_0x76e88f === "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065") {
+    valueLabel['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Voltage (V rms)';
+    frequencyRow['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u0062\u006C\u006F\u0063\u006B";
+    frequencyInput['\u0076\u0061\u006C\u0075\u0065'] = selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0066\u0072\u0065\u0071\u0075\u0065\u006E\u0063\u0079'] || 613064 ^ 613108;
+  } else if (_0x76e88f === "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072") valueLabel['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Resistance (Ω)';else if (_0x76e88f === 'capacitor') valueLabel['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0043\u0061\u0070\u0061\u0063\u0069\u0074\u0061\u006E\u0063\u0065\u0020\u0028\u00B5\u0046\u0029";else if (_0x76e88f === "\u0069\u006E\u0064\u0075\u0063\u0074\u006F\u0072") valueLabel['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0049\u006E\u0064\u0075\u0063\u0074\u0061\u006E\u0063\u0065\u0020\u0028\u006D\u0048\u0029";
+  if (_0x76e88f === "\u0073\u0077\u0069\u0074\u0063\u0068") toggleSwitchBtn['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = 'inline-block';
+}
+applyValueBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  if (!selectedComponent) return;
+  var _0x2f3e0e = (983326 ^ 983326) + (792621 ^ 792621);
+  const value = parseFloat(valueInput['\u0076\u0061\u006C\u0075\u0065']);
+  _0x2f3e0e = 997724 ^ 997727;
+  if (!Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](value)) return;
+  var _0xc2eee = (831514 ^ 831507) + (635407 ^ 635401);
+  const type = selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'];
+  _0xc2eee = (333505 ^ 333512) + (244760 ^ 244761);
+  if (["\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072", "\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072", "\u0069\u006E\u0064\u0075\u0063\u0074\u006F\u0072"]['\u0069\u006E\u0063\u006C\u0075\u0064\u0065\u0073'](type)) selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'] = Math['\u006D\u0061\u0078'](.001, value);
+  if (type === "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065") {
+    selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'] = Math['\u006D\u0061\u0078'](685505 ^ 685505, value);
+    var _0xaefa = (399333 ^ 399341) + (498829 ^ 498829);
+    const f = Math['\u006D\u0061\u0078'](.1, parseFloat(frequencyInput['\u0076\u0061\u006C\u0075\u0065']) || 868737 ^ 868797);
+    _0xaefa = (117551 ^ 117549) + (257364 ^ 257364);
+    components['\u0066\u0069\u006C\u0074\u0065\u0072'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065")['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](c => {
+      c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0066\u0072\u0065\u0071\u0075\u0065\u006E\u0063\u0079'] = f;
+      refreshLabel(c);
+    });
+  }
+  refreshLabel(selectedComponent);
+  solveCircuitAndUpdate();
+  highlightObject(selectedComponent, false);
+  selectedComponent = null;
+  refreshEditor();
+  setStatus("\u0056\u0061\u006C\u0075\u0065\u0020\u0061\u0070\u0070\u006C\u0069\u0065\u0064\u002E");
+});
+toggleSwitchBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  if (!selectedComponent || selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] !== 'switch') return;
+  selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'] = !selectedComponent['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'];
+  updateSwitchGraphic(selectedComponent);
+  refreshLabel(selectedComponent);
+  solveCircuitAndUpdate();
+  refreshEditor();
+});
+function pickLabel(event) {
+  getPointerXY(event);
+  raycaster['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0043\u0061\u006D\u0065\u0072\u0061'](mouse, camera);
+  const _0x85a1c = components['\u006D\u0061\u0070'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0053\u0070\u0072\u0069\u0074\u0065'])['\u0066\u0069\u006C\u0074\u0065\u0072'](Boolean);
+  let _0xg5b2c;
+  const _0x15b2ef = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](_0x85a1c, false);
+  _0xg5b2c = (932324 ^ 932327) + (357687 ^ 357683);
+  if (!_0x15b2ef['\u006C\u0065\u006E\u0067\u0074\u0068']) return null;
+  const _0x8b38e = _0x15b2ef[655956 ^ 655956]['\u006F\u0062\u006A\u0065\u0063\u0074'];
+  return {
+    '\u0073\u0070\u0072\u0069\u0074\u0065': _0x8b38e,
+    "component": _0x8b38e['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074']
+  };
+}
+function pickTerminal(event) {
+  getPointerXY(event);
+  raycaster['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0043\u0061\u006D\u0065\u0072\u0061'](mouse, camera);
+  const _0x532bdg = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](terminalMeshes, !![]);
+  if (!_0x532bdg['\u006C\u0065\u006E\u0067\u0074\u0068']) return null;
+  const _0x4fac = _0x532bdg[737367 ^ 737367]['\u006F\u0062\u006A\u0065\u0063\u0074'];
+  return {
+    "component": _0x4fac['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'],
+    '\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078': _0x4fac['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'],
+    '\u006F\u0062\u006A\u0065\u0063\u0074': _0x4fac
+  };
+}
+function pickComponent(event) {
+  getPointerXY(event);
+  raycaster['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0043\u0061\u006D\u0065\u0072\u0061'](mouse, camera);
+  let _0x4d533c;
+  const _0xde22d = [];
+  _0x4d533c = (630410 ^ 630408) + (640166 ^ 640166);
+  components['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](comp => {
+    comp['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](obj => {
+      if (obj['\u0069\u0073\u004D\u0065\u0073\u0068'] && !obj['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0073\u0054\u0065\u0072\u006D\u0069\u006E\u0061\u006C']) _0xde22d['\u0070\u0075\u0073\u0068'](obj);
+    });
+  });
+  var _0x6edcba = (477380 ^ 477376) + (629134 ^ 629130);
+  const _0x6eac = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](_0xde22d, !![]);
+  _0x6edcba = '\u006B\u0062\u0062\u0066\u006F\u006B';
+  return _0x6eac['\u006C\u0065\u006E\u0067\u0074\u0068'] ? _0x6eac[635502 ^ 635502]['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] || null : null;
+}
+function pickWire(event) {
+  getPointerXY(event);
+  raycaster['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0043\u0061\u006D\u0065\u0072\u0061'](mouse, camera);
+  const _0xfb5bdf = [];
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    wire['\u0067\u0072\u006F\u0075\u0070']['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](obj => {
+      if (obj['\u0069\u0073\u004D\u0065\u0073\u0068']) _0xfb5bdf['\u0070\u0075\u0073\u0068'](obj);
+    });
+  });
+  const _0x63a5b = raycaster['\u0069\u006E\u0074\u0065\u0072\u0073\u0065\u0063\u0074\u004F\u0062\u006A\u0065\u0063\u0074\u0073'](_0xfb5bdf, false);
+  return _0x63a5b['\u006C\u0065\u006E\u0067\u0074\u0068'] ? _0x63a5b[479724 ^ 479724]['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0077\u0069\u0072\u0065\u0052\u0065\u0066'] : null;
+}
+function highlightPendingTerminal(hit, on) {
+  if (!hit?.object?.material?.color) return;
+  if (on) {
+    hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006F\u006C\u0064\u0043\u006F\u006C\u006F\u0072'] = hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0067\u0065\u0074\u0048\u0065\u0078']();
+    hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](TERMINAL_SELECTED_COLOR);
+    hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](1.45, 1.45, 1.45);
+  } else {
+    hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0063\u006F\u006C\u006F\u0072']['\u0073\u0065\u0074\u0048\u0065\u0078'](hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006F\u006C\u0064\u0043\u006F\u006C\u006F\u0072'] ?? TERMINAL_COLOR);
+    hit['\u006F\u0062\u006A\u0065\u0063\u0074']['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](541555 ^ 541554, 718716 ^ 718717, 676045 ^ 676044);
+  }
+}
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0064\u006F\u0077\u006E", event => {
+  let _0x39f;
+  const point = getPlanePoint(event);
+  _0x39f = '\u006F\u006C\u0068\u006F\u006C\u0069';
+  let _0x1de;
+  const insertionModes = ['acsource', "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072", "\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072", 'inductor', "\u0073\u0077\u0069\u0074\u0063\u0068", 'ammeter', 'voltmeter'];
+  _0x1de = 287003 ^ 287003;
+  if (insertionModes['\u0069\u006E\u0063\u006C\u0075\u0064\u0065\u0073'](mode)) {
+    clearLabelSelection();
+    clearSelection();
+    var _0x8265c = (930417 ^ 930421) + (172740 ^ 172748);
+    const comp = createComponentByMode(mode);
+    _0x8265c = "ekkcgg";
+    if (!comp) return;
+    comp['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](snap(point['\u0078']), snap(point['\u0079']), 833662 ^ 833662);
+    selectComponent(comp);
+    if (mode === 'voltmeter' || mode === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072") activeGraphMeterId = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'];
+    solveCircuitAndUpdate();
+    const type = mode;
+    setMode('select');
+    setStatus(`${type} inserted.`);
+    return;
+  }
+  if (mode === 'wire') {
+    const hit = pickTerminal(event);
+    if (!hit) return;
+    if (!pendingWireTerminal) {
+      pendingWireTerminal = hit;
+      highlightPendingTerminal(hit, !![]);
+      setStatus('First terminal selected. Choose the second terminal.');
+      return;
+    }
+    if (pendingWireTerminal['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'] === hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'] && pendingWireTerminal['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'] === hit['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078']) {
+      highlightPendingTerminal(pendingWireTerminal, false);
+      pendingWireTerminal = null;
+      return;
+    }
+    highlightPendingTerminal(pendingWireTerminal, false);
+    connectByWire(pendingWireTerminal['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'], pendingWireTerminal['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'], hit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'], hit['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078']);
+    pendingWireTerminal = null;
+    setStatus('Wire connected.');
+    return;
+  }
+  if (mode !== 'select') return;
+  const terminalHit = pickTerminal(event);
+  if (terminalHit) {
+    clearLabelSelection();
+    selectTerminal(terminalHit);
+    draggingTerminal = terminalHit;
+    const comp = terminalHit['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'];
+    const index = terminalHit['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'];
+    let _0x68e6ea;
+    const center = comp['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']();
+    _0x68e6ea = (369697 ^ 369705) + (832778 ^ 832781);
+    const vector = point['\u0063\u006C\u006F\u006E\u0065']()['\u0073\u0075\u0062'](center);
+    const pointerAngle = Math['\u0061\u0074\u0061\u006E\u0032'](vector['\u0079'], vector['\u0078']);
+    const sideAngle = index === (171322 ^ 171322) ? Math['\u0050\u0049'] : 574770 ^ 574770;
+    const currentLocalX = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0073\u004C\u006F\u0063\u0061\u006C'][index]['\u0078'];
+    terminalDragState = {
+      '\u0061\u006E\u0067\u006C\u0065\u004F\u0066\u0066\u0073\u0065\u0074': comp['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] - (pointerAngle - sideAngle),
+      "radialOffset": Math['\u0061\u0062\u0073'](currentLocalX) - vector['\u006C\u0065\u006E\u0067\u0074\u0068'](),
+      '\u0073\u0069\u0064\u0065': index === (487512 ^ 487512) ? -(282475 ^ 282474) : 261850 ^ 261851
+    };
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    setStatus(`${comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']}: drag outward/inward to extend; drag around component to rotate.`);
+    return;
+  }
+  let _0xf912b;
+  const labelHit = pickLabel(event);
+  _0xf912b = 462955 ^ 462955;
+  if (labelHit) {
+    clearSelection();
+    selectLabel(labelHit['\u0073\u0070\u0072\u0069\u0074\u0065']);
+    draggingLabel = labelHit;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    let _0x934fe;
+    const labelWorld = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']();
+    _0x934fe = (880571 ^ 880568) + (833859 ^ 833863);
+    labelHit['\u0073\u0070\u0072\u0069\u0074\u0065']['\u0067\u0065\u0074\u0057\u006F\u0072\u006C\u0064\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E'](labelWorld);
+    labelDragOffset['\u0073\u0075\u0062\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](labelWorld, point);
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    return;
+  }
+  const comp = pickComponent(event);
+  if (comp) {
+    selectComponent(comp);
+    dragOffset['\u0073\u0075\u0062\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](comp['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'], point);
+    dragging = comp;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    return;
+  }
+  let _0x6b8e;
+  const wire = pickWire(event);
+  _0x6b8e = 892939 ^ 892941;
+  if (wire) {
+    selectWire(wire);
+    draggingWire = wire;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = false;
+    const a = getComponentById(wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064']);
+    const b = getComponentById(wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064']);
+    if (a && b) {
+      var _0xg14eg = (276348 ^ 276341) + (308554 ^ 308552);
+      const p1 = worldTerminalPos(a, wire['\u0061']['\u0074\u0065\u0072\u006D']);
+      _0xg14eg = 487641 ^ 487645;
+      const p2 = worldTerminalPos(b, wire['\u0062']['\u0074\u0065\u0072\u006D']);
+      wire['\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065'] = Math['\u0061\u0062\u0073'](p2['\u0078'] - p1['\u0078']) >= Math['\u0061\u0062\u0073'](p2['\u0079'] - p1['\u0079']) ? 'horizontal' : "\u0076\u0065\u0072\u0074\u0069\u0063\u0061\u006C";
+      wire['\u006D\u0061\u006E\u0075\u0061\u006C\u0052\u006F\u0075\u0074\u0065'] = !![];
+    }
+    wireDragStartPoint = point['\u0063\u006C\u006F\u006E\u0065']();
+    wireDragStartOffset = wire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'] || 738088 ^ 738088;
+    renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    return;
+  }
+  clearLabelSelection();
+  clearSelection();
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+});
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('pointermove', event => {
+  const point = getPlanePoint(event);
+  if (draggingTerminal && terminalDragState) {
+    const comp = draggingTerminal['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'];
+    const index = draggingTerminal['\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0049\u006E\u0064\u0065\u0078'];
+    var _0x9efffc = (993450 ^ 993449) + (931089 ^ 931096);
+    const vector = point['\u0063\u006C\u006F\u006E\u0065']()['\u0073\u0075\u0062'](comp['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);
+    _0x9efffc = '\u0066\u006E\u0061\u0062\u006B\u0062';
+    let _0xcad0bf;
+    const radius = Math['\u006D\u0061\u0078'](vector['\u006C\u0065\u006E\u0067\u0074\u0068'](), .001);
+    _0xcad0bf = 280717 ^ 280718;
+    const pointerAngle = Math['\u0061\u0074\u0061\u006E\u0032'](vector['\u0079'], vector['\u0078']);
+    const sideAngle = index === (401775 ^ 401775) ? Math['\u0050\u0049'] : 924265 ^ 924265;
+    comp['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = pointerAngle - sideAngle + terminalDragState['\u0061\u006E\u0067\u006C\u0065\u004F\u0066\u0066\u0073\u0065\u0074'];
+    const newRadius = Math['\u006D\u0061\u0078'](947771 ^ 947771, radius + terminalDragState['\u0072\u0061\u0064\u0069\u0061\u006C\u004F\u0066\u0066\u0073\u0065\u0074']);
+    moveTerminal(comp, index, snap(terminalDragState['\u0073\u0069\u0064\u0065'] * newRadius, 204647 ^ 204645));
+    wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+      if (wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] || wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']) {
+        updateWireVisual(wire);
+      }
+    });
+    solveCircuitAndUpdate();
+    return;
+  }
+  if (draggingLabel) {
+    const comp = draggingLabel['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'];
+    const sprite = draggingLabel['\u0073\u0070\u0072\u0069\u0074\u0065'];
+    var _0xda63ac = (925974 ^ 925971) + (239863 ^ 239858);
+    const world = point['\u0063\u006C\u006F\u006E\u0065']()['\u0061\u0064\u0064'](labelDragOffset);
+    _0xda63ac = (356100 ^ 356097) + (684205 ^ 684202);
+    const local = comp['\u0077\u006F\u0072\u006C\u0064\u0054\u006F\u004C\u006F\u0063\u0061\u006C'](world['\u0063\u006C\u006F\u006E\u0065']());
+    local['\u007A'] = 814909 ^ 814904;
+    sprite['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](local);
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0062\u0065\u006C\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E'] = local['\u0063\u006C\u006F\u006E\u0065']();
+    return;
+  }
+  if (draggingWire && wireDragStartPoint) {
+    if (draggingWire['\u0072\u006F\u0075\u0074\u0065\u0054\u0079\u0070\u0065'] === "\u0076\u0065\u0072\u0074\u0069\u0063\u0061\u006C") {
+      draggingWire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'] = wireDragStartOffset + (point['\u0078'] - wireDragStartPoint['\u0078']);
+    } else {
+      draggingWire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'] = wireDragStartOffset + (point['\u0079'] - wireDragStartPoint['\u0079']);
+    }
+    draggingWire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'] = snap(draggingWire['\u0072\u006F\u0075\u0074\u0065\u004F\u0066\u0066\u0073\u0065\u0074'], 926965 ^ 926961);
+    draggingWire['\u006D\u0061\u006E\u0075\u0061\u006C\u0052\u006F\u0075\u0074\u0065'] = !![];
+    updateWireVisual(draggingWire);
+    return;
+  }
+  if (!dragging) return;
+  dragging['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](snap(point['\u0078'] + dragOffset['\u0078']), snap(point['\u0079'] + dragOffset['\u0079']), 509517 ^ 509517);
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    if (wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === dragging['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] || wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === dragging['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']) {
+      updateWireVisual(wire);
+    }
+  });
+  solveCircuitAndUpdate();
+});
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('pointerup', event => {
+  if (draggingTerminal) {
+    var _0xf637ed = (963555 ^ 963559) + (989884 ^ 989877);
+    const comp = draggingTerminal['\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074'];
+    _0xf637ed = (274696 ^ 274696) + (130180 ^ 130179);
+    draggingTerminal = null;
+    terminalDragState = null;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+    setStatus(`${comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']} angle = ${THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0072\u0061\u0064\u0054\u006F\u0044\u0065\u0067'](comp['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](278270 ^ 278270)}°`);
+    try {
+      renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    } catch (_) {}
+    return;
+  }
+  if (draggingLabel) {
+    draggingLabel = null;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+    try {
+      renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    } catch (_) {}
+    return;
+  }
+  if (draggingWire) {
+    draggingWire = null;
+    wireDragStartPoint = null;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+    try {
+      renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    } catch (_) {}
+    return;
+  }
+  if (dragging) {
+    dragging = null;
+    controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+    try {
+      renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(event['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+    } catch (_) {}
+  }
+});
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0063\u0061\u006E\u0063\u0065\u006C", () => {
+  dragging = null;
+  draggingWire = null;
+  draggingLabel = null;
+  draggingTerminal = null;
+  terminalDragState = null;
+  wireDragStartPoint = null;
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+});
+renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0064\u0062\u006C\u0063\u006C\u0069\u0063\u006B", event => {
+  var _0x4gee = (960428 ^ 960421) + (672508 ^ 672510);
+  const comp = pickComponent(event);
+  _0x4gee = (968428 ^ 968427) + (345481 ^ 345485);
+  if (!comp || comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] !== "\u0073\u0077\u0069\u0074\u0063\u0068") return;
+  selectComponent(comp);
+  comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'] = !comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'];
+  updateSwitchGraphic(comp);
+  refreshLabel(comp);
+  solveCircuitAndUpdate();
+  refreshEditor();
+});
+function updateMeterNoteVisibility() {
+  let _0x4aa;
+  const _0xgb68a = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006D\u0065\u0074\u0065\u0072\u004E\u006F\u0074\u0065\u0042\u006F\u0078");
+  _0x4aa = (255275 ^ 255266) + (634932 ^ 634940);
+  let _0x5a8gd;
+  const _0xf5d = [...graphStates['\u0076\u0061\u006C\u0075\u0065\u0073']()]['\u0073\u006F\u006D\u0065'](gs => !gs['\u0068\u0069\u0064\u0064\u0065\u006E'] && gs['\u0070\u0061\u006E\u0065\u006C'] && gs['\u0070\u0061\u006E\u0065\u006C']['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] !== 'none');
+  _0x5a8gd = 480516 ^ 480519;
+  if (_0xgb68a) {
+    _0xgb68a['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = _0xf5d ? 'none' : 'block';
+  }
+}
+function deleteWire(wire) {
+  if (!wire) return;
+  disposeGroupChildren(wire['\u0067\u0072\u006F\u0075\u0070']);
+  scene['\u0072\u0065\u006D\u006F\u0076\u0065'](wire['\u0067\u0072\u006F\u0075\u0070']);
+  wires = wires['\u0066\u0069\u006C\u0074\u0065\u0072'](w => w !== wire);
+  if (selectedWire === wire) selectedWire = null;
+  refreshEditor();
+  solveCircuitAndUpdate();
+}
+function deleteComponent(comp) {
+  if (!comp) return;
+  const _0x992de = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'];
+  wires['\u0066\u0069\u006C\u0074\u0065\u0072'](w => w['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === _0x992de || w['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === _0x992de)['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](w => {
+    disposeGroupChildren(w['\u0067\u0072\u006F\u0075\u0070']);
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](w['\u0067\u0072\u006F\u0075\u0070']);
+  });
+  wires = wires['\u0066\u0069\u006C\u0074\u0065\u0072'](w => w['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] !== _0x992de && w['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] !== _0x992de);
+  terminalMeshes = terminalMeshes['\u0066\u0069\u006C\u0074\u0065\u0072'](t => t['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u006F\u006F\u0074'] !== comp);
+  scene['\u0072\u0065\u006D\u006F\u0076\u0065'](comp);
+  components = components['\u0066\u0069\u006C\u0074\u0065\u0072'](c => c !== comp);
+  if (selectedComponent === comp) selectedComponent = null;
+  refreshEditor();
+  solveCircuitAndUpdate();
+}
+window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u006B\u0065\u0079\u0064\u006F\u0077\u006E", event => {
+  if (event['\u0074\u0061\u0072\u0067\u0065\u0074'] instanceof HTMLInputElement || event['\u0074\u0061\u0072\u0067\u0065\u0074'] instanceof HTMLTextAreaElement) return;
+  if (event['\u006B\u0065\u0079'] !== "\u0044\u0065\u006C\u0065\u0074\u0065" && event['\u006B\u0065\u0079'] !== "\u0042\u0061\u0063\u006B\u0073\u0070\u0061\u0063\u0065") return;
+  if (selectedComponent) {
+    deleteComponent(selectedComponent);
+    return;
+  }
+  if (selectedWire) deleteWire(selectedWire);
+});
+class UnionFind {
+  constructor() {
+    this['\u0070\u0061\u0072\u0065\u006E\u0074'] = new Map();
+  }
+  add(x) {
+    if (!this['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0068\u0061\u0073'](x)) this['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0073\u0065\u0074'](x, x);
+  }
+  find(x) {
+    if (this['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0067\u0065\u0074'](x) !== x) this['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0073\u0065\u0074'](x, this['\u0066\u0069\u006E\u0064'](this['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0067\u0065\u0074'](x)));
+    return this['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0067\u0065\u0074'](x);
+  }
+  union(a, b) {
+    this['\u0061\u0064\u0064'](a);
+    this['\u0061\u0064\u0064'](b);
+    const ra = this['\u0066\u0069\u006E\u0064'](a);
+    const rb = this['\u0066\u0069\u006E\u0064'](b);
+    if (ra !== rb) this['\u0070\u0061\u0072\u0065\u006E\u0074']['\u0073\u0065\u0074'](rb, ra);
+  }
+}
+function termKey(id, index) {
+  return `${id}:${index}`;
+}
+function buildNetwork() {
+  let _0x4b_0x6bc;
+  const _0x097bd = new UnionFind();
+  _0x4b_0x6bc = 342430 ^ 342430;
+  let _0x781a;
+  const _0xec3f = new Map();
+  _0x781a = (571002 ^ 571004) + (164549 ^ 164545);
+  components['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](comp => {
+    _0xec3f['\u0073\u0065\u0074'](termKey(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], 854628 ^ 854628), 600057 ^ 600057);
+    _0xec3f['\u0073\u0065\u0074'](termKey(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], 764341 ^ 764340), 124743 ^ 124743);
+  });
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    const a = termKey(wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'], wire['\u0061']['\u0074\u0065\u0072\u006D']);
+    let _0xad6b;
+    const b = termKey(wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'], wire['\u0062']['\u0074\u0065\u0072\u006D']);
+    _0xad6b = (772949 ^ 772949) + (459765 ^ 459762);
+    _0xec3f['\u0073\u0065\u0074'](a, (_0xec3f['\u0067\u0065\u0074'](a) || 808713 ^ 808713) + (783437 ^ 783436));
+    _0xec3f['\u0073\u0065\u0074'](b, (_0xec3f['\u0067\u0065\u0074'](b) || 639428 ^ 639428) + (282602 ^ 282603));
+  });
+  let _0xe5b;
+  const _0x125dgc = components['\u0066\u0069\u006C\u0074\u0065\u0072'](comp => {
+    let _0x8779gd;
+    const _0xb8g = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'];
+    _0x8779gd = 447594 ^ 447587;
+    return (_0xec3f['\u0067\u0065\u0074'](termKey(_0xb8g, 907176 ^ 907176)) || 136920 ^ 136920) > (491666 ^ 491666) && (_0xec3f['\u0067\u0065\u0074'](termKey(_0xb8g, 179528 ^ 179529)) || 697590 ^ 697590) > (605595 ^ 605595);
+  });
+  _0xe5b = 896666 ^ 896669;
+  const _0x37e4ca = _0x125dgc['\u0066\u0069\u006C\u0074\u0065\u0072'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065");
+  if (!_0x37e4ca['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    return {
+      "elements": [],
+      "groundRep": null,
+      "nodeRepToIndex": new Map(),
+      "activeComponents": _0x125dgc
+    };
+  }
+  _0x125dgc['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](comp => {
+    _0x097bd['\u0061\u0064\u0064'](termKey(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], 559253 ^ 559253));
+    _0x097bd['\u0061\u0064\u0064'](termKey(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], 588209 ^ 588208));
+  });
+  var _0x9666ag = (106368 ^ 106377) + (579757 ^ 579759);
+  const _0xcg7ab = new Set(_0x125dgc['\u006D\u0061\u0070'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']));
+  _0x9666ag = (285993 ^ 285995) + (439660 ^ 439663);
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    if (!_0xcg7ab['\u0068\u0061\u0073'](wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064']) || !_0xcg7ab['\u0068\u0061\u0073'](wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'])) return;
+    _0x097bd['\u0075\u006E\u0069\u006F\u006E'](termKey(wire['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'], wire['\u0061']['\u0074\u0065\u0072\u006D']), termKey(wire['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'], wire['\u0062']['\u0074\u0065\u0072\u006D']));
+  });
+  const _0xcg273e = new Map();
+  _0x125dgc['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](comp => {
+    for (let i = 406279 ^ 406279; i < (529909 ^ 529911); i++) {
+      const _0x6598cb = _0x097bd['\u0066\u0069\u006E\u0064'](termKey(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], i));
+      if (!_0xcg273e['\u0068\u0061\u0073'](_0x6598cb)) _0xcg273e['\u0073\u0065\u0074'](_0x6598cb, _0xcg273e['\u0073\u0069\u007A\u0065']);
+    }
+  });
+  const _0x31e4f = _0x097bd['\u0066\u0069\u006E\u0064'](termKey(_0x37e4ca[811330 ^ 811330]['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], 540250 ^ 540250));
+  const _0x11_0xd05 = _0x125dgc['\u006D\u0061\u0070'](comp => ({
+    '\u0063\u006F\u006D\u0070': comp,
+    '\u0074\u0079\u0070\u0065': comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'],
+    '\u006E\u0030': _0x097bd['\u0066\u0069\u006E\u0064'](termKey(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], 206635 ^ 206635)),
+    "n1": _0x097bd['\u0066\u0069\u006E\u0064'](termKey(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], 511788 ^ 511789))
+  }));
+  return {
+    '\u0065\u006C\u0065\u006D\u0065\u006E\u0074\u0073': _0x11_0xd05,
+    '\u0067\u0072\u006F\u0075\u006E\u0064\u0052\u0065\u0070': _0x31e4f,
+    '\u006E\u006F\u0064\u0065\u0052\u0065\u0070\u0054\u006F\u0049\u006E\u0064\u0065\u0078': _0xcg273e,
+    "activeComponents": _0x125dgc
+  };
+}
+const C = (re = 457300 ^ 457300, im = 418728 ^ 418728) => ({
+  "re": re,
+  '\u0069\u006D': im
+});
+const cadd = (a, b) => C(a['\u0072\u0065'] + b['\u0072\u0065'], a['\u0069\u006D'] + b['\u0069\u006D']);
+const csub = (a, b) => C(a['\u0072\u0065'] - b['\u0072\u0065'], a['\u0069\u006D'] - b['\u0069\u006D']);
+const cmul = (a, b) => C(a['\u0072\u0065'] * b['\u0072\u0065'] - a['\u0069\u006D'] * b['\u0069\u006D'], a['\u0072\u0065'] * b['\u0069\u006D'] + a['\u0069\u006D'] * b['\u0072\u0065']);
+const cdiv = (a, b) => {
+  var _0x0e3e = (643323 ^ 643320) + (564128 ^ 564129);
+  const d = b['\u0072\u0065'] * b['\u0072\u0065'] + b['\u0069\u006D'] * b['\u0069\u006D'];
+  _0x0e3e = (175111 ^ 175104) + (808463 ^ 808460);
+  if (d < 1e-30) return C();
+  return C((a['\u0072\u0065'] * b['\u0072\u0065'] + a['\u0069\u006D'] * b['\u0069\u006D']) / d, (a['\u0069\u006D'] * b['\u0072\u0065'] - a['\u0072\u0065'] * b['\u0069\u006D']) / d);
+};
+const cscale = (a, k) => C(a['\u0072\u0065'] * k, a['\u0069\u006D'] * k);
+let _0xcc8a4c;
+const cabs = a => Math['\u0068\u0079\u0070\u006F\u0074'](a['\u0072\u0065'], a['\u0069\u006D']);
+_0xcc8a4c = (797095 ^ 797094) + (818376 ^ 818369);
+const cphase = a => Math['\u0061\u0074\u0061\u006E\u0032'](a['\u0069\u006D'], a['\u0072\u0065']);
+function circuitFrequency() {
+  let _0x558a;
+  const _0x2689bd = components['\u0066\u0069\u006E\u0064'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === 'acsource');
+  _0x558a = (838921 ^ 838922) + (453111 ^ 453111);
+  return Math['\u006D\u0061\u0078'](.1, _0x2689bd?.userData.frequency || 604613 ^ 604665);
+}
+function componentAdmittance(comp, omega) {
+  var _0xge_0xdd5 = (964055 ^ 964063) + (136081 ^ 136082);
+  const _0xb3148d = comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'];
+  _0xge_0xdd5 = 960137 ^ 960142;
+  if (_0xb3148d === 'resistor') {
+    const R = Math['\u006D\u0061\u0078'](.001, comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065']);
+    return C((748185 ^ 748184) / R, 569932 ^ 569932);
+  }
+  if (_0xb3148d === "\u0063\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072") {
+    let _0x2835f;
+    const _0x2d283b = Math['\u006D\u0061\u0078'](1e-12, comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'] * 1e-6);
+    _0x2835f = (460301 ^ 460299) + (165245 ^ 165241);
+    return C(391465 ^ 391465, omega * _0x2d283b);
+  }
+  if (_0xb3148d === 'inductor') {
+    let _0x52cdf;
+    const L = Math['\u006D\u0061\u0078'](1e-12, comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065'] * 1e-3);
+    _0x52cdf = (195969 ^ 195968) + (193743 ^ 193742);
+    return C(737236 ^ 737236, -(918857 ^ 918856) / (omega * L));
+  }
+  if (_0xb3148d === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072") return C((631829 ^ 631828) / .05, 880238 ^ 880238);
+  if (_0xb3148d === "\u0076\u006F\u006C\u0074\u006D\u0065\u0074\u0065\u0072") return C((230617 ^ 230616) / 1e9, 376511 ^ 376511);
+  if (_0xb3148d === 'switch') return C(comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u006C\u006F\u0073\u0065\u0064'] ? (730368 ^ 730369) / .001 : (295485 ^ 295484) / 1e12, 301889 ^ 301889);
+  return C();
+}
+function gaussianSolveComplex(Ain, bin) {
+  var _0xf359f = (332654 ^ 332647) + (660786 ^ 660789);
+  const n = Ain['\u006C\u0065\u006E\u0067\u0074\u0068'];
+  _0xf359f = '\u0065\u0071\u0064\u0068\u0071\u006A';
+  const A = Ain['\u006D\u0061\u0070'](row => row['\u006D\u0061\u0070'](v => C(v['\u0072\u0065'], v['\u0069\u006D'])));
+  let _0x79e6d;
+  const b = bin['\u006D\u0061\u0070'](v => C(v['\u0072\u0065'], v['\u0069\u006D']));
+  _0x79e6d = (831260 ^ 831256) + (464259 ^ 464262);
+  for (let i = 839477 ^ 839477; i < n; i++) {
+    var _0x828c = (302636 ^ 302636) + (902454 ^ 902449);
+    let _0x68865d = i;
+    _0x828c = (840219 ^ 840219) + (472252 ^ 472255);
+    var _0xc95e2d = (346228 ^ 346226) + (665691 ^ 665683);
+    let _0x9bgbf = cabs(A[i][i]);
+    _0xc95e2d = 840882 ^ 840880;
+    for (let r = i + (232673 ^ 232672); r < n; r++) {
+      var _0x727cec = (261481 ^ 261473) + (261906 ^ 261905);
+      const m = cabs(A[r][i]);
+      _0x727cec = (372509 ^ 372509) + (389394 ^ 389402);
+      if (m > _0x9bgbf) {
+        _0x9bgbf = m;
+        _0x68865d = r;
+      }
+    }
+    if (_0x9bgbf < 1e-12) return null;
+    if (_0x68865d !== i) {
+      [A[i], A[_0x68865d]] = [A[_0x68865d], A[i]];
+      [b[i], b[_0x68865d]] = [b[_0x68865d], b[i]];
+    }
+    let _0x27b;
+    const _0x92904a = A[i][i];
+    _0x27b = 864185 ^ 864185;
+    for (let col = i; col < n; col++) A[i][col] = cdiv(A[i][col], _0x92904a);
+    b[i] = cdiv(b[i], _0x92904a);
+    for (let r = 136982 ^ 136982; r < n; r++) {
+      if (r === i) continue;
+      let _0x779bbb;
+      const _0x833b8e = A[r][i];
+      _0x779bbb = 354377 ^ 354379;
+      if (cabs(_0x833b8e) < 1e-15) continue;
+      for (let col = i; col < n; col++) {
+        A[r][col] = csub(A[r][col], cmul(_0x833b8e, A[i][col]));
+      }
+      b[r] = csub(b[r], cmul(_0x833b8e, b[i]));
+    }
+  }
+  return b;
+}
+function solveMNA() {
+  var _0xd1de = (648417 ^ 648419) + (235684 ^ 235686);
+  const _0x1gd = buildNetwork();
+  _0xd1de = (811767 ^ 811766) + (244925 ^ 244916);
+  const _0x17e = [..._0x1gd['\u006E\u006F\u0064\u0065\u0052\u0065\u0070\u0054\u006F\u0049\u006E\u0064\u0065\u0078']['\u006B\u0065\u0079\u0073']()];
+  const _0x759b3e = _0x1gd['\u0067\u0072\u006F\u0075\u006E\u0064\u0052\u0065\u0070'];
+  if (_0x759b3e == null) return null;
+  var _0x5e87fg = (642023 ^ 642023) + (671255 ^ 671253);
+  const _0x8aa5g = _0x17e['\u0066\u0069\u006C\u0074\u0065\u0072'](r => r !== _0x759b3e);
+  _0x5e87fg = '\u0067\u0067\u0064\u0063\u006B\u0066';
+  let _0x2b58ge;
+  const _0x22f = new Map();
+  _0x2b58ge = '\u0065\u0068\u006C\u0066\u0070\u0067';
+  _0x8aa5g['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((r, i) => _0x22f['\u0073\u0065\u0074'](r, i));
+  let _0x4_0x33b;
+  const _0xb3eag = _0x1gd['\u0065\u006C\u0065\u006D\u0065\u006E\u0074\u0073']['\u0066\u0069\u006C\u0074\u0065\u0072'](el => el['\u0074\u0079\u0070\u0065'] === 'acsource');
+  _0x4_0x33b = (778130 ^ 778132) + (828928 ^ 828928);
+  const N = _0x8aa5g['\u006C\u0065\u006E\u0067\u0074\u0068'];
+  const M = _0xb3eag['\u006C\u0065\u006E\u0067\u0074\u0068'];
+  const _0xb7ea = N + M;
+  if (!_0xb7ea) return null;
+  const A = Array['\u0066\u0072\u006F\u006D']({
+    "length": _0xb7ea
+  }, () => Array['\u0066\u0072\u006F\u006D']({
+    "length": _0xb7ea
+  }, () => C()));
+  var _0x5_0x6f4 = (810420 ^ 810423) + (679064 ^ 679065);
+  const z = Array['\u0066\u0072\u006F\u006D']({
+    '\u006C\u0065\u006E\u0067\u0074\u0068': _0xb7ea
+  }, () => C());
+  _0x5_0x6f4 = (544145 ^ 544144) + (199293 ^ 199284);
+  const _0xef94af = rep => rep === _0x759b3e ? -(143641 ^ 143640) : _0x22f['\u0067\u0065\u0074'](rep);
+  var _0xe037d = (484049 ^ 484055) + (303415 ^ 303410);
+  const _0x4dd = (956010 ^ 956008) * Math['\u0050\u0049'] * circuitFrequency();
+  _0xe037d = (669993 ^ 669985) + (716844 ^ 716842);
+  const _0xd66cea = (r, c, v) => {
+    A[r][c] = cadd(A[r][c], v);
+  };
+  _0x1gd['\u0065\u006C\u0065\u006D\u0065\u006E\u0074\u0073']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](el => {
+    if (el['\u0074\u0079\u0070\u0065'] === "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065") return;
+    var _0x8e152a = (335040 ^ 335049) + (632810 ^ 632815);
+    const Y = componentAdmittance(el['\u0063\u006F\u006D\u0070'], _0x4dd);
+    _0x8e152a = (979478 ^ 979478) + (712747 ^ 712747);
+    if (cabs(Y) < 1e-18) return;
+    var _0x9bd = (962193 ^ 962193) + (616033 ^ 616033);
+    const i = _0xef94af(el['\u006E\u0030']);
+    _0x9bd = "chpecc";
+    const j = _0xef94af(el['\u006E\u0031']);
+    if (i >= (936739 ^ 936739)) _0xd66cea(i, i, Y);
+    if (j >= (338848 ^ 338848)) _0xd66cea(j, j, Y);
+    if (i >= (874790 ^ 874790) && j >= (979389 ^ 979389)) {
+      _0xd66cea(i, j, cscale(Y, -(948738 ^ 948739)));
+      _0xd66cea(j, i, cscale(Y, -(896902 ^ 896903)));
+    }
+  });
+  _0xb3eag['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((el, k) => {
+    var _0x6a_0x315 = (133898 ^ 133899) + (349621 ^ 349617);
+    const _0x61745f = N + k;
+    _0x6a_0x315 = (618237 ^ 618233) + (393047 ^ 393044);
+    const _0x9fd9c = _0xef94af(el['\u006E\u0030']);
+    let _0x6d_0x582;
+    const _0x3a3aff = _0xef94af(el['\u006E\u0031']);
+    _0x6d_0x582 = '\u0064\u0068\u0070\u0070\u0067\u0071';
+    if (_0x3a3aff >= (189794 ^ 189794)) {
+      _0xd66cea(_0x3a3aff, _0x61745f, C(396025 ^ 396024));
+      _0xd66cea(_0x61745f, _0x3a3aff, C(776956 ^ 776957));
+    }
+    if (_0x9fd9c >= (988458 ^ 988458)) {
+      _0xd66cea(_0x9fd9c, _0x61745f, C(-(249069 ^ 249068)));
+      _0xd66cea(_0x61745f, _0x9fd9c, C(-(713002 ^ 713003)));
+    }
+    z[_0x61745f] = C(el['\u0063\u006F\u006D\u0070']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u0061\u006C\u0075\u0065']);
+  });
+  var _0x4c34f = (378193 ^ 378192) + (545999 ^ 545991);
+  const x = gaussianSolveComplex(A, z);
+  _0x4c34f = '\u0065\u0067\u006D\u0069\u006B\u0065';
+  if (!x) return null;
+  const _0xe81e = new Map([[_0x759b3e, C()]]);
+  _0x8aa5g['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((rep, i) => {
+    _0xe81e['\u0073\u0065\u0074'](rep, x[i]);
+  });
+  const _0x37a2f = new Map();
+  _0xb3eag['\u0066\u006F\u0072\u0045\u0061\u0063\u0068']((el, k) => {
+    _0x37a2f['\u0073\u0065\u0074'](el['\u0063\u006F\u006D\u0070']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], x[N + k]);
+  });
+  var _0xb4816a = (222217 ^ 222208) + (333517 ^ 333517);
+  const _0x159d = new Map();
+  _0xb4816a = (145813 ^ 145812) + (204519 ^ 204512);
+  _0x1gd['\u0065\u006C\u0065\u006D\u0065\u006E\u0074\u0073']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](el => {
+    _0x159d['\u0073\u0065\u0074'](el['\u0063\u006F\u006D\u0070']['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'], {
+      "n0": el['\u006E\u0030'],
+      "n1": el['\u006E\u0031']
+    });
+  });
+  return {
+    "nodeVoltageByRep": _0xe81e,
+    "sourceCurrents": _0x37a2f,
+    "compNodeMap": _0x159d,
+    "frequency": circuitFrequency()
+  };
+}
+function formatNum(v, digits = 849985 ^ 849986) {
+  if (!Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](v)) return '--';
+  if (Math['\u0061\u0062\u0073'](v) >= (512092 ^ 512948) || Math['\u0061\u0062\u0073'](v) > (289771 ^ 289771) && Math['\u0061\u0062\u0073'](v) < .001) return v['\u0074\u006F\u0045\u0078\u0070\u006F\u006E\u0065\u006E\u0074\u0069\u0061\u006C'](591310 ^ 591308);
+  return Number(v)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](digits);
+}
+function meterIsFullyConnected(meter) {
+  if (!meter) return false;
+  const _0x42e = meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'];
+  return [598249 ^ 598249, 363316 ^ 363317]['\u0065\u0076\u0065\u0072\u0079'](term => wires['\u0073\u006F\u006D\u0065'](w => w['\u0061']['\u0063\u006F\u006D\u0070\u0049\u0064'] === _0x42e && w['\u0061']['\u0074\u0065\u0072\u006D'] === term || w['\u0062']['\u0063\u006F\u006D\u0070\u0049\u0064'] === _0x42e && w['\u0062']['\u0074\u0065\u0072\u006D'] === term));
+}
+function refreshMeterPanel() {
+  var _0xfda5d = (840239 ^ 840231) + (833212 ^ 833211);
+  const _0x8e037f = components['\u0066\u0069\u006C\u0074\u0065\u0072'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072" || c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === 'voltmeter');
+  _0xfda5d = '\u0068\u0068\u0067\u0067\u006D\u006F';
+  if (!_0x8e037f['\u006C\u0065\u006E\u0067\u0074\u0068']) {
+    meterReadouts['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = "\u003C\u0062\u003E\u0041\u0043\u0020\u004D\u0065\u0074\u0065\u0072\u0073\u0020\u0028\u0052\u004D\u0053\u0029\u003C\u002F\u0062\u003E\u003C\u0062\u0072\u003E\u004E\u006F\u0020\u006D\u0065\u0074\u0065\u0072\u0073\u0020\u0079\u0065\u0074\u002E";
+    return;
+  }
+  let _0xef_0xa6c = "\u003C\u0062\u003E\u0041\u0043\u0020\u004D\u0065\u0074\u0065\u0072\u0073\u0020\u0028\u0052\u004D\u0053\u0029\u003C\u002F\u0062\u003E\u003C\u0062\u0072\u003E";
+  _0x8e037f['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](meter => {
+    if (!meterIsFullyConnected(meter)) {
+      _0xef_0xa6c += `${meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']}: <b>not connected</b><br>`;
+    } else if (meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072") {
+      _0xef_0xa6c += `${meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']}: <b>${formatNum(meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'])} A rms</b><br>`;
+    } else {
+      _0xef_0xa6c += `${meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']}: <b>${formatNum(meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'])} V rms</b><br>`;
+    }
+  });
+  meterReadouts['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = _0xef_0xa6c;
+}
+function meterCanGraph(meter) {
+  if (!meter) return false;
+  if (!["\u0061\u006D\u006D\u0065\u0074\u0065\u0072", 'voltmeter']['\u0069\u006E\u0063\u006C\u0075\u0064\u0065\u0073'](meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'])) return false;
+  if (!meterIsFullyConnected(meter)) return false;
+  return meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0076\u006F\u006C\u0074\u006D\u0065\u0074\u0065\u0072" ? !!meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u006F\u006C\u0074\u0061\u0067\u0065\u0050\u0068\u0061\u0073\u006F\u0072'] : !!meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0050\u0068\u0061\u0073\u006F\u0072'];
+}
+function removeGraphState(id) {
+  var _0xcg13af = (698845 ^ 698842) + (932387 ^ 932385);
+  const _0xa6bbcb = graphStates['\u0067\u0065\u0074'](id);
+  _0xcg13af = 129305 ^ 129309;
+  if (!_0xa6bbcb) return;
+  _0xa6bbcb['\u0070\u0061\u006E\u0065\u006C']?.remove();
+  graphStates['\u0064\u0065\u006C\u0065\u0074\u0065'](id);
+  graphButtonSignature = '';
+}
+function createGraphState(meter) {
+  var _0x3d3aa = (102551 ^ 102549) + (444872 ^ 444878);
+  const _0x3c_0xc0c = meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'];
+  _0x3d3aa = (157977 ^ 157982) + (255393 ^ 255400);
+  if (graphStates['\u0068\u0061\u0073'](_0x3c_0xc0c)) return graphStates['\u0067\u0065\u0074'](_0x3c_0xc0c);
+  let _0x62bda;
+  const _0x13_0x3ef = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0064\u0069\u0076");
+  _0x62bda = 448793 ^ 448799;
+  _0x13_0x3ef['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0067\u0072\u0061\u0070\u0068\u0050\u0061\u006E\u0065\u006C";
+  const _0x14_0xced = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']('div');
+  _0x14_0xced['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0067\u0072\u0061\u0070\u0068\u0054\u0069\u0074\u006C\u0065";
+  let _0x1cfb;
+  const _0xfag7f = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0073\u0070\u0061\u006E");
+  _0x1cfb = 128397 ^ 128399;
+  _0xfag7f['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = 'graphTitleText';
+  const _0x1d023d = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']('button');
+  _0x1d023d['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0067\u0072\u0061\u0070\u0068\u0048\u0065\u0061\u0064\u0065\u0072\u0042\u0074\u006E";
+  _0x1d023d['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+  let _0x2e555a;
+  const _0x15_0x29d = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0062\u0075\u0074\u0074\u006F\u006E");
+  _0x2e555a = (290291 ^ 290291) + (819036 ^ 819038);
+  _0x15_0x29d['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0067\u0072\u0061\u0070\u0068\u0048\u0065\u0061\u0064\u0065\u0072\u0042\u0074\u006E";
+  _0x15_0x29d['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0048\u0069\u0064\u0065";
+  _0x14_0xced['\u0061\u0070\u0070\u0065\u006E\u0064'](_0xfag7f, _0x1d023d, _0x15_0x29d);
+  const _0x4gfc = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']('canvas');
+  _0x4gfc['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = 'waveCanvas';
+  _0x4gfc['\u0077\u0069\u0064\u0074\u0068'] = 965817 ^ 966415;
+  _0x4gfc['\u0068\u0065\u0069\u0067\u0068\u0074'] = 184262 ^ 183852;
+  _0x13_0x3ef['\u0061\u0070\u0070\u0065\u006E\u0064'](_0x14_0xced, _0x4gfc);
+  graphPanelsLayer['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](_0x13_0x3ef);
+  const i = graphStates['\u0073\u0069\u007A\u0065'];
+  _0x13_0x3ef['\u0073\u0074\u0079\u006C\u0065']['\u006C\u0065\u0066\u0074'] = `${(432494 ^ 432246) + i * (573797 ^ 573766)}px`;
+  _0x13_0x3ef['\u0073\u0074\u0079\u006C\u0065']['\u0074\u006F\u0070'] = `${(852235 ^ 852335) + i * (144982 ^ 145019)}px`;
+  var _0x8ddd7f = (249874 ^ 249877) + (331433 ^ 331436);
+  const _0xf2492g = {
+    '\u006D\u0065\u0074\u0065\u0072\u0049\u0064': _0x3c_0xc0c,
+    '\u0070\u0061\u006E\u0065\u006C': _0x13_0x3ef,
+    '\u0074\u0069\u0074\u006C\u0065': _0x14_0xced,
+    "titleText": _0xfag7f,
+    '\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E': _0x1d023d,
+    '\u0068\u0069\u0064\u0065\u0042\u0074\u006E': _0x15_0x29d,
+    "canvas": _0x4gfc,
+    '\u0063\u0074\u0078': _0x4gfc['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064"),
+    '\u0068\u0069\u0064\u0064\u0065\u006E': false,
+    '\u0070\u0061\u0075\u0073\u0065\u0064': false,
+    "progress": 0,
+    '\u0068\u006F\u006C\u0064': 0,
+    '\u0073\u0069\u0067\u006E\u0061\u0074\u0075\u0072\u0065': '',
+    '\u0064\u0072\u0061\u0067\u0067\u0069\u006E\u0067': false,
+    '\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064': null,
+    "offsetX": 0,
+    '\u006F\u0066\u0066\u0073\u0065\u0074\u0059': 0
+  };
+  _0x8ddd7f = (827082 ^ 827086) + (712389 ^ 712389);
+  graphStates['\u0073\u0065\u0074'](_0x3c_0xc0c, _0xf2492g);
+  _0x1d023d['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = e => {
+    e['\u0073\u0074\u006F\u0070\u0050\u0072\u006F\u0070\u0061\u0067\u0061\u0074\u0069\u006F\u006E']();
+    _0xf2492g['\u0070\u0061\u0075\u0073\u0065\u0064'] = !_0xf2492g['\u0070\u0061\u0075\u0073\u0065\u0064'];
+    _0x1d023d['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = _0xf2492g['\u0070\u0061\u0075\u0073\u0065\u0064'] ? 'Resume' : 'Pause';
+  };
+  _0x15_0x29d['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = e => {
+    e['\u0073\u0074\u006F\u0070\u0050\u0072\u006F\u0070\u0061\u0067\u0061\u0074\u0069\u006F\u006E']();
+    _0xf2492g['\u0068\u0069\u0064\u0064\u0065\u006E'] = !![];
+    _0x13_0x3ef['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = 'none';
+    updateMeterNoteVisibility();
+    graphButtonSignature = '';
+    updateGraphButtons();
+  };
+  _0x14_0xced['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('pointerdown', e => {
+    if (e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0063\u006C\u006F\u0073\u0065\u0073\u0074']('button')) return;
+    var _0x1869d = (572855 ^ 572851) + (856753 ^ 856761);
+    const _0x731e = _0x13_0x3ef['\u0067\u0065\u0074\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0043\u006C\u0069\u0065\u006E\u0074\u0052\u0065\u0063\u0074']();
+    _0x1869d = (460308 ^ 460309) + (340751 ^ 340751);
+    _0xf2492g['\u0064\u0072\u0061\u0067\u0067\u0069\u006E\u0067'] = !![];
+    _0xf2492g['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064'] = e['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064'];
+    _0xf2492g['\u006F\u0066\u0066\u0073\u0065\u0074\u0058'] = e['\u0063\u006C\u0069\u0065\u006E\u0074\u0058'] - _0x731e['\u006C\u0065\u0066\u0074'];
+    _0xf2492g['\u006F\u0066\u0066\u0073\u0065\u0074\u0059'] = e['\u0063\u006C\u0069\u0065\u006E\u0074\u0059'] - _0x731e['\u0074\u006F\u0070'];
+    _0x14_0xced['\u0073\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0065\u0072\u0043\u0061\u0070\u0074\u0075\u0072\u0065']?.(e['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']);
+  });
+  _0x14_0xced['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('pointermove', e => {
+    if (!_0xf2492g['\u0064\u0072\u0061\u0067\u0067\u0069\u006E\u0067'] || e['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064'] !== _0xf2492g['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064']) return;
+    _0x13_0x3ef['\u0073\u0074\u0079\u006C\u0065']['\u006C\u0065\u0066\u0074'] = `${Math['\u006D\u0061\u0078'](803539 ^ 803547, e['\u0063\u006C\u0069\u0065\u006E\u0074\u0058'] - _0xf2492g['\u006F\u0066\u0066\u0073\u0065\u0074\u0058'])}px`;
+    _0x13_0x3ef['\u0073\u0074\u0079\u006C\u0065']['\u0074\u006F\u0070'] = `${Math['\u006D\u0061\u0078'](340484 ^ 340492, e['\u0063\u006C\u0069\u0065\u006E\u0074\u0059'] - _0xf2492g['\u006F\u0066\u0066\u0073\u0065\u0074\u0059'])}px`;
+  });
+  const _0x756a = e => {
+    if (!_0xf2492g['\u0064\u0072\u0061\u0067\u0067\u0069\u006E\u0067']) return;
+    _0xf2492g['\u0064\u0072\u0061\u0067\u0067\u0069\u006E\u0067'] = false;
+    _0xf2492g['\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0049\u0064'] = null;
+  };
+  _0x14_0xced['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0070\u006F\u0069\u006E\u0074\u0065\u0072\u0075\u0070", _0x756a);
+  _0x14_0xced['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('pointercancel', _0x756a);
+  return _0xf2492g;
+}
+function updateGraphButtons() {
+  if (!graphShowButtons) return;
+  const _0x79g6ea = components['\u0066\u0069\u006C\u0074\u0065\u0072'](m => meterCanGraph(m));
+  let _0x8b3aba;
+  const _0x75g = _0x79g6ea['\u006D\u0061\u0070'](m => {
+    const gs = graphStates['\u0067\u0065\u0074'](m['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']);
+    return `${m['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']}:${gs?.hidden ? 864088 ^ 864089 : 359313 ^ 359313}`;
+  })['\u006A\u006F\u0069\u006E']("\u007C");
+  _0x8b3aba = 455789 ^ 455784;
+  if (_0x75g === graphButtonSignature) return;
+  graphButtonSignature = _0x75g;
+  graphShowButtons['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = '';
+  _0x79g6ea['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](meter => {
+    var _0x5a27fc = (619717 ^ 619715) + (699927 ^ 699926);
+    const gs = createGraphState(meter);
+    _0x5a27fc = 139312 ^ 139318;
+    const _0x7e77d = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0062\u0075\u0074\u0074\u006F\u006E");
+    _0x7e77d['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0067\u0072\u0061\u0070\u0068\u0054\u006F\u0067\u0067\u006C\u0065\u0042\u0074\u006E";
+    let _0xbf7fa;
+    const q = meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0076\u006F\u006C\u0074\u006D\u0065\u0074\u0065\u0072" ? "\u0056\u006F\u006C\u0074\u0061\u0067\u0065" : "\u0043\u0075\u0072\u0072\u0065\u006E\u0074";
+    _0xbf7fa = (148011 ^ 148015) + (297420 ^ 297412);
+    _0x7e77d['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${gs['\u0068\u0069\u0064\u0064\u0065\u006E'] ? "\u0053\u0068\u006F\u0077" : "\u0048\u0069\u0064\u0065"} ${q} Graph (${meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079\u004E\u0061\u006D\u0065']})`;
+    _0x7e77d['\u006F\u006E\u0063\u006C\u0069\u0063\u006B'] = () => {
+      gs['\u0068\u0069\u0064\u0064\u0065\u006E'] = !gs['\u0068\u0069\u0064\u0064\u0065\u006E'];
+      gs['\u0070\u0061\u006E\u0065\u006C']['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = gs['\u0068\u0069\u0064\u0064\u0065\u006E'] ? "\u006E\u006F\u006E\u0065" : "\u0062\u006C\u006F\u0063\u006B";
+      updateMeterNoteVisibility();
+      graphButtonSignature = '';
+      updateGraphButtons();
+    };
+    graphShowButtons['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](_0x7e77d);
+  });
+  updateMeterNoteVisibility();
+}
+function updateACMeterSectionVisibility() {
+  const _0xda_0x7d3 = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006D\u0065\u0074\u0065\u0072\u0049\u006E\u0066\u006F\u0053\u0065\u0063\u0074\u0069\u006F\u006E");
+  const _0x3g5dfg = [...graphStates['\u0076\u0061\u006C\u0075\u0065\u0073']()]['\u0073\u006F\u006D\u0065'](gs => !gs['\u0068\u0069\u0064\u0064\u0065\u006E'] && gs['\u0070\u0061\u006E\u0065\u006C'] && gs['\u0070\u0061\u006E\u0065\u006C']['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] !== "\u006E\u006F\u006E\u0065");
+  if (_0xda_0x7d3) {
+    _0xda_0x7d3['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = _0x3g5dfg ? "\u006E\u006F\u006E\u0065" : "\u0062\u006C\u006F\u0063\u006B";
+  }
+}
+function drawMeterGraph(meter, gs) {
+  if (!meterCanGraph(meter) || gs['\u0068\u0069\u0064\u0064\u0065\u006E'] || gs['\u0070\u0061\u006E\u0065\u006C']['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] === 'none') return;
+  const _0x2ace = meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === 'voltmeter';
+  var _0x1b3fd = (920660 ^ 920658) + (325170 ^ 325169);
+  const _0x9efb6e = _0x2ace ? meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u006F\u006C\u0074\u0061\u0067\u0065\u0050\u0068\u0061\u0073\u006F\u0072'] : meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0050\u0068\u0061\u0073\u006F\u0072'];
+  _0x1b3fd = "cgaaho";
+  const f = meter['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0066\u0072\u0065\u0071\u0075\u0065\u006E\u0063\u0079\u0053\u006F\u006C\u0076\u0065\u0064'] || circuitFrequency();
+  const _0x1aaa = cabs(_0x9efb6e);
+  var _0xd2654b = (792577 ^ 792578) + (789107 ^ 789114);
+  const _0xdf62c = Math['\u0053\u0051\u0052\u0054\u0032'] * _0x1aaa;
+  _0xd2654b = 287705 ^ 287708;
+  var _0xe_0xe6d = (171975 ^ 171974) + (703514 ^ 703513);
+  const _0xd1fdd = cphase(_0x9efb6e);
+  _0xe_0xe6d = (686021 ^ 686016) + (103266 ^ 103271);
+  var _0xdffa = (868633 ^ 868632) + (281885 ^ 281877);
+  const _0x9a58ea = _0x2ace ? "\u0056" : "\u0041";
+  _0xdffa = 283460 ^ 283461;
+  const _0xe3_0xbda = _0x2ace ? 'Voltage' : "\u0043\u0075\u0072\u0072\u0065\u006E\u0074";
+  const _0xae82a = gs['\u0063\u0074\u0078'];
+  var _0xd7c = (915388 ^ 915381) + (627324 ^ 627323);
+  const _0xa80cg = gs['\u0063\u0061\u006E\u0076\u0061\u0073'];
+  _0xd7c = 208814 ^ 208815;
+  var _0x9ed6cd = (330936 ^ 330936) + (148655 ^ 148647);
+  const W = _0xa80cg['\u0077\u0069\u0064\u0074\u0068'];
+  _0x9ed6cd = '\u0067\u0065\u006A\u0066\u0063\u0061';
+  var _0x3523ac = (944220 ^ 944218) + (439308 ^ 439301);
+  const H = _0xa80cg['\u0068\u0065\u0069\u0067\u0068\u0074'];
+  _0x3523ac = '\u0068\u0067\u006D\u006C\u006F\u0071';
+  _0xae82a['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](701646 ^ 701646, 474136 ^ 474136, W, H);
+  _0xae82a['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0066\u0066\u0066";
+  _0xae82a['\u0066\u0069\u006C\u006C\u0052\u0065\u0063\u0074'](977126 ^ 977126, 630277 ^ 630277, W, H);
+  const L = 605786 ^ 605704,
+    R = 834445 ^ 834471,
+    T = 325262 ^ 325292,
+    B = 546405 ^ 546399;
+  const _0x2b859e = W - L - R;
+  const _0x750d = H - T - B;
+  const _0x5f6a3a = T + _0x750d / (205190 ^ 205188);
+  _0xae82a['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = '#d7dce2';
+  _0xae82a['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 438587 ^ 438586;
+  for (let k = 350060 ^ 350060; k <= (431256 ^ 431248); k++) {
+    const x = L + _0x2b859e * k / (838717 ^ 838709);
+    _0xae82a['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    _0xae82a['\u006D\u006F\u0076\u0065\u0054\u006F'](x, T);
+    _0xae82a['\u006C\u0069\u006E\u0065\u0054\u006F'](x, T + _0x750d);
+    _0xae82a['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  }
+  for (let k = 396432 ^ 396432; k <= (643525 ^ 643523); k++) {
+    var _0xd8217b = (463076 ^ 463074) + (231830 ^ 231831);
+    const y = T + _0x750d * k / (741852 ^ 741850);
+    _0xd8217b = (401536 ^ 401539) + (599081 ^ 599087);
+    _0xae82a['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    _0xae82a['\u006D\u006F\u0076\u0065\u0054\u006F'](L, y);
+    _0xae82a['\u006C\u0069\u006E\u0065\u0054\u006F'](L + _0x2b859e, y);
+    _0xae82a['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  }
+  _0xae82a['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0033\u0033\u0033";
+  _0xae82a['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 283153 ^ 283155;
+  _0xae82a['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  _0xae82a['\u006D\u006F\u0076\u0065\u0054\u006F'](L, _0x5f6a3a);
+  _0xae82a['\u006C\u0069\u006E\u0065\u0054\u006F'](L + _0x2b859e, _0x5f6a3a);
+  _0xae82a['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  var _0xf2a42g = (339541 ^ 339549) + (909361 ^ 909365);
+  const _0xcg8f8f = Math['\u006D\u0061\u0078'](_0xdf62c, 1e-12);
+  _0xf2a42g = (159985 ^ 159993) + (667435 ^ 667436);
+  let _0xf2_0xfee;
+  const _0xgc91c = _0x750d * .42 / _0xcg8f8f;
+  _0xf2_0xfee = (292581 ^ 292589) + (767083 ^ 767075);
+  const _0xe4_0xb23 = 831794 ^ 831638;
+  const _0xg21da = Math['\u0066\u006C\u006F\u006F\u0072'](_0xe4_0xb23 * Math['\u006D\u0069\u006E'](270584 ^ 270585, gs['\u0070\u0072\u006F\u0067\u0072\u0065\u0073\u0073']));
+  let _0x545d7a;
+  const _0xd0e0b = f > (905652 ^ 905652) ? (936067 ^ 936066) / f : 526808 ^ 526809;
+  _0x545d7a = (778100 ^ 778109) + (175327 ^ 175319);
+  _0xae82a['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = _0x2ace ? '#d62728' : "\u0023\u0031\u0035\u0036\u0035\u0063\u0030";
+  _0xae82a['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 755241 ^ 755242;
+  _0xae82a['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  for (let k = 260363 ^ 260363; k <= _0xg21da; k++) {
+    let _0x92dd8d;
+    const _0x107af = k / _0xe4_0xb23;
+    _0x92dd8d = (792917 ^ 792924) + (696183 ^ 696179);
+    const t = _0x107af * _0xd0e0b;
+    let _0x4a36ab;
+    const x = L + _0x2b859e * _0x107af;
+    _0x4a36ab = '\u0071\u0070\u006C\u006A\u0061\u0066';
+    let _0xecfe0e;
+    const _0x41g = _0xdf62c * Math['\u0073\u0069\u006E']((711521 ^ 711523) * Math['\u0050\u0049'] * f * t + _0xd1fdd);
+    _0xecfe0e = (887816 ^ 887808) + (270959 ^ 270956);
+    var _0x744d = (621778 ^ 621782) + (809795 ^ 809799);
+    const y = _0x5f6a3a - _0x41g * _0xgc91c;
+    _0x744d = 481795 ^ 481798;
+    if (k === (435604 ^ 435604)) _0xae82a['\u006D\u006F\u0076\u0065\u0054\u006F'](x, y);else _0xae82a['\u006C\u0069\u006E\u0065\u0054\u006F'](x, y);
+  }
+  _0xae82a['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  _0xae82a['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = _0x2ace ? '#d62728' : "\u0023\u0031\u0035\u0036\u0035\u0063\u0030";
+  _0xae82a['\u0066\u006F\u006E\u0074'] = '22px Arial';
+  _0xae82a['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](`${_0xe3_0xbda}: ${formatNum(_0x1aaa)} ${_0x9a58ea} rms`, L + (861341 ^ 861335), 603621 ^ 603644);
+  _0xae82a['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0033\u0033\u0033";
+  _0xae82a['\u0066\u006F\u006E\u0074'] = '20px Arial';
+  _0xae82a['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](`one cycle = ${((919542 ^ 918558) * _0xd0e0b)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](120319 ^ 120318)} ms`, L + (205260 ^ 205110), H - (710704 ^ 710719));
+}
+function drawWaveGraph() {
+  components['\u0066\u0069\u006C\u0074\u0065\u0072'](m => meterCanGraph(m))['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m => {
+    var _0xc2_0xc84 = (391283 ^ 391286) + (184292 ^ 184288);
+    const _0x4446f = createGraphState(m);
+    _0xc2_0xc84 = (124310 ^ 124307) + (176915 ^ 176923);
+    drawMeterGraph(m, _0x4446f);
+  });
+  updateGraphButtons();
+}
+function solveCircuitAndUpdate() {
+  components['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](comp => {
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u0075\u0072\u0072\u0065\u006E\u0074'] = 595351 ^ 595351;
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u006F\u006C\u0074\u0061\u0067\u0065'] = 179925 ^ 179925;
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0050\u0068\u0061\u0073\u006F\u0072'] = null;
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u006F\u006C\u0074\u0061\u0067\u0065\u0050\u0068\u0061\u0073\u006F\u0072'] = null;
+    if (comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072" || comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0076\u006F\u006C\u0074\u006D\u0065\u0074\u0065\u0072") comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'] = 543346 ^ 543346;
+  });
+  var _0x557ade = (628704 ^ 628706) + (352984 ^ 352987);
+  let _0xde2ca = null;
+  _0x557ade = 304234 ^ 304227;
+  try {
+    _0xde2ca = solveMNA();
+  } catch (e) {
+    console['\u0077\u0061\u0072\u006E'](e);
+  }
+  if (!_0xde2ca) {
+    refreshMeterPanel();
+    drawWaveGraph();
+    updateACMeterSectionVisibility();
+    return;
+  }
+  const {
+    '\u006E\u006F\u0064\u0065\u0056\u006F\u006C\u0074\u0061\u0067\u0065\u0042\u0079\u0052\u0065\u0070': nodeVoltageByRep,
+    '\u0073\u006F\u0075\u0072\u0063\u0065\u0043\u0075\u0072\u0072\u0065\u006E\u0074\u0073': sourceCurrents,
+    "compNodeMap": compNodeMap,
+    "frequency": frequency
+  } = _0xde2ca;
+  const _0x4e6eb = (732269 ^ 732271) * Math['\u0050\u0049'] * frequency;
+  components['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](comp => {
+    var _0x45c78a = (418603 ^ 418594) + (677228 ^ 677220);
+    const _0x7a832b = compNodeMap['\u0067\u0065\u0074'](comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']);
+    _0x45c78a = "iajkhg";
+    if (!_0x7a832b) return;
+    let _0xa877c;
+    const _0xb1b7bf = nodeVoltageByRep['\u0067\u0065\u0074'](_0x7a832b['\u006E\u0030']) || C();
+    _0xa877c = "hmddjn";
+    let _0x7752a;
+    const _0x7cabab = nodeVoltageByRep['\u0067\u0065\u0074'](_0x7a832b['\u006E\u0031']) || C();
+    _0x7752a = (302320 ^ 302328) + (542133 ^ 542140);
+    var _0xb9a7d = (795850 ^ 795848) + (139637 ^ 139636);
+    const V = csub(_0x7cabab, _0xb1b7bf);
+    _0xb9a7d = 110721 ^ 110727;
+    let I = C();
+    if (comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0061\u0063\u0073\u006F\u0075\u0072\u0063\u0065") I = sourceCurrents['\u0067\u0065\u0074'](comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064']) || C();else I = cmul(V, componentAdmittance(comp, _0x4e6eb));
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u006F\u006C\u0074\u0061\u0067\u0065\u0050\u0068\u0061\u0073\u006F\u0072'] = V;
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u0075\u0072\u0072\u0065\u006E\u0074\u0050\u0068\u0061\u0073\u006F\u0072'] = I;
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0066\u0072\u0065\u0071\u0075\u0065\u006E\u0063\u0079\u0053\u006F\u006C\u0076\u0065\u0064'] = frequency;
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0076\u006F\u006C\u0074\u0061\u0067\u0065'] = cabs(V);
+    comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0063\u0075\u0072\u0072\u0065\u006E\u0074'] = cabs(I);
+    if (comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0061\u006D\u006D\u0065\u0074\u0065\u0072") comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'] = cabs(I);
+    if (comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074\u0079\u0070\u0065'] === "\u0076\u006F\u006C\u0074\u006D\u0065\u0074\u0065\u0072") comp['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0072\u0065\u0061\u0064\u0069\u006E\u0067'] = cabs(V);
+    let _0xbb6eb;
+    const _0xc82e0d = selectedComponent === comp;
+    _0xbb6eb = "amobmb";
+    if (_0xc82e0d) highlightObject(comp, false);
+    refreshLabel(comp);
+    if (_0xc82e0d) highlightObject(comp, !![]);
+  });
+  refreshMeterPanel();
+  drawWaveGraph();
+  updateACMeterSectionVisibility();
+}
+function buildDemoCircuit() {
+  var _0x233fa = (720782 ^ 720780) + (514773 ^ 514773);
+  const _0xca2bcd = createResistorComponent(842827 ^ 842799);
+  _0x233fa = (658899 ^ 658906) + (783004 ^ 783000);
+  _0xca2bcd['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(157655 ^ 157573), 882917 ^ 882897, 952024 ^ 952024);
+  const _0xa96ebf = createInductor(789145 ^ 789217);
+  _0xa96ebf['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](251015 ^ 251015, 941197 ^ 941241, 356923 ^ 356923);
+  const _0x5b5eae = createCapacitor(607450 ^ 607390);
+  _0x5b5eae['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](540892 ^ 540814, 715462 ^ 715506, 606619 ^ 606619);
+  let _0xe3b61f;
+  const _0xb16cea = createACSource(630711 ^ 630715, 531980 ^ 532016);
+  _0xe3b61f = 485166 ^ 485167;
+  _0xb16cea['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](810097 ^ 810097, -(984413 ^ 984443), 794896 ^ 794896);
+  clearSelection();
+  solveCircuitAndUpdate();
+}
+function disposeComponent(comp) {
+  comp['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](obj => {
+    obj['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']?.dispose();
+    if (Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])) obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m => m['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else {
+      obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.map?.dispose();
+      obj['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.dispose();
+    }
+  });
+  scene['\u0072\u0065\u006D\u006F\u0076\u0065'](comp);
+}
+function resetAll() {
+  clearSelection();
+  wires['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](wire => {
+    disposeGroupChildren(wire['\u0067\u0072\u006F\u0075\u0070']);
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](wire['\u0067\u0072\u006F\u0075\u0070']);
+  });
+  components['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](disposeComponent);
+  components = [];
+  wires = [];
+  terminalMeshes = [];
+  selectedComponent = null;
+  selectedWire = null;
+  selectedLabel = null;
+  selectedTerminal = null;
+  dragging = null;
+  draggingWire = null;
+  draggingLabel = null;
+  draggingTerminal = null;
+  terminalDragState = null;
+  wireDragStartPoint = null;
+  pendingWireTerminal = null;
+  componentCounter = 145819 ^ 145819;
+  activeGraphMeterId = null;
+  graphStates['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](gs => gs['\u0070\u0061\u006E\u0065\u006C']?.remove());
+  graphStates['\u0063\u006C\u0065\u0061\u0072']();
+  graphButtonSignature = '';
+  graphShowButtons['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = '';
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('meterNoteBox')['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = 'block';
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006D\u0065\u0074\u0065\u0072\u0049\u006E\u0066\u006F\u0053\u0065\u0063\u0074\u0069\u006F\u006E")['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u0062\u006C\u006F\u0063\u006B";
+  Object['\u006B\u0065\u0079\u0073'](componentTypeCounters)['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](type => componentTypeCounters[type] = 602098 ^ 602098);
+  buildDemoCircuit();
+  setMode("\u0073\u0065\u006C\u0065\u0063\u0074");
+  setStatus("\u0052\u0065\u0073\u0065\u0074\u0020\u0063\u006F\u006D\u0070\u006C\u0065\u0074\u0065\u002E\u0020\u0044\u0072\u0061\u0067\u0020\u0061\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u0061\u0072\u006F\u0075\u006E\u0064\u0020\u0061\u0020\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074\u0020\u0074\u006F\u0020\u0072\u006F\u0074\u0061\u0074\u0065\u0020\u0069\u0074\u0020\u0061\u006E\u0064\u0020\u0062\u0075\u0069\u006C\u0064\u0020\u0073\u0065\u0072\u0069\u0065\u0073\u0020\u006F\u0072\u0020\u0070\u0061\u0072\u0061\u006C\u006C\u0065\u006C\u0020\u0041\u0043\u0020\u0063\u0069\u0072\u0063\u0075\u0069\u0074\u0073\u002E");
+}
+window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065", () => {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+});
+function animate(now = performance['\u006E\u006F\u0077']()) {
+  requestAnimationFrame(animate);
+  var _0x5ee = (729029 ^ 729024) + (132098 ^ 132101);
+  const _0x4g1ad = Math['\u006D\u0069\u006E'](.05, Math['\u006D\u0061\u0078'](960452 ^ 960452, (now - graphLastFrameMs) / (612392 ^ 613312)));
+  _0x5ee = (826181 ^ 826177) + (199050 ^ 199054);
+  graphLastFrameMs = now;
+  graphStates['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](gs => {
+    if (gs['\u0068\u0069\u0064\u0064\u0065\u006E'] || gs['\u0070\u0061\u0075\u0073\u0065\u0064'] || gs['\u0070\u0061\u006E\u0065\u006C']['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] === 'none') return;
+    let _0x0beebd;
+    const _0x248dd = components['\u0066\u0069\u006E\u0064'](c => c['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0069\u0064'] === gs['\u006D\u0065\u0074\u0065\u0072\u0049\u0064']);
+    _0x0beebd = 875552 ^ 875559;
+    if (!meterCanGraph(_0x248dd)) return;
+    if (gs['\u0070\u0072\u006F\u0067\u0072\u0065\u0073\u0073'] < (411174 ^ 411175)) {
+      gs['\u0070\u0072\u006F\u0067\u0072\u0065\u0073\u0073'] = Math['\u006D\u0069\u006E'](113890 ^ 113891, gs['\u0070\u0072\u006F\u0067\u0072\u0065\u0073\u0073'] + _0x4g1ad / GRAPH_DRAW_SECONDS);
+    } else {
+      gs['\u0068\u006F\u006C\u0064'] += _0x4g1ad;
+      if (gs['\u0068\u006F\u006C\u0064'] >= GRAPH_HOLD_SECONDS) {
+        gs['\u0070\u0072\u006F\u0067\u0072\u0065\u0073\u0073'] = 388446 ^ 388446;
+        gs['\u0068\u006F\u006C\u0064'] = 705128 ^ 705128;
+      }
+    }
+  });
+  drawWaveGraph();
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+buildDemoCircuit();
+refreshEditor();
+setMode("\u0073\u0065\u006C\u0065\u0063\u0074");
+setStatus("\u0053\u0065\u006C\u0065\u0063\u0074\u0020\u0061\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u0061\u006E\u0064\u0020\u0064\u0072\u0061\u0067\u0020\u0061\u0072\u006F\u0075\u006E\u0064\u0020\u0074\u0068\u0065\u0020\u0063\u006F\u006D\u0070\u006F\u006E\u0065\u006E\u0074\u0020\u0074\u006F\u0020\u0072\u006F\u0074\u0061\u0074\u0065\u0020\u0069\u0074\u002E\u0020\u0044\u0072\u0061\u0067\u0020\u006F\u0075\u0074\u0077\u0061\u0072\u0064\u002F\u0069\u006E\u0077\u0061\u0072\u0064\u0020\u0074\u006F\u0020\u0063\u0068\u0061\u006E\u0067\u0065\u0020\u0074\u0065\u0072\u006D\u0069\u006E\u0061\u006C\u0020\u006C\u0065\u006E\u0067\u0074\u0068\u002E");
+animate();
+
+</script>
+</body>
+</html>

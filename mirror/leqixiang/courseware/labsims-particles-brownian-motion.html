@@ -1,0 +1,2696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brownian motion</title>
+<style>
+  :root{
+    --ink:#eef2f7;
+    --dim:#93a2b6;
+    --panel:rgba(10,14,21,.72);
+    --line:rgba(147,162,182,.22);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:#080b11;color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden;}
+  #stage{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  #fade{position:fixed;inset:0;background:#080b11;pointer-events:none;opacity:0;}
+
+  /* the circular field of view, for when we are looking down the eyepiece */
+  #scope{
+    position:fixed;left:50%;top:50%;
+    width:min(94vmin,94vmin);height:min(94vmin,94vmin);
+    transform:translate(-50%,-50%);border-radius:50%;
+    box-shadow:0 0 0 100vmax rgba(3,5,9,.97),
+               inset 0 0 70px 20px rgba(3,5,9,.55);
+    pointer-events:none;opacity:0;transition:opacity .5s ease;
+  }
+  #scope::after{
+    content:'';position:absolute;inset:0;border-radius:50%;
+    border:1px solid rgba(170,190,215,.18);
+  }
+
+  .title{position:fixed;top:22px;left:26px;max-width:min(46ch,60vw);pointer-events:none;}
+  .title h1{
+    margin:0;
+    font-family:"Iowan Old Style","Charter","Palatino Linotype",Georgia,serif;
+    font-weight:600;font-size:23px;letter-spacing:.2px;line-height:1.25;
+  }
+  .title p{margin:6px 0 0;font-size:13px;line-height:1.5;color:var(--dim);}
+  .title a{pointer-events:auto;color:var(--dim);text-decoration:none;font-size:12px;
+    border-bottom:1px solid rgba(147,162,182,.3);}
+  .title a:hover{color:var(--ink);}
+
+  #caption{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:112px;width:min(690px,92vw);text-align:center;pointer-events:none;
+    font-family:"Iowan Old Style","Charter","Palatino Linotype",Georgia,serif;
+    font-size:19px;line-height:1.45;
+    text-shadow:0 2px 18px rgba(0,0,0,.9);
+    transition:opacity .35s ease;
+  }
+
+  /* the scale reminder, while the molecules are on screen */
+  #scale{
+    position:fixed;left:26px;bottom:150px;width:min(230px,40vw);pointer-events:none;
+    font-size:11.5px;line-height:1.5;color:var(--dim);opacity:0;transition:opacity .4s ease;
+    background:rgba(10,14,21,.8);border:1px solid var(--line);
+    border-radius:10px;padding:9px 11px;
+  }
+  #scale b{color:#ffd9a0;font-weight:600;display:block;font-size:10px;
+    letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px;}
+
+  #bar{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:20px;
+    width:min(730px,94vw);
+    background:var(--panel);backdrop-filter:blur(14px);
+    border:1px solid var(--line);border-radius:14px;
+    padding:12px 14px;display:flex;align-items:center;gap:12px;
+  }
+  button{
+    font:inherit;font-size:13px;color:var(--ink);
+    background:rgba(255,255,255,.06);border:1px solid var(--line);
+    border-radius:9px;padding:7px 13px;cursor:pointer;
+    transition:background .15s ease,border-color .15s ease;
+  }
+  button:hover{background:rgba(255,255,255,.12);}
+  button:focus-visible{outline:2px solid #7fb0ff;outline-offset:2px;}
+  #play{min-width:74px;}
+  #gear{padding:7px 11px;font-size:15px;line-height:1;}
+  #gear.open{background:rgba(127,176,255,.2);border-color:rgba(127,176,255,.5);}
+  #scrub{
+    flex:1;appearance:none;height:4px;border-radius:4px;
+    background:linear-gradient(90deg,var(--hl,#e8c54a) 0%,var(--hl,#e8c54a) var(--p,0%),rgba(255,255,255,.14) var(--p,0%));
+    cursor:pointer;
+  }
+  #scrub::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--ink);border:none;box-shadow:0 0 0 3px rgba(8,11,17,.6);}
+  #scrub::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ink);border:none;}
+  #clock{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:74px;text-align:right;}
+
+  #key{
+    position:fixed;right:24px;top:22px;
+    background:var(--panel);backdrop-filter:blur(14px);
+    border:1px solid var(--line);border-radius:12px;padding:11px 13px;
+    font-size:12.5px;line-height:1.9;color:var(--dim);
+  }
+  #key div{display:flex;align-items:center;gap:8px;}
+  .dot{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:inset -2px -2px 3px rgba(0,0,0,.45);}
+  #key b{color:var(--ink);font-weight:600;}
+  #hint{position:fixed;bottom:90px;right:24px;font-size:11.5px;color:var(--dim);opacity:.75;}
+
+  /* ---- menu ---- */
+  #menu{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:86px;
+    width:min(730px,94vw);
+    background:var(--panel);backdrop-filter:blur(14px);
+    border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;display:none;gap:18px;
+  }
+  #menu.open{display:flex;flex-wrap:wrap;}
+  #menu fieldset{border:none;margin:0;padding:0;flex:1;min-width:215px;}
+  #menu legend{
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:#64748b;padding:0 0 8px;
+  }
+  .opts{display:flex;flex-wrap:wrap;gap:6px;}
+  .opt{
+    font:inherit;font-size:12.5px;padding:6px 11px;border-radius:8px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);
+    color:var(--dim);cursor:pointer;
+  }
+  .opt:hover{background:rgba(255,255,255,.1);color:var(--ink);}
+  .opt.on{background:rgba(127,176,255,.18);border-color:rgba(127,176,255,.5);color:#dce9ff;}
+  .opt .f{font-variant-numeric:tabular-nums;}
+  #menuNote{
+    flex-basis:100%;border-top:1px solid var(--line);padding-top:12px;margin:0;
+    font-size:12.5px;color:var(--dim);line-height:1.6;
+  }
+  #menuNote b{color:var(--ink);font-weight:600;}
+  #menuNote i{color:#a8c9ff;font-style:normal;}
+
+  @media (max-width:640px){
+    .title h1{font-size:18px;} .title p{display:none;}
+    #key{right:14px;top:14px;padding:8px 10px;font-size:11px;line-height:1.7;}
+    #caption{font-size:16px;bottom:100px;}
+    #hint,#scale{display:none;}
+    #clock{display:none;}
+    #menu{bottom:82px;padding:13px 14px;}
+    #scope{width:98vmin;height:98vmin;}
+  }
+  @media (prefers-reduced-motion:reduce){#caption,#scope,#scale{transition:none;}}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="scope"></div>
+<div id="fade"></div>
+
+<div class="title">
+  <h1>Brownian motion</h1>
+  <p>Pollen on water, and the particles that push it about.</p>
+  <p><a href="../index.html">← All simulations</a></p>
+</div>
+
+<div id="key"></div>
+
+<div id="scale">
+  <b>not to scale</b>
+  A water molecule is tens of thousands of times smaller across than a pollen grain,
+  and there would be billions in view rather than a few thousand. Drawn big enough to
+  see, and heavy enough that a countable number of them can do the job.
+</div>
+
+<div id="caption"></div>
+<div id="hint">Drag to look around</div>
+
+<div id="menu">
+  <fieldset>
+    <legend>Pollen grain</legend>
+    <div class="opts" id="grainOpts"></div>
+  </fieldset>
+  <fieldset>
+    <legend>Water temperature</legend>
+    <div class="opts" id="tempOpts"></div>
+  </fieldset>
+  <p id="menuNote"></p>
+</div>
+
+<div id="bar">
+  <button id="play">Pause</button>
+  <button id="restart">Restart</button>
+  <input id="scrub" type="range" min="0" max="68" step="0.01" value="0" aria-label="Timeline">
+  <span id="clock">0.0 / 68.0s</span>
+  <button id="gear" title="Change the grain or the temperature" aria-label="Change the grain or the temperature">⚙</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------------------------------------------------------------------------
+   BROWNIAN MOTION — pollen on water, and why it will not sit still
+
+   The scene Robert Brown actually saw, in the order he would have met it:
+
+     1  a flower, and the pollen on its anthers
+     2  a few grains tapped onto a drop of water on a slide, and onto the stage
+     3  what you see down the eyepiece: the grains jittering, going nowhere
+     4  the water molecules made visible, and the reason revealed — they are
+        being struck from every side at once, but never quite evenly
+
+   Three things this has to get right to be worth anything:
+
+   The motion has to be caused.  Nothing here wobbles a grain by a scripted
+   amount. The water is a gas of hard spheres with Maxwell–Boltzmann speeds,
+   every impact on a grain is resolved as an elastic collision, and the walk,
+   the drag that stops it running away, and both of the trends a pupil is
+   asked to explain — smaller grain goes further, hotter water goes further —
+   emerge from that. See runSim(), and the numbers in GRAINS and TEMPS, which
+   are predictions the test suite checks rather than settings that drive it.
+
+   Determinism.  The collisions are worked out ONCE, at build. What is left
+   behind is closed form: a molecule is a straight line reflected off walls
+   (a triangle wave gives that exactly), so all that has to be recorded is
+   where a grain knocked it onto a new line; the grains' paths are recorded
+   and interpolated. So every frame is still a pure function of t, scrubbing
+   still lands on the same frame every time, and nothing integrates per frame.
+
+   Honesty about scale.  A water molecule really is tens of thousands of times
+   smaller across than a pollen grain, there would be billions of them in view
+   rather than a few thousand, and each real one carries a vanishing fraction
+   of the momentum these have to. None of that can be drawn, so the scene says
+   so on screen rather than quietly leaving a wrong impression.
+--------------------------------------------------------------------------- */
+
+/* ======================= the choices ======================= */
+
+/* A smaller grain is knocked further by the same collisions, and Einstein's
+   1905 relation says by how much: a grain's diffusion constant is D = kT/γ,
+   where γ is the drag on it, so the distance it wanders in a given time goes
+   as √D — and γ grows with the grain, so the jiggle goes UP as the grain goes
+   DOWN.
+
+   `jiggle` is that PREDICTION, normalised to the medium grain. It does not
+   drive anything. Nothing in this scene shoves a grain by a scripted amount
+   any more — the grains are moved by the water molecules that actually hit
+   them (see runSim below). These numbers are here so that the prediction can
+   be CHECKED: test-particles.js runs the simulation for all nine settings,
+   measures how far each grain really gets, and asserts it lands on them.
+
+   Why 1/r and not 1/√r.  A countable number of molecules, each bouncing
+   straight off, is the free-molecular limit, where γ goes as the grain's
+   area — so D ∝ 1/r² and the wander ∝ 1/r. Real water is the opposite
+   extreme, a continuum, where Stokes gives γ ∝ r, so D ∝ 1/r and the wander
+   ∝ 1/√r. The two happen to agree here because the drawn radii are
+   compressed: 1/r on the drawn 0.60/1.00/1.55 gives 1.67/1.00/0.65, and
+   1/√r on the real 1.5/5/15 µm radii gives 1.83/1.00/0.58. So the size trend
+   a pupil is asked to explain is the right one to about 10%, and for a
+   reason, rather than by being typed in. */
+const GRAINS = {
+  small:  {name:'small',  um:3,  jiggle:1.67, r:0.60, label:'3 µm'},
+  medium: {name:'medium', um:10, jiggle:1.00, r:1.00, label:'10 µm'},
+  large:  {name:'large',  um:30, jiggle:0.65, r:1.55, label:'30 µm'}
+};
+/* Hotter water means faster molecules, harder and more frequent collisions,
+   and so a livelier grain.
+
+   `speed` is the real knob: it scales the width of the Maxwell–Boltzmann
+   distribution the molecular velocities are drawn from, and it is the only
+   thing temperature changes in the simulation. `jig` is again a prediction to
+   check against — D = kT/γ with γ ∝ v gives D ∝ speed, so the wander goes as
+   √speed, and √0.62/√1.00/√2.43 = 0.79/1.00/1.56.
+
+   Those speed factors are deliberately exaggerated, and it is worth knowing
+   why. Molecular speed itself only goes as √T, which over 5 → 60 °C is a 9%
+   change: invisible, and not what makes hot water so much livelier. The real
+   reason is that water's viscosity nearly halves over that range (1.52 →
+   1.00 → 0.47 mPa s), and D = kT/6πηr rises 0.62/1.00/2.42× because of it.
+   This simulation has no viscosity to turn down — the drag it has emerges
+   from the collisions — so the whole of that effect is folded into the one
+   knob it does have, which is how fast the molecules go. */
+const TEMPS = {
+  cold: {name:'cold',  C:5,  speed:0.62, jig:0.79, label:'5 °C',  word:'cold'},
+  room: {name:'room',  C:20, speed:1.00, jig:1.00, label:'20 °C', word:'room temperature'},
+  hot:  {name:'hot',   C:60, speed:2.43, jig:1.56, label:'60 °C', word:'hot'}
+};
+
+const qs = new URLSearchParams(location.search);
+let grainKey = GRAINS[qs.get('grain')] ? qs.get('grain') : 'small';
+let tempKey  = TEMPS[qs.get('temp')]   ? qs.get('temp')  : 'room';
+let GR, TP, JIG, SPEED;
+
+function derive(){
+  GR = GRAINS[grainKey];
+  TP = TEMPS[tempKey];
+  JIG   = GR.jiggle * TP.jig;      // how far the grain is PREDICTED to wander
+  SPEED = TP.speed;                // how fast the water molecules actually go
+}
+
+const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+const POLLEN_COL = 0xe8c54a, WATER_O = 0x2f47b8, WATER_H = 0xd8402f;
+/* Brown's other two specimens, briefly swapped in for the hero grain while
+   the captions cover them — see speciesColorAt() near updateField. Rock dust:
+   a warm mineral grey. Fossilised wood: a dark, dead-looking umber, chosen to
+   read as "definitely not alive" next to the pollen's gold. */
+const ROCK_COL = 0x9c9186, FOSSIL_COL = 0x4e3c2e;
+const FIELD_Y = -400;              // the microscope field of view, parked below
+const FIELD_R = 9.0;               // how wide that field is
+
+/* ---------- renderer / scene ---------- */
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+/* Colour management.  three.js renders in linear space; without this the output
+   is never converted back to sRGB, so every colour comes out darker and flatter
+   than it was chosen to be.  This single line does more for the look than any
+   amount of extra geometry.  (r128 spelling — it became outputColorSpace later.) */
+renderer.outputEncoding = THREE.sRGBEncoding;
+/* Tone mapping, so the additive glows roll off instead of clipping to white. */
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+/* Shadows, which is what stops props looking like they are hovering. */
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById('stage').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080b11);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.05, 2000);
+
+scene.add(new THREE.HemisphereLight(0x8ea6c2, 0x0a0d13, 0.22));
+const keyL = new THREE.DirectionalLight(0xffffff, 1.05); keyL.position.set(5,9,6); scene.add(keyL);
+const fillL = new THREE.DirectionalLight(0x9ec3ff, 0.35); fillL.position.set(-8,4,-6); scene.add(fillL);
+const rimL  = new THREE.DirectionalLight(0xffd9b0, 0.30); rimL.position.set(0,3,-10); scene.add(rimL);
+/* Only the key light casts.  Its shadow camera has to be told how much of the
+   world to cover — the default box is far too big for a bench, which is the
+   usual reason a first attempt at shadows comes out as blurred mush. */
+keyL.castShadow = true;
+keyL.shadow.mapSize.set(2048, 2048);
+keyL.shadow.camera.near = 1;
+keyL.shadow.camera.far = 24;
+keyL.shadow.camera.left = -6; keyL.shadow.camera.right = 6;
+keyL.shadow.camera.top = 6;   keyL.shadow.camera.bottom = -6;
+keyL.shadow.bias = -0.0008;          // stops the self-shadowing stripes
+keyL.shadow.normalBias = 0.02;
+/* the microscope lamp, under the stage — and the light in the field of view */
+const stageLight = new THREE.PointLight(0xfff0c8, 0, 4); scene.add(stageLight);
+const fieldLight = new THREE.PointLight(0xdce8ff, 0, 40);
+fieldLight.position.set(0, FIELD_Y - 14, 6); scene.add(fieldLight);
+
+/* ---------------------------------------------------------------------------
+   The environment map — what the glass and metal actually reflect.
+
+   The other scenes build a little room out of six flat boxes and bake that.
+   It works, but the reflections are six hard-edged slabs, which is why polished
+   surfaces there look slightly cheap. This paints a proper equirectangular
+   panorama on a canvas instead: a smooth gradient for the room, soft blobs for
+   the lights, and one small bright spot to give metal a crisp glint.
+
+   It costs one canvas and no network request, so the file stays standalone —
+   which is the main reason not to just load an .hdr. If you do want a real one,
+   it is a two-line swap and the URL is in the note below.
+--------------------------------------------------------------------------- */
+(function environment(){
+  const W = 1024, H = 512;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+
+  /* The room, and it has to be DARK.  An environment map is not just
+     reflections: every surface takes diffuse light from it too, so a bright
+     panorama behaves like a floodlight with no off switch. A first attempt at
+     this washed the whole scene out — a near-black microscope came out white —
+     because the gradient was painted at the brightness of a real sky.
+     What is wanted is a dim room with a few small bright sources in it. */
+  const sky = x.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0.00, '#0d131c');
+  sky.addColorStop(0.34, '#18202b');
+  sky.addColorStop(0.49, '#2b3542');
+  sky.addColorStop(0.52, '#121821');
+  sky.addColorStop(1.00, '#06080b');
+  x.fillStyle = sky; x.fillRect(0,0,W,H);
+
+  /* the lights, added rather than painted over, so they read as emission.
+     Small and bright beats large and dim: a tight source gives a crisp
+     highlight on metal without lifting everything else. */
+  x.globalCompositeOperation = 'lighter';
+  const blob = (cx, cy, r, col, a)=>{
+    const g = x.createRadialGradient(cx*W, cy*H, 0, cx*W, cy*H, r*W);
+    g.addColorStop(0, `rgba(${col},${a})`);
+    g.addColorStop(0.45, `rgba(${col},${a*0.30})`);
+    g.addColorStop(1, `rgba(${col},0)`);
+    x.fillStyle = g; x.fillRect(0,0,W,H);
+  };
+  blob(0.50, 0.12, 0.17, '255,252,246', 0.85);   // the overhead softbox
+  blob(0.17, 0.40, 0.13, '150,185,235', 0.26);   // cool fill, one side
+  blob(0.83, 0.44, 0.12, '235,190,150', 0.20);   // warm fill, the other
+  blob(0.64, 0.09, 0.035,'255,255,255', 1.00);   // a small hard glint
+  x.globalCompositeOperation = 'source-over';
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping  = THREE.EquirectangularReflectionMapping;
+  tex.encoding = THREE.sRGBEncoding;
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  scene.environment = pmrem.fromEquirectangular(tex).texture;
+  pmrem.dispose();
+  tex.dispose();
+  /* To use a real HDRI instead, add the RGBELoader script for r128 and:
+       new THREE.RGBELoader().load(URL, t => {
+         t.mapping = THREE.EquirectangularReflectionMapping;
+         scene.environment = pmrem.fromEquirectangular(t).texture;
+       });
+     A CORS-friendly one to try:
+       https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/
+         equirectangular/royal_esplanade_1k.hdr
+     Note that this breaks opening the file straight off disk. */
+})();
+
+/* ---------- shared helpers ---------- */
+const SPH = new THREE.SphereGeometry(1,32,24);
+const CYL = new THREE.CylinderGeometry(1,1,1,20,1,false);
+/* A pollen grain.  Real ones are lumpy and sculptured, not spheres, so every
+   vertex is pushed out by an amount that depends only on the DIRECTION it sits
+   in — which means vertices that share a position get the same displacement and
+   the surface stays watertight. Doing it from a random number per vertex would
+   tear the mesh open along every seam, which is the usual trap here. */
+function grainMesh(radius, detail){
+  const g = new THREE.IcosahedronGeometry(radius, detail ?? 1);
+  const p = g.attributes.position;
+  const v = new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p, i).normalize();
+    const lump = 1
+      + 0.17*Math.sin(5.1*v.x + 1.3)*Math.sin(4.7*v.y + 2.1)*Math.sin(5.4*v.z + 0.7)
+      + 0.07*Math.sin(9.3*v.y + 0.4)*Math.sin(8.6*v.z + 1.9);
+    p.setXYZ(i, v.x*radius*lump, v.y*radius*lump, v.z*radius*lump);
+  }
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
+    color:POLLEN_COL, roughness:0.52, metalness:0.10,
+    emissive:new THREE.Color(POLLEN_COL).multiplyScalar(0.05)
+  }));
+  m.castShadow = true;
+  return m;
+}
+function rod(color, r, h, opts={}){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, opts.r2 ?? r, h, opts.seg ?? 16),
+    new THREE.MeshStandardMaterial({color, roughness:opts.rough ?? 0.5,
+      metalness:opts.metal ?? 0.3}));
+  return m;
+}
+/* A box with its edges taken off.  Square corners are the single biggest tell
+   that a "metal" part is CG: a real machined edge is always broken, and that
+   thin chamfer is what catches a highlight and reads as solid. A rounded-rect
+   Shape gives the four corners; the extrude bevel gives the twelve edges. */
+function roundedBox(w, h, d, r, mat){
+  const sh = new THREE.Shape();
+  /* the cross-section is the footprint (w in X, d in Z); the extrusion is the
+     height. It is laid out in the shape's XY and then tipped upright. */
+  const x = -w/2, y = -d/2, k = Math.min(r, w/2-1e-4, d/2-1e-4);
+  sh.moveTo(x+k, y);
+  sh.lineTo(x+w-k, y);   sh.quadraticCurveTo(x+w, y, x+w, y+k);
+  sh.lineTo(x+w, y+d-k); sh.quadraticCurveTo(x+w, y+d, x+w-k, y+d);
+  sh.lineTo(x+k, y+d);   sh.quadraticCurveTo(x, y+d, x, y+d-k);
+  sh.lineTo(x, y+k);     sh.quadraticCurveTo(x, y, x+k, y);
+  const bev = Math.min(0.018, h/3);
+  const g = new THREE.ExtrudeGeometry(sh, {depth: h - bev*2, bevelEnabled:true,
+    bevelThickness: bev, bevelSize: bev, bevelSegments: 3, curveSegments: 8});
+  g.translate(0, 0, -(h - bev*2)/2 - bev);
+  g.rotateX(Math.PI/2);           // tip the extrusion upright: depth becomes height
+  const m = new THREE.Mesh(g, mat);
+  return m;
+}
+/* Knurling, as a roughness + bump pair.  Cross-hatched knobs are the detail
+   that makes an instrument look handled rather than modelled, and it is far
+   cheaper to paint the diamonds into a texture than to build them. */
+const KNURL_TEX = (function(){
+  const W=256, H=128, c=document.createElement('canvas');
+  c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  x.fillStyle='#7a7a7a'; x.fillRect(0,0,W,H);
+  x.lineWidth=2.2;
+  for(let d=-H; d<W+H; d+=9){
+    x.strokeStyle='#cfcfcf';
+    x.beginPath(); x.moveTo(d,0); x.lineTo(d+H,H); x.stroke();
+    x.strokeStyle='#2c2c2c';
+    x.beginPath(); x.moveTo(d+H,0); x.lineTo(d,H); x.stroke();
+  }
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(6,1);
+  return t;
+})();
+
+const _v1=new THREE.Vector3(), _up=new THREE.Vector3(0,1,0);
+function placeBond(mesh, a, b, shrink=0){
+  const dir = new THREE.Vector3().subVectors(b,a);
+  const len = Math.max(dir.length()-shrink*2, 0.001);
+  mesh.position.copy(a).addScaledVector(dir,0.5);
+  mesh.scale.set(mesh.userData.radius, len, mesh.userData.radius);
+  mesh.quaternion.setFromUnitVectors(_up, dir.normalize());
+}
+function bond(color=0xa9b6c6, radius=0.05){
+  const m = new THREE.Mesh(CYL, new THREE.MeshStandardMaterial({
+    color, roughness:0.5, metalness:0.1, transparent:true, opacity:1}));
+  m.userData.radius = radius;
+  return m;
+}
+
+function label(text, color='#eef2f7', size=54){
+  const pad=16, c=document.createElement('canvas'), ctx=c.getContext('2d');
+  const font = `600 ${size}px "Iowan Old Style", Charter, Georgia, serif`;
+  ctx.font=font; const w=Math.ceil(ctx.measureText(text).width)+pad*2;
+  c.width=w; c.height=size+pad*2;
+  ctx.font=font; ctx.textBaseline='middle'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=14;
+  ctx.fillStyle=color; ctx.fillText(text, c.width/2, c.height/2);
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy=4;
+  tex.encoding = THREE.sRGBEncoding;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true,
+    depthTest:false, opacity:0}));
+  sp.renderOrder = 10;
+  sp.scale.set(c.width/c.height*0.62, 0.62, 1);
+  return sp;
+}
+
+const GLOW_TEX = (function(){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(0.3,'rgba(255,245,220,.55)');
+  g.addColorStop(1,'rgba(255,220,160,0)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,128,128);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+})();
+
+/* ---------------------------------------------------------------------------
+   The other half of colour management, and the half that is easy to miss.
+
+   In r128 a material colour is used in the lighting maths AS IF it were already
+   linear.  But hex codes get picked by eye, which means they are sRGB.  So a
+   deep green like 0x3d6f39 is fed in as though it were far brighter than it
+   looks, and comes out of the renderer as mint.  Every colour in the scene ends
+   up too light and too desaturated — which is exactly what was happening here.
+
+   Converting once, after everything is built, fixes the lot.  The flag makes it
+   idempotent so a rebuild cannot double-convert and wash the scene out again.
+   (Anything whose colour is animated at runtime would have to be set in linear
+   space instead — nothing in this scene is.)
+--------------------------------------------------------------------------- */
+function linearise(root){
+  root.traverse(o=>{
+    if(!o.material) return;
+    const list = Array.isArray(o.material) ? o.material : [o.material];
+    list.forEach(m=>{
+      if(!m || m.userData.__lin) return;
+      m.userData.__lin = true;
+      if(m.color)    m.color.convertSRGBToLinear();
+      if(m.emissive) m.emissive.convertSRGBToLinear();
+    });
+  });
+}
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+function clamp01(x){ return Math.max(0,Math.min(1,x)); }
+function smooth(x){ x=clamp01(x); return x*x*(3-2*x); }
+function ramp(t,a,b){ return smooth((t-a)/(b-a)); }
+
+function clearGroup(g){
+  for(let i=g.children.length-1;i>=0;i--){
+    const c = g.children[i];
+    g.remove(c);
+    c.traverse(o=>{
+      if(o.geometry && o.geometry !== SPH && o.geometry !== CYL)
+        o.geometry.dispose();
+      if(o.material){
+        if(o.material.map && o.material.map !== GLOW_TEX) o.material.map.dispose();
+        o.material.dispose();
+      }
+    });
+  }
+}
+function rng(seed){
+  let s = seed>>>0;
+  return ()=>{ s = (s*1664525 + 1013904223)>>>0; return s/4294967296; };
+}
+
+/* a triangle wave: straight-line travel with perfect reflection off walls */
+function tri(x, half){
+  const p = 4*half;
+  let m = ((x + half) % p + p) % p;
+  return m < 2*half ? m - half : 3*half - m;
+}
+/* the same wave's slope, which is the sign of the velocity: +1 while the
+   molecule is on its way out, −1 once it has bounced off the far wall. A
+   reflecting billiard never changes speed, only sign, so that is the whole
+   of it — and it is what lets the collision code below know how fast a
+   molecule is going without ever having integrated it. */
+function triSlope(x, half){
+  const p = 4*half;
+  let m = ((x + half) % p + p) % p;
+  return m < 2*half ? 1 : -1;
+}
+
+/* =====================================================================
+   THE WATER, AS A KINETIC GAS  —  the physics this scene is about
+
+   The grains are not wobbled by a script. They are moved by the water
+   molecules that hit them. Every impact is resolved as an elastic collision
+   between two hard spheres, so momentum and kinetic energy come out conserved
+   exactly, and everything the scene claims about the motion — that it is a
+   random walk, that it never runs away, that its spread grows like √t, that
+   a smaller grain goes further and hotter water sends it further still —
+   falls out of several thousand of those collisions rather than being typed
+   in anywhere.
+
+   HOW THIS KEEPS THE "PURE FUNCTION OF t" RULE.  The integration happens once,
+   at build, inside runSim(). What it leaves behind is closed form again:
+
+     · A molecule flies in a straight line and reflects off the walls, which
+       tri() gives exactly. So between collisions its position is analytic,
+       and all runSim() has to write down is the handful of moments when a
+       grain knocked it onto a new line.  (molAt)
+     · The grains' paths are recorded at a fixed rate and interpolated between
+       samples.  (grainAt)
+     · The impacts on the hero grain are kept as a list sorted by time and
+       searched by time.  (firstHit)
+
+   So scrubbing still lands on the same frame every time, the same seed still
+   gives the same scene, and not one thing integrates per frame.
+
+   WHERE IT IS HONEST ABOUT SCALE, AND WHERE IT CANNOT BE.
+
+     · SIZE.  A water molecule is about 0.3 nm across; a 10 µm grain is some
+       35,000 times wider. Drawn to scale a molecule would be a thousandth of
+       a pixel. Here it is about a fourteenth of the grain.
+     · NUMBER.  A drop this size holds of order 10¹³ molecules. Here there are
+       SIM.N of them.
+     · MASS.  The real ratio is around 10¹³ : 1. Here it is SIM.MASS : 1, and
+       it has to be: with a countable number of molecules on screen, their
+       kicks only add up to visible motion if each one carries the momentum
+       that a great many real ones would. The scale note on screen says all
+       three out loud rather than leaving a wrong impression.
+
+   What is NOT fudged: the collisions are exactly elastic, the velocities come
+   from the Maxwell–Boltzmann distribution for the chosen temperature, the
+   grain masses really do go as radius³ at one shared density, and the drag
+   that stops a grain running away is not a damping term anybody added — it is
+   the simple fact that a moving grain meets more molecules head-on than
+   behind. Take the collisions away and there is nothing left to move it.
+
+   Deliberately left out: molecule–molecule collisions. In real water they are
+   what keeps the speeds Maxwellian, and that distribution is imposed here
+   directly, so simulating them would cost a great deal and change nothing
+   that is on screen.
+===================================================================== */
+const SIM = {
+  /* The integration step, at room temperature. It is divided by SPEED, so
+     hotter water is stepped finer rather than less accurately: what has to be
+     resolved is the fastest molecule, and that is what temperature changes. */
+  DT:  1/120,
+  REC: 1/120,            // how often the grain paths are written down
+  /* How many molecules, and how fast they go, is not a free pair of choices.
+     Both the collision RATE and the grain's diffusion constant depend on the
+     two together — rate ∝ n·v and D ∝ v/n — so their product is fixed by the
+     speed alone. Wanting a dozen or so distinct hits a second AND a grain
+     that wanders a couple of grain-widths a minute pins both numbers down to
+     about here. Fewer, faster molecules and the hits become countable events;
+     more, slower ones and the grain barely moves. */
+  N:   2580,             // molecules
+  M:   1,                // molecular mass, in units of itself
+  R:   0.075,            // drawn radius of the oxygen
+  HR:  0.045,            // and of a hydrogen
+  OH:  0.115,            // the O–H distance, drawn to match
+  SIGMA: 1.95,           // RMS molecular speed per axis at room temp, units/s
+  MASS: 20,              // grain : molecule mass ratio, for a medium grain
+  BX: FIELD_R*1.06,      // the box the molecules reflect inside
+  BZ: 3.0,
+  /* The pool of water the grains stay inside. Wide enough that even the
+     smallest grain in the hottest water spends its minute wandering rather
+     than rattling off the sides — which matters, because a grain that keeps
+     meeting the wall has its spread cut short, and the size and temperature
+     trends the scene is about would flatten out at the lively end. */
+  DROP_R: FIELD_R*0.70,
+  DROP_Z: 1.8,
+  QUIET: 31.0,           // the companion grains have faded out by here
+  SHELL: 0.9,            // how far past contact the neighbour lists reach
+  REFRESH: 12            // ... and how many steps they last before a rebuild
+};
+
+/* ---------------------------------------------------------------------------
+   runSim — one pass of hard-sphere dynamics over the whole timeline.
+
+   Deliberately written with flat typed arrays and no THREE at all: it is the
+   hot loop (about 8,300 steps), and it is the part test-particles.js runs
+   under node, where there is no three.js to have.
+--------------------------------------------------------------------------- */
+function runSim(shape, t0, tEnd){
+  const rand = rng(9311);
+  /* Maxwell–Boltzmann.  Saying the SPEEDS are Maxwellian is the same as saying
+     each velocity COMPONENT is Gaussian with the same width, so that is how
+     they are drawn — Box–Muller, off the same seeded stream as everything
+     else, so a rebuild is identical. */
+  const gauss = ()=>{
+    const u = 1 - rand();                       // in (0,1], so log() is safe
+    return Math.sqrt(-2*Math.log(u)) * Math.cos(6.283185307179586*rand());
+  };
+
+  const N = SIM.N, m = SIM.M, sg = SIM.SIGMA*SPEED;
+  const DT = SIM.DT/Math.max(1, SPEED);
+  const BX = SIM.BX, BZ = SIM.BZ;
+  const nG = shape.length;
+  /* A grain marked `keep` is simulated for the whole run; the rest are dropped
+     once they are off screen (SIM.QUIET), which is most of the work in the
+     loop below. The kept ones have to come first in `shape`, so that "live"
+     is always a prefix. The scene keeps only the hero; the test harness keeps
+     all of them, because a measurement of six walks is worth six times one
+     and a frozen grain would quietly drag the average down. */
+  let nKeep = 0;
+  while(nKeep < nG && shape[nKeep].keep) nKeep++;
+  if(!nKeep) nKeep = 1;
+
+  /* --- the grains.  One density for all of them, so the mass really is
+     proportional to radius³; the absolute ratio to a molecule is the part
+     that had to be compressed. --- */
+  const gp = new Float64Array(nG*3), gv = new Float64Array(nG*3);
+  const gS = new Float64Array(nG), gC = new Float64Array(nG), gM = new Float64Array(nG);
+  for(let g=0; g<nG; g++){
+    const s = shape[g];
+    gp[g*3] = s.x; gp[g*3+1] = s.y; gp[g*3+2] = s.z;
+    gS[g] = s.r;                                 // the grain's own radius
+    gC[g] = s.r + SIM.R;                         // centre-to-centre at contact
+    gM[g] = m * SIM.MASS * Math.pow(s.r / GRAINS.medium.r, 3);
+    /* start each grain with the velocity equipartition says it should have,
+       rather than at rest — otherwise the first second of the scene is six
+       grains being spun up from nothing, which is not what a grain sitting in
+       water is doing */
+    const w = sg*Math.sqrt(m/gM[g]);
+    gv[g*3] = gauss()*w; gv[g*3+1] = gauss()*w; gv[g*3+2] = gauss()*w;
+  }
+
+  /* --- the molecules.  Each one is a point, a velocity and a start time;
+     tri() turns that into a reflecting billiard, so those three numbers ARE
+     its whole trajectory until a grain interrupts it. --- */
+  const p0 = new Float64Array(N*3), v0 = new Float64Array(N*3), tm = new Float64Array(N);
+  const ip = new Float64Array(N*3), iv = new Float64Array(N*3);
+  const ori = new Float32Array(N*6);             // the two O–H offsets, fixed per molecule
+  const log = new Array(N);                      // [t, px,py,pz, vx,vy,vz] per collision
+  const HALF = 104.5*Math.PI/360;                // half the bond angle
+  const cosH = Math.cos(HALF)*SIM.OH, sinH = Math.sin(HALF)*SIM.OH;
+  for(let i=0;i<N;i++){
+    /* somewhere in the box, but not inside a grain */
+    let x, y, z, tries = 0;
+    do {
+      x = (rand()-0.5)*2*BX; y = (rand()-0.5)*2*BX; z = (rand()-0.5)*2*BZ;
+      let clear = true;
+      for(let g=0; g<nG; g++){
+        const dx=x-gp[g*3], dy=y-gp[g*3+1], dz=z-gp[g*3+2];
+        if(dx*dx+dy*dy+dz*dz < gC[g]*gC[g]) { clear = false; break; }
+      }
+      if(clear) break;
+    } while(++tries < 24);
+    p0[i*3]=x; p0[i*3+1]=y; p0[i*3+2]=z;
+    v0[i*3]=gauss()*sg; v0[i*3+1]=gauss()*sg; v0[i*3+2]=gauss()*sg;
+    tm[i] = 0;
+    log[i] = [];
+
+    /* A fixed random orientation for the molecule, built without a rotation
+       matrix: a random unit bisector u, a random unit w perpendicular to it,
+       and then the two O–H bonds are cosθ·u ± sinθ·w. That gives the real
+       104.5° bend in a random direction, and since it never changes, the two
+       hydrogens can be drawn as a constant offset from the oxygen. */
+    const uz = rand()*2-1, up = Math.sqrt(Math.max(0,1-uz*uz)), ua = rand()*6.283185307179586;
+    const ux = up*Math.cos(ua), uy = up*Math.sin(ua);
+    /* any axis not parallel to u, crossed with it, gives a perpendicular */
+    const ax = Math.abs(uz) < 0.9 ? 0 : 1, az = Math.abs(uz) < 0.9 ? 1 : 0;
+    let e1x = uy*az - uz*0, e1y = uz*ax - ux*az, e1z = ux*0 - uy*ax;
+    const e1l = Math.hypot(e1x,e1y,e1z) || 1; e1x/=e1l; e1y/=e1l; e1z/=e1l;
+    const e2x = uy*e1z - uz*e1y, e2y = uz*e1x - ux*e1z, e2z = ux*e1y - uy*e1x;
+    const ps = rand()*6.283185307179586, cp = Math.cos(ps), sp = Math.sin(ps);
+    const wx = cp*e1x + sp*e2x, wy = cp*e1y + sp*e2y, wz = cp*e1z + sp*e2z;
+    ori[i*6]   = cosH*ux + sinH*wx; ori[i*6+1] = cosH*uy + sinH*wy; ori[i*6+2] = cosH*uz + sinH*wz;
+    ori[i*6+3] = cosH*ux - sinH*wx; ori[i*6+4] = cosH*uy - sinH*wy; ori[i*6+5] = cosH*uz - sinH*wz;
+  }
+
+  /* Take the bulk flow out.  Drawing N velocities at random leaves the gas
+     with a net momentum of order √N·mσ — small, but it is a current, and one
+     of the captions says in so many words that nothing is stirring the water.
+     Subtracting the mean costs three degrees of freedom out of 3N, so the
+     temperature is unchanged to a part in a thousand, and what is left is a
+     body of water that is genuinely still: every grain that moves does so
+     because it was hit, not because it was carried. */
+  let mx = 0, my = 0, mz = 0;
+  for(let i=0;i<N;i++){ mx += v0[i*3]; my += v0[i*3+1]; mz += v0[i*3+2]; }
+  mx /= N; my /= N; mz /= N;
+  for(let i=0;i<N;i++){
+    iv[i*3]   = v0[i*3]   -= mx;
+    iv[i*3+1] = v0[i*3+1] -= my;
+    iv[i*3+2] = v0[i*3+2] -= mz;
+    ip[i*3] = p0[i*3]; ip[i*3+1] = p0[i*3+1]; ip[i*3+2] = p0[i*3+2];
+  }
+
+  /* --- the run --- */
+  const steps = Math.round((tEnd - t0)/DT);
+  const rec = new Float32Array((Math.floor((tEnd - t0)/SIM.REC) + 2)*nG*3);
+  const hitT = [], hitN = [], hitJ = [];         // the impacts on the hero grain
+  const near = [];                               // one neighbour list per grain
+  for(let g=0; g<nG; g++) near.push([]);
+  let recAt = 0, nextRefresh = 0;
+
+  for(let s=0; s<=steps; s++){
+    const tau = s*DT;                            // seconds since the sim started
+    const now = t0 + tau;                        // ... and where that is on the timeline
+    /* Past SIM.QUIET the grains that are not kept have faded out, so there
+       is nothing to be gained from colliding with them. Their recorded paths
+       simply stop where they were, which nobody can see. */
+    const live = now < SIM.QUIET ? nG : nKeep;
+
+    /* Neighbour lists.  Checking every molecule against every grain on every
+       step is 24,000 tests a step and far and away the slowest thing here.
+       Instead each grain keeps a list of the molecules within SHELL of
+       contact, rebuilt every REFRESH steps — long enough to be cheap, short
+       enough that nothing can cross the shell unnoticed (the fastest
+       molecules cover about 0.4 units in that time, the shell is 0.9). */
+    if(s >= nextRefresh){
+      nextRefresh = s + SIM.REFRESH;
+      for(let g=0; g<live; g++) near[g].length = 0;
+      for(let i=0;i<N;i++){
+        const dt = tau - tm[i], i3 = i*3;
+        const x = tri(p0[i3]   + v0[i3]  *dt, BX);
+        const y = tri(p0[i3+1] + v0[i3+1]*dt, BX);
+        const z = tri(p0[i3+2] + v0[i3+2]*dt, BZ);
+        for(let g=0; g<live; g++){
+          const R = gC[g] + SIM.SHELL;
+          const dx = x-gp[g*3], dy = y-gp[g*3+1], dz = z-gp[g*3+2];
+          if(dx*dx + dy*dy + dz*dz < R*R) near[g].push(i);
+        }
+      }
+    }
+
+    /* --- molecule hits grain --- */
+    for(let g=0; g<live; g++){
+      const list = near[g], R2 = gC[g]*gC[g], M = gM[g], g3 = g*3;
+      for(let k=0;k<list.length;k++){
+        const i = list[k], i3 = i*3, dt = tau - tm[i];
+        /* where it is, and how fast — both straight off the closed form */
+        const ax = p0[i3] + v0[i3]*dt, ay = p0[i3+1] + v0[i3+1]*dt, az = p0[i3+2] + v0[i3+2]*dt;
+        const x = tri(ax,BX), y = tri(ay,BX), z = tri(az,BZ);
+        let nx = x-gp[g3], ny = y-gp[g3+1], nz = z-gp[g3+2];
+        const d2 = nx*nx+ny*ny+nz*nz;
+        if(d2 >= R2 || d2 === 0) continue;
+        const d = Math.sqrt(d2); nx/=d; ny/=d; nz/=d;      // the contact normal
+        const vx = v0[i3]*triSlope(ax,BX), vy = v0[i3+1]*triSlope(ay,BX),
+              vz = v0[i3+2]*triSlope(az,BZ);
+        /* the part of the approach that is along the normal.  If it is not
+           negative the two are already moving apart — they are still
+           overlapping from the step before, and hitting them again would
+           invent energy, so leave them alone. */
+        const rvn = (vx-gv[g3])*nx + (vy-gv[g3+1])*ny + (vz-gv[g3+2])*nz;
+        if(rvn >= 0) continue;
+        /* An elastic collision between two hard spheres: reverse the normal
+           part of the relative velocity, and split the impulse between the
+           masses. With e = 1 that is J = −2·rvn·mM/(m+M) along the normal,
+           which conserves momentum exactly (m·J/m − M·J/M = 0) and, because
+           the normal speed is only reversed, kinetic energy with it. */
+        const J = -2*rvn*m*M/(m+M);
+        gv[g3]   -= J/M*nx; gv[g3+1] -= J/M*ny; gv[g3+2] -= J/M*nz;
+        /* the molecule is now on a new straight line, starting here and now —
+           which also resets the phase of its wall bounces, as it must */
+        p0[i3]=x;   v0[i3]   = vx + J/m*nx;
+        p0[i3+1]=y; v0[i3+1] = vy + J/m*ny;
+        p0[i3+2]=z; v0[i3+2] = vz + J/m*nz;
+        tm[i] = tau;
+        log[i].push(tau, x, y, z, v0[i3], v0[i3+1], v0[i3+2]);
+        /* the hero's impacts are the ones the scene points at, so they are
+           kept: which way the blow came from, and how hard */
+        if(g === 0){ hitT.push(now); hitN.push(nx,ny,nz); hitJ.push(J); }
+      }
+    }
+
+    /* --- grain hits grain.  Only fifteen pairs, and they do collide. --- */
+    for(let a=0; a<live; a++) for(let b=a+1; b<live; b++){
+      const a3=a*3, b3=b*3, R = gS[a]+gS[b];
+      let nx = gp[b3]-gp[a3], ny = gp[b3+1]-gp[a3+1], nz = gp[b3+2]-gp[a3+2];
+      const d2 = nx*nx+ny*ny+nz*nz;
+      if(d2 >= R*R || d2 === 0) continue;
+      const d = Math.sqrt(d2); nx/=d; ny/=d; nz/=d;
+      const rvn = (gv[b3]-gv[a3])*nx + (gv[b3+1]-gv[a3+1])*ny + (gv[b3+2]-gv[a3+2])*nz;
+      if(rvn >= 0) continue;
+      const Ma = gM[a], Mb = gM[b], J = -2*rvn*Ma*Mb/(Ma+Mb);
+      gv[b3] += J/Mb*nx; gv[b3+1] += J/Mb*ny; gv[b3+2] += J/Mb*nz;
+      gv[a3] -= J/Ma*nx; gv[a3+1] -= J/Ma*ny; gv[a3+2] -= J/Ma*nz;
+    }
+
+    /* --- move the grains, and keep them in the drop --- */
+    for(let g=0; g<live; g++){
+      const g3 = g*3;
+      gp[g3] += gv[g3]*DT; gp[g3+1] += gv[g3+1]*DT; gp[g3+2] += gv[g3+2]*DT;
+      /* The water is a bead under a cover slip and the lit circle is only so
+         wide, so a grain that reaches the edge is turned back. Which is also
+         what keeps the hero in frame: over a minute a medium grain at room
+         temperature diffuses about three units, and the pool is five and a
+         half, so this is a backstop rather than something you watch happen. */
+      const rr = Math.hypot(gp[g3], gp[g3+1]), lim = SIM.DROP_R - gS[g];
+      if(rr > lim){
+        const nx = gp[g3]/rr, ny = gp[g3+1]/rr;
+        const vn = gv[g3]*nx + gv[g3+1]*ny;
+        if(vn > 0){ gv[g3] -= 2*vn*nx; gv[g3+1] -= 2*vn*ny; }
+        gp[g3] = nx*lim; gp[g3+1] = ny*lim;
+      }
+      const zl = SIM.DROP_Z - gS[g];
+      if(Math.abs(gp[g3+2]) > zl){
+        if(gp[g3+2]*gv[g3+2] > 0) gv[g3+2] = -gv[g3+2];
+        gp[g3+2] = (gp[g3+2] < 0 ? -1 : 1)*zl;
+      }
+    }
+
+    /* --- write the paths down --- */
+    while(recAt*SIM.REC <= tau + 1e-9 && (recAt+1)*nG*3 <= rec.length){
+      const o = recAt*nG*3;
+      for(let g=0; g<nG; g++){
+        rec[o+g*3] = gp[g*3]; rec[o+g*3+1] = gp[g*3+1]; rec[o+g*3+2] = gp[g*3+2];
+      }
+      recAt++;
+    }
+  }
+
+  /* Pack each molecule's log for lookup: entry 0 is where it started, then one
+     entry per collision, in time order. Seven numbers each — the time, and the
+     straight line it left on. */
+  const ev = new Array(N);
+  for(let i=0;i<N;i++){
+    const L = log[i], a = new Float32Array(7 + L.length);
+    a[0]=0; a[1]=ip[i*3]; a[2]=ip[i*3+1]; a[3]=ip[i*3+2];
+    a[4]=iv[i*3]; a[5]=iv[i*3+1]; a[6]=iv[i*3+2];
+    for(let k=0;k<L.length;k++) a[7+k] = L[k];
+    ev[i] = a;
+  }
+  return {
+    t0, ev, ori, rec, nG, nRec:recAt,
+    hitT: Float64Array.from(hitT),
+    hitN: Float32Array.from(hitN),
+    hitJ: Float32Array.from(hitJ)
+  };
+}
+
+/* where a molecule is at time tau into the run — the closed form, picked up
+   from the last collision it had before then.  Most molecules are never hit
+   at all, so this walk backwards is a step or two. */
+function molAt(a, tau, out){
+  let k = a.length - 7;
+  while(k > 0 && a[k] > tau) k -= 7;
+  const dt = tau - a[k];
+  out.x = tri(a[k+1] + a[k+4]*dt, SIM.BX);
+  out.y = tri(a[k+2] + a[k+5]*dt, SIM.BX);
+  out.z = tri(a[k+3] + a[k+6]*dt, SIM.BZ);
+  return out;
+}
+/* and where a grain is: the recorded path, interpolated between samples */
+function grainAt(P, g, tau, out){
+  const u = tau/SIM.REC;
+  const i = Math.max(0, Math.min(P.nRec-2, Math.floor(u)));
+  const f = Math.max(0, Math.min(1, u - i));
+  const a = (i*P.nG + g)*3, b = ((i+1)*P.nG + g)*3;
+  return out.set(lerp(P.rec[a],   P.rec[b],   f),
+                 lerp(P.rec[a+1], P.rec[b+1], f),
+                 lerp(P.rec[a+2], P.rec[b+2], f));
+}
+/* the first impact on the hero grain at or after scene time t */
+function firstHit(P, t){
+  let lo = 0, hi = P.hitT.length;
+  while(lo < hi){ const mid = (lo+hi)>>1; if(P.hitT[mid] < t) lo = mid+1; else hi = mid; }
+  return lo;
+}
+
+/* =====================================================================
+   THE LAB — a flower, a slide, and a microscope
+===================================================================== */
+const lab = new THREE.Group(); scene.add(lab);
+
+/* The bench.  Making it near-black is not enough on its own: once the output is
+   correctly sRGB-encoded, even a very dark albedo lifts to a visible grey, and
+   an eighteen-metre flat disc then sweeps across the frame as a pale dome.
+   So it gets a radial falloff painted into its colour map — a pool of light
+   around the apparatus, fading to nothing at the edges. That is both what a
+   bench under a lamp actually looks like and what keeps the eye on the props.
+   A cylinder's cap UVs are a circle inscribed in the 0..1 square, so a radial
+   gradient lands exactly on the disc. */
+const benchMap = (function(){
+  const S = 512, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(0,0,S,S);
+  const g = x.createRadialGradient(S/2,S/2,0, S/2,S/2,S*0.5);
+  g.addColorStop(0.00, 'rgba(255,255,255,1)');
+  g.addColorStop(0.10, 'rgba(232,236,244,0.86)');
+  g.addColorStop(0.22, 'rgba(150,160,178,0.30)');
+  g.addColorStop(0.34, 'rgba(60,68,82,0.07)');
+  g.addColorStop(0.50, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0,0,S,S);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+})();
+const bench = new THREE.Mesh(
+  new THREE.CylinderGeometry(9,9,0.35,64),
+  new THREE.MeshStandardMaterial({color:0x525a68, map:benchMap,
+    roughness:0.92, metalness:0, envMapIntensity:0.10})
+);
+bench.position.y=-0.175; bench.receiveShadow = true; lab.add(bench);
+
+const glassMat = new THREE.MeshStandardMaterial({
+  color:0xcfe0ee, roughness:0.04, metalness:0.0,
+  transparent:true, opacity:0.22, side:THREE.DoubleSide,
+  envMapIntensity:1.4          // glass is mostly what it reflects
+});
+const steel = new THREE.MeshStandardMaterial({color:0x9aa4b2, metalness:0.88, roughness:0.26,
+  envMapIntensity:0.9});
+const darkMetal = new THREE.MeshStandardMaterial({color:0x232932, metalness:0.55, roughness:0.5,
+  envMapIntensity:0.55});
+/* The microscope is three materials, not one.  A real instrument is satin
+   black enamel over a cast body, bright chrome on the fittings, and knurled
+   metal on anything a hand turns — painting the lot one shade of grey is what
+   made it read as a toy. */
+const enamel = new THREE.MeshStandardMaterial({color:0x151a21, metalness:0.25, roughness:0.55,
+  envMapIntensity:0.7});
+const chrome = new THREE.MeshStandardMaterial({color:0xc2cad6, metalness:0.95, roughness:0.16,
+  envMapIntensity:1.2});
+const knurled = new THREE.MeshStandardMaterial({color:0x6b7482, metalness:0.85, roughness:0.42,
+  roughnessMap:KNURL_TEX, bumpMap:KNURL_TEX, bumpScale:0.006, envMapIntensity:0.9});
+/* Machined-but-unpainted, for the parts sitting right over the stage lamp.
+   Enamel is mostly diffuse, so with the lamp on it floods to a flat tan; the
+   turret is bare metal anyway, and metalness kills the diffuse wash. */
+const machined = new THREE.MeshStandardMaterial({color:0x12171f, metalness:0.7, roughness:0.52,
+  envMapIntensity:0.5});
+
+/* Spin a 2D silhouette to make glassware.  This is the primitive I should have
+   been using all along: a handful of points gives a rolled lip, a shaped body
+   and a rounded base, where a plain cylinder gives a tube with flat ends. */
+function lathe(profile, mat, seg){
+  const pts = profile.map(([x,y])=> new THREE.Vector2(x,y));
+  const m = new THREE.Mesh(new THREE.LatheGeometry(pts, seg ?? 48), mat);
+  return m;
+}
+
+/* ---- the flower ---- */
+const FLOWER_X = -2.75, HEAD_Y = 3.05;
+const flower = new THREE.Group(); flower.position.set(FLOWER_X,0,0); lab.add(flower);
+
+/* the vase: a waisted body with a flared rim and a rounded foot */
+const vase = lathe([
+  [0.000,0.00],[0.150,0.00],[0.205,0.020],[0.225,0.060],
+  [0.228,0.22],[0.208,0.40],[0.214,0.56],[0.252,0.70],
+  [0.286,0.78],[0.300,0.80],[0.292,0.815]
+], glassMat);
+vase.position.y = 0; vase.castShadow = true; flower.add(vase);
+/* the last point comes back to x=0 so the top is capped — a lathe is an open
+   surface of revolution, so without that you would see straight into the vase */
+const vaseWater = lathe([
+  [0.000,0.02],[0.190,0.02],[0.210,0.10],[0.200,0.40],[0.206,0.56],[0.000,0.56]
+], new THREE.MeshStandardMaterial({color:0xbfd8ee, roughness:0.07, metalness:0.05,
+  transparent:true, opacity:0.42, envMapIntensity:1.4}));
+flower.add(vaseWater);
+
+const green = new THREE.MeshStandardMaterial({color:0x3d6f39, roughness:0.82, metalness:0.02,
+  envMapIntensity:0.28});
+const stem = rod(0x3d6f39, 0.048, HEAD_Y-0.2, {rough:0.82, metal:0.02});
+stem.position.y = (HEAD_Y-0.2)/2 + 0.2; flower.add(stem);
+
+/* A leaf texture: a midrib, a few side veins branching off it, and soft
+   mottled blotches of value either side.  Painted near-white (230) rather
+   than mid-grey, so multiplying it into the leaf's colour reads as texture —
+   darker along the veins, lighter in the blotches — without darkening the
+   leaf overall the way a mid-grey multiply map would. */
+const leafTex = (function(){
+  const S = 256, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  const rand = rng(55010);
+  x.fillStyle = '#e6e6e6'; x.fillRect(0,0,S,S);
+  for(let i=0;i<60;i++){
+    const rx = rand()*S, ry = rand()*S, rr = 10+rand()*30;
+    const g = x.createRadialGradient(rx,ry,0, rx,ry,rr);
+    const dark = rand() < 0.55;
+    g.addColorStop(0, dark ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(rx,ry,rr,0,Math.PI*2); x.fill();
+  }
+  x.strokeStyle = 'rgba(0,0,0,0.16)';
+  x.lineWidth = 2;
+  x.beginPath(); x.moveTo(0, S/2); x.lineTo(S, S/2); x.stroke();     // midrib
+  x.lineWidth = 1;
+  for(let i=0;i<9;i++){                                              // side veins
+    const y0 = S/2 + (i-4)*S*0.09;
+    x.beginPath(); x.moveTo(S*0.5, S/2);
+    x.lineTo(S*(0.55+i*0.05), y0);
+    x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+})();
+const leafMat = new THREE.MeshStandardMaterial({color:0x3d6f39, roughness:0.82, metalness:0.02,
+  envMapIntensity:0.28, map:leafTex, bumpMap:leafTex, bumpScale:0.006});
+
+/* The blade's own outline — a leaf shape, not a squashed sphere.  A sphere
+   scaled thin and wide reads as an oval with rounded ends no matter how far
+   it is squashed; what a leaf actually wants is a vesica: two arcs meeting at
+   sharp points at either end, with the width held out flat across the middle
+   rather than bulging into a curve the way an ellipse does. So the control
+   points sit close to the long axis until near each end, where they sweep
+   out and back in to the point — the same bezier-outline approach as
+   petalGeo below, just with a shape drawn to look like a leaf instead of a
+   petal, and centred on the origin so it drops into the same frame the
+   sphere used to occupy. Built once and shared by both leaves. */
+const leafGeo = (function(){
+  const s = new THREE.Shape();
+  s.moveTo(-0.5, 0);
+  s.bezierCurveTo(-0.40, 0.155, 0.12, 0.145, 0.5, 0);
+  s.bezierCurveTo(0.12, -0.145, -0.40, -0.155, -0.5, 0);
+  const g = new THREE.ExtrudeGeometry(s, {
+    depth: 0.010, bevelEnabled: true, bevelThickness: 0.005,
+    bevelSize: 0.010, bevelSegments: 2, curveSegments: 20
+  });
+  /* the same cupping trick as the petal, but held near-flat across the
+     middle of the blade and only curling up close to the two points — a
+     real leaf's midrib is close to straight, and it is the curl near the
+     ends that reads as "leaf" rather than "flat cut-out". The extrusion
+     axis is "up" once the blade is laid flat (rotation.x below), so z is
+     the direction this lifts. */
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p, i);
+    const edge = Math.pow(Math.abs(v.x) * 2, 4);      // ~0 across the middle, 1 at the tips
+    p.setZ(i, v.z + edge*0.05 + 0.35*v.y*v.y);
+  }
+  g.computeVertexNormals();
+  return g;
+})();
+
+/* Each leaf is a group carrying the blade, rather than one squashed sphere
+   doing both jobs.  Where a leaf sits and which way it points then has nothing
+   to do with how flat and long the blade is — and a gizmo dragged on an
+   unscaled frame behaves, where rotating a mesh that is squashed to a twentieth
+   of its height does not. */
+const leaves = [], leafBlades = [];
+[[0.7, 1.25, 0.5],[-0.72, 1.85, -0.4]].forEach(([dx,y,dz])=>{
+  const leaf = new THREE.Group();
+  leaf.position.set(dx*0.55, y, dz*0.5);
+  leaf.rotation.set(0.1, Math.atan2(dz,dx), dx>0? -0.35 : 0.35);
+  flower.add(leaf);
+  const blade = new THREE.Mesh(leafGeo, leafMat);
+  blade.rotation.x = -Math.PI/2;                       // lay it flat — same trick as the petal
+  blade.scale.set(0.84, 1, 1.30);
+  blade.castShadow = true; blade.receiveShadow = true;
+  leaf.add(blade);
+  leaves.push(leaf); leafBlades.push(blade);
+});
+const receptacle = new THREE.Mesh(SPH, green);
+receptacle.scale.set(0.115,0.085,0.115); receptacle.position.y = HEAD_Y-0.13; flower.add(receptacle);
+
+/* petals */
+/* A petal texture: veins fanning out from the base (the shape's own origin,
+   x=0, which the extrude's default UVs put at u=0) towards the tip, a warm
+   blush where they meet, and a darker rim — near-white so multiplying it into
+   petalMat's colour reads as texture rather than as a change of colour. */
+const petalTex = (function(){
+  const S = 256, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  const rand = rng(55020);
+  x.fillStyle = '#e8e8e8'; x.fillRect(0,0,S,S);
+  const blush = x.createRadialGradient(0,S*0.5,0, 0,S*0.5,S*0.6);
+  blush.addColorStop(0.00, 'rgba(255,255,255,0.20)');
+  blush.addColorStop(0.35, 'rgba(255,255,255,0)');
+  x.fillStyle = blush; x.fillRect(0,0,S,S);
+  x.strokeStyle = 'rgba(0,0,0,0.14)';
+  for(let i=0;i<9;i++){
+    x.lineWidth = 0.8 + rand()*0.8;
+    const bend = (i-4)*0.10;
+    x.beginPath(); x.moveTo(0, S*0.5);
+    x.quadraticCurveTo(S*0.5, S*0.5+bend*S*0.5, S*0.98, S*0.5+bend*S*0.85);
+    x.stroke();
+  }
+  const rim = x.createRadialGradient(S*0.5,S*0.5,S*0.42, S*0.5,S*0.5,S*0.5);
+  rim.addColorStop(0, 'rgba(0,0,0,0)');
+  rim.addColorStop(1, 'rgba(0,0,0,0.12)');
+  x.fillStyle = rim; x.fillRect(0,0,S,S);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+})();
+const petalMat = new THREE.MeshStandardMaterial({
+  color:0xd9739c, roughness:0.62, metalness:0.02, side:THREE.DoubleSide,
+  emissive:0x1a0810, envMapIntensity:0.25, map:petalTex, bumpMap:petalTex, bumpScale:0.004
+});
+/* A petal, as an outline that is extruded and bevelled rather than a squashed
+   sphere.  Built once and shared by all seven — same geometry, different
+   transform, which is both tidier and cheaper. */
+const petalGeo = (function(){
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.bezierCurveTo(0.18, 0.17, 0.62, 0.23, 0.95, 0.09);
+  s.bezierCurveTo(1.06, 0.035, 1.06, -0.035, 0.95, -0.09);
+  s.bezierCurveTo(0.62, -0.23, 0.18, -0.17, 0, 0);
+  const g = new THREE.ExtrudeGeometry(s, {
+    depth: 0.010, bevelEnabled: true, bevelThickness: 0.006,
+    bevelSize: 0.012, bevelSegments: 2, curveSegments: 16
+  });
+  /* cup it: lift the tip, and raise the two edges, so it is a curved surface
+     instead of a flat cut-out.  The extrusion axis becomes "up" once the petal
+     is laid flat, so displacing z here is what curves it. */
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p, i);
+    p.setZ(i, v.z + 0.26*v.x*v.x + 0.55*v.y*v.y);
+  }
+  g.computeVertexNormals();
+  return g;
+})();
+
+for(let i=0;i<7;i++){
+  const a = (i/7)*Math.PI*2;
+  /* two nested groups: the outer one chooses which way the petal points, the
+     inner one how far it lifts.  Doing both with Euler angles on one object
+     fights the rotation order and is how petals end up skewed. */
+  const yaw = new THREE.Group();
+  yaw.position.set(0, HEAD_Y-0.04, 0);
+  yaw.rotation.y = -a;
+  const tilt = new THREE.Group();
+  tilt.rotation.z = 0.30 + Math.sin(i*1.7)*0.07;      // a little variation
+  tilt.rotation.x = Math.cos(i*2.3)*0.06;
+  yaw.add(tilt);
+  const p = new THREE.Mesh(petalGeo, petalMat);
+  p.rotation.x = -Math.PI/2;                          // lay it flat
+  p.scale.setScalar(0.52);
+  p.castShadow = true; p.receiveShadow = true;
+  tilt.add(p);
+  flower.add(yaw);
+}
+/* the centre, the stamens, and the pollen on the anthers */
+const centre = new THREE.Mesh(SPH,
+  new THREE.MeshStandardMaterial({color:0xc9a83f, roughness:0.85, metalness:0.04,
+    envMapIntensity:0.3}));
+centre.scale.set(0.17,0.07,0.17); centre.position.y = HEAD_Y+0.02; flower.add(centre);
+
+/* The stamens.  Filament and anther used to be positioned independently, each
+   from the same angle — six pairs of numbers that all had to agree, so the gap
+   between a filament and the anther it carries could not be adjusted without
+   editing twelve of them and re-deriving the trigonometry. Now one stamen is
+   built in its own upright frame, where the filament sits at a plain (x, y)
+   and the anther at another, and the whole thing is simply turned to face each
+   way round the flower. Fixing the join is one number in one place, and the
+   other five follow because they are the same numbers.
+
+   The anther is a GROUP, not the squashed sphere itself: pollen hangs off it
+   so that it follows the anther wherever it is put, and inheriting the
+   sphere's non-uniform scale would flatten every grain. */
+const STAMENS = 6;
+const stamens = [], filaments = [], anthers = [], dustBits = [];
+/* A speckled, dimpled texture for the anther wall — near-white so it
+   multiplies into the material's own colour as a texture rather than a tint,
+   and reused as a bump map so the dimples actually catch the light. */
+const antherTex = (function(){
+  const S = 128, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  const rand = rng(55030);
+  x.fillStyle = '#dcdcdc'; x.fillRect(0,0,S,S);
+  for(let i=0;i<220;i++){
+    const rx = rand()*S, ry = rand()*S, rr = 1.5+rand()*3;
+    const g = x.createRadialGradient(rx,ry,0, rx,ry,rr);
+    const dark = rand() < 0.6;
+    g.addColorStop(0, dark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.22)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(rx,ry,rr,0,Math.PI*2); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+})();
+const antherMat = new THREE.MeshStandardMaterial({
+  /* deliberately darker than the pollen on it — otherwise the two merge into
+     one cream-coloured lump at close range */
+  color:0x7a5418, roughness:0.85, metalness:0.05, envMapIntensity:0.35,
+  map:antherTex, bumpMap:antherTex, bumpScale:0.01});
+(function stamenRing(){
+  const rand = rng(77001);
+  for(let i=0;i<STAMENS;i++){
+    const st = new THREE.Group();
+    st.position.y = HEAD_Y;
+    st.rotation.y = -((i/STAMENS)*Math.PI*2 + 0.3);
+    flower.add(st);
+
+    const fil = rod(0xb9ae7e, 0.014, 0.32, {rough:0.8, metal:0.03});
+    fil.position.set(0.11, 0.17, 0);
+    fil.rotation.z = -0.30;                  // leans outwards, away from the centre
+    st.add(fil);
+
+    const anth = new THREE.Group();
+    anth.position.set(0.22, 0.32, 0);
+    st.add(anth);
+    const anthBody = new THREE.Mesh(SPH, antherMat);
+    anthBody.scale.set(0.058, 0.036, 0.036);
+    anth.add(anthBody);
+
+    /* Pollen dust on the anther — small and numerous, and at detail 1 rather
+       than 0: at 20 flat faces each they read as broken polystyrene. */
+    for(let k=0;k<18;k++){
+      const d = grainMesh((0.0075 + rand()*0.006) * 0.6, 1);   // bench view: 0.6x
+      d.position.set((rand()-0.5)*0.105, 0.024+rand()*0.020, (rand()-0.5)*0.062);
+      d.rotation.set(rand()*3, rand()*3, rand()*3);
+      anth.add(d);
+      dustBits.push(d);
+    }
+    stamens.push(st); filaments.push(fil); anthers.push(anth);
+  }
+})();
+
+/* ---- the slide, with a drop of water and a cover slip ---- */
+const SLIDE_START = new THREE.Vector3(FLOWER_X+0.16, 0.90, 0.62);
+const slide = new THREE.Group(); lab.add(slide);
+const slideGlass = new THREE.Mesh(new THREE.BoxGeometry(0.92,0.022,0.40), glassMat);
+slide.add(slideGlass);
+const drop = new THREE.Mesh(SPH, new THREE.MeshStandardMaterial({
+  color:0xbcd8f0, roughness:0.06, metalness:0.12, transparent:true, opacity:0.5}));
+drop.scale.set(0.10,0.0275,0.08); drop.position.y = 0.035; slide.add(drop);   // radius: 0.5x, height: 0.5x
+const coverSlip = new THREE.Mesh(new THREE.BoxGeometry(0.204,0.003,0.18), glassMat);  // footprint: 0.6x, thickness: 0.25x
+slide.add(coverSlip);
+/* the grains that end up on the slide */
+const onSlide = [];
+(function seedSlide(){
+  const rand = rng(77002);
+  /* the anthers sit inside their stamen groups now, so ask for the world
+     position rather than reading a local one and adding the flower's */
+  flower.updateMatrixWorld(true);
+  for(let k=0;k<7;k++){
+    const g = grainMesh(0.019 * 0.6, 0);   // bench view: 0.6x
+    g.userData = {
+      from: anthers[k % anthers.length].getWorldPosition(new THREE.Vector3())
+              .add(new THREE.Vector3((rand()-0.5)*0.1, 0.05, (rand()-0.5)*0.06)),
+      to: new THREE.Vector3((rand()-0.5)*0.11, 0.0225, (rand()-0.5)*0.065),  // matches the drop's radius and height
+      t0: 9.7 + rand()*0.9,
+      spin: rand()*6.283
+    };
+    slide.add(g); onSlide.push(g);
+  }
+})();
+
+/* the little stand the slide sits on before it goes to the stage */
+const restBlock = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.08,0.5), darkMetal);
+restBlock.position.set(SLIDE_START.x, 0.84, SLIDE_START.z); lab.add(restBlock);
+
+/* ---- the microscope ---- */
+const SC_X = 1.95, STAGE_Y = 1.30;
+const scope = new THREE.Group(); scope.position.set(SC_X,0,0); lab.add(scope);
+
+/* The foot.  A real microscope stands on a horseshoe, not a brick: the weight
+   is thrown backwards under the arm so the thing cannot tip when you lean on
+   the eyepiece. Rounded, and set on two small pads so it is not welded to the
+   bench. */
+const base = roundedBox(1.25, 0.17, 1.00, 0.22, enamel);
+base.position.set(0.05, 0.085, -0.05); scope.add(base);
+const baseCrown = roundedBox(0.86, 0.09, 0.62, 0.18, enamel);
+baseCrown.position.set(0.16, 0.205, -0.12); scope.add(baseCrown);
+[[-0.38,0.28],[0.44,0.30],[0.10,-0.46]].forEach(([px,pz])=>{
+  const pad = rod(0x0c0f14, 0.09, 0.05, {rough:0.9, metal:0.05, seg:20});
+  pad.position.set(px, 0.02, pz); scope.add(pad);
+});
+
+/* The arm — the one shape that says "microscope" before any other.  It was a
+   straight rod, which is why the scope read as a lab stand with bits bolted
+   on. A tube swept along a curve gives the C that carries the eye from the
+   foot, up the back, and over to the body. */
+const armCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3( 0.30, 0.16, -0.24),
+  new THREE.Vector3( 0.44, 0.75, -0.32),
+  new THREE.Vector3( 0.47, 1.55, -0.33),
+  new THREE.Vector3( 0.38, 2.22, -0.26),
+  new THREE.Vector3( 0.20, 2.48, -0.14),
+  new THREE.Vector3(-0.02, 2.60,  0.01)
+]);
+const arm = new THREE.Mesh(new THREE.TubeGeometry(armCurve, 64, 0.135, 20, false), enamel);
+scope.add(arm);
+/* caps, so the swept tube does not end in a visible open mouth */
+[armCurve.getPoint(0), armCurve.getPoint(1)].forEach(pt=>{
+  const cap = new THREE.Mesh(SPH, enamel);
+  cap.scale.setScalar(0.135); cap.position.copy(pt); scope.add(cap);
+});
+
+/* the stage: a chamfered plate, a bright insert around the aperture, and two
+   sprung chrome clips */
+const stageArm = roundedBox(0.40, 0.14, 0.52, 0.06, enamel);
+stageArm.position.set(0.26, STAGE_Y, -0.16); scope.add(stageArm);
+const stagePlate = roundedBox(1.00, 0.06, 0.78, 0.05, enamel);
+stagePlate.position.set(-0.05, STAGE_Y, 0); scope.add(stagePlate);
+const stageRing = new THREE.Mesh(new THREE.RingGeometry(0.15, 0.23, 40), chrome);
+stageRing.rotation.x = -Math.PI/2; stageRing.position.set(-0.05, STAGE_Y+0.031, 0);
+scope.add(stageRing);
+const stageHole = new THREE.Mesh(new THREE.CircleGeometry(0.15,32),
+  new THREE.MeshBasicMaterial({color:0x05070b}));
+stageHole.rotation.x = -Math.PI/2; stageHole.position.set(-0.05, STAGE_Y+0.032, 0);
+scope.add(stageHole);
+[[-0.34],[0.24]].forEach(([dz])=>{
+  const clip = roundedBox(0.28, 0.03, 0.06, 0.014, chrome);
+  clip.position.set(-0.05, STAGE_Y+0.05, dz); scope.add(clip);
+  const post = rod(0xc2cad6, 0.022, 0.07, {rough:0.16, metal:0.95, seg:14});
+  post.material = chrome;
+  post.position.set(0.06, STAGE_Y+0.05, dz); scope.add(post);
+});
+
+/* the light under the stage */
+const condenser = rod(0x3a424c, 0.11, 0.3, {rough:0.5, metal:0.5, seg:28});
+condenser.position.set(-0.05, STAGE_Y-0.3, 0); scope.add(condenser);
+const condRing = rod(0xc2cad6, 0.125, 0.035, {seg:28});
+condRing.material = chrome;
+condRing.position.set(-0.05, STAGE_Y-0.16, 0); scope.add(condRing);
+const irisKnob = rod(0x6b7482, 0.055, 0.05, {seg:20});
+irisKnob.material = knurled;
+irisKnob.rotation.z = Math.PI/2; irisKnob.position.set(-0.28, STAGE_Y-0.30, 0.06);
+scope.add(irisKnob);
+const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map:GLOW_TEX, color:0xfff2cc, transparent:true, opacity:0,
+  blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false}));
+lampGlow.position.set(-0.05, STAGE_Y-0.1, 0); lampGlow.scale.setScalar(0.8);
+scope.add(lampGlow);
+
+/* ---- everything above the arm, built on one axis ----
+
+   The parts up here were each given their own hand-typed position and the same
+   tilt, which is exactly how they drifted apart: the turret, the tube, the
+   draw-ring, the eyepiece and the lens were all near the optical axis but none
+   of them actually on it, and the eyepiece hung a quarter of a unit in front of
+   the tube it is supposed to plug into. So the axis is declared once — a foot
+   just above the stage and a direction leaning towards the viewer — and every
+   part is placed by how far along it sits. Move AXIS_TILT and the whole optical
+   train swings together. */
+const AXIS_TILT = 0.22;                                   // radians, top towards +z
+const AXIS_DIR  = new THREE.Vector3(0, Math.cos(AXIS_TILT), Math.sin(AXIS_TILT));
+const AXIS_FOOT = new THREE.Vector3(-0.05, STAGE_Y+0.88, 0);
+
+/* The whole optical train is ONE object.  Turret, objectives, tube, draw-ring,
+   eyepiece, collar and lens are aligned to each other and never want to move
+   apart — so they are children of `head` rather than separate parts that have
+   to be selected together and kept in step. Move or rotate head and the lot
+   goes with it, as a single thing with a single set of numbers.
+
+   head sits at the foot of the optical axis, so rotating it swings the train
+   about the point where it meets the stage — which is the pivot you actually
+   want — and each part's own position is simply how far up the axis it sits. */
+const head = new THREE.Group();
+head.position.copy(AXIS_FOOT);
+scope.add(head);
+
+/* s is distance along the axis from the foot; a part's own centre is placed at
+   s + half its length, so lengths simply stack. */
+const onAxis = (s) => AXIS_FOOT.clone().addScaledVector(AXIS_DIR, s);
+function mountAxis(mesh, s){
+  mesh.position.copy(AXIS_DIR).multiplyScalar(s);   // head's origin is the foot
+  mesh.rotation.x = AXIS_TILT;
+  head.add(mesh);
+  return mesh;
+}
+
+/* nosepiece and objectives.  The coloured band near the tip is the standard
+   magnification ring — two extra rings per objective, and the turret stops
+   looking like three grey pegs.  The turret sits below the foot of the axis,
+   so its numbers are negative. */
+const nose = rod(0x151a21, 0.245, 0.11, {seg:36});
+nose.material = machined;
+mountAxis(nose, -0.115);
+/* a dome on top rather than a flat lid: a disc facing straight up under the
+   key light goes one flat tan, where a curve spreads the same light into a
+   gradient and the turret reads as turned metal */
+const noseDome = new THREE.Mesh(SPH, machined);
+noseDome.scale.set(0.245, 0.11, 0.245);
+mountAxis(noseDome, -0.060);
+const noseRim = rod(0xc2cad6, 0.25, 0.035, {seg:36});
+noseRim.material = chrome;
+mountAxis(noseRim, -0.185);
+
+const OBJ_BAND = [0xd94f4f, 0xe3c04a, 0x4f7fd9];   // red / yellow / blue
+const OBJ_LEN  = 0.34;
+const objectives = [];
+[0, 2.1, 4.2].forEach((a,i)=>{
+  const ob = rod(i?0x8d96a3:0x20262d, 0.055, OBJ_LEN, {r2:0.04, rough:0.32, metal:0.7, seg:24});
+  /* the two idle objectives are swung out and tipped off the axis; the one in
+     use hangs straight down it */
+  const rr = i? 0.15 : 0;
+  mountAxis(ob, i ? -0.330 : -0.390);
+  ob.position.x += Math.cos(a)*rr;
+  ob.position.z += Math.sin(a)*rr;
+  if(i){ ob.rotation.z = 0.5*Math.cos(a); ob.rotation.x = AXIS_TILT - 0.5*Math.sin(a); }
+  objectives.push(ob);
+  /* band and front lens ride with the objective, so they inherit its tilt */
+  const band = rod(OBJ_BAND[i], 0.0435, 0.045, {rough:0.4, metal:0.15, seg:24});
+  band.position.y = -OBJ_LEN/2 + 0.055; ob.add(band);
+  const front = new THREE.Mesh(new THREE.CircleGeometry(0.032, 20),
+    new THREE.MeshStandardMaterial({color:0x121b26, roughness:0.05, metalness:0.6,
+      envMapIntensity:1.5}));
+  front.rotation.x = Math.PI/2; front.position.y = -OBJ_LEN/2 - 0.001; ob.add(front);
+});
+
+/* body tube and eyepiece, leaning towards the viewer.  TUBE_LEN and EYE_LEN
+   are the only free numbers: each part starts where the one below it ends. */
+const TUBE_LEN = 1.00, EYE_LEN = 0.40;
+const tube = rod(0x151a21, 0.135, TUBE_LEN, {seg:36});
+tube.material = enamel;
+mountAxis(tube, TUBE_LEN/2);
+const tubeRing = rod(0xc2cad6, 0.145, 0.05, {seg:36});
+tubeRing.material = chrome;
+mountAxis(tubeRing, 0.08);
+const eyepiece = rod(0x20262d, 0.105, EYE_LEN, {r2:0.125, rough:0.35, metal:0.6, seg:32});
+mountAxis(eyepiece, TUBE_LEN + EYE_LEN/2);
+const eyeCollar = rod(0x6b7482, 0.118, 0.09, {seg:32});
+eyeCollar.material = knurled;
+mountAxis(eyeCollar, TUBE_LEN + EYE_LEN - 0.06);
+/* The lens is a shallow sphere cap rather than a flat disc — a flat circle at
+   70% opacity reads as a sticker, where a curve slides its highlight across as
+   the camera comes in. */
+const LENS_R = 0.30, LENS_A = 0.33;      // sphere radius, and the half-angle kept
+const lensGeo = new THREE.SphereGeometry(LENS_R, 28, 12, 0, Math.PI*2, 0, LENS_A);
+lensGeo.translate(0, -LENS_R*Math.cos(LENS_A), 0);   // sit the cap's rim on the origin
+const eyeLens = new THREE.Mesh(lensGeo,
+  new THREE.MeshStandardMaterial({color:0x8fa8c8, roughness:0.03, metalness:0.35,
+    emissive:0x0b1626, transparent:true, opacity:0.72, envMapIntensity:1.6}));
+mountAxis(eyeLens, TUBE_LEN + EYE_LEN - 0.005);
+/* where an eye would be, a little above the lens and on the same axis */
+const EYE = onAxis(TUBE_LEN + EYE_LEN + 0.10).add(new THREE.Vector3(SC_X,0,0));
+
+/* focus knobs — coarse and fine, both knurled */
+const knob = rod(0x6b7482, 0.14, 0.12, {seg:32});
+knob.material = knurled;
+knob.rotation.z = Math.PI/2; knob.position.set(0.50, STAGE_Y+0.45, -0.30); scope.add(knob);
+const fineKnob = rod(0x6b7482, 0.085, 0.09, {seg:28});
+fineKnob.material = knurled;
+fineKnob.rotation.z = Math.PI/2; fineKnob.position.set(0.62, STAGE_Y+0.45, -0.30);
+scope.add(fineKnob);
+
+/* ---- the rig: every part of the scope, addressable by name ----
+
+   Two things hang off this. The overrides below are applied last, so a number
+   tuned by hand beats whatever the axis maths worked out; and the editor at
+   ?rig=1 drags these same objects with a gizmo and hands back the block to
+   paste. Nothing here costs anything when the editor is not open. */
+/* The scope's parts, kept but not currently edited — swap RIG_PARTS back to
+   this if the instrument needs another pass. */
+const SCOPE_PARTS = {
+  scope, head,
+  base, baseCrown, arm, stageArm, stagePlate, stageRing,
+  condenser, condRing, irisKnob,
+  nose, noseDome, noseRim,
+  objective0: objectives[0], objective1: objectives[1], objective2: objectives[2],
+  tube, tubeRing, eyepiece, eyeCollar, eyeLens,
+  knob, fineKnob
+};
+
+/* What the rig editor currently offers: the flower.
+
+   stamen0..5 are the whole sprigs — filament, anther and the pollen on it —
+   and are what to grab to move one out of the way. filament0 and anther0 are
+   the pair whose spacing is being fixed; because every stamen is built from
+   the same two local positions, an edit to one is mirrored onto the other five
+   (the LINKED list below), so the join is fixed once and the ring stays even. */
+const RIG_PARTS = {
+  flower, stem, centre, receptacle,
+  /* leafN is where the leaf sits and which way it points; leafBladeN is the
+     blade's own shape — length, width and how flat it lies. */
+  leaf0: leaves[0], leafBlade0: leafBlades[0],
+  leaf1: leaves[1], leafBlade1: leafBlades[1],
+  stamen0: stamens[0], stamen1: stamens[1], stamen2: stamens[2],
+  stamen3: stamens[3], stamen4: stamens[4], stamen5: stamens[5],
+  filament0: filaments[0], anther0: anthers[0],
+  filament1: filaments[1], anther1: anthers[1],
+  filament2: filaments[2], anther2: anthers[2],
+  filament3: filaments[3], anther3: anthers[3],
+  filament4: filaments[4], anther4: anthers[4],
+  filament5: filaments[5], anther5: anthers[5]
+};
+
+/* Parts that are one of a set of identical siblings: editing any of them is
+   copied to the rest, so the six stamens cannot drift apart. */
+const RIG_LINKED = [filaments, anthers];
+
+/* Hand-tuned positions.  Paste what the rig editor's Copy button gives you
+   straight over this object — it writes the same shape it reads. */
+const RIG_OVERRIDES = {
+  head: {p:[-0.05, 2.18, 0.025], r:[-0.2094, 0, 0]},
+  condenser: {p:[-0.05, 0.4074, 0]},
+  condRing: {p:[-0.05, 0.5474, 0]},
+  irisKnob: {p:[-0.16, 0.4024, 0.06]},
+  objective0: {p:[0, -0.3399, -0.0765]},
+  objective2: {p:[-0.0735, -0.279, -0.1936]},
+  knob: {p:[0.5897, 1.75, -0.3325]},
+  fineKnob: {p:[0.7097, 1.75, -0.3325]},
+  flower: {r:[0, 0, 0.0117]},
+  anther0: {p:[0.1958, 0.3203, 0.0075]},
+  anther1: {p:[0.1958, 0.3203, 0.0075]},
+  anther2: {p:[0.1958, 0.3203, 0.0075]},
+  anther3: {p:[0.1958, 0.3203, 0.0075]},
+  anther4: {p:[0.1958, 0.3203, 0.0075]},
+  anther5: {p:[0.1958, 0.3203, 0.0075]},
+  stem: {s:[0.3483, 1, 0.5077]},
+  leaf0: {p:[0.3977, 1.2499, 0.1998], r:[-0.3851, -0.4363, 0.1538]},
+  leafBlade0: {p:[-0.0429, 0.0072, 0.0205]},
+  leaf1: {p:[-0.3273, 1.8492, -0.2], r:[-3.05, 0.6113, -2.8936]},
+};
+
+/* Overrides are applied against EVERYTHING, not just what the editor is
+   currently offering: the scope's hand-tuned numbers below have to keep
+   working while the rig is pointed at the flower. */
+const RIG_ALL = Object.assign({}, SCOPE_PARTS, RIG_PARTS);
+
+for(const [name, o] of Object.entries(RIG_OVERRIDES)){
+  const part = RIG_ALL[name];
+  if(!part) continue;
+  if(o.p) part.position.fromArray(o.p);
+  if(o.r) part.rotation.fromArray(o.r);
+  if(o.s) part.scale.fromArray(o.s);
+}
+
+const STAGE_POS = new THREE.Vector3(SC_X-0.05, STAGE_Y+0.06, 0);
+
+/* Shadows, set once the lab is assembled rather than flag by flag.  Transparent
+   things are deliberately skipped: the shadow map has no idea the glass is
+   see-through, so a beaker would cast a solid black disc, which looks worse
+   than casting nothing. Only the lab needs this — the field of view is lit on
+   its own terms. */
+lab.traverse(o=>{
+  if(!o.isMesh) return;
+  o.receiveShadow = true;
+  if(!o.material.transparent) o.castShadow = true;
+});
+
+/* =====================================================================
+   THE FIELD OF VIEW — what you actually see down the eyepiece
+===================================================================== */
+const field = new THREE.Group(); field.position.y = FIELD_Y; scene.add(field);
+let F = {};
+let PHYS = null;                 // what runSim() worked out, for the whole run
+
+const WALK_T0 = 22.0;            // the clock the walk runs on — and the simulation
+
+/* A little shaded ball, painted once per build and used as the sprite for
+   every molecule. A couple of thousand molecules drawn as meshes would be
+   several hundred thousand triangles and as many matrices a frame; drawn as
+   points they are two draw calls and a position buffer. At the size they
+   appear, a baked highlight reads as round more convincingly than a sphere
+   coarse enough to afford would. The texture is a grey ramp, so the
+   material's own colour still carries the hue and still goes through
+   linearise() with everything else. */
+function ballTex(){
+  const S = 64, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(S*0.36, S*0.32, S*0.04, S*0.5, S*0.5, S*0.5);
+  g.addColorStop(0,    'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(215,215,215,1)');
+  g.addColorStop(0.82, 'rgba(105,105,105,1)');
+  g.addColorStop(0.97, 'rgba(60,60,60,1)');
+  g.addColorStop(1,    'rgba(60,60,60,0)');
+  x.fillStyle = g;
+  x.beginPath(); x.arc(S/2, S/2, S/2-0.5, 0, 6.2832); x.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
+function buildField(){
+  clearGroup(field);
+
+  /* the lit background — the illuminated circle of water */
+  const back = new THREE.Mesh(new THREE.CircleGeometry(FIELD_R*1.5, 64),
+    new THREE.MeshBasicMaterial({color:0x0d1520}));
+  back.position.z = -7; field.add(back);
+  const wash = new THREE.Mesh(new THREE.CircleGeometry(FIELD_R*1.18, 64),
+    new THREE.MeshBasicMaterial({color:0x16263a, transparent:true, opacity:0.85}));
+  wash.position.z = -6.6; field.add(wash);
+
+  /* the grain we follow, plus a few others for company.  Where they start is
+     all this decides — where they GO is up to the water. */
+  const grains = [];
+  const shape = [];
+  const nG = 6;
+  for(let i=0;i<nG;i++){
+    const hero = (i === 0);
+    const r = GR.r * (hero ? 1 : 0.62 + (i%3)*0.18);
+    const m = grainMesh(r, 2);
+    /* the companions fade to nothing once the hero's own path starts being
+       drawn (see trailOn in updateField) — transparent has to be declared
+       here, once, rather than every frame, since three.js only sorts and
+       blends a material that says so up front */
+    if(!hero) m.material.transparent = true;
+    m.userData = {r, hero, spin:i*1.3};
+    field.add(m); grains.push(m);
+    shape.push({
+      r, keep: hero,
+      x: hero ? -1.2 : Math.cos(i*1.9)*FIELD_R*0.44,
+      y: hero ?  0.6 : Math.sin(i*1.9)*FIELD_R*0.40,
+      z: hero ?  0.0 : (i%2? 1.2 : -1.4)
+    });
+  }
+
+  /* ---- and now the physics.  One pass, here, at build: everything after
+     this is a lookup. It costs a fraction of a second and buys a scene in
+     which the grains move because they are being hit. ---- */
+  PHYS = runSim(shape, WALK_T0, TOTAL);
+
+  /* the water molecules — invisible at first.  Two point clouds: the oxygens,
+     and the hydrogens at their fixed offsets from them. */
+  const tex = ballTex();
+  const oPos = new Float32Array(SIM.N*3), hPos = new Float32Array(SIM.N*6);
+  const mkCloud = (arr, color) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    /* the cloud fills the whole field and every position is rewritten every
+       frame, so the bounding sphere is stated once, big enough for all of it,
+       rather than recomputed from the buffer each time */
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), FIELD_R*3);
+    const p = new THREE.Points(g, new THREE.PointsMaterial({
+      color, map:tex, size:0.0001, sizeAttenuation:true,
+      /* alphaTest rather than transparency, so the molecules go in the opaque
+         queue and occlude each other by depth like the solid things they are
+         standing in for. Thousands of blended sprites sharing one buffer
+         cannot be depth-sorted against each other and would shimmer. */
+      alphaTest:0.4, depthWrite:true
+    }));
+    p.frustumCulled = false;
+    p.visible = false;
+    field.add(p);
+    return p;
+  };
+  const molO = mkCloud(oPos, WATER_O);
+  const molH = mkCloud(hPos, WATER_H);
+  /* three.js sizes a point as size·(height/2)/distance, which works out to
+     size·tan(fov/2) world units across at any distance — so dividing that out
+     lets the molecules be given as the real diameters they are drawn at */
+  const PT = 1/Math.tan(camera.fov*Math.PI/360);
+
+  /* The impact flashes.  There are a dozen or so hits a second on the hero
+     grain, and showing all of the recent ones at once is the entire point of
+     the last act: it is being struck from every side, and only the imbalance
+     between the sides moves it. So this is a pool, not a single spark. */
+  const flashes = [];
+  for(let i=0;i<FLASH_N;i++){
+    const f = new THREE.Sprite(new THREE.SpriteMaterial({
+      map:GLOW_TEX, color:0xfff0b0, transparent:true, opacity:0,
+      blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false}));
+    f.scale.setScalar(0.5); field.add(f); flashes.push(f);
+  }
+  /* and the arrow, which shows the NET push of all of them — the thing that
+     actually moves the grain */
+  const kickLine = bond(0xffe070, 0.07); kickLine.material.opacity = 0; field.add(kickLine);
+
+  /* the trail the hero grain has actually taken — the record of the walk */
+  const trailGeo = new THREE.BufferGeometry();
+  const TRAIL_N = 240;
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_N*3), 3));
+  const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
+    color:0xe8c54a, transparent:true, opacity:0}));
+  field.add(trail);
+
+  const lbl = {
+    grain: label('pollen grain','#f0d88a',46),
+    water: label('water molecules','#a9c4ff',44),
+    uneven:label('more hits on this side','#ffd9a0',38),
+    walk:  label('a random walk','#f0d88a',42)
+  };
+  Object.values(lbl).forEach(l=>field.add(l));
+
+  F = {grains, molO, molH, oPos, hPos, PT, flashes, kickLine,
+       trail, trailGeo, TRAIL_N, lbl};
+}
+
+const _fp = new THREE.Vector3(), _fq = new THREE.Vector3(), _fd = new THREE.Vector3();
+const FLASH_N = 16;              // how many recent impacts are shown at once
+const FLASH_LIFE = 0.30;         // and how long each spark lasts, seconds
+
+/* Brown's two other specimens, standing in for the hero grain while the
+   captions cover them (39.8–42.8s — see SEGS). A discrete swap, not a
+   cross-fade: these are meant to read as three different substances, not one
+   grain changing colour, and blending between rock-grey and pollen-gold
+   midway would just look muddy. The windows match the caption boundaries at
+   39.8 and 42.8 exactly, split at their midpoint. */
+function speciesColorAt(t){
+  if(t >= 39.8 && t < 41.3) return ROCK_COL;
+  if(t >= 41.3 && t < 42.8) return FOSSIL_COL;
+  return POLLEN_COL;
+}
+
+function updateField(t){
+  const {grains, molO, molH, oPos, hPos, PT, flashes, kickLine,
+         trail, trailGeo, TRAIL_N, lbl} = F;
+  const tau = Math.max(0, t - WALK_T0);
+  /* the moment we settle on the hero and start drawing its walk — shared with
+     the trail fade-in below, so the two happen together */
+  const trailOn = ramp(t, 29.0, 31.0);
+
+  /* the hero briefly stands in for rock dust, then fossilised wood, while
+     Brown rules out life as the explanation — swapped by colour alone, since
+     that is all "change out the particle" needs here. Colours are authored
+     as sRGB hex, same as everywhere else, so each swap needs its own
+     convertSRGBToLinear() (see AGENTS.md) — linearise() only runs once, at
+     build, and cannot help a colour reassigned after that. Cached so the
+     conversion runs once per swap, not every frame. */
+  const hero = grains[0];
+  const col = speciesColorAt(t);
+  if(hero.userData.col !== col){
+    hero.userData.col = col;
+    hero.material.color.setHex(col).convertSRGBToLinear();
+    hero.material.emissive.setHex(col).multiplyScalar(0.05).convertSRGBToLinear();
+  }
+
+  /* --- the grains, wherever the collisions put them.  The companions fade
+     out entirely once the hero is the one being followed, so nothing is left
+     in the background competing with its path — and the simulation stops
+     bothering with them at the same moment (SIM.QUIET). --- */
+  grains.forEach((m,i)=>{
+    const d = m.userData;
+    m.position.copy(grainAt(PHYS, i, tau, _fp));
+    /* The spin is decorative. Collisions really do apply a torque, and a real
+       grain tumbles as well as wanders, but nothing in the scene is read off
+       its orientation, so no angular momentum is carried through the
+       simulation — this is just enough turn to show it is a solid lump. */
+    m.rotation.set(d.spin + tau*0.25, d.spin*1.7 + tau*0.18, d.spin*0.5);
+    if(!d.hero){
+      m.material.opacity = lerp(1, 0, trailOn);
+      m.visible = m.material.opacity > 0.02;
+    }
+  });
+
+  /* --- the water.  Every molecule's position is a closed form evaluated at
+     tau: a straight line from wherever a grain last knocked it, reflected off
+     the walls of the drop. The reveal is a growth in size rather than a fade
+     in opacity, which keeps the whole cloud in the opaque queue. --- */
+  const show = ramp(t, 43.0, 46.0);
+  molO.visible = molH.visible = show > 0.01;
+  if(molO.visible){
+    const ev = PHYS.ev, ori = PHYS.ori;
+    for(let i=0;i<SIM.N;i++){
+      molAt(ev[i], tau, _fp);
+      const o = i*3, h = i*6;
+      oPos[o] = _fp.x; oPos[o+1] = _fp.y; oPos[o+2] = _fp.z;
+      hPos[h]   = _fp.x + ori[h];   hPos[h+1] = _fp.y + ori[h+1]; hPos[h+2] = _fp.z + ori[h+2];
+      hPos[h+3] = _fp.x + ori[h+3]; hPos[h+4] = _fp.y + ori[h+4]; hPos[h+5] = _fp.z + ori[h+5];
+    }
+    molO.geometry.attributes.position.needsUpdate = true;
+    molH.geometry.attributes.position.needsUpdate = true;
+    molO.material.size = SIM.R*2*PT*show;
+    molH.material.size = SIM.HR*2*PT*show;
+  }
+
+  /* --- the impacts on the hero grain, as they actually happened.  Every blow
+     in the last FLASH_LIFE seconds gets a spark on the side it came from, and
+     the arrow shows their vector sum, which is the only part of them that
+     moves the grain anywhere. --- */
+  const kicking = ramp(t, 50.0, 52.0) * (1 - ramp(t, 62.0, 63.5));
+  const hi = firstHit(PHYS, t), lo = firstHit(PHYS, t - FLASH_LIFE);
+  const hR = hero.userData.r;
+  /* a middling impulse, to scale the sparks against: a molecule of mass m
+     arriving at the RMS speed and bouncing straight back off something far
+     heavier hands over about 2·m·σ */
+  const typical = 2*SIM.M*SIM.SIGMA*SPEED;
+  let px = 0, py = 0, pz = 0;                 // the net push
+  for(let k=lo;k<hi;k++){
+    const j = PHYS.hitJ[k];
+    px -= PHYS.hitN[k*3]*j; py -= PHYS.hitN[k*3+1]*j; pz -= PHYS.hitN[k*3+2]*j;
+  }
+  for(let s=0;s<FLASH_N;s++){
+    const f = flashes[s], k = hi-1-s;
+    const op = (k >= lo)
+      ? kicking * (1 - (t - PHYS.hitT[k])/FLASH_LIFE) * Math.min(1, PHYS.hitJ[k]/typical)
+      : 0;
+    f.material.opacity = op*0.9;
+    f.visible = op > 0.02;
+    if(f.visible){
+      const n = k*3;
+      f.position.copy(hero.position).add(
+        _fq.set(PHYS.hitN[n], PHYS.hitN[n+1], PHYS.hitN[n+2]).multiplyScalar(hR + 0.06));
+      f.scale.setScalar(hR*(0.5 + 0.5*Math.min(1, PHYS.hitJ[k]/typical)));
+    }
+  }
+  /* The arrow, and how long to draw it.  Hits arriving from random directions
+     already give a net push of about √n times a single one just by chance, so
+     that — not one impact — is what the imbalance has to be measured against.
+     Scaled this way the arrow says how lopsided the last third of a second was
+     compared with an even battering, which is the quantity the captions are
+     actually talking about. */
+  const push = Math.hypot(px, py, pz);
+  const expect = typical*Math.sqrt(Math.max(1, hi-lo));
+  kickLine.material.opacity = kicking * Math.min(1, push/expect) * 0.85;
+  kickLine.visible = kickLine.material.opacity > 0.02;
+  if(kickLine.visible){
+    _fd.set(px, py, pz).multiplyScalar(1/push);
+    _fp.copy(hero.position).addScaledVector(_fd, hR + 0.05);
+    _fq.copy(hero.position).addScaledVector(_fd, hR + 0.3 + Math.min(1.2, push/expect*1.1));
+    placeBond(kickLine, _fp, _fq, 0);
+  }
+
+  /* --- the trail: where the hero grain has actually been --- */
+  trail.material.opacity = trailOn * 0.85;
+  trail.visible = trailOn > 0.02;
+  if(trail.visible){
+    const pos = trailGeo.attributes.position.array;
+    const span = Math.min(tau, 26.0);
+    for(let j=0;j<TRAIL_N;j++){
+      grainAt(PHYS, 0, Math.max(0, tau - span*(1 - j/(TRAIL_N-1))), _fp);
+      pos[j*3]   = _fp.x;
+      pos[j*3+1] = _fp.y;
+      pos[j*3+2] = _fp.z;
+    }
+    trailGeo.attributes.position.needsUpdate = true;
+    trailGeo.computeBoundingSphere();
+  }
+
+  /* --- labels --- */
+  const L = lbl;
+  L.grain.material.opacity = ramp(t,23.4,24.4)*(1-ramp(t,28.0,29.0));
+  L.grain.position.copy(hero.position).add(_v1.set(0, hR+0.95, 0));
+  L.walk.material.opacity = ramp(t,31.0,32.0)*(1-ramp(t,35.0,36.0));
+  L.walk.position.copy(hero.position).add(_v1.set(1.9, -hR-0.9, 0));
+  L.water.material.opacity = ramp(t,45.0,46.2)*(1-ramp(t,49.5,50.5));
+  L.water.position.set(-4.4, 3.5, 2);   // off to one side, clear of the grain
+  /* the busier side is the one the net push came FROM, so the label sits
+     opposite the arrow — on the side that was, in fact, hit more */
+  L.uneven.material.opacity = ramp(t,54.0,55.0)*(1-ramp(t,58.0,59.0));
+  if(push > 1e-6)
+    L.uneven.position.copy(hero.position)
+      .addScaledVector(_fd.set(px,py,pz).multiplyScalar(1/push), -(hR + 1.15));
+}
+
+/* =====================================================================
+   TIMELINE
+===================================================================== */
+const TOTAL = 68;
+let SEGS = [];
+
+function buildCaptions(){
+  SEGS = [
+    {t:0,    c:'A flower. And on the anthers, pollen.'},
+    {t:3.4,  c:'Closer.'},
+    {t:6.4,  c:`Each grain is a speck of solid, about ${GR.label} across — too small to see by eye, but enormous next to a molecule.`},
+    {t:9.6,  c:'Tap a few onto a drop of water on a slide.'},
+    {t:13.0, c:'Cover slip on top.'},
+    {t:16.2, c:'Onto the stage, under the clips.'},
+    {t:19.2, c:'Light up from underneath, focus — and look.'},
+    {t:22.0, c:'There they are. Specks of pollen, floating in the water.'},
+    {t:25.4, c:'And they will not sit still.'},
+    {t:29.0, c:'Each one jitters about, changing direction again and again, never settling.'},
+    {t:32.6, c:'Follow one and the path is a tangle. It goes everywhere, and gets nowhere.'},
+    {t:36.4, c:`Nothing is stirring the water. It is perfectly still, and ${TP.word}.`},
+    {t:39.8, c:'In 1827, Brown wondered if the pollen was alive — so he tried rock dust, then fossil wood. Same result.'},
+    {t:42.8, c:'Life was not the answer. The true cause was something he had no way of seeing. So let us turn it on.'},
+    {t:45.6, c:'Water molecules. Far too small to see, and moving far faster than the pollen.'},
+    {t:49.0, c:'They are striking the grain constantly, from every direction at once.'},
+    {t:52.4, c:'And here is the whole point: not quite evenly.'},
+    {t:55.6, c:'At any instant a few more hit one side than the other — and the grain is knocked the other way.'},
+    {t:59.2, c:'A moment later the imbalance is somewhere else, so the grain goes somewhere else.'},
+    {t:62.4, c:'That is Brownian motion: something just big enough to see, shoved about by things far too small to see.'},
+    {t:65.6, c:'It took until 1905, and Einstein, to explain why — the best evidence there is that matter is made of particles.'}
+  ];
+}
+
+const TRANSITIONS = [22.0];
+const FADE = 0.6;
+
+function worldAt(t){ return t < 22.0 ? 'lab' : 'field'; }
+
+const CAM = {
+  lab:[
+    {t:0,    p:[-1.9,3.6,4.6],  l:[-2.6,2.4,0]},
+    {t:3.4,  p:[-2.3,3.5,1.7],  l:[-2.7,3.2,0]},
+    {t:6.4,  p:[-2.45,3.62,0.95], l:[-2.72,3.44,0.04]},
+    {t:9.6,  p:[-2.2,2.5,1.5],  l:[-2.6,1.7,0.4]},
+    {t:13.0, p:[-2.25,1.6,1.25],l:[-2.6,0.95,0.6]},
+    {t:16.2, p:[0.1,2.3,2.7],   l:[0.4,1.4,0.2]},
+    {t:19.2, p:[1.9,2.9,1.9],   l:[1.95,2.1,0.1]},
+    /* the eyepiece opening sits at about (1.90, 3.575, 0.04) once the scope's
+       hand-tuned overrides are applied — worked out from head's own overridden
+       position and rotation, not the un-overridden AXIS_* constants, which no
+       longer describe where the tube actually points. These last two keys
+       climb up and over the instrument first, then drop to hover directly
+       over that opening looking straight down it, so the shot reads as going
+       up and into the eyepiece right as the cut to the field of view lands. */
+    {t:20.6, p:[1.95,4.3,0.9],  l:[1.9,3.6,0.2]},
+    {t:22.0, p:[1.90,3.75,0.10],l:[1.90,3.15,0.02]}
+  ],
+  field:[
+    {t:22.0, p:[0,0,17.0],   l:[0,0,0]},
+    {t:25.4, p:[0,0,13.5],   l:[0,0,0]},
+    {t:29.0, p:[0.4,0.3,10.5], l:[0,0,0]},
+    {t:32.6, p:[0,0,15.5],   l:[0,0,0]},
+    {t:36.4, p:[0,0,16.5],   l:[0,0,0]},
+    {t:42.8, p:[0,0,14.0],   l:[0,0,0]},
+    {t:45.6, p:[0,0,12.0],   l:[0,0,0]},
+    {t:49.0, p:[0.3,0.2,8.6],l:[0,0,0]},
+    {t:52.4, p:[0.2,0.1,7.2],l:[0,0,0]},
+    {t:59.2, p:[0,0,9.5],    l:[0,0,0]},
+    {t:62.4, p:[0,0,14.5],   l:[0,0,0]},
+    {t:68.0, p:[0,0,17.5],   l:[0,0,0]}
+  ]
+};
+
+const camPos=new THREE.Vector3(), camTgt=new THREE.Vector3();
+/* how much the camera rides along with the grain.  Wide shots stay put, so you
+   can see that it wanders; close shots follow it, so the kick stays in frame. */
+function heroFollow(t){ return ramp(t,44.0,46.5) * (1 - ramp(t,62.0,64.0)); }
+
+function sampleCam(t){
+  const w = worldAt(t), keys = CAM[w];
+  let i=0; while(i<keys.length-2 && t>=keys[i+1].t) i++;
+  const a=keys[i], b=keys[Math.min(i+1,keys.length-1)];
+  const u = b.t===a.t?0:smooth((t-a.t)/(b.t-a.t));
+  const off = w==='field' ? FIELD_Y : 0;
+  camPos.set(lerp(a.p[0],b.p[0],u), lerp(a.p[1],b.p[1],u)+off, lerp(a.p[2],b.p[2],u));
+  camTgt.set(lerp(a.l[0],b.l[0],u), lerp(a.l[1],b.l[1],u)+off, lerp(a.l[2],b.l[2],u));
+  /* shift BOTH by the same amount, so the framing is unchanged and only the
+     subject is re-centred */
+  if(w === 'field' && F.grains && F.grains.length){
+    const k = heroFollow(t);
+    if(k > 0.001){
+      const h = F.grains[0].position;
+      camPos.x += h.x*k; camPos.y += (h.y)*k;
+      camTgt.x += h.x*k; camTgt.y += (h.y)*k;
+    }
+  }
+}
+
+/* ---------- the lab act ---------- */
+const TAP_A = 9.7, SLIP_A = 12.6, SLIP_B = 14.0, MOVE_A = 15.4, MOVE_B = 17.4;
+function updateLab(t){
+  /* a breath of movement on the flower, so it is not a dead prop */
+  flower.rotation.z = Math.sin(t*0.45)*0.012;
+  dustBits.forEach((d,i)=>{
+    d.rotation.y = i*0.7 + t*0.25;
+  });
+
+  /* the slide: on its block, then across to the stage, turning a quarter
+     turn on the way.  Everything riding on it — the water, the pollen, the
+     cover slip — is a child of `slide`, so one rotation on the group carries
+     all of it; nothing downstream needs to know the trip is not a straight
+     line. */
+  const moved = ramp(t, MOVE_A, MOVE_B);
+  slide.position.lerpVectors(SLIDE_START, STAGE_POS, moved);
+  slide.position.y += Math.sin(moved*Math.PI)*0.28;     // lifted across
+  slide.rotation.y = moved*(Math.PI/2);
+
+  /* the grains falling from the anthers into the drop */
+  onSlide.forEach(g=>{
+    const d = g.userData;
+    const u = ramp(t, d.t0, d.t0+1.0);
+    /* d.from is in lab space, d.to is in slide space — so convert */
+    _v1.copy(d.from).sub(slide.position);
+    g.position.lerpVectors(_v1, d.to, u);
+    /* a little arc on the way down */
+    g.position.y += Math.sin(u*Math.PI)*0.10;
+    g.rotation.set(d.spin + t*1.4, d.spin*1.6 + t*1.1, d.spin);
+  });
+  /* the dust on the anthers thins out as the grains leave */
+  const tapped = ramp(t, TAP_A, TAP_A+1.4);
+  dustBits.forEach((d,i)=>{
+    d.visible = (i % 3 !== 0) || tapped < 0.5;
+  });
+
+  /* the cover slip lowering onto the drop */
+  const slip = ramp(t, SLIP_A, SLIP_B);
+  coverSlip.position.set(0, lerp(0.62, 0.045, slip), lerp(0.22, 0, slip));   // rests lower: closer to the slide
+  coverSlip.rotation.z = lerp(0.22, 0, slip);
+  /* the water has nothing to push against until the glass actually reaches
+     it, so it must not start spreading the moment the cover slip lifts off —
+     only once the fall is nearly done. squash is `slip` run back through its
+     own last 18%, so the two land together: the drop is fully flattened at
+     the same instant the cover slip finishes its descent. */
+  const squash = ramp(slip, 0.82, 1);
+  drop.scale.set(lerp(0.10,0.125,squash), lerp(0.0275,0.02,squash), lerp(0.08,0.105,squash));  // radius: 0.5x, height: 0.5x
+
+  /* the lamp under the stage comes on as we get ready to look */
+  const lit = ramp(t, 18.4, 19.4);
+  lampGlow.material.opacity = lit*0.85;
+  stageLight.position.set(SC_X-0.05, STAGE_Y-0.2, 0);
+  stageLight.intensity = lit*2.2;
+}
+
+/* =====================================================================
+   ORBIT-ISH DRAG
+===================================================================== */
+let yaw=0, pitch=0, dragging=false, lx=0, ly=0;
+const el = renderer.domElement;
+function down(x,y){dragging=true;lx=x;ly=y;el.style.cursor='grabbing';}
+function move(x,y){
+  if(!dragging) return;
+  yaw   -= (x-lx)*0.005;
+  pitch  = Math.max(-0.9, Math.min(0.9, pitch + (y-ly)*0.004));
+  lx=x; ly=y;
+}
+function up(){dragging=false; el.style.cursor='grab';}
+el.style.cursor='grab';
+el.addEventListener('mousedown',e=>down(e.clientX,e.clientY));
+addEventListener('mousemove',e=>move(e.clientX,e.clientY));
+addEventListener('mouseup',up);
+el.addEventListener('touchstart',e=>{down(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+el.addEventListener('touchmove',e=>{move(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+addEventListener('touchend',up);
+
+const _sph = new THREE.Spherical();
+function applyCamera(){
+  const dir = camPos.clone().sub(camTgt);
+  _sph.setFromVector3(dir);
+  _sph.theta += yaw;
+  _sph.phi = Math.max(0.12, Math.min(Math.PI-0.12, _sph.phi - pitch));
+  dir.setFromSpherical(_sph);
+  camera.position.copy(camTgt).add(dir);
+  camera.lookAt(camTgt);
+}
+
+/* =====================================================================
+   UI
+===================================================================== */
+const capEl  = document.getElementById('caption');
+const fadeEl = document.getElementById('fade');
+const scopeEl= document.getElementById('scope');
+const scaleEl= document.getElementById('scale');
+const playBtn= document.getElementById('play');
+const scrub  = document.getElementById('scrub');
+const clock  = document.getElementById('clock');
+const keyEl  = document.getElementById('key');
+const menuEl = document.getElementById('menu');
+const gearEl = document.getElementById('gear');
+
+let t = 0, playing = true, lastFrame = performance.now(), curSeg = -1;
+
+playBtn.onclick = ()=>{ playing=!playing; playBtn.textContent = playing?'Pause':'Play'; };
+document.getElementById('restart').onclick = ()=>{ t=0; curSeg=-1; playing=true; playBtn.textContent='Pause'; };
+scrub.oninput = ()=>{ t = parseFloat(scrub.value); curSeg=-1; };
+addEventListener('keydown', e=>{
+  /* The rig editor owns the keyboard while it is open, and it owns these very
+     keys: without this, every arrow-key nudge of a part also jogged the
+     timeline two seconds, and a few presses carried it past the fade into the
+     eyepiece — at which point #fade and the #scope vignette cover the screen
+     and the scene looks frozen rather than covered. */
+  if(RIG.on) return;
+  if(e.code==='Space'){ e.preventDefault(); playBtn.click(); }
+  if(e.code==='ArrowRight'){ t = Math.min(TOTAL, t+2); curSeg=-1; }
+  if(e.code==='ArrowLeft'){  t = Math.max(0, t-2);     curSeg=-1; }
+  if(e.code==='Escape') setMenu(false);
+});
+
+function captionFor(time){
+  let i=0; for(let k=0;k<SEGS.length;k++) if(time>=SEGS[k].t) i=k;
+  return i;
+}
+function fadeAmount(time){
+  let f=0;
+  for(const T of TRANSITIONS) f = Math.max(f, 1 - Math.min(1, Math.abs(time-T)/FADE));
+  return f;
+}
+
+const hexCss = k => '#'+k.toString(16).padStart(6,'0');
+
+function buildLegend(){
+  const rows = [
+    {sym:'', name:'pollen grain', col:POLLEN_COL},
+    {sym:'O', name:'oxygen', col:WATER_O},
+    {sym:'H', name:'hydrogen', col:WATER_H}
+  ];
+  keyEl.innerHTML = rows.map(r=>
+    `<div><span class="dot" style="background:${hexCss(r.col)}"></span>` +
+    (r.sym?`<b>${r.sym}</b> `:'') + r.name + `</div>`
+  ).join('');
+}
+
+function buildMenu(){
+  const mk = (obj, cur, group) => Object.keys(obj).map(k=>
+    `<button class="opt ${k===cur?'on':''}" data-group="${group}" data-key="${k}">` +
+    `${obj[k].name} · <span class="f">${obj[k].label}</span></button>`
+  ).join('');
+  document.getElementById('grainOpts').innerHTML = mk(GRAINS, grainKey, 'grain');
+  document.getElementById('tempOpts').innerHTML  = mk(TEMPS, tempKey, 'temp');
+  document.getElementById('menuNote').innerHTML =
+    `A <b>${GR.name}</b> grain in <b>${TP.word}</b> water. ` +
+    `<i>Smaller grains jitter more</i> — the same collisions shift less mass. ` +
+    `<i>Warmer water jitters more</i> — the molecules are faster, so the kicks are harder ` +
+    `and come more often. Neither is drawn in: both settings change the water, and the ` +
+    `grains do what the collisions make them do. Try ${GR.name==='large'?'small':'large'} and ` +
+    `${TP.name==='hot'?'cold':'hot'} to see both ends of it.`;
+  menuEl.querySelectorAll('.opt').forEach(b=>{
+    b.onclick = ()=>{
+      if(b.dataset.group==='grain') grainKey = b.dataset.key; else tempKey = b.dataset.key;
+      build();
+      playing = true; playBtn.textContent = 'Pause';
+    };
+  });
+}
+
+function setMenu(open){
+  menuEl.classList.toggle('open', open);
+  gearEl.classList.toggle('open', open);
+  if(open) buildMenu();
+}
+gearEl.onclick = ()=> setMenu(!menuEl.classList.contains('open'));
+
+/* ---------- rebuild what depends on the choices ---------- */
+function build(){
+  derive();
+  buildField();
+  buildCaptions();
+  buildLegend();
+  linearise(scene);          // authored colours are sRGB; the renderer wants linear
+  if(menuEl.classList.contains('open')) buildMenu();
+  /* keep the rig flag: this rewrite runs before the editor reads the query,
+     and without it ?rig=1 is swallowed by the first build */
+  const rigQ = new URLSearchParams(location.search).get('rig') === '1' ? '&rig=1' : '';
+  history.replaceState(null,'',`?grain=${grainKey}&temp=${tempKey}${rigQ}`);
+  t = 0; curSeg = -1;
+}
+build();
+
+/* =====================================================================
+   RIG EDITOR  —  open the scene with ?rig=1
+
+   Placing parts by typing numbers and re-rendering is slow. This drops a
+   transform gizmo on any named part of the microscope, frees the camera from
+   the timeline so you can fly round it, and writes the numbers back out in
+   exactly the shape RIG_OVERRIDES expects — so tuning by hand round-trips
+   into the file with one paste and no arithmetic.
+
+   Ctrl-click (or cmd-click) a label or a part to add it to the selection.
+   Several parts move as one: they are hung off a temporary pivot at their
+   shared centre, dragged together, and then handed back to the scope with
+   their world positions intact, so each one's own numbers come out right.
+
+   It is inert unless the query string asks for it: no panel, no gizmo, no
+   listeners, and the CDN script for the gizmo is never fetched.
+
+   Keys:  G / R / S  move, rotate, scale      X  toggle local / world
+          arrows     nudge the selection      [  ]  smaller / larger step
+          Esc        deselect                 Space  play / pause the timeline
+          A          select every part
+===================================================================== */
+const RIG = { on: new URLSearchParams(location.search).get('rig') === '1' };
+
+if(RIG.on) (function rigEditor(){
+  const SAVE_KEY = 'bm-rig-overrides';
+  let selNames = [], target = null, gizmo = null, step = 0.01, snap = false;
+  /* where the camera was when a gizmo drag started.  The gizmo's pointerdown
+     runs BEFORE the scene's own mousedown, so clearing the orbit flag when the
+     drag begins does not help — the orbit handler just sets it again on the
+     way past, and you end up dragging the part and the camera at once, which
+     feeds a moving camera into a rotation that is computed from it. Pinning
+     the camera every frame while the gizmo is busy is order-independent. */
+  let camLock = null;
+  /* set when a gizmo drag ends, so the click that follows it is not taken as
+     a fresh selection (see the click handler) */
+  let swallowClick = false;
+
+  /* ---- camera: orbit / pan / dolly, free of the timeline ---- */
+  const cam = { tgt: new THREE.Vector3(FLOWER_X, HEAD_Y, 0), dist: 1.6 };
+  RIG.camera = function(){
+    if(camLock){ yaw = camLock.yaw; pitch = camLock.pitch; dragging = false; }
+    const sph = new THREE.Spherical(cam.dist,
+      Math.max(0.08, Math.min(Math.PI - 0.08, Math.PI/2 - pitch)), yaw);
+    camera.position.copy(cam.tgt).add(new THREE.Vector3().setFromSpherical(sph));
+    camera.lookAt(cam.tgt);
+  };
+  yaw = 0.7; pitch = 0.25;
+  el.addEventListener('wheel', e=>{
+    e.preventDefault();
+    cam.dist = Math.max(0.35, Math.min(30, cam.dist * (1 + Math.sign(e.deltaY)*0.12)));
+  }, {passive:false});
+  /* right-drag pans the orbit centre, which is the only way to get close to a
+     small part without the centre of rotation fighting you */
+  let panning = false, px = 0, py = 0;
+  el.addEventListener('contextmenu', e=>e.preventDefault());
+  el.addEventListener('mousedown', e=>{
+    if(e.button === 2 && !RIG.busy){ panning = true; px = e.clientX; py = e.clientY; }
+  });
+  addEventListener('mouseup', ()=>{ panning = false; });
+  addEventListener('mousemove', e=>{
+    if(!panning) return;
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const up    = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    const k = cam.dist * 0.0016;
+    cam.tgt.addScaledVector(right, -(e.clientX-px)*k).addScaledVector(up, (e.clientY-py)*k);
+    px = e.clientX; py = e.clientY;
+  });
+
+  /* ---- panel ---- */
+  const css = document.createElement('style');
+  css.textContent = [
+    '#rig{position:fixed;top:0;right:0;width:272px;max-height:100vh;overflow:auto;z-index:50;',
+    'background:rgba(10,13,18,.93);color:#dfe6f0;font:12px/1.45 ui-monospace,Consolas,monospace;',
+    'padding:10px 12px 14px;border-left:1px solid #2a3240;backdrop-filter:blur(6px);}',
+    '#rig h4{margin:.6em 0 .35em;font-size:11px;letter-spacing:.08em;text-transform:uppercase;',
+    'color:#8b97a8;font-weight:600;display:flex;justify-content:space-between;}',
+    '#rig h4 span{color:#9fd0ff;text-transform:none;letter-spacing:0;font-weight:400;}',
+    '#rig .parts{display:flex;flex-wrap:wrap;gap:3px;}',
+    '#rig .parts button{flex:1 1 auto;padding:3px 6px;font:inherit;font-size:11px;cursor:pointer;',
+    'background:#1a212b;color:#b9c4d2;border:1px solid #2c3543;border-radius:3px;}',
+    '#rig .parts button.sel{background:#2f6ad9;border-color:#4f88ee;color:#fff;}',
+    '#rig .row{display:flex;align-items:center;gap:6px;margin:2px 0;}',
+    '#rig .row label{width:14px;color:#8b97a8;}',
+    '#rig input[type=number]{flex:1;min-width:0;background:#141a22;color:#e6edf6;',
+    'border:1px solid #2c3543;border-radius:3px;padding:2px 4px;font:inherit;}',
+    '#rig .bar{display:flex;gap:4px;margin-top:8px;}',
+    '#rig .bar button{flex:1;padding:5px 0;font:inherit;cursor:pointer;background:#1a212b;',
+    'color:#cfd8e4;border:1px solid #2c3543;border-radius:3px;}',
+    '#rig .bar button.go{background:#2f6ad9;border-color:#4f88ee;color:#fff;}',
+    '#rig .hint{color:#6d7889;font-size:11px;margin-top:8px;}',
+    '#rig code{color:#9fd0ff;}'
+  ].join('');
+  document.head.appendChild(css);
+
+  const panel = document.createElement('div');
+  panel.id = 'rig';
+  panel.innerHTML =
+    '<h4>part <span id="rigCount"></span></h4><div class="parts" id="rigParts"></div>' +
+    '<h4>position <span id="rigWhat"></span></h4><div id="rigPos"></div>' +
+    '<h4>rotation (deg)</h4><div id="rigRot"></div>' +
+    '<h4>scale</h4><div id="rigScl"></div>' +
+    '<div class="bar"><button id="rigG">move</button><button id="rigR">rot</button>' +
+      '<button id="rigS">scale</button><button id="rigSnap">snap</button>' +
+      '<button id="rigLink">link</button></div>' +
+    '<div class="bar"><button id="rigCopy" class="go">copy overrides</button>' +
+      '<button id="rigReset">reset</button></div>' +
+    '<div class="hint" id="rigHint">click a part in the scene or above &middot; ' +
+      '<b>ctrl-click adds to the selection</b> &middot; right-drag pans &middot; ' +
+      'wheel dollies &middot; step <code id="rigStep">0.01</code> ([ / ]) &middot; arrows nudge</div>';
+  document.body.appendChild(panel);
+
+  /* every part's untouched transform, so "reset" means something and the copy
+     can skip everything you never moved */
+  const base0 = {};
+  for(const [n, o] of Object.entries(RIG_PARTS))
+    base0[n] = {p:o.position.toArray(), r:o.rotation.toArray().slice(0,3), s:o.scale.toArray()};
+
+  const partsEl = document.getElementById('rigParts');
+  const btns = {};
+  for(const name of Object.keys(RIG_PARTS)){
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = e=>select(name, e.ctrlKey || e.metaKey || e.shiftKey);
+    partsEl.appendChild(b);
+    btns[name] = b;
+  }
+
+  /* ---- the pivot that makes several parts move as one ----
+
+     Object3D.attach re-parents while keeping the world transform, so parts can
+     be hung off a pivot at their shared centre, dragged, and handed back to
+     the scope with nothing shifted. Handing them back is what turns a group
+     drag into each part's own position, which is what has to be written out —
+     so it happens before anything reads the numbers. */
+  const homeOf = new Map();
+  let pivot = null;
+
+  function unpivot(){
+    if(!pivot) return;
+    for(const o of [...pivot.children]) (homeOf.get(o) || scope).attach(o);
+    scene.remove(pivot);
+    pivot = null;
+  }
+  function repivot(){
+    const parts = selNames.map(n=>RIG_PARTS[n]).filter(Boolean);
+    if(parts.length < 2) return;
+    pivot = new THREE.Object3D();
+    const c = new THREE.Vector3(), w = new THREE.Vector3();
+    for(const p of parts){ p.getWorldPosition(w); c.add(w); }
+    pivot.position.copy(c.divideScalar(parts.length));
+    scene.add(pivot);
+    pivot.updateMatrixWorld(true);
+    for(const p of parts){ homeOf.set(p, p.parent); pivot.attach(p); }
+  }
+
+  /* ---- identical siblings move together ----
+     The six stamens are the same two local positions repeated, so an edit to
+     one filament or anther is copied straight onto the other five. Without
+     this the ring goes lopsided the moment you touch it, and the whole point
+     of building one stamen and turning it six ways is lost. */
+  const linkOf = new Map();
+  RIG_LINKED.forEach(set => set.forEach(o => linkOf.set(o, set)));
+  let linked = true;
+  function mirror(){
+    if(!linked || !target) return;
+    const set = linkOf.get(target);
+    if(!set) return;
+    for(const o of set){
+      if(o === target) continue;
+      o.position.copy(target.position);
+      o.rotation.copy(target.rotation);
+      o.scale.copy(target.scale);
+    }
+  }
+
+  /* three number fields per transform, wired both ways */
+  function fields(host, set, scale){
+    const inputs = ['x','y','z'].map(axis=>{
+      const row = document.createElement('div'); row.className = 'row';
+      const lab = document.createElement('label'); lab.textContent = axis;
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.step = scale === 1 ? '0.005' : '0.5';
+      inp.oninput = ()=>{ if(target){ set(axis, parseFloat(inp.value) || 0); mirror(); save(); } };
+      row.append(lab, inp); host.appendChild(row);
+      return inp;
+    });
+    return v => ['x','y','z'].forEach((a,i)=>{
+      if(document.activeElement !== inputs[i])
+        inputs[i].value = (+v[a]*scale).toFixed(scale === 1 ? 4 : 2);
+    });
+  }
+  const DEG = 180/Math.PI;
+  const showPos = fields(document.getElementById('rigPos'), (a,v)=>{ target.position[a] = v; }, 1);
+  const showRot = fields(document.getElementById('rigRot'), (a,v)=>{ target.rotation[a] = v/DEG; }, DEG);
+  const showScl = fields(document.getElementById('rigScl'), (a,v)=>{ target.scale[a] = v || 0.0001; }, 1);
+  function sync(){
+    if(!target) return;
+    showPos(target.position); showRot(target.rotation); showScl(target.scale);
+  }
+
+  /* one place where a selection is applied, so click, ctrl-click and
+     select-all cannot drift apart */
+  function setSelection(names){
+    unpivot();                        // bank whatever the last group drag did
+    /* Drop anything that is already inside something else in the selection:
+       scope contains everything and head contains the optical train, so
+       selecting a parent and its child would move the child twice. The parent
+       wins, since that is what you asked to move. */
+    selNames = names.filter(n => {
+      if(names.length < 2) return true;
+      for(const m of names){
+        if(m === n) continue;
+        for(let a = RIG_PARTS[n].parent; a; a = a.parent)
+          if(a === RIG_PARTS[m]) return false;
+      }
+      return true;
+    });
+
+    repivot();
+    target = pivot || RIG_PARTS[selNames[0]] || null;
+
+    for(const n in btns) btns[n].classList.toggle('sel', selNames.indexOf(n) >= 0);
+    document.getElementById('rigCount').textContent =
+      selNames.length > 1 ? selNames.length + ' selected' : '';
+    document.getElementById('rigWhat').textContent = pivot ? 'group centre' : '';
+    if(gizmo){ target ? gizmo.attach(target) : gizmo.detach(); }
+    sync();
+  }
+  function select(name, additive){
+    if(!name) return setSelection([]);
+    if(!additive) return setSelection([name]);
+    const names = selNames.slice(), i = names.indexOf(name);
+    if(i >= 0) names.splice(i, 1); else names.push(name);
+    setSelection(names);
+  }
+
+  /* ---- the gizmo, from the same CDN as three itself ---- */
+  const sc = document.createElement('script');
+  sc.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js';
+  sc.onload = ()=>{
+    gizmo = new THREE.TransformControls(camera, el);
+    gizmo.setSize(0.8);
+    RIG.gizmo = gizmo;            // handy from the console, and for tests
+    /* the gizmo and the orbit drag share a mouse, so one has to stand down */
+    gizmo.addEventListener('dragging-changed', e=>{
+      dragging = false; RIG.busy = e.value;
+      camLock = e.value ? {yaw, pitch} : null;
+      if(!e.value){ sync(); save(); swallowClick = true; }
+    });
+    gizmo.addEventListener('objectChange', ()=>{ mirror(); sync(); });
+    scene.add(gizmo);
+    if(target) gizmo.attach(target);
+  };
+  sc.onerror = ()=>{
+    document.getElementById('rigHint').textContent =
+      'gizmo CDN blocked — the number fields and arrow-key nudging still work.';
+  };
+  document.head.appendChild(sc);
+
+  document.getElementById('rigG').onclick = ()=> gizmo && gizmo.setMode('translate');
+  document.getElementById('rigR').onclick = ()=> gizmo && gizmo.setMode('rotate');
+  document.getElementById('rigS').onclick = ()=> gizmo && gizmo.setMode('scale');
+  document.getElementById('rigSnap').onclick = e=>{
+    snap = !snap;
+    e.target.style.color = snap ? '#9fd0ff' : '';
+    if(gizmo){
+      gizmo.setTranslationSnap(snap ? 0.01 : null);
+      gizmo.setRotationSnap(snap ? Math.PI/72 : null);
+    }
+  };
+  const linkBtn = document.getElementById('rigLink');
+  linkBtn.style.color = '#9fd0ff';                  // linked is the default
+  linkBtn.onclick = ()=>{
+    linked = !linked;
+    linkBtn.style.color = linked ? '#9fd0ff' : '';
+    if(linked) mirror();
+  };
+  document.getElementById('rigReset').onclick = ()=>{
+    if(!selNames.length) return;
+    const names = selNames.slice();
+    unpivot();
+    for(const n of names){
+      const b = base0[n], part = RIG_PARTS[n];
+      part.position.fromArray(b.p); part.rotation.fromArray(b.r); part.scale.fromArray(b.s);
+    }
+    repivot();
+    target = pivot || RIG_PARTS[names[0]];
+    if(gizmo) gizmo.attach(target);
+    mirror(); sync(); save();
+  };
+
+  /* ---- picking in the scene ---- */
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  const idToName = new Map(Object.entries(RIG_PARTS).map(([n,o])=>[o.id, n]));
+  /* A drag always ends in a click, and that click used to land on the scene
+     and re-select whatever happened to be under the pointer — so one group
+     drag silently collapsed the group to a single part, and every edit after
+     it moved one thing instead of several. A click only counts as a click if
+     the gizmo was not just released and the pointer barely moved. */
+  let downAt = null;
+  el.addEventListener('mousedown', e=>{ downAt = {x:e.clientX, y:e.clientY}; });
+  el.addEventListener('click', e=>{
+    if(RIG.busy) return;
+    if(swallowClick){ swallowClick = false; return; }
+    if(downAt && Math.hypot(e.clientX-downAt.x, e.clientY-downAt.y) > 4) return;
+    ndc.set(e.clientX/innerWidth*2 - 1, -(e.clientY/innerHeight*2 - 1));
+    ray.setFromCamera(ndc, camera);
+    /* walk up from whatever was hit until we reach something named */
+    for(const hit of ray.intersectObjects(Object.values(RIG_PARTS), true)){
+      for(let o = hit.object; o; o = o.parent)
+        if(idToName.has(o.id)){
+          select(idToName.get(o.id), e.ctrlKey || e.metaKey || e.shiftKey);
+          return;
+        }
+    }
+  });
+
+  /* ---- keys ---- */
+  addEventListener('keydown', e=>{
+    if(e.target.tagName === 'INPUT') return;
+    const k = e.key.toLowerCase();
+    if(k === 'g' && gizmo) gizmo.setMode('translate');
+    if(k === 'r' && gizmo) gizmo.setMode('rotate');
+    if(k === 's' && gizmo) gizmo.setMode('scale');
+    if(k === 'x' && gizmo) gizmo.setSpace(gizmo.space === 'local' ? 'world' : 'local');
+    if(k === 'escape') select(null);
+    if(k === 'a') setSelection(Object.keys(RIG_PARTS).filter(n => n !== 'scope'));
+    if(k === '[') step = Math.max(0.001, step/2);
+    if(k === ']') step = Math.min(0.5, step*2);
+    if(k === ' '){ e.preventDefault(); playBtn.click(); }   /* keeps the label honest */
+    document.getElementById('rigStep').textContent = step;
+    if(target && e.key.indexOf('Arrow') === 0){
+      e.preventDefault();
+      /* nudge across the screen rather than along the world axes, which is
+         what you mean when you are looking at the part from an angle —
+         except with shift held, which lifts it straight up and down */
+      if(e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
+        target.position.y += (e.key === 'ArrowUp' ? 1 : -1)*step;
+      } else {
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+        const up    = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+        const d = {ArrowRight:[right,1], ArrowLeft:[right,-1],
+                   ArrowUp:[up,1], ArrowDown:[up,-1]}[e.key];
+        target.position.addScaledVector(d[0], d[1]*step);
+      }
+      mirror(); sync(); save();
+    }
+  });
+
+  /* ---- what you paste back into the file ---- */
+  function diff(){
+    /* While a group is selected its parts hang off the pivot, so their own
+       position is measured against THAT and is meaningless in the file. Put
+       them home before reading, then pick the group back up — reading has to
+       be non-destructive, since this runs on every nudge to autosave. */
+    const grouped = pivot !== null;
+    if(grouped) unpivot();
+    const out = {};
+    const near = (a,c)=>a.every((v,i)=>Math.abs(v-c[i]) < 1e-6);
+    for(const [n, o] of Object.entries(RIG_PARTS)){
+      const b = base0[n], e = {};
+      if(!near(b.p, o.position.toArray())) e.p = o.position.toArray();
+      if(!near(b.r, o.rotation.toArray().slice(0,3))) e.r = o.rotation.toArray().slice(0,3);
+      if(!near(b.s, o.scale.toArray())) e.s = o.scale.toArray();
+      if(Object.keys(e).length) out[n] = e;
+    }
+    if(grouped){
+      repivot();
+      if(gizmo && pivot) gizmo.attach(pivot);
+    }
+    return out;
+  }
+  const fmt = a => '[' + a.map(v=>String(+(+v).toFixed(4))).join(', ') + ']';
+  function code(){
+    const d = diff();
+    if(!Object.keys(d).length) return 'const RIG_OVERRIDES = {\n};';
+    return 'const RIG_OVERRIDES = {\n' + Object.entries(d).map(([n,e])=>
+      '  ' + n + ': {' + ['p','r','s'].filter(k=>e[k])
+        .map(k=>k + ':' + fmt(e[k])).join(', ') + '},').join('\n') + '\n};';
+  }
+  document.getElementById('rigCopy').onclick = e=>{
+    const txt = code();
+    const done = msg =>{ e.target.textContent = msg;
+      setTimeout(()=>{ e.target.textContent = 'copy overrides'; }, 2400); };
+    navigator.clipboard.writeText(txt).then(
+      ()=>done('copied — paste over RIG_OVERRIDES'),
+      ()=>{ console.log(txt); done('clipboard blocked — see console'); });
+  };
+
+  /* survive a reload, so refreshing to check something does not lose the work */
+  let saveTimer = 0;
+  function save(){
+    clearTimeout(saveTimer);
+    /* Never read the rig out mid-drag: diff() takes the group off the pivot to
+       measure it, and the gizmo holds a reference to the pivot it was given —
+       swap that out underneath a live drag and the gizmo goes on moving an
+       object that is no longer in the scene, which looks exactly like the
+       scene refusing to update. Wait for the drag to finish instead. */
+    saveTimer = setTimeout(function attempt(){
+      if(RIG.busy){ saveTimer = setTimeout(attempt, 200); return; }
+      try{ localStorage.setItem(SAVE_KEY, JSON.stringify(diff())); }catch(_){}
+    }, 200);
+  }
+  try{
+    const kept = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+    for(const [n, o] of Object.entries(kept)){
+      const part = RIG_PARTS[n]; if(!part) continue;
+      if(o.p) part.position.fromArray(o.p);
+      if(o.r) part.rotation.fromArray(o.r);
+      if(o.s) part.scale.fromArray(o.s);
+    }
+    if(Object.keys(kept).length){
+      document.getElementById('rigHint').innerHTML =
+        'restored your unsaved edits &middot; ' +
+        '<a href="#" id="rigClear" style="color:#9fd0ff">discard them</a>';
+      document.getElementById('rigClear').onclick = ()=>{
+        localStorage.removeItem(SAVE_KEY); location.reload();
+      };
+    }
+  }catch(_){}
+
+  /* park the timeline where the whole instrument is on screen and lit */
+  setTimeout(()=>{ t = 4; playing = false; playBtn.textContent = 'Play'; }, 0);
+  select('anther0');
+})();
+
+/* =====================================================================
+   LOOP
+===================================================================== */
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min((now-lastFrame)/1000, 1/24);
+  lastFrame = now;
+
+  if(playing){
+    t += dt;
+    if(t >= TOTAL){ t = TOTAL; playing=false; playBtn.textContent='Play'; }
+  }
+
+  updateLab(t);
+  updateField(t);
+  /* the rig editor flies the camera itself; the timeline keeps it otherwise */
+  if(RIG.on) RIG.camera();
+  else { sampleCam(t); applyCamera(); }
+
+  /* the field of view is lit only once we are looking through it */
+  const inField = worldAt(t) === 'field';
+  fieldLight.intensity = inField ? 2.4 : 0;
+  /* Two thirds of the runtime is spent inside the microscope, where the lab is
+     off camera — so stop re-rendering its shadow map every frame once we are
+     down there. It keeps whatever it last drew, which nobody can see. */
+  renderer.shadowMap.autoUpdate = !inField;
+
+  const f = fadeAmount(t);
+  fadeEl.style.opacity = f;
+  scopeEl.style.opacity = (inField ? (1-f) : 0).toFixed(3);
+  /* the scale caveat, while the molecules are on screen */
+  scaleEl.style.opacity = (ramp(t,44.5,46.0)*(1-ramp(t,63.5,65.0))*(1-f)).toFixed(3);
+
+  const seg = captionFor(t);
+  if(seg !== curSeg){ curSeg = seg; capEl.textContent = SEGS[seg].c; }
+  capEl.style.opacity = 1 - f;
+  scrub.value = t;
+  scrub.style.setProperty('--p', (t/TOTAL*100)+'%');
+  clock.textContent = t.toFixed(1)+' / '+TOTAL.toFixed(1)+'s';
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>

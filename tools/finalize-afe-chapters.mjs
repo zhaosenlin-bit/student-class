@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 /*
- * Make the chapter coursework runnable from the local server.
+ * Localise the chapter documents of a chapter course.
  *
  * The documents were served from a session address that no longer exists.
- * Every path they name is rewritten to the local asset endpoint, and the
- * entry becomes a small player with the chapter switcher the site uses.
+ * Every path they name is rewritten to the local asset endpoint.
+ *
+ * The entry page itself is NOT written here: the player shell has to match
+ * the chapter runtime of the course, so it is left to
+ * tools/rebuild-chapter-index.mjs, which reads the runtime adapter that
+ * ships with the course and knows whether the chapter frame needs a host
+ * on the outside.  Writing the shell here used to overwrite that host and
+ * left the frame asking for a session that nobody answered.
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,27 +70,6 @@ const localise = (html, id, dir) => {
   return out;
 };
 
-const STYLE = [
-  'html,body{margin:0;height:100%;background:#101418;color:#f2e9d8;font:15px/1.6 system-ui,sans-serif}',
-  '#bar{display:flex;gap:10px;align-items:center;padding:10px 14px;background:#1b2027;border-bottom:1px solid #3a3f47}',
-  '#bar select{flex:1;max-width:320px;padding:8px 10px;border-radius:8px;border:1px solid #4b535d;background:#232a32;color:#f2e9d8;font:inherit}',
-  '#bar button{padding:9px 18px;border:0;border-radius:8px;background:#e5c98f;color:#282119;font:inherit;cursor:pointer}',
-  '#bar button:hover{background:#f0d9a8}',
-  '#stage{height:calc(100% - 92px)}',
-  '#stage iframe{width:100%;height:100%;border:0;display:block}',
-  '#note{padding:6px 14px;font-size:13px;color:#9aa4b0;background:#161a20}',
-].join('\n');
-
-const SCRIPT = [
-  "const select=document.getElementById('chapter');",
-  "const frame=document.getElementById('frame');",
-  "const open=document.getElementById('open');",
-  "const show=()=>{frame.src=select.value;};",
-  "open.addEventListener('click',show);",
-  "select.addEventListener('change',show);",
-  'show();',
-].join('\n');
-
 for (const [id, course] of Object.entries(courses)) {
   const dir = path.join(CW, `${id}.assets`);
   if (!fs.existsSync(dir)) continue;
@@ -108,31 +94,17 @@ for (const [id, course] of Object.entries(courses)) {
     fs.writeFileSync(homeFile, home);
   }
 
-  const options = course.chapters
-    .map(([title, rel]) => `<option value="${ASSET(id)}${rel}">${title}</option>`)
-    .join('');
-
-  const shell = [
-    '<!DOCTYPE html>',
-    '<html lang="zh-CN">',
-    '<head>',
-    '<meta charset="UTF-8">',
-    '<meta name="viewport" content="width=device-width,initial-scale=1">',
-    `<title>${course.title}</title>`,
-    `<style>${STYLE}</style>`,
-    '</head>',
-    '<body>',
-    '<div id="bar">',
-    `<select id="chapter" aria-label="选择课件章节">${options}</select>`,
-    '<button type="button" id="open">打开章节</button>',
-    '</div>',
-    '<div id="stage"><iframe id="frame" title="课件画面" allow="autoplay; fullscreen"></iframe></div>',
-    '<div id="note">本课件为乐启享本地课件库中的离线副本，章节内容来自公开试用。</div>',
-    `<script>${SCRIPT}</script>`,
-    '</body>',
-    '</html>',
-    '',
-  ].join('\n');
-  fs.writeFileSync(path.join(CW, `${id}.html`), shell);
-  console.log(`${id}: entry written, ${shell.length} chars`);
+  console.log(`${id}: ${course.chapters.length} 章文档已本地化`);
 }
+
+/*
+ * The player shell is written by the index builder: it is the one that
+ * knows whether the course carries a runtime and therefore needs a host
+ * on the outside of the chapter frame.  Writing the shell here used to
+ * overwrite that host and left the frame asking for a session that nobody
+ * answered, so the course opened on a black screen.
+ */
+execFileSync(process.execPath, [path.join(ROOT, 'tools', 'rebuild-chapter-index.mjs')], {
+  cwd: ROOT,
+  stdio: 'inherit',
+});

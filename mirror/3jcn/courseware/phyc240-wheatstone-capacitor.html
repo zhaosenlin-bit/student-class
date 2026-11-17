@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-wheatstone-capacitor/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc240-wheatstone-capacitor/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/3jcn-phyc240-wheatstone-capacitor/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-wheatstone-capacitor/_ext/vendor/css/main3.css">
+	
+	<script type="module">   
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { STLLoader } from '../jsm/STLLoader.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  4 November 2024
+		 **  All rights reserved **/
+		
+	var initScene, render, dragcontrols, controls, renderer, scene, light, camera, arrowCurrent;
+	var wire, textMesh, textMesh1, textMesh2, label_mesh;
+	var battery, step, lock;
+	var onoff = false, onoff2 = true, is_closed = false, is_slided = false, is_start = false;
+	var objectCollection = [], blueArray = [], arrowCollection = []; 
+	var needle;
+	var V = 30, C1 = 8.8, C2 = 20.0, Cx, C3, C4 = 10.0;
+  	
+	var sbase_end = 0;
+	
+	var textureloader = new THREE.TextureLoader();
+	var fontloader = new FontLoader();
+
+	initScene = function() {
+		renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.shadowMap.enabled = true;
+		renderer.shadowMapSoft = true;
+		document.getElementById( 'viewport' ).appendChild( renderer.domElement );
+		scene = new THREE.Scene;
+    		scene.background = new THREE.Color( 0x1DCBEA );
+		camera = new THREE.PerspectiveCamera(
+			35,
+			window.innerWidth / window.innerHeight,
+			1,
+			1000
+		);
+		camera.position.set( 60, 50, 60 );
+		camera.lookAt( scene.position );
+		scene.add( camera );
+		controls = new OrbitControls( camera, renderer.domElement );
+	
+		light = new THREE.DirectionalLight( 0xFFFFFF );
+		light.position.set( 10, 40, 20 );
+		light.target.position.copy( scene.position );
+		light.castShadow = true;
+		scene.add( light );
+		var spotlight = new THREE.SpotLight(0xffffff);
+		spotlight.position.set(10,40,30);
+		spotlight.shadowMapVisible = true;
+		spotlight.lookAt(-30,10,0);
+		scene.add(spotlight);
+		
+		addText(-10,10,-30,'FIND Cx ?',0, 'white');
+		addText(-20,10,25,'WHEATSTONE BRIDGE',Math.PI/2, 'purple');
+		addBattery(2);			
+		
+		addWire(0.2,4, 4,5,28,Math.PI/2);
+		addWire(0.2,3, 6,3.5,28,0);
+		addWire(0.2,12, 12,2,28,Math.PI/2);
+		
+		addWire(0.2,4, -4,5,28,Math.PI/2);
+		addWire(0.2,3, -6,3.5,28,0);
+		addWire(0.2,12, -12,2,28,Math.PI/2);
+		
+		addSphere(0,2,-28);
+		addSphere(0,2,10);
+		addSphere(-18,2,-8);
+		addSphere(18,2,-8);
+		
+		// two connectors of Ammeter
+		addSphere(0,2,-9);
+		addSphere(0,2,-7);
+		
+		// add blue lines
+		addBlue(-18,2,-8, -9,2,-18);  //C1
+		addBlue(-8,2,-19, 0,2,-28);
+		
+		addBlue(18,2,-8, 9,2,-18); //C2
+		addBlue(8,2,-19, 0,2,-28);
+		
+		addBlue(0,2,10, 10,2,0); // Cx
+		addBlue(11,2,-1, 18,2,-8);
+		
+		addBlue(0,2,10, -10,2,0);  // C3
+		addBlue(-11,2,-1, -18,2,-8);
+		var position = new THREE.Vector3(-10,2,4);
+		var direction = new THREE.Vector3(0,0,-1);
+		createVector(position, direction, 10, 0x0000ff);
+		
+		addBlue(0,2,-9, 0,2,-28); // middle end
+		addBlue(0,2,10, 0,2,-7);  // middle top
+		
+		addBlue(-18,2,28, -18,2,-8); // left vertical
+		addBlue(18,2,10, 18,2,-8);   // right vertical
+		
+		var connector = addSphere(18,2,10);
+		var mount = addSphere(18,2,20);
+		var arr = [new THREE.Vector3(18,2,-28),
+			   connector.position]; 
+		var mat = new THREE.MeshLambertMaterial({color: "black"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 100, 0.2, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		
+		var arr = [mount.position,
+			   new THREE.Vector3(18,2,28)];
+		var mat = new THREE.MeshLambertMaterial({color: "black"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 100, 0.2, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		scene.add(str);
+		var switchGeom = new THREE.CylinderGeometry( 0.2, 0.2, 10, 32 );
+		switchGeom.translate(0, 5, 0);
+		lock = new THREE.Mesh(switchGeom, new THREE.MeshLambertMaterial({color: "white"}));
+		lock.rotation.x = -Math.PI / 2.3;
+		mount.add(lock);
+		
+		// create Breadboard:
+		var geometry1 = new THREE.BoxGeometry( 40,2,60 ); 
+		var base = new THREE.Mesh(geometry1, new THREE.MeshPhongMaterial( { color: 0xcc9900 , flatShading: THREE.FlatShading } ));
+		base.position.set(0,0,0);
+		scene.add(base);
+
+		// Load Ammeter
+		addAmmeter(0,6,-8);
+		needle = addNeedle();
+
+		// load three Resistors
+		C3 = addCapacitor(-10, 2, 0, Math.PI/4);
+		Cx = addCapacitor(10, 2, 0, -Math.PI/4);
+		C2 = addCapacitor(9, 2, -18, Math.PI/4);
+		C1 = addCapacitor(-9, 2, -18, -Math.PI/4);
+		
+		addText(10,4,5,'Cx',0,'green');
+		addText(-13,4,5,'C3',0,'green');
+		addText(-10,4,-22,'C1',0,'green');
+		addText(8,4,-22,'C2',0,'green');
+		
+		document.getElementById("reset").addEventListener('click', function(){location.reload();});
+		document.getElementById("onoff").addEventListener('click', setOnOff);
+		document.getElementById('capacitanceSlider').addEventListener('input', changeCapacitance);
+		requestAnimationFrame( render );
+	}
+	function addCapacitor(x,y,z, angle){
+		const geometry = new THREE.BoxGeometry( 4, 2, 0.3 ); 
+		const material = new THREE.MeshBasicMaterial( {color: 0xff0000} ); 
+		const material2 = new THREE.MeshBasicMaterial( {color: 0xff0000} ); 
+		const plate1 = new THREE.Mesh( geometry, material ); 
+		const plate2 = new THREE.Mesh( geometry, material2 ); 
+		plate1.add(plate2);
+		plate2.position.z = -1.3;
+		plate1.position.set(x,y,z);
+		plate1.rotation.y = angle;
+		scene.add( plate1 );
+	}
+	function addNeedle(){
+		var dir = new THREE.Vector3( 0, 1, 0 );
+		dir.normalize();
+		var origin = new THREE.Vector3(0,4,-6.5);  
+		var hex = 0xff0000;
+		needle = new THREE.ArrowHelper( dir, origin, 2.5, hex, 0.4, 0.3 );
+		needle.line.material.linewidth = 5;
+		needle.scale.set(2,2,2);
+		scene.add( needle );
+		return needle;
+	}
+	function addAmmeter(x,y,z){
+		var cubeloader = new THREE.CubeTextureLoader();
+		cubeloader.setCrossOrigin( "" );
+		cubeloader.setPath( '/api/program-assets/3jcn-phyc240-wheatstone-capacitor/_ext/threejs.org/examples/textures/cube/pisa/' );
+
+		var cubeTexture = cubeloader.load( [
+		  'px.png', 'nx.png',
+		  'py.png', 'ny.png',
+		  'pz.png', 'nz.png'
+		] );
+
+		var settings = {
+		  segments: 9,
+		  radius: {value: 0.5},
+		  size: {
+		    value: new THREE.Vector3(
+		      1,
+		      5,
+		      8
+		    )
+		  }
+		}
+		var boxGeom = new THREE.BoxBufferGeometry(2, 2, 2, 5, 5, 5);
+		var boxMat = new THREE.MeshPhongMaterial({ color: "aqua", envMap: cubeTexture });
+		boxMat.onBeforeCompile = shader => {
+
+		  shader.uniforms.boxSize = settings.size;
+		  shader.uniforms.radius = settings.radius;
+
+
+		  shader.vertexShader = `
+		  uniform vec3 boxSize;
+		  uniform float radius;
+		  ` + shader.vertexShader;
+
+		  shader.vertexShader = shader.vertexShader.replace(
+		    `#include <begin_vertex>`,
+		    `#include <begin_vertex>
+		    vec3 signs = sign(position);
+		    vec3 box = boxSize - vec3(radius);
+		    box = vec3(max(0.0, box.x), max(0.0, box.y), max(0.0, box.z));
+		    vec3 p = signs * box;
+		    transformed = signs * box + normalize(position) * radius;
+		    // re-compute normals for correct shadows and reflections
+		    objectNormal = all(equal(p, transformed)) ? normal : normalize(position); 
+		    transformedNormal = normalize(normalMatrix * objectNormal);
+		    vNormal = transformedNormal;
+		    `
+		  );
+		};
+		var box = new THREE.Mesh(boxGeom, boxMat);
+		box.position.set(x,y,z);  // (-30,0,0);
+		//addSphere(x, y+5, z);  // (-30, 5, 0)
+		//addSphere(x, y-5, z);  // (-30, -5, 0);
+		var volt_geometry = new THREE.BoxGeometry( 0.2, 8, 14 );
+		var volt_material = new THREE.MeshPhongMaterial({ 
+					  map: textureloader.load("textures/voltmeter.png")
+				});
+		var screen = new THREE.Mesh( volt_geometry, volt_material );
+		box.add( screen );
+		screen.position.set(1,0,0);  // (1,0,0)
+		box.rotation.y = -Math.PI/2;
+		scene.add(box);   
+	}
+	function createEllipseCurve(a,b,start,end,x){
+		var radiansStart = (start * Math.PI) / 180;
+		var radiansEnd = ((end) * Math.PI) / 180;
+		var arr = []; var n = 0;
+		for( var t=0; t<1; t=t+0.01){
+			var segment = (radiansStart - radiansEnd) * t;
+			arr.push( new THREE.Vector3(a * Math.cos(segment),b * Math.sin(segment), 0) );
+			n++;
+		}
+		var ellipseMaterial = new THREE.MeshLambertMaterial({color: "white"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, n, 0.1, 36, false ); 
+		var  ellipse = new THREE.Mesh(geometry, ellipseMaterial);
+		ellipse.position.set(x,6,0);
+		scene.add(ellipse);
+		arrowCollection.push(ellipse);
+	}
+	function addBlue(x1,y1,z1,x2,y2,z2){
+		var arr = [new THREE.Vector3(x1,y1,z1),
+			   new THREE.Vector3(x2,y2,z2)]; 
+		var mat = new THREE.MeshLambertMaterial({color: "black"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 100, 0.2, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		scene.add(str);
+		blueArray.push(str);
+	}
+	function cleanArrow(){
+		for(var i=0; i < arrowCollection.length; i++){
+			scene.remove(arrowCollection[i]);
+			renderer.renderLists.dispose();
+		}
+	}
+	function cleanCollection(){
+		for(var i=0; i < objectCollection.length; i++){
+			scene.remove(objectCollection[i]);
+			renderer.renderLists.dispose();
+		}
+	}
+	function setOn(){
+		is_closed = true;
+		lock.rotation.x = -Math.PI/2;
+	}
+	function setOff(){
+		is_closed = false;
+		lock.rotation.x = -Math.PI/2.3;
+	}
+	function setOnOff(){
+		onoff = !onoff;
+		if (onoff) {setOn()} else {setOff()};
+	}
+	function addSphere(x, y, z){
+		  var ballGeom = new THREE.SphereGeometry(0.5, 32, 24);
+		  var ball = new THREE.Mesh(ballGeom, new THREE.MeshPhongMaterial({color:"white"}));
+		  ball.position.set(x, y, z);
+		  scene.add(ball);
+		  return ball;
+	}
+	function addArrow(x,y,z, length, xo,yo,zo){
+		var dir = new THREE.Vector3( x, y, z );
+		dir.normalize();
+		var origin = new THREE.Vector3(xo,yo,zo);   
+		var hex = 0xff0000;
+		var arrow = new THREE.ArrowHelper( dir, origin, length, hex, 0.4, 0.3 );
+		arrow.line.material.linewidth = 5;
+		arrow.scale.set(2,2,2);
+		scene.add( arrow );
+		arrowCollection.push(arrow);
+	}
+	function addBattery(r){
+		var L = 4*r;
+		var texture = textureloader.load( '../textures/battery_texture.png' );
+		var bat_material = new THREE.MeshBasicMaterial( { map: texture } );
+		var bat_geometry = new THREE.CylinderGeometry( r, r, L, 32 );
+		var top_geometry = new THREE.CylinderGeometry( r+0.1, r+0.1, L/4, 32 );
+		var top = new THREE.Mesh( top_geometry, new THREE.MeshBasicMaterial({color: 0x0000ff}) );
+		battery = new THREE.Mesh( bat_geometry, bat_material );
+		battery.position.set(0,5,28);
+		battery.add(top);
+		top.position.set(0,1.8*r,0);
+		var geometry = new THREE.CylinderGeometry( r/4, r/4, r/4, 32 );
+		var material = new THREE.MeshBasicMaterial( {color: 0xff0000} );
+		var cap = new THREE.Mesh( geometry, material );
+		cap.position.set(0,2.4*r,0);
+		battery.add( cap );
+		battery.rotateZ(-Math.PI/2);
+		scene.add( battery );
+	}	
+	function createVector(position, direction, length, color = 0xffff00) {
+	    const arrowLength = length;
+	    const headLength = 3;
+	    const headWidth = 1.5;
+	    const thickness = 0.3;
+	
+	    // Create a cylinder to represent the shaft of the vector
+	    const shaftGeometry = new THREE.CylinderGeometry(thickness, thickness, arrowLength - headLength, 32); 
+	    const shaftMaterial = new THREE.MeshBasicMaterial({ color: color });
+	    
+	    // Create the shaft and rotate it to align with the vector direction
+	    const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+	    shaft.position.copy(position);
+	
+	    // ArrowHelper only for the arrowhead
+	    var arrowHelper = new THREE.ArrowHelper(direction, position, arrowLength, color, headLength, headWidth);
+	
+	    // Position the shaft correctly along the vector direction
+	    const midpoint = new THREE.Vector3().addVectors(position, direction.clone().multiplyScalar((arrowLength - headLength) / 2));
+	    shaft.position.copy(midpoint);
+	    
+	    // Rotate the shaft to match the direction of the vector
+	    shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+	
+	    // Add both the shaft and arrowhead to the scene
+	    scene.add(shaft);
+	    scene.add(arrowHelper);
+	
+	    return { shaft, arrowHelper };
+	}
+	function addText(x,y,z,t,alpha,colo){
+		fontloader.load( '/api/program-assets/3jcn-phyc240-wheatstone-capacitor/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+			var  textGeo = new TextGeometry(t, {
+			    size: 3,  
+			    height: 0.2, 
+			    curveSegments: 6,
+			    font: tex,
+		        }); 
+	
+		    	var  textMaterial = new THREE.MeshLambertMaterial({color: colo});  
+		    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+		    	textMesh.position.set(x,y,z);
+		    	textMesh.rotateY(alpha);
+		    	scene.add(textMesh);
+		});
+	}
+	function addWire2(r,l,x,y,z,alpha){
+		var geometry = new THREE.CylinderGeometry( r, r, l, 32 );
+		var material = new THREE.MeshBasicMaterial( {color: 'black'} );
+		wire = new THREE.Mesh(geometry,material);
+		wire.position.set(x,y,z);
+		wire.rotateX(alpha);
+		scene.add(wire);
+		return wire;
+	}
+	function addWire(r,l,x,y,z,alpha){
+		var geometry = new THREE.CylinderGeometry( r, r, l, 32 );
+		var material = new THREE.MeshBasicMaterial( {color: 'black'} );
+		wire = new THREE.Mesh(geometry,material);
+		wire.position.set(x,y,z);
+		wire.rotateZ(alpha);
+		scene.add(wire);
+		return wire;
+	}
+	function updateTextInput(val) {
+		document.getElementById('textInput').value = val; 
+	}
+	function changeCapacitance(e) {
+	    var target = (e.target) ? e.target : e.srcElement;
+	    C3 = parseFloat(target.value); // Ensure C3 is a number
+	    updateTextInput(C3.toFixed(1));
+	
+	    if (is_closed === true) {
+	        if (C3 === 4.4) { // Condition to set the needle to zero when C3 is exactly 4.4
+	            needle.rotation.z = 0; // Set the needle to point to zero (middle)
+	            scene.remove(needle);
+	            addNeedle();
+	        } else {
+	            // Generate a random non-zero angle between -45° and 45° in radians
+	            var ran;
+	            do {
+	                ran = (Math.random() * (Math.PI / 2)) - (Math.PI / 4);
+	            } while (ran === 0); // Ensure the random angle is not zero
+	
+	            needle.rotation.z = ran; // Set the needle's rotation within the -45° to 45° range
+	        }
+	    } else {
+	        scene.remove(needle);
+	        addNeedle();
+	    }
+	}
+
+	render = function() {	
+		controls.update();
+		requestAnimationFrame( render );
+		renderer.render( scene, camera );
+	}	
+	window.onload = initScene;	
+	</script>
+</head>
+<body>
+	<div id="info" style="text-align: left"> 
+		<button class="btn btn-warning" onclick="alert('A Wheatstone bridge for capacitors is used to measure an unknown capacitance by balancing two legs of a bridge circuit. In this case, set V = 30 V; C1 = 8.8 µF; C2 = 20 µF, and vary C3 until the voltmeter reads zero. The unknown capacitance can then be found using the equation: Cx = (C2 * C3) / C1.')">
+		    What is Wheatstone Bridge?
+		</button>
+		<button class="btn btn-default" id="onoff">Switch On / Off</button>	
+		<button class="btn btn-danger" id="reset">Reset</button><br>
+		<label style="color: black"> Variable Capacitor C3</label>
+		<input type="range" min="1" max="5" value="0.2" step="0.1" id="capacitanceSlider" 
+			orient="horizontal" style="width: 25%" > 
+		<label style="color: black"> C3 = </label>
+		<input type="text" size="4" id="textInput" value="0" style="color: black"><label>  µF </label>
+	</div>
+	<div id="viewport"></div>
+</body>
+</html>

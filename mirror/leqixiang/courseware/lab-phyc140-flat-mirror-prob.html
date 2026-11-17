@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>乐启享 · 物理实验</title>
+	<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc140-flat-mirror-prob.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Education",
+		    "name": "3JCN"
+		  }
+		}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/vendor/css/main3.css">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/phyc140-flat-mirror-prob">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<style>
+		input {
+			 text-align: center;
+		}
+		body {
+			color: white;
+		}
+		
+	</style> 
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info" style="text-align: center">
+	    <h1 style="text-align: center">PLANE MIRROR - HOW TALL?</h1>
+	  Change the man's position:
+	<div style="width: 20%; position: relative; margin-bottom: 20px; margin-left: auto; margin-right: auto;">
+	    <div style="display: flex; justify-content: space-between; position: relative;">
+		<span>2</span>
+		<span style="position: absolute; left: 50%; transform: translateX(-50%);">3</span>
+		<span>4</span>
+	    </div>
+	    <input type="range" min="2" max="4" value="2" step="0.1" id="xSlider" orient="horizontal" style="width: 100%; margin-top: 10px;">
+	</div>
+	    <button class="btn btn-warning" onclick="alert('What is the minimum height a mirror must be for a man to see his entire reflection? H is the man\'s height. As you can see from the simulation, the distance between the man and the mirror does not change the answer.')">
+		    Read Problem
+	     </button>
+
+	    <button type="button" class="btn btn-danger" id="reset">Reset</button>
+            
+    </div>
+	
+    <script type="module">
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';
+	import { GLTFLoader } from '../jsm/GLTFLoader.js';
+	    
+        var container, camera, scene, light, renderer, controls;
+        var onoff = false, lineArray = [], objs = [], objName, root, reflectedModel, xPos = -26;
+	var eyePositionY = 13, manPositionX = -10, manPositionY = -10, xOffset = -16; 
+	    
+	var fontloader = new FontLoader();
+        var textureloader = new THREE.TextureLoader();
+
+        const extrudeSettings = {
+	    depth: 12,  // Extrusion depth along the y-axis
+	    bevelEnabled: false,
+	    steps: 1
+	};
+
+        init();
+        animate();
+
+        function init() {
+            container = document.getElementById('container');
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x659471);
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
+            camera.position.set(0, 10, 100);
+	    const axesHelper = new THREE.AxesHelper( 15 );
+            //scene.add( axesHelper );
+
+            light = new THREE.DirectionalLight(0xffffff, 0.8);
+            scene.add(light);
+            var amlight = new THREE.AmbientLight(0x404040); // soft white light
+            scene.add(amlight);
+            var pointlight = new THREE.PointLight(0xfaef28, 1, 100);
+            pointlight.position.set(10, 25, 30);
+            scene.add(pointlight);
+		
+	    loadModel();
+	    loadModel2();
+	    createFlatMirror();
+	    drawLights();
+     
+  	    addText(-5,-2,0,2, 'Mirror');
+		
+            // Create floor:
+            var geometry1 = new THREE.BoxGeometry(180, 2, 60);
+            var mat = new THREE.MeshPhongMaterial({ color: 'red' });
+            var base = new THREE.Mesh(geometry1, mat);
+            var surface = new THREE.BoxGeometry(90, 0.2, 60);
+            var texture = textureloader.load('/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/vendor/Phyc140/texture/cross.png');
+            var covermesh = new THREE.Mesh(surface, new THREE.MeshBasicMaterial({ map: texture }));
+            base.add(covermesh);
+            covermesh.position.set(0, 1.1, 0);
+	    base.position.set(0,-11,0);
+	    scene.add(base);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            
+            document.getElementById('xSlider').addEventListener('input', changePosition);
+            document.getElementById("reset").addEventListener('click', function() { location.reload(); });
+            window.addEventListener('resize', onWindowResize, false);
+        }	
+	    
+	function changePosition() {
+	    xPos = - 13 * document.getElementById('xSlider').value;  // Update man's position
+		
+	    cleanLines();
+	    root.position.x = xPos - xOffset;
+	
+	    // Mirror the position of the reflected model
+	    reflectedModel.position.x = -xPos + xOffset;  // Maintain symmetry about the mirror
+	
+	    drawLights();
+	} 
+	    
+	function drawLights(){
+		function _0x545c(){var _0x45ad16=['2327565prvZna','white','4923096RtpRlT','blue','3539850TDNlmZ','374800HViVLG','272547izLKms','13578516GPqmTJ','2666404Xophud'];_0x545c=function(){return _0x45ad16;};return _0x545c();}function _0x32c4(_0x247375,_0x3fbe55){var _0x545cc2=_0x545c();return _0x32c4=function(_0x32c47b,_0x146fbf){_0x32c47b=_0x32c47b-0x136;var _0x47e143=_0x545cc2[_0x32c47b];return _0x47e143;},_0x32c4(_0x247375,_0x3fbe55);}var _0x1d3fd4=_0x32c4;(function(_0xfbd1a3,_0x2e2ac8){var _0x4199cc=_0x32c4,_0xc0580e=_0xfbd1a3();while(!![]){try{var _0x79ff2e=-parseInt(_0x4199cc(0x138))/0x1+-parseInt(_0x4199cc(0x137))/0x2+parseInt(_0x4199cc(0x13b))/0x3+parseInt(_0x4199cc(0x13a))/0x4+parseInt(_0x4199cc(0x136))/0x5+parseInt(_0x4199cc(0x13d))/0x6+-parseInt(_0x4199cc(0x139))/0x7;if(_0x79ff2e===_0x2e2ac8)break;else _0xc0580e['push'](_0xc0580e['shift']());}catch(_0x5306bd){_0xc0580e['push'](_0xc0580e['shift']());}}}(_0x545c,0x8b747),drawLine(0x0,eyePositionY+0x1,0x0,xPos,eyePositionY,0x0,_0x1d3fd4(0x13c)),drawLine(xPos,eyePositionY+0x2,0x0,0x0,eyePositionY+0x1,0x0,_0x1d3fd4(0x13c)),drawLine(0x0,0x4,0x0,xPos,eyePositionY,0x0,'white'),drawLine(xPos,-0xa,0x0,0x0,0x4,0x0,'white'),drawLine(0x0,eyePositionY+0x1,0x0,-xPos,eyePositionY,0x0,_0x1d3fd4(0x13e)),drawLine(-xPos,eyePositionY+0x2,0x0,0x0,eyePositionY+0x1,0x0,_0x1d3fd4(0x13e)),drawLine(0x0,0x4,0x0,-xPos,eyePositionY,0x0,'blue'),drawLine(-xPos,-0xa,0x0,0x0,0x4,0x0,_0x1d3fd4(0x13e)));
+	}
+
+	function loadModel() {
+	    const gltfLoader = new GLTFLoader();
+	    const url = '../models/free_kick/scene.gltf';
+	    gltfLoader.load(url, (gltf) => {
+	        root = gltf.scene;
+	        
+	        gltf.scene.traverse(function (child) {
+	            if (child.isMesh) {
+	                objs.push(child);
+	                if (child.name == 'mesh_8') {
+	                    let papa = child.parent;
+	                    papa.remove(child);  // Remove red soccer ball
+	                }
+	            }
+	        });
+	        
+	        // Setup original model
+	        root.scale.set(10, 10, 10);
+	        root.rotateY(Math.PI / 2);
+	        root.position.set(manPositionX, manPositionY, 0);
+	        fontloader.load("/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+		    var  textGeo = new TextGeometry('Man', {
+			    size: 0.2,  
+			    height: 0.05, 
+			    curveSegments: 6,
+			    font: tex,
+		    });
+		    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+		    const textMesh = new THREE.Mesh(textGeo, textMaterial);
+		    textMesh.rotation.y = -Math.PI/2;
+		    textMesh.position.set(0,2,-3);
+		    root.add(textMesh);
+		});
+	       
+	        scene.add(root);
+	    });
+	}
+	    
+	function loadModel2(){
+	    const gltfLoader = new GLTFLoader();
+		const url = '../models/free_kick/scene.gltf';
+		gltfLoader.load(url, (gltf) => {
+			reflectedModel = gltf.scene;
+			gltf.scene.traverse( function ( child ) {
+			    if ( child.isMesh ) {
+				    objs.push(child);
+				    if(child.name == 'mesh_8'){
+					    var papa = child.parent;
+					    papa.remove(child); // red soccer ball
+				    }
+			    }
+			} );
+			reflectedModel.scale.set(10,10,10);
+			reflectedModel.rotateY(-Math.PI/2);
+			reflectedModel.position.set(-manPositionX,manPositionY,0);
+		        fontloader.load("/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+			    var  textGeo = new TextGeometry('Image', {
+				    size: 0.2,  
+				    height: 0.05, 
+				    curveSegments: 6,
+				    font: tex,
+			    });
+			    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+			    const textMesh = new THREE.Mesh(textGeo, textMaterial);
+			    textMesh.rotation.y = Math.PI/2;
+			    textMesh.position.set(0,2,-2.5);
+			    reflectedModel.add(textMesh);
+			});
+			
+			scene.add(reflectedModel);
+		});  
+	}	
+	function createFlatMirror() {
+	    	const geometry = new THREE.BoxGeometry( 1, 10, 20 ); 
+		const mat = new THREE.MeshBasicMaterial({color: 'white'});
+		const material = new THREE.MeshPhongMaterial( {
+			color: "#ffffff",    
+			side:THREE.DoubleSide,
+			transparent:true,
+			opacity:0.8
+		});
+		const mirror = new THREE.Mesh( geometry, mat ); 
+		mirror.position.set(0,9,0);
+	    	const geo = new THREE.BoxGeometry( 0.2, 10, 20 ); 
+		const back =  new THREE.Mesh( geo, new THREE.MeshBasicMaterial({color: 'blue'}) ); 
+		back.position.set(0.5,0,0);
+		mirror.add(back);
+		scene.add( mirror );
+	}	    
+	function drawLine(x1, y1, z1, x2, y2, z2, color) {
+	    // Define start and end points
+	    const start = new THREE.Vector3(x1, y1, z1);
+	    const end = new THREE.Vector3(x2, y2, z2);
+	
+	    // Create the line using a curve
+	    const arr = [start, end];
+	    const mat = new THREE.MeshBasicMaterial({ color: color });
+	    const curve = new THREE.CatmullRomCurve3(arr);
+	    const geometry = new THREE.TubeGeometry(curve, 100, 0.1, 36, false);
+	    const str = new THREE.Mesh(geometry, mat);
+	    
+	    // Add the line to the scene
+	    scene.add(str);
+	    lineArray.push(str);
+	
+	    // Calculate the midpoint of the line
+	    const midPoint = new THREE.Vector3().lerpVectors(start, end, 0.5);
+	
+	    // Calculate direction vector from start to end
+	    const direction = new THREE.Vector3().subVectors(end, start).normalize();
+	
+	    // Create the tip of the arrow (a small cone)
+	    const arrowTipGeometry = new THREE.ConeGeometry(0.5, 2, 32); // Small cone for arrow tip
+	    const arrowTipMaterial = new THREE.MeshBasicMaterial({ color: color });
+	    const arrowTip = new THREE.Mesh(arrowTipGeometry, arrowTipMaterial);
+	
+	    // Position the arrow tip at the midpoint
+	    arrowTip.position.copy(midPoint);
+	
+	    // Rotate the arrow tip to point in the direction of the line
+	    arrowTip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+	
+	    // Add the arrow tip to the scene
+	    str.add(arrowTip);
+	    lineArray.push(str);
+	
+	    return str;
+	}
+      	
+	function addText(x,y,z,s,t){
+		fontloader.load("/api/program-assets/lab-phyc140-flat-mirror-prob/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+		    var  textGeo = new TextGeometry(t, {
+			    size: s,  
+			    height: 0.5, 
+			    curveSegments: 6,
+			    font: tex,
+		    });
+		    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+		    const textMesh = new THREE.Mesh(textGeo, textMaterial);
+		    textMesh.position.set(x,y,z);
+		    scene.add(textMesh);
+			return textMesh;
+		});
+	}
+	    
+	function cleanLines() {
+		for (let i = 0; i < lineArray.length; i++) {
+			scene.remove(lineArray[i]);
+		}
+		renderer.renderLists.dispose();
+	}
+	
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+	    
+       function animate() {
+	    requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+	    
+    </script>
+</body>
+</html>

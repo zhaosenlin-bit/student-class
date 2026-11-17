@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>乐启享 · 物理实验</title>
+
+<link rel="canonical" href="/courseware/lab-simulation-radioactive-decaybk?local=1">
+<link rel="icon" href="/brand/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+
+<meta name="description" content="Free interactive physics simulation for radioactive decay: dice model and two-state nuclear decay model with 3D visualization. Use for lecture demos, virtual labs, and homework. Part of 乐启享物理仿真 (300+ simulations).">
+<meta name="keywords" content="physics simulation, radioactive decay simulation, nuclear decay simulation, half-life simulation, dice decay model, two-state decay model, virtual physics lab, 3D physics simulation, interactive physics lab, OER physics simulations">
+
+<!-- Open Graph (Google/FB/LinkedIn) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Radioactive Decay Lab | Free Interactive Physics Simulation (3D)  | 乐启享课件库">
+<meta property="og:description" content="Free interactive physics simulation for radioactive decay (half-life): dice model + two-state nuclear decay model with a 3D visual lab.">
+<meta property="og:url" content="/courseware/simulation-radioactive-decay">
+<meta property="og:site_name" content="乐启享课件库">
+<meta property="og:image" content="/api/program-assets/lab-simulation-radioactive-decay/_ext/vendor/pictures/physics-simulations.jpg">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Radioactive Decay Lab | Free Interactive Physics Simulation (3D)  | 乐启享课件库">
+<meta name="twitter:description" content="Radioactive decay / half-life physics simulation: dice model + two-state nuclear decay model with 3D visualization.">
+<meta name="twitter:image" content="/api/program-assets/lab-simulation-radioactive-decay/_ext/vendor/pictures/physics-simulations.jpg">
+
+<!-- Optional: prevent caching while developing (remove for SEO if we can) -->
+<meta http-equiv="cache-control" content="no-cache">
+<meta http-equiv="expires" content="0">
+<meta http-equiv="pragma" content="no-cache">
+
+<link rel="stylesheet" href="/api/program-assets/lab-simulation-radioactive-decay/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<script src="/api/program-assets/lab-simulation-radioactive-decay/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="/api/program-assets/lab-simulation-radioactive-decay/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+<link rel="stylesheet" href="/api/program-assets/lab-simulation-radioactive-decay/_ext/vendor/css/main3.css">
+  
+<style>
+  :root{
+    --panel-max-h: 82vh;
+    --panel-w: 1200px;
+
+    --gap: 12px;
+    --pane-radius: 14px;
+    --panel-radius: 18px;
+
+    --dice-cell: 26px;
+    --dice-gap: 4px;
+
+    --n-ball: 30px;   /* default; JS overrides via style.setProperty */
+    --n-gap: 5px;
+  }
+
+  body{
+    margin:0;
+    overflow:hidden;
+    background:#000;
+    color:#fff;
+    font-family: Arial, sans-serif;
+  }
+
+  /* Title */
+  #info{
+    position:fixed;
+    top:16px;
+    left:0;
+    width:100%;
+    text-align:center;
+    z-index:10;
+    pointer-events:none;
+    color:#fff;
+  }
+
+  /* Fullscreen three.js */
+  #viewport{
+    position:fixed;
+    inset:0;
+    z-index:0;
+  }
+  #viewport canvas{
+    display:block;
+    width:100% !important;
+    height:100% !important;
+  }
+
+  /* Bottom panel container */
+  #panel{
+    position:fixed;
+    left:50%;
+    transform:translateX(-50%);
+    bottom:14px;
+    width:min(var(--panel-w), 96vw);
+    z-index:20;
+
+    padding:12px 14px;
+    max-height: var(--panel-max-h);
+    overflow:hidden;
+
+    background: rgba(0,0,0,0.78);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: var(--panel-radius);
+    box-shadow: 0 0 18px rgba(0,255,255,0.25);
+  }
+
+  /* 3 columns: coin | controls | view */
+  #panelGrid{
+    display:grid;
+    grid-template-columns: 320px 480px 1fr;
+    gap: var(--gap);
+    align-items:stretch;   /* equal heights */
+    min-height:0;
+  }
+
+  /* Common pane style */
+  .pane, .panel{
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: var(--pane-radius);
+    padding:10px;
+    color:#fff;
+
+    display:flex;
+    flex-direction:column;
+    min-height:0;          /* IMPORTANT for inner flex sizing */
+  }
+
+  .paneTitle{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:8px;
+  }
+  .muted{ font-size:12px; opacity:0.85; }
+
+  /* Form rows */
+  .uiRow{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:6px 0;
+    flex-wrap:wrap;
+  }
+  .uiRow input[type="text"]{
+    width:78px;
+    text-align:center;
+  }
+
+  /* Make form controls readable on dark panel */
+   #panel input[type="text"],
+  #panel select{
+    background: #ffffff;
+    color: #111111;
+    border: 1px solid rgba(0,0,0,0.35);
+  }
+  
+  #panel input[readonly]{
+    background: #ffffff;
+    color: #111111;
+    opacity: 1;
+  }
+  #panel input::placeholder{ color:#666 !important; }
+
+  /* Right-side wrappers */
+  #rightModelsWrap{
+    display:flex;
+    gap: var(--gap);
+    align-items:stretch;
+    min-height:0;
+  }
+  #diceModelWrap,
+  #nuclearModelWrap{
+    display:flex;
+    gap: var(--gap);
+    align-items:stretch;
+    flex:1;
+    min-height:0;
+  }
+
+  /* Optional min widths */
+  #diceControlsPane, #nuclearControlsPane{ min-width: 480px; }
+  #facesPane{ min-width: 420px; }
+
+  /* ---------- Dice faces (10x10) ---------- */
+  #facesBody{
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    justify-content: flex-start;   /* ← LEFT align */
+    align-items: center;           /* vertical center */
+  }
+
+ #diceGrid{
+  --cell: 26px;
+  --gap: 4px;
+
+  display: grid;
+  gap: var(--gap);
+
+  /* JS will set gridTemplateColumns = repeat(side, var(--cell)) */
+  justify-content: center;
+  align-content: center;
+}
+
+.die{
+  width: var(--cell);
+  height: var(--cell);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:6px;
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+
+    background: radial-gradient(circle at 30% 30%, #ff6666, #aa0000);
+    border:1px solid rgba(0,0,0,0.35);
+    color:#fff;
+}
+
+  .die.decayed{
+    background: radial-gradient(circle at 30% 30%, #e5e5e5, #888);
+    color:#111;
+  }
+    
+/* ---------- Nuclear field ---------- */
+#nuclearField{
+  --ball: 28px;     /* ball diameter */
+  --gap: 3px;       /* equal horizontal & vertical gap */
+
+  display: grid;
+  gap: var(--gap);
+  justify-content: center;
+  align-content: center;
+  padding: 0;
+}
+
+.nBall{
+  width: var(--ball);
+  height: var(--ball);
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ff7a7a, #b00000);
+  box-shadow: inset -6px -10px 16px rgba(0,0,0,0.35);
+}
+.nBall.grey{
+  background: radial-gradient(circle at 30% 30%, #f0f0f0, #8a8a8a);
+}
+
+  /* Responsive: stack panes */
+  @media (max-width: 1100px){
+    :root{ --panel-max-h: 60vh; }
+    #panelGrid{ grid-template-columns: 1fr; }
+    #rightModelsWrap, #diceModelWrap, #nuclearModelWrap{ flex-direction:column; }
+    #diceControlsPane, #facesPane, #nuclearControlsPane{ min-width:0; }
+    #nuclearFieldPanel{ max-width:none; }
+  }
+</style>
+
+  <!-- Author: Thomas Nguyen | 来源与许可：见项目文档 | Updated: 16 Feb 2026 -->
+  <script type="module">
+    import * as THREE from '../jsm/three.module.js';
+    import { OrbitControls } from '../jsm/OrbitControls.js';
+    import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+
+    // -------------------------
+    // Three.js globals
+    // -------------------------
+    let scene, camera, renderer, controls;
+    let coin, dice, coinGroup;
+    let diceWrap, nuclearWrap, nField, btnSwitch;
+
+    const radius = 0.8;      // RoundedBox corner radius
+    const smoothness = 4;    // RoundedBox smoothness
+
+    // -------------------------
+    // UI / Dice-decay globals
+    // -------------------------
+    let diceGridEl = null;
+    let timer = null;
+    let step = 0;
+    let alive = [];
+    let decayedCount = 0;
+    
+    let currentModel = "dice"; // "dice" or "nuclear"
+    let nTimer = null;
+    let nTime = 0;
+    let nDt = 0.2;
+    let nParticles = []; // { decayed: bool }
+    let nCols = 10;
+
+    // -------------------------
+    // Start
+    // -------------------------
+    init();
+    animate();
+
+ function init(_0x4ebg7g,_0xbb_0xe49,_0x13a,_0xg8975c,_0xf1aee,_0xf09d,_0x1872c,_0x552c,_0xb3ge4a,_0xa2b){diceGridEl=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("dirGecid".split("").reverse().join(""));renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'],326573^326575));document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("tropweiv".split("").reverse().join(""))['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0x0b1e3d);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](240342^240373,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],391641^391640,548279^548447);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](475782^475782,936372^936376,543756^543827);camera['\u006C\u006F\u006F\u006B\u0041\u0074'](154458^154458,911751^911751,641558^641558);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067']=!![];setupLights();const _0xc6a1ab=new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](708302^708162,538325^538327,789913^789895);_0x4ebg7g=(486830^486827)+(150609^150613);const _0xbbfcbd=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x00ff7f});const _0x703f=new THREE['\u004D\u0065\u0073\u0068'](_0xc6a1ab,_0xbbfcbd);_0x703f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](140462^140462,510267^510257,328089^328089);scene['\u0061\u0064\u0064'](_0x703f);const _0xgbga3a=new THREE['\u0054\u0065\u0078\u0074\u0075\u0072\u0065\u004C\u006F\u0061\u0064\u0065\u0072']();_0xbb_0xe49=(742443^742434)+(701834^701834);const _0x51db=_0xgbga3a['\u006C\u006F\u0061\u0064']("gnp.daeh/serutxet".split("").reverse().join(""));_0x13a="iibdfo".split("").reverse().join("");const _0x3_0xgga=_0xgbga3a['\u006C\u006F\u0061\u0064']("gnp.liat/serutxet".split("").reverse().join(""));_0xf1aee=637046^637043;_0xg8975c=857131^857135;var _0x6e0e=(418193^418194)+(153385^153387);_0xf09d=0.5;_0x6e0e=672926^672920;_0x1872c=481920^481984;coinGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();scene['\u0061\u0064\u0064'](coinGroup);const _0xd7e=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xf1aee,_0xf1aee,_0xf09d,_0x1872c);_0x552c=(519244^519247)+(876518^876512);const _0x27a=[new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xcccccc,"metalness":1,'\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073':0.3}),new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u006D\u0061\u0070':_0x51db,'\u006D\u0065\u0074\u0061\u006C\u006E\u0065\u0073\u0073':0.2,'\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073':0.7}),new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"map":_0x3_0xgga,"metalness":0.2,"roughness":0.7})];_0xb3ge4a=(838503^838498)+(978163^978171);coin=new THREE['\u004D\u0065\u0073\u0068'](_0xd7e,_0x27a);coin['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049']/(840392^840394);coin['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=Math['\u0050\u0049']/(975434^975432);coinGroup['\u0061\u0064\u0064'](coin);coinGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(828857^828839),952728^952713,742062^742062);const _0x82ec=[_0xgbga3a['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u006F\u006E\u0065\u002E\u0070\u006E\u0067"),_0xgbga3a['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0074\u0077\u006F\u002E\u0070\u006E\u0067"),_0xgbga3a['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0074\u0068\u0072\u0065\u0065\u002E\u0070\u006E\u0067"),_0xgbga3a['\u006C\u006F\u0061\u0064']("gnp.ruof/serutxet".split("").reverse().join("")),_0xgbga3a['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0066\u0069\u0076\u0065\u002E\u0070\u006E\u0067"),_0xgbga3a['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0073\u0069\u0078\u002E\u0070\u006E\u0067")];const _0xc77d=_0x82ec['\u006D\u0061\u0070'](t=>new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u006D\u0061\u0070':t,'\u0063\u006F\u006C\u006F\u0072':0xe6e6e6,'\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073':0.6,"metalness":0.02}));var _0xe44gb=(970278^970286)+(378563^378567);const _0xae67c=new RoundedBoxGeometry(771262^771254,306850^306858,190421^190429,smoothness,radius);_0xe44gb=929365^929366;dice=new THREE['\u004D\u0065\u0073\u0068'](_0xae67c,_0xc77d);const _0xg14ed=new THREE['\u004C\u0069\u006E\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073'](new THREE['\u0045\u0064\u0067\u0065\u0073\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xae67c),new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x000000}));_0xa2b=(395512^395513)+(972152^972157);dice['\u0061\u0064\u0064'](_0xg14ed);dice['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](276768^276798,194202^194184,788026^788026);scene['\u0061\u0064\u0064'](dice);setupCoinFlipUI();setupDecayUI();initDice();btnSwitch=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("ledoMhctiwSntb".split("").reverse().join(""));diceWrap=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("parWledoMecid".split("").reverse().join(""));nuclearWrap=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("parWledoMraelcun".split("").reverse().join(""));nField=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("dleiFraelcun".split("").reverse().join(""));btnSwitch['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),()=>{if(currentModel==="ecid".split("").reverse().join("")){stopPlay();diceWrap['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']="\u006E\u006F\u006E\u0065";nuclearWrap['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']="xelf".split("").reverse().join("");btnSwitch['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="ledom eciD ot raelcuN morf hctiwS".split("").reverse().join("");currentModel="raelcun".split("").reverse().join("");nuclearInit();}else{nuclearStop();nuclearWrap['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']="enon".split("").reverse().join("");diceWrap['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']="xelf".split("").reverse().join("");btnSwitch['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="ledom raelcuN ot eciD morf hctiwS".split("").reverse().join("");currentModel="\u0064\u0069\u0063\u0065";}});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0043\u006F\u006E\u0074\u0072\u006F\u006C")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",()=>{let _0x2fdg;const _0x739c0c=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0043\u006F\u006E\u0074\u0072\u006F\u006C")['\u0076\u0061\u006C\u0075\u0065'];_0x2fdg='\u0062\u0064\u0064\u0063\u0064\u0069';document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0048\u0061\u006C\u0066\u0057\u0072\u0061\u0070")['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']=_0x739c0c==="\u0068\u0061\u006C\u0066"?"\u0069\u006E\u006C\u0069\u006E\u0065\u002D\u0066\u006C\u0065\u0078":"enon".split("").reverse().join("");document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("parwPn".split("").reverse().join(""))['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079']=_0x739c0c==="\u0070"?"\u0069\u006E\u006C\u0069\u006E\u0065\u002D\u0066\u006C\u0065\u0078":"\u006E\u006F\u006E\u0065";nuclearInit();});["0Nn".split("").reverse().join(""),"edoMn".split("").reverse().join(""),"\u006E\u0044\u0074","\u006E\u0048\u0061\u006C\u0066","\u006E\u0050"]['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](id=>{const _0xb4ff=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);if(_0xb4ff)_0xb4ff['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",nuclearInit);});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("yalPn".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),nuclearStart);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("esuaPn".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",nuclearStop);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("petSn".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),()=>{nuclearStep();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0052\u0065\u0073\u0065\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",nuclearInit);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u004E\u0030")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("egnahc".split("").reverse().join(""),nuclearInit);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("edoMn".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",nuclearInit);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0052\u0075\u006C\u0065")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",nuclearInit);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0044\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",()=>{nDt=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0044\u0074")['\u0076\u0061\u006C\u0075\u0065']);});window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("eziser".split("").reverse().join(""),onWindowResize,false);}function setupLights(_0x5e825f){scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.35));const _0x6g8a=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,1.1);_0x6g8a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](706064^706062,506610^506586,178662^178674);scene['\u0061\u0064\u0064'](_0x6g8a);const _0x5f_0x329=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.55);_0x5e825f=502714^502717;_0x5f_0x329['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(177526^177502),236527^236539,522064^522074);scene['\u0061\u0064\u0064'](_0x5f_0x329);const _0xef31e=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.6);_0xef31e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(228687^228689),118617^118592,-(835569^835545));scene['\u0061\u0064\u0064'](_0xef31e);}function setupCoinFlipUI(_0xf5b1eg){var _0x2c07a=(395904^395913)+(332949^332948);const _0xb_0xg3d=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0066\u006C\u0069\u0070\u0043\u006F\u0075\u006E\u0074");_0x2c07a=(814226^814234)+(545222^545217);_0xb_0xg3d['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']="";for(let i=620975^620974;i<=(790539^790723);i++){const _0x2c34b=document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("noitpo".split("").reverse().join(""));_0x2c34b['\u0076\u0061\u006C\u0075\u0065']=i;_0x2c34b['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=i;_0xb_0xg3d['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](_0x2c34b);}const _0x2g8cf=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("nioCpilFntb".split("").reverse().join(""));const _0xgf1d1g=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("nioCteseRntb".split("").reverse().join(""));_0xf5b1eg=(413565^413565)+(928803^928805);_0x2g8cf['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),()=>{var _0x0f33f=(818013^818010)+(225308^225305);const N=parseInt(_0xb_0xg3d['\u0076\u0061\u006C\u0075\u0065'],456823^456829);_0x0f33f=(675585^675588)+(216388^216384);const _0x8ad9b=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u006F\u0069\u006E\u0054\u0079\u0070\u0065")['\u0076\u0061\u006C\u0075\u0065'];const _0x4832b=_0x8ad9b==="\u0062\u0069\u0061\u0073\u0065\u0064\u0036\u0030"?0.60:0.50;let _0xc1e=382409^382409;for(let i=852203^852203;i<N;i++){if(Math['\u0072\u0061\u006E\u0064\u006F\u006D']()<_0x4832b)_0xc1e++;}var _0x_0x6f1=(107170^107175)+(636268^636269);const _0xe99b=N-_0xc1e;_0x_0x6f1=(130550^130546)+(431335^431328);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("tuOsdaeh".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=_0xc1e;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("tuOsliat".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=_0xe99b;});_0xgf1d1g['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",()=>{document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0068\u0065\u0061\u0064\u0073\u004F\u0075\u0074")['\u0076\u0061\u006C\u0075\u0065']="";document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("tuOsliat".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']="";});}function parseFrac(str){const[a,b]=str['\u0073\u0070\u006C\u0069\u0074']("\u002F")['\u006D\u0061\u0070'](Number);return b?a/b:Number(str);}function diceGetP(_0xc3d14d){const _0x87997d=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("edoMecid".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065'];_0xc3d14d=766065^766068;if(_0x87997d==="\u0077\u006F\u0072\u006C\u0064")return null;return parseFrac(_0x87997d);}function nuclearGetP(_0x869c1d){const _0x37bed=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("lortnoCn".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065'];_0x869c1d=(536695^536703)+(862159^862150);var _0x79da=(130594^130597)+(676147^676154);const _0x9cd74c=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0044\u0074")['\u0076\u0061\u006C\u0075\u0065']);_0x79da="bfjjhi".split("").reverse().join("");if(_0x37bed==="\u0070"){return parseFrac(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("Pn".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);}const T=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0048\u0061\u006C\u0066")['\u0076\u0061\u006C\u0075\u0065']);const _0xc3e0ee=Math['\u006C\u006F\u0067'](688087^688085)/T;const p=(225691^225690)-Math['\u0065\u0078\u0070'](-_0xc3e0ee*_0x9cd74c);return p;}function nuclearGetDenominatorFromP(p){const _0xf1b0e=["6/1".split("").reverse().join(""),"21/1".split("").reverse().join(""),"\u0031\u002F\u0032\u0030","\u0031\u002F\u0031\u0030\u0030"];for(const s of _0xf1b0e){const _0xe76e=parseFrac(s);if(Math['\u0061\u0062\u0073'](_0xe76e-p)<1e-12){return parseInt(s['\u0073\u0070\u006C\u0069\u0074']("\u002F")[341839^341838],650798^650788);}}return null;}function nuclearInit(_0xa2e93b,_0xd184a){if(!nField)nField=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0075\u0063\u006C\u0065\u0061\u0072\u0046\u0069\u0065\u006C\u0064");if(!nField)return;nuclearStop();nTime=686575^686575;var _0xf5c8fb=(834228^834237)+(124484^124482);const _0xbd_0xc08=parseInt(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u004E\u0030")['\u0076\u0061\u006C\u0075\u0065'],903425^903435);_0xf5c8fb=(113069^113061)+(956781^956773);var _0x938c0c=(930081^930083)+(273581^273579);const _0x127aa=Math['\u006D\u0061\u0078'](975826^975827,Math['\u0072\u006F\u0075\u006E\u0064'](Math['\u0073\u0071\u0072\u0074'](_0xbd_0xc08)));_0x938c0c=303829^303836;const _0x118a=_0xbd_0xc08<=(555526^555551)?340355^340395:_0xbd_0xc08<=(607778^607814)?165135^165139:597652^597632;_0xa2e93b='\u006C\u0063\u0066\u0070\u006A\u0062';const _0x029c=Math['\u006D\u0061\u0078'](609864^609866,Math['\u0072\u006F\u0075\u006E\u0064'](_0x118a*0.10));_0xd184a=(382731^382730)+(685191^685185);nField['\u0073\u0074\u0079\u006C\u0065']['\u0073\u0065\u0074\u0050\u0072\u006F\u0070\u0065\u0072\u0074\u0079']("\u002D\u002D\u0062\u0061\u006C\u006C",_0x118a+"\u0070\u0078");nField['\u0073\u0074\u0079\u006C\u0065']['\u0073\u0065\u0074\u0050\u0072\u006F\u0070\u0065\u0072\u0074\u0079']("pag--".split("").reverse().join(""),_0x029c+"\u0070\u0078");nField['\u0073\u0074\u0079\u006C\u0065']['\u0067\u0072\u0069\u0064\u0054\u0065\u006D\u0070\u006C\u0061\u0074\u0065\u0043\u006F\u006C\u0075\u006D\u006E\u0073']=`repeat(${_0x127aa}, ${_0x118a}px)`;nParticles=Array['\u0066\u0072\u006F\u006D']({'\u006C\u0065\u006E\u0067\u0074\u0068':_0xbd_0xc08},()=>({"decayed":false}));renderNuclear();updateNuclearOutputs();}function nuclearStep(_0xe424fd){const _0x17f=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u004D\u006F\u0064\u0065")['\u0076\u0061\u006C\u0075\u0065'];_0xe424fd=(784066^784065)+(124053^124050);const _0xe5d5fg=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0044\u0074")['\u0076\u0061\u006C\u0075\u0065']);const p=nuclearGetP();nTime+=_0xe5d5fg;var _0x0a_0x662=(308374^308374)+(333555^333557);const _0x52cd=nuclearGetDenominatorFromP(p);_0x0a_0x662='\u006A\u0064\u0064\u006B\u0069\u0068';for(const _0xeb_0x28f of nParticles){if(_0xeb_0x28f['\u0064\u0065\u0063\u0061\u0079\u0065\u0064'])continue;var _0x13b4e=(906592^906593)+(981972^981970);let _0x3f51aa=false;_0x13b4e='\u0070\u0065\u0064\u0062\u0067\u0070';if(_0x17f==="\u0077\u006F\u0072\u006C\u0064"&&_0x52cd){var _0xb42d=(322790^322787)+(332623^332622);const _0x63641d=(971474^971475)+Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*_0x52cd);_0xb42d='\u0061\u0069\u006F\u006D\u0067\u006C';_0x3f51aa=_0x63641d===(970285^970284);}else{_0x3f51aa=Math['\u0072\u0061\u006E\u0064\u006F\u006D']()<p;}if(_0x3f51aa)_0xeb_0x28f['\u0064\u0065\u0063\u0061\u0079\u0065\u0064']=!![];}renderNuclear();updateNuclearOutputs();if(nParticles['\u0065\u0076\u0065\u0072\u0079'](x=>x['\u0064\u0065\u0063\u0061\u0079\u0065\u0064']))nuclearStop();}function nuclearStop(){if(!nTimer)return;clearInterval(nTimer);nTimer=null;}function nuclearStart(){if(nTimer)return;nTimer=setInterval(nuclearStep,419736^419682);}function renderNuclear(){nField['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']="";for(const p of nParticles){var _0xg6a4ed=(293885^293880)+(383993^383998);const d=document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("vid".split("").reverse().join(""));_0xg6a4ed="nqoild".split("").reverse().join("");d['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065']="\u006E\u0042\u0061\u006C\u006C"+(p['\u0064\u0065\u0063\u0061\u0079\u0065\u0064']?"\u0020\u0067\u0072\u0065\u0079":"");nField['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](d);}}function updateNuclearOutputs(_0x60ca2a){const N=nParticles['\u006C\u0065\u006E\u0067\u0074\u0068'];_0x60ca2a=(910028^910025)+(778376^778379);const _0xb3484d=nParticles['\u0066\u0069\u006C\u0074\u0065\u0072'](p=>p['\u0064\u0065\u0063\u0061\u0079\u0065\u0064'])['\u006C\u0065\u006E\u0067\u0074\u0068'];const _0xc_0xb65=N-_0xb3484d;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0054\u0069\u006D\u0065\u004F\u0075\u0074")['\u0076\u0061\u006C\u0075\u0065']=nTime['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](536816^536817);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("tuOlatoTn".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=N;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0052\u0065\u0064\u004F\u0075\u0074")['\u0076\u0061\u006C\u0075\u0065']=_0xc_0xb65;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006E\u0047\u0072\u0065\u0079\u004F\u0075\u0074")['\u0076\u0061\u006C\u0075\u0065']=_0xb3484d;}function setupDecayUI(){document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0062\u0074\u006E\u0050\u006C\u0061\u0079")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",startPlay);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("esuaPntb".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",stopPlay);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0062\u0074\u006E\u0053\u0074\u0065\u0070")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",oneStep);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("eciDteseRntb".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),()=>{stopPlay();initDice();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u004E\u0030")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",()=>{stopPlay();initDice();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("elur".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("egnahc".split("").reverse().join(""),()=>{stopPlay();initDice();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("teserPadbmal".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",()=>{});}function getLambda(_0xa_0x1a5){const _0xb7ed8c=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("teserPadbmal".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065'];_0xa_0x1a5=(159161^159166)+(625962^625955);if(_0xb7ed8c==="6_2nl".split("").reverse().join(""))return Math['\u006C\u006F\u0067'](876064^876066)/(870338^870340);return Math['\u006C\u006F\u0067'](195819^195817)/(372561^372571);}function applyDiceGridLayout(N){var _0x6b_0x1fa=(830699^830691)+(720671^720663);const _0x75b6b=Math['\u006D\u0061\u0078'](202333^202332,Math['\u0072\u006F\u0075\u006E\u0064'](Math['\u0073\u0071\u0072\u0074'](N)));_0x6b_0x1fa=(382087^382083)+(802376^802369);diceGridEl['\u0073\u0074\u0079\u006C\u0065']['\u0067\u0072\u0069\u0064\u0054\u0065\u006D\u0070\u006C\u0061\u0074\u0065\u0043\u006F\u006C\u0075\u006D\u006E\u0073']=`repeat(${_0x75b6b}, var(--cell))`;diceGridEl['\u0073\u0074\u0079\u006C\u0065']['\u0067\u0072\u0069\u0064\u0054\u0065\u006D\u0070\u006C\u0061\u0074\u0065\u0052\u006F\u0077\u0073']=`repeat(${_0x75b6b}, var(--cell))`;}function initDice(){var _0xb2e3dd=(414718^414716)+(543927^543925);const _0x7d7g5c=parseInt(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("0N".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065'],929901^929895);_0xb2e3dd=(283939^283943)+(830426^830431);step=571784^571784;decayedCount=677382^677382;alive=Array['\u0066\u0072\u006F\u006D']({'\u006C\u0065\u006E\u0067\u0074\u0068':_0x7d7g5c},()=>({'\u0076\u0061\u006C\u0075\u0065':(690353^690352)+Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*(545873^545879)),"decayed":false}));applyDiceGridLayout(_0x7d7g5c);updateOutputs();renderDice();}function renderDice(){if(!diceGridEl)return;diceGridEl['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']="";for(const d of alive){var _0x2_0xf29=(596769^596769)+(698971^698970);const _0xd_0x78f=document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("vid".split("").reverse().join(""));_0x2_0xf29=(108860^108852)+(692025^692028);_0xd_0x78f['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065']="\u0064\u0069\u0065"+(d['\u0064\u0065\u0063\u0061\u0079\u0065\u0064']?"\u0020\u0064\u0065\u0063\u0061\u0079\u0065\u0064":"");_0xd_0x78f['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=d['\u0076\u0061\u006C\u0075\u0065'];diceGridEl['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](_0xd_0x78f);}}function updateOutputs(){document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("tuOpets".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=step;var _0xc68d4b=(182008^182009)+(779581^779577);const _0x8bbf4c=alive['\u0066\u0069\u006C\u0074\u0065\u0072'](d=>!d['\u0064\u0065\u0063\u0061\u0079\u0065\u0064'])['\u006C\u0065\u006E\u0067\u0074\u0068'];_0xc68d4b=602770^602778;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0061\u006C\u0069\u0076\u0065\u004F\u0075\u0074")['\u0076\u0061\u006C\u0075\u0065']=_0x8bbf4c;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0064\u0065\u0061\u0064\u004F\u0075\u0074")['\u0076\u0061\u006C\u0075\u0065']=decayedCount;}function getDecayProbability(){return(805498^805499)/(209553^209559);}function oneStep(){const _0x8cf3e=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("edoMecid".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065'];const _0x1048c=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("elur".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065'];var _0xce7a7b=(332650^332643)+(645816^645816);const _0x82e9b=_0x1048c==="xis".split("").reverse().join("")?148226^148228:597196^597197;_0xce7a7b='\u0061\u006B\u0071\u0066\u0068\u0061';step++;const p=diceGetP();for(const d of alive){if(d['\u0064\u0065\u0063\u0061\u0079\u0065\u0064'])continue;d['\u0076\u0061\u006C\u0075\u0065']=(315814^315815)+Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u0072\u0061\u006E\u0064\u006F\u006D']()*(992669^992667));let _0xe269f=false;if(_0x8cf3e==="\u0077\u006F\u0072\u006C\u0064"){_0xe269f=d['\u0076\u0061\u006C\u0075\u0065']===_0x82e9b;}else{_0xe269f=Math['\u0072\u0061\u006E\u0064\u006F\u006D']()<p;if(_0xe269f)d['\u0076\u0061\u006C\u0075\u0065']=_0x82e9b;}if(_0xe269f){d['\u0064\u0065\u0063\u0061\u0079\u0065\u0064']=!![];decayedCount++;}}updateOutputs();renderDice();if(alive['\u0065\u0076\u0065\u0072\u0079'](d=>d['\u0064\u0065\u0063\u0061\u0079\u0065\u0064']))stopPlay();}function startPlay(){if(timer)return;timer=setInterval(oneStep,502921^502899);}function stopPlay(){if(!timer)return;clearInterval(timer);timer=null;}function onWindowResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function animate(){requestAnimationFrame(animate);if(coinGroup)coinGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']+=0.01;if(dice){dice['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']+=0.012;dice['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']+=0.008;}controls['\u0075\u0070\u0064\u0061\u0074\u0065']();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}
+    
+  </script>
+</head>
+
+<body>
+  <!-- Title -->
+  <div id="info">
+    <h1 style="margin:0;">Radioactive Decay Lab</h1>
+  </div>
+
+  <!-- Bottom panel -->
+  <div id="panel">
+    <div id="panelGrid">
+
+      <!-- (1) COIN -->
+      <div id="coinPane" class="pane">
+        <div class="paneTitle">Coin Flip Simulation</div>
+
+        <div class="uiRow">
+          <span>Flip</span>
+          <select id="flipCount"></select>
+          <span class="muted">coin(s)</span>
+        </div>
+
+        <div class="uiRow">
+          <select id="coinType" style="width:100%;">
+            <option value="fair">Standard (Heads/Tails)</option>
+            <option value="biased60">Biased (P(Heads)=0.60)</option>
+          </select>
+        </div>
+
+        <div class="uiRow">
+          <button id="btnFlipCoin" class="btn btn-default btn-sm">Flip Coin(s)</button>
+          <button id="btnResetCoin" class="btn btn-default btn-sm">Reset</button>
+        </div>
+
+        <div class="uiRow">
+          <span>Heads:</span> <input id="headsOut" type="text" readonly>
+          <span>Tails:</span> <input id="tailsOut" type="text" readonly>
+        </div>
+
+        <div class="uiRow" style="margin-top:10px;">
+          <button id="btnSwitchModel" class="btn btn-primary btn-sm" >
+            Switch from Dice to Nuclear model
+          </button>
+         
+         
+          
+        </div>
+      </div>
+
+      <!-- (2)+(3) RIGHT SIDE MODELS -->
+      <div id="rightModelsWrap">
+
+        <!-- ===== DICE MODEL ===== -->
+        <div id="diceModelWrap">
+
+          <!-- (2) Dice controls -->
+          <div id="diceControlsPane" class="pane">
+            <div class="paneTitle">Rolling Dice (Radioactive Decay Model)</div>
+            <div class="muted">Rule: dice that “decay” are removed each step</div>
+
+            <div class="uiRow">
+              <label>N<sub>0</sub>:</label>
+              <select id="N0">
+                <option value="100" selected>100</option>
+                <option value="4">4</option>
+                <option value="9">9</option>
+                <option value="16">16</option>
+                <option value="25">25</option>
+                <option value="36">36</option>
+                <option value="49">49</option>
+                <option value="64">64</option>
+                <option value="81">81</option>
+              </select>
+
+             <label style="margin-left:10px;">Mode:</label>
+              <select id="diceMode">
+                <option value="world" selected>world (visual dice)</option>
+                <option value="1/6">probability p = 1/6</option>
+                <option value="1/12">probability p = 1/12</option>
+                <option value="1/20">probability p = 1/20</option>
+                <option value="1/100">probability p = 1/100</option>
+              </select>
+            </div>
+
+            <div class="uiRow">
+              <label>Decay rule:</label>
+              <select id="rule">
+                <option value="one" selected>Decay if roll = 1</option>
+                <option value="six">Decay if roll = 6</option>
+              </select>
+
+              <label style="margin-left:10px;">λ (per step):</label>
+              <select id="lambdaPreset">
+                <option value="ln2_6">Half-life ~6 steps (λ=ln2/6)</option>
+                <option value="ln2_10">Half-life ~10 steps (λ=ln2/10)</option>
+              </select>
+            </div>
+
+            <div class="uiRow" style="margin-top:6px;">
+              <button id="btnPlay" class="btn btn-default btn-sm">▶ Play</button>
+              <button id="btnPause" class="btn btn-default btn-sm">⏸ Pause</button>
+              <button id="btnStep" class="btn btn-default btn-sm">Step</button>
+              <button id="btnResetDice" class="btn btn-default btn-sm">↻ Reset</button>
+            </div>
+
+            <div class="uiRow">
+              <span>Step:</span> <input id="stepOut" type="text" readonly value="0">
+              <span>Undecayed:</span> <input id="aliveOut" type="text" readonly value="0">
+              <span>Decayed:</span> <input id="deadOut" type="text" readonly value="0">
+            </div>
+          </div>
+
+          <!-- (3) Dice faces 10x10 -->
+          <div id="facesPane" class="pane">
+            <div class="paneTitle">Dice Faces (10×10)</div>
+            <div id="facesBody">
+              <div id="diceGrid"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ===== NUCLEAR MODEL ===== -->
+        <div id="nuclearModelWrap" style="display:none;">
+
+          <div id="nuclearControlsPane" class="pane">
+            <div class="paneTitle">Two-State Nuclear Decay Model</div>
+            <div class="muted">Red = undecayed (N₁), Grey = decayed (N₂)</div>
+
+<div class="uiRow">
+  <label>N<sub>0</sub>:</label>
+  <select id="nN0">
+    <option value="100" selected>100</option>
+    <option value="4">4</option>
+    <option value="9">9</option>
+    <option value="16">16</option>
+    <option value="25">25</option>
+    <option value="36">36</option>
+    <option value="49">49</option>
+    <option value="64">64</option>
+    <option value="81">81</option>
+  </select>
+
+  <label style="margin-left:10px;">Mode:</label>
+  <select id="nMode">
+    <option value="world" selected>world (roll)</option>
+    <option value="prob">probability</option>
+  </select>
+
+  <label style="margin-left:10px;">Δt:</label>
+  <select id="nDt">
+    <option value="0.1" selected>0.1 s</option>
+    <option value="0.2">0.2 s</option>
+  </select>
+</div>
+
+<div class="uiRow">
+  <label>Control:</label>
+  <select id="nControl">
+    <option value="half" selected>Half-life T½</option>
+    <option value="p">Probability p</option>
+  </select>
+
+  <span id="nHalfWrap" style="display:inline-flex; align-items:center; gap:6px;">
+    <label>T½:</label>
+    <select id="nHalf">
+      <option value="0.1">0.1 s</option>
+      <option value="0.5" selected>0.5 s</option>
+      <option value="1.0">1.0 s</option>
+      <option value="2.0">2.0 s</option>
+      <option value="3.0">3.0 s</option>
+    </select>
+  </span>
+
+  <span id="nPwrap" style="display:none; align-items:center; gap:6px;">
+    <label>p:</label>
+    <select id="nP">
+      <option value="1/6" selected>1/6</option>
+      <option value="1/12">1/12</option>
+      <option value="1/20">1/20</option>
+      <option value="1/100">1/100</option>
+    </select>
+  </span>
+</div>
+
+<div class="uiRow">
+  <label>Rule:</label>
+  <select id="nRule">
+    <option value="one" selected>decay if roll = 1</option>
+    <option value="six">decay if roll = 6</option>
+  </select>
+</div>
+
+            <div class="uiRow" style="margin-top:6px;">
+              <button id="nPlay" class="btn btn-default btn-sm">▶ Play</button>
+              <button id="nPause" class="btn btn-default btn-sm">⏸ Pause</button>
+              <button id="nStep" class="btn btn-default btn-sm">Step</button>
+              <button id="nReset" class="btn btn-default btn-sm">↻ Reset</button>
+            </div>
+
+            <div class="uiRow">
+              <span>t:</span> <input id="nTimeOut" type="text" readonly value="0.0">
+              <span>N:</span> <input id="nTotalOut" type="text" readonly value="100">
+              <span>N<sub>1</sub>:</span> <input id="nRedOut" type="text" readonly value="100">
+              <span>N<sub>2</sub>:</span> <input id="nGreyOut" type="text" readonly value="0">
+            </div>
+
+            <div class="uiRow muted">
+              Probability mode uses p = 1/6 each step (like dice).
+            </div>
+          </div>
+
+
+          <div id="nuclearFieldPane" class="pane">
+            <div class="paneTitle">Nuclear Field</div>
+            <div id="nuclearField"></div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-screen three.js canvas -->
+  <div id="viewport"></div>
+</body>
+
+</html>

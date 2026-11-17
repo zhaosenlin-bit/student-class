@@ -22,7 +22,7 @@
   }
 
   /*
-   * The 小白教育 courseware asks the page that hosts it for a classroom
+   * The courseware asks the page that hosts it for a classroom
    * acknowledgement before it shows anything. The classroom view answers
    * that question; the inline preview has to answer it as well, or the
    * lesson stays behind a "connecting" screen.
@@ -30,13 +30,13 @@
   function sameCourse(requested, previewId) {
     if (!requested) return false;
     if (requested === previewId) return true;
-    /* The 图灵智赋 works carry their own number, the catalogue the prefix. */
+    /* The works carry their own number, the catalogue the prefix. */
     return previewId.indexOf('afe-') === 0 && requested === previewId.slice(4);
   }
 
   window.addEventListener('message', function (event) {
     var data = event.data;
-    if (!data || data.type !== 'xiaobai:classroom-access' || data.version !== 1) return;
+    if (!data || data.type !== 'leqixiang:classroom-access' || data.version !== 1) return;
     if (data.state !== 'request') return;
     var box = host();
     var frame = frameOf(box);

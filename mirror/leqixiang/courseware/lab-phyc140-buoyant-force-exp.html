@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-buoyant-force-exp/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-buoyant-force-exp/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-buoyant-force-exp/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-buoyant-force-exp/_ext/vendor/css/final.css">
+<style>
+		body {
+			color: black;
+		}
+		    #density2Value, #density1Value, #h1Value{
+			  color: brown;             /* Bright green text */
+			  background-color: lightyellow;  /* Dark background */
+			  border: 1px solid #00ff00;  /* Green border */
+			  padding: 4px;
+			  border-radius: 4px;
+		   }
+	.control-panel {
+	  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  font-family: Arial, sans-serif;
+	  text-align: center;
+	}
+	.control-panel-right {
+	  position: absolute;
+	  top: 90px;
+	  right: 50px;
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  text-align: center;
+	}
+	
+	.control-group {
+	  margin-bottom: 15px;
+	}
+	
+	.slider-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+	
+	input[type="range"] {
+	  width: 65%;
+	  accent-color: blue;
+	}
+	
+	input[type="text"] {
+	  width: 80px;
+	  font-weight: bold;
+	  text-align: center;
+	  color: blue;
+	}
+	
+	.minmax {
+	  display: flex;
+	  justify-content: space-between;
+	  font-size: 12px;
+	  margin-top: 5px;
+	}
+	</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 31 May 2025       -->
+	
+	<script type="module">   
+		
+	import THREE from '../jsm/three.js';
+		
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';	
+	import { LineGeometry } from '../jsm/LineGeometry.js';
+	import { Line2 } from '../jsm/Line2.js';
+	import { LineMaterial } from '../jsm/LineMaterial.js';
+        import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  14 June 2025
+		 **  All rights reserved **/
+		
+	var initScene, dragcontrols, controls, light, referenceLine;
+	let waterHole, firstHole, isStart = false;
+	let metal, water, base1 = -15;
+	const g = 9.81;  
+	const labelArray = [], arrowArray = [];
+	
+	let waterHeight = 20, height;   // initial height of metal
+	let initialWaterHeight;  // store starting water height
+	let waterRiseStarted = false;
+	let metalFullySubmerged = false;
+	let simulationTime = 0;
+	let finalTempCalculated = false;
+	const scaleFactor = 20 / (2500 / (Math.PI * 10 * 10));  // based on default setup
+		
+	const _0x2b967a=_0x76cd;(function(_0x3c9de0,_0x1d61f9){const _0x5a91d1=_0x76cd,_0x28b9ed=_0x3c9de0();while(!![]){try{const _0x2b8eed=-parseInt(_0x5a91d1(0x10c))/0x1*(parseInt(_0x5a91d1(0xe6))/0x2)+-parseInt(_0x5a91d1(0x11a))/0x3*(parseInt(_0x5a91d1(0xfd))/0x4)+parseInt(_0x5a91d1(0x119))/0x5+parseInt(_0x5a91d1(0xe9))/0x6*(parseInt(_0x5a91d1(0x11c))/0x7)+parseInt(_0x5a91d1(0x112))/0x8+-parseInt(_0x5a91d1(0x10a))/0x9+parseInt(_0x5a91d1(0x123))/0xa*(parseInt(_0x5a91d1(0x110))/0xb);if(_0x2b8eed===_0x1d61f9)break;else _0x28b9ed['push'](_0x28b9ed['shift']());}catch(_0x159f44){_0x28b9ed['push'](_0x28b9ed['shift']());}}}(_0x4266,0x3d272));const textureloader=new THREE[(_0x2b967a(0x12d))](),fontloader=new FontLoader(),clock=new THREE[(_0x2b967a(0x130))]();function _0x76cd(_0x1c635f,_0x110350){const _0x42668e=_0x4266();return _0x76cd=function(_0x76cd85,_0x12de54){_0x76cd85=_0x76cd85-0xda;let _0x8deb66=_0x42668e[_0x76cd85];return _0x8deb66;},_0x76cd(_0x1c635f,_0x110350);}var scene=new THREE[(_0x2b967a(0x11f))](),camera=new THREE['PerspectiveCamera'](0x23,window[_0x2b967a(0xe5)]/window[_0x2b967a(0x10f)],0x1,0x3e8);const renderer=new THREE[(_0x2b967a(0x138))]({'antialias':!![]});initScene=function(){const _0x345da5=_0x2b967a;scene['background']=new THREE[(_0x345da5(0x107))](0xebd9d8),camera=new THREE[(_0x345da5(0xfe))](0x23,window[_0x345da5(0xe5)]/window[_0x345da5(0x10f)],0x1,0x3e8),camera[_0x345da5(0xf3)][_0x345da5(0x132)](0x0,2.5,0x5a),camera[_0x345da5(0xf2)](scene[_0x345da5(0xf3)]),scene[_0x345da5(0x102)](camera),controls=new OrbitControls(camera,renderer[_0x345da5(0x143)]),renderer[_0x345da5(0xf1)](window[_0x345da5(0xe5)],window['innerHeight']),renderer['shadowMap'][_0x345da5(0x140)]=!![],document[_0x345da5(0x10b)]('viewport')[_0x345da5(0xfb)](renderer[_0x345da5(0x143)]),setupLights(),createMilikanContainer(),addLabel(_0x345da5(0xf8),0xf,-0x7,0x0,'blue'),water=createWater(0x14),metal=addMetal();var _0x584338=new THREE[(_0x345da5(0x135))](0x78,0x2,0x28);const _0x470500=new THREE[(_0x345da5(0xf6))](_0x584338,new THREE[(_0x345da5(0x13d))]({'color':_0x345da5(0x137)}));_0x470500[_0x345da5(0xf3)][_0x345da5(0x132)](0x0,-0x10,0x0),scene[_0x345da5(0x102)](_0x470500),document[_0x345da5(0x10b)](_0x345da5(0x103))[_0x345da5(0x105)](_0x345da5(0x124),function(){const _0x436481=_0x345da5;location[_0x436481(0x116)]();}),document[_0x345da5(0x10b)](_0x345da5(0x11e))['addEventListener'](_0x345da5(0x12b),()=>{const _0x1eb232=_0x345da5;document['getElementById'](_0x1eb232(0x117))[_0x1eb232(0x114)]=document['getElementById'](_0x1eb232(0x11e))[_0x1eb232(0x114)],finalTempCalculated=![],scene['remove'](metal),metal=addMetal(),clearForceArrows();}),document[_0x345da5(0x10b)]('liquidVolSlider')[_0x345da5(0x105)]('input',()=>{const _0x482ec3=_0x345da5;document[_0x482ec3(0x10b)](_0x482ec3(0xe4))[_0x482ec3(0x114)]=document[_0x482ec3(0x10b)](_0x482ec3(0x13e))[_0x482ec3(0x114)],finalTempCalculated=![],updateHotLiquidHeight();}),document[_0x345da5(0x10b)](_0x345da5(0xef))[_0x345da5(0x105)](_0x345da5(0x12b),()=>{const _0x23d1aa=_0x345da5;document[_0x23d1aa(0x10b)](_0x23d1aa(0x12e))[_0x23d1aa(0x114)]=document['getElementById'](_0x23d1aa(0xef))[_0x23d1aa(0x114)],finalTempCalculated=![];}),document[_0x345da5(0x10b)](_0x345da5(0x115))['addEventListener'](_0x345da5(0x127),()=>{finalTempCalculated=![],updateMetalColor();}),document[_0x345da5(0x10b)](_0x345da5(0x14a))[_0x345da5(0x105)](_0x345da5(0x127),()=>{finalTempCalculated=![];}),updateHotLiquidHeight(),initialWaterHeight=waterHeight,window[_0x345da5(0x105)](_0x345da5(0xe0),onWindowResize,![]),requestAnimationFrame(render),render();};function updateMetalColor(){const _0x4084b4=_0x2b967a;if(!metal)return;const _0x28536d=document[_0x4084b4(0x10b)](_0x4084b4(0x115)),_0x295bea=_0x28536d[_0x4084b4(0x126)];let _0x17000d=_0x4084b4(0x11b);switch(_0x295bea){case 0x0:_0x17000d='#8B4513';break;case 0x1:_0x17000d='#1E90FF';break;case 0x2:_0x17000d=_0x4084b4(0x111);break;case 0x3:_0x17000d=_0x4084b4(0x106);break;case 0x4:_0x17000d=_0x4084b4(0x11b);break;}metal[_0x4084b4(0xf9)][_0x4084b4(0xf5)][_0x4084b4(0x132)](_0x17000d);}function addMetal(){const _0xee4ed0=_0x2b967a,_0x44c32f=parseFloat(document[_0xee4ed0(0x10b)](_0xee4ed0(0x11e))[_0xee4ed0(0x114)]),_0x2afc0a=parseFloat(document['getElementById'](_0xee4ed0(0x115))[_0xee4ed0(0x114)]),_0x1e3fa5=parseFloat(document[_0xee4ed0(0x10b)](_0xee4ed0(0x14a))['value']),_0x1c7aab=0x8,_0x21de15=0x4,_0x59565a=_0x1c7aab*_0x21de15;height=_0x44c32f/_0x59565a;const _0x3679ad=new RoundedBoxGeometry(_0x1c7aab,height,_0x21de15,0x4,0.5),_0x4b8a2d=new THREE['MeshStandardMaterial']({'color':_0xee4ed0(0x120),'metalness':0x1,'roughness':0.1}),_0x5b4b3e=new THREE[(_0xee4ed0(0xf6))](_0x3679ad,_0x4b8a2d),_0x3c197f=base1+waterHeight,_0x365088=Math[_0xee4ed0(0x118)](_0x2afc0a/_0x1e3fa5,0x1),_0x362cd9=height*_0x365088,_0x17d05f=_0x3c197f+(height-_0x362cd9)/0x2;return _0x5b4b3e[_0xee4ed0(0xf3)][_0xee4ed0(0x132)](0x0,_0x17d05f,0x0),_0x5b4b3e[_0xee4ed0(0xe3)][_0xee4ed0(0xdb)]=height,_0x5b4b3e[_0xee4ed0(0xf4)]=0x0,scene[_0xee4ed0(0x102)](_0x5b4b3e),_0x5b4b3e;}const forceArrows=[];function createTextSprite(_0x3b532d,_0x37ef99=_0x2b967a(0xdf)){const _0x53faa3=_0x2b967a,_0x4b3d11=document[_0x53faa3(0x146)]('canvas'),_0x51fd39=_0x4b3d11[_0x53faa3(0x104)]('2d'),_0x1430a0=0x40;_0x51fd39[_0x53faa3(0x131)]=_0x1430a0+_0x53faa3(0xda);const _0xf636b8=_0x51fd39[_0x53faa3(0x133)](_0x3b532d)[_0x53faa3(0x13a)];_0x4b3d11[_0x53faa3(0x13a)]=_0xf636b8+0x28,_0x4b3d11['height']=_0x1430a0+0x1e,_0x51fd39[_0x53faa3(0x131)]=_0x1430a0+'px\x20Arial',_0x51fd39[_0x53faa3(0x145)]=_0x53faa3(0x10d),_0x51fd39[_0x53faa3(0xdd)](0x0,0x0,_0x4b3d11['width'],_0x4b3d11[_0x53faa3(0xdb)]),_0x51fd39['fillStyle']=_0x37ef99,_0x51fd39[_0x53faa3(0xf7)]=_0x53faa3(0xff),_0x51fd39['fillText'](_0x3b532d,0x14,0xf);const _0x1102a0=new THREE[(_0x53faa3(0xe8))](_0x4b3d11),_0x42e6fa=new THREE[(_0x53faa3(0x13f))]({'map':_0x1102a0,'transparent':!![]}),_0x16e068=new THREE['Sprite'](_0x42e6fa);return _0x16e068[_0x53faa3(0x12c)][_0x53faa3(0x132)](0x6,0x3,0x1),_0x16e068;}function clearForceArrows(){const _0x18f191=_0x2b967a;for(const _0x2bbb4c of forceArrows){scene[_0x18f191(0x136)](_0x2bbb4c[_0x18f191(0xfa)]),scene[_0x18f191(0x136)](_0x2bbb4c['label']);}forceArrows['length']=0x0;}function drawForceArrow(_0x4717b7,_0x61e742,_0x2db3f0,_0x36e2ff,_0x2fab38){const _0x326091=_0x2b967a,_0x437812=0x1e,_0x16cca9=THREE[_0x326091(0x109)][_0x326091(0x12a)](_0x2db3f0*_0x437812,0.8,0x12),_0x56db51=1.6,_0x499514=0.8,_0x59bb6c=new THREE[(_0x326091(0x125))](_0x61e742,_0x4717b7,_0x16cca9,_0x36e2ff,_0x56db51,_0x499514);scene[_0x326091(0x102)](_0x59bb6c);const _0x5845e6=new THREE['Vector3']()[_0x326091(0x10e)](_0x4717b7)['addScaledVector'](_0x61e742,_0x16cca9+0.8),_0xdd1002=createTextSprite(_0x2fab38,_0x36e2ff===0xff0000?_0x326091(0xe2):_0x326091(0x129));_0xdd1002[_0x326091(0xf3)][_0x326091(0x10e)](_0x5845e6),scene[_0x326091(0x102)](_0xdd1002),forceArrows[_0x326091(0x108)]({'arrow':_0x59bb6c,'label':_0xdd1002});}function drawForces(_0x4f9810,_0x13f7bc){const _0x15b4f3=_0x2b967a;clearForceArrows();if(!metal)return;const _0x1cb3da=metal[_0x15b4f3(0xf3)][_0x15b4f3(0xed)](),_0x332baa=new THREE[(_0x15b4f3(0x144))](0x0,0x1,0x0),_0x2932a9=new THREE[(_0x15b4f3(0x144))](0x0,-0x1,0x0);_0x13f7bc>0x0&&drawForceArrow(_0x1cb3da,_0x332baa,_0x13f7bc,0x0,_0x15b4f3(0x142)+_0x13f7bc[_0x15b4f3(0x101)](0x2)+'\x20N'),_0x4f9810>0x0&&drawForceArrow(_0x1cb3da,_0x2932a9,_0x4f9810,0xff0000,'W\x20=\x20'+_0x4f9810['toFixed'](0x2)+'\x20N');}function addVector(_0x2d48b7,_0x5ae7c6,_0x30477f,_0x5a7b16){const _0x37bafd=_0x2b967a,_0x5dec66=_0x30477f,_0x2e53f2=0.3,_0x18489b=0.2;var _0x3f1f3d=new THREE[(_0x37bafd(0x125))](_0x2d48b7,_0x5ae7c6,_0x5dec66,_0x5a7b16,_0x2e53f2,_0x18489b);return scene['add'](_0x3f1f3d),_0x3f1f3d;}function _0x4266(){const _0x219009=['copy','innerHeight','11ndKvxc','#D2B48C','1083248HTssSK','cos','value','objSelector','reload','volValue','min','1566195xoObvK','189324gtkfmn','#888888','94843BoXSFx','gray','volSlider','Scene','brown','getElapsedTime','AmbientLight','3428990JmBhcD','click','ArrowHelper','selectedIndex','change','geometry','#0044ff','clamp','input','scale','TextureLoader','tempLiquidValue','decay','Clock','font','set','measureText','update','BoxGeometry','remove','purple','WebGLRenderer','aspect','width','lineTo','rotation','MeshPhongMaterial','liquidVolSlider','SpriteMaterial','enabled','CylinderGeometry','F_b\x20=\x20','domElement','Vector3','fillStyle','createElement','MeshLambertMaterial','bForce','target','liquidSelector','distance','px\x20Arial','height','load','fillRect','absarc','#000000','resize','#ffffff','#cc0000','userData','liquidVolValue','innerWidth','34jhHaZV','angle','CanvasTexture','174JRHzDQ','moveTo','#0000ff','SpotLight','clone','DirectionalLight','tempLiquidSlider','Shape','setSize','lookAt','position','velocityY','color','Mesh','textBaseline','Liquid','material','arrow','appendChild','ExtrudeGeometry','24MySXdE','PerspectiveCamera','top','MeshBasicMaterial','toFixed','add','reset','getContext','addEventListener','#FFFFFF','Color','push','MathUtils','4056912hZhDFy','getElementById','6151HDTWIP','rgba(255,255,255,0.9)'];_0x4266=function(){return _0x219009;};return _0x4266();}function updateHotLiquidHeight(){const _0x5094f3=_0x2b967a,_0x235ba3=parseFloat(document[_0x5094f3(0x10b)](_0x5094f3(0x13e))[_0x5094f3(0x114)]),_0x298286=Math['PI']*0xa*0xa,_0x311123=_0x235ba3/_0x298286,_0x414f53=_0x311123*scaleFactor;waterHeight=_0x414f53,water['scale']['y']=0x1,water[_0x5094f3(0x128)]=new THREE['CylinderGeometry'](0xa,0xa,_0x414f53,0x20),water[_0x5094f3(0xf3)]['y']=base1+_0x414f53/0x2;}function createWater(_0x33095e){const _0x22f7d7=_0x2b967a,_0x3a4bbf=new THREE['CylinderGeometry'](0xa,0xa,_0x33095e,0x20),_0x482df1=new THREE['MeshPhongMaterial']({'color':_0x22f7d7(0xeb),'side':THREE['DoubleSide'],'transparent':!![],'opacity':0.8}),_0x5d655c=new THREE['Mesh'](_0x3a4bbf,_0x482df1);return _0x5d655c[_0x22f7d7(0xf3)]['set'](0x0,base1+_0x33095e/0x2,0x0),scene[_0x22f7d7(0x102)](_0x5d655c),_0x5d655c;}function createMilikanContainer(){const _0xa244ae=_0x2b967a;darkHalfPipe(),clearHalfPipe();const _0x4675b2=new THREE['CylinderGeometry'](0xc,0xc,0x2,0x20),_0x573fe3=new THREE['MeshBasicMaterial']({'color':'black'}),_0x120b63=new THREE[(_0xa244ae(0xf6))](_0x4675b2,_0x573fe3);_0x120b63[_0xa244ae(0xf3)]['set'](0x0,-0xe,0x0),scene[_0xa244ae(0x102)](_0x120b63);}function darkHalfPipe(){const _0x1f8914=_0x2b967a;var _0x278ac6=new THREE[(_0x1f8914(0xf0))]();_0x278ac6[_0x1f8914(0xea)](-0xc,0x0),_0x278ac6['absarc'](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x278ac6['lineTo'](0xc,0x0),_0x278ac6['absarc'](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x278ac6[_0x1f8914(0x13b)](-0xc,0x0);var _0x33aa9a={'steps':0x2,'depth':0x18,'bevelEnabled':![]},_0x42f63c=new THREE[(_0x1f8914(0xfc))](_0x278ac6,_0x33aa9a),_0x68571b=new THREE[(_0x1f8914(0x100))]({'color':_0x1f8914(0x11d)}),_0x2aea63=new THREE[(_0x1f8914(0xf6))](_0x42f63c,_0x68571b);_0x2aea63[_0x1f8914(0x13c)]['x']=-Math['PI']/0x2,_0x2aea63[_0x1f8914(0xf3)][_0x1f8914(0x132)](0x0,-0xd,0x0),scene['add'](_0x2aea63);}function clearHalfPipe(){const _0xe32526=_0x2b967a;var _0x22e773=new THREE[(_0xe32526(0xf0))]();_0x22e773[_0xe32526(0xea)](-0xc,0x0),_0x22e773['absarc'](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x22e773[_0xe32526(0x13b)](0xc,0x0),_0x22e773[_0xe32526(0xde)](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x22e773['lineTo'](-0xc,0x0);var _0x198a8f={'steps':0x1,'depth':0x18,'bevelEnabled':![]},_0x1bd9e1=new THREE[(_0xe32526(0xfc))](_0x22e773,_0x198a8f),_0x2f7827=new THREE['MeshPhongMaterial']({'color':_0xe32526(0xe1),'side':THREE['DoubleSide'],'transparent':!![],'opacity':0.2}),_0x3aa3df=new THREE['Mesh'](_0x1bd9e1,_0x2f7827);_0x3aa3df['rotation']['x']=Math['PI']/0x2,_0x3aa3df[_0xe32526(0xf3)][_0xe32526(0x132)](0x0,0xb,0x0),scene[_0xe32526(0x102)](_0x3aa3df);}function setupLights(){const _0x589718=_0x2b967a,_0x86283d=new THREE[(_0x589718(0xee))](0xffffff,0x1);_0x86283d[_0x589718(0xf3)][_0x589718(0x132)](0xa,0x28,0x14),scene['add'](_0x86283d);const _0x2f6a9e=new THREE[(_0x589718(0xec))](0xffffff,0x3);_0x2f6a9e['position']['set'](0x0,0x14,-0x5),_0x2f6a9e[_0x589718(0xe7)]=Math['PI']/0x8,_0x2f6a9e['penumbra']=0.5,_0x2f6a9e[_0x589718(0x12f)]=0x2,_0x2f6a9e[_0x589718(0x14b)]=0x64,_0x2f6a9e[_0x589718(0x149)]['position'][_0x589718(0x132)](0x0,0x0,0x0),scene[_0x589718(0x102)](_0x2f6a9e),scene[_0x589718(0x102)](_0x2f6a9e[_0x589718(0x149)]);const _0x80e102=new THREE[(_0x589718(0x122))](0xffffff,0.6);scene['add'](_0x80e102);}function addLabel(_0x15c1af,_0x2af931,_0x39c063,_0x4f9ec2,_0x2d2352){const _0x957181=_0x2b967a;fontloader[_0x957181(0xdc)]('/api/program-assets/lab-phyc140-buoyant-force-exp/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json',function(_0x5eeed9){const _0x520c19=_0x957181;var _0x585a73=new TextGeometry(_0x15c1af,{'size':1.5,'height':0.2,'curveSegments':0x6,'font':_0x5eeed9}),_0x1c6be7=new THREE[(_0x520c19(0x147))]({'color':_0x2d2352}),_0x346b3c=new THREE['Mesh'](_0x585a73,_0x1c6be7);_0x346b3c[_0x520c19(0xf3)][_0x520c19(0x132)](_0x2af931,_0x39c063,_0x4f9ec2),scene[_0x520c19(0x102)](_0x346b3c);});}function calculateBuoyantForce(){const _0x5c03d3=_0x2b967a,_0x23cddc=parseFloat(document[_0x5c03d3(0x10b)](_0x5c03d3(0x14a))['value']),_0x1fa854=9.81,_0x1e8c9b=0x4,_0x1a51a5=0x4,_0x15421e=metal[_0x5c03d3(0xe3)][_0x5c03d3(0xdb)]||0x4,_0x22bd89=_0x1e8c9b*_0x15421e*_0x1a51a5,_0x14ac92=metal['position']['y']-_0x15421e/0x2,_0x10745b=metal[_0x5c03d3(0xf3)]['y']+_0x15421e/0x2,_0x1cd7b9=base1+waterHeight;let _0xab8d76=0x0;if(_0x10745b<_0x1cd7b9)_0xab8d76=_0x15421e;else _0x14ac92<_0x1cd7b9?_0xab8d76=_0x1cd7b9-_0x14ac92:_0xab8d76=0x0;const _0x5b6c7d=_0x1e8c9b*_0x1a51a5*_0xab8d76,_0x3b5d2d=_0x5b6c7d/0xf4240,_0x13deb=_0x23cddc*0x3e8,_0x13fa33=_0x13deb*_0x1fa854*_0x3b5d2d;document[_0x5c03d3(0x10b)](_0x5c03d3(0x148))[_0x5c03d3(0x114)]=_0x13fa33[_0x5c03d3(0x101)](0x3)+'\x20N';}function updateWaterHeightDueToDisplacement(){const _0x43ba68=_0x2b967a,_0x2bae4e=0x4,_0x2fa5f1=0x4,_0x3a13c0=metal[_0x43ba68(0xe3)]['height']||0x4,_0x17cf5f=metal[_0x43ba68(0xf3)]['y']-_0x3a13c0/0x2,_0x5af78a=metal[_0x43ba68(0xf3)]['y']+_0x3a13c0/0x2,_0x5802df=base1+waterHeight;let _0x26ba4b=0x0;if(_0x5af78a<_0x5802df)_0x26ba4b=_0x3a13c0;else _0x17cf5f<_0x5802df?_0x26ba4b=_0x5802df-_0x17cf5f:_0x26ba4b=0x0;const _0x5f2421=_0x2bae4e*_0x2fa5f1*_0x26ba4b,_0x2a04bc=parseFloat(document[_0x43ba68(0x10b)](_0x43ba68(0x13e))[_0x43ba68(0x114)]),_0x400d34=Math['PI']*0xa*0xa,_0x236a7d=_0x2a04bc/_0x400d34,_0xa7ee98=_0x5f2421/_0x400d34,_0x4bc4fd=(_0x236a7d+_0xa7ee98)*scaleFactor;waterHeight=_0x4bc4fd,water[_0x43ba68(0x12c)]['y']=0x1,water['geometry']=new THREE[(_0x43ba68(0x141))](0xa,0xa,_0x4bc4fd,0x20),water['position']['y']=base1+_0x4bc4fd/0x2;}function onWindowResize(){const _0x4b2b7e=_0x2b967a;camera[_0x4b2b7e(0x139)]=window['innerWidth']/window['innerHeight'],camera['updateProjectionMatrix'](),renderer['setSize'](window[_0x4b2b7e(0xe5)],window[_0x4b2b7e(0x10f)]);}const render=()=>{const _0x5a8cee=_0x2b967a;controls[_0x5a8cee(0x134)](),requestAnimationFrame(render);const _0x5c5bd4=clock[_0x5a8cee(0x121)](),_0x22bff0=parseFloat(document[_0x5a8cee(0x10b)](_0x5a8cee(0x115))[_0x5a8cee(0x114)]),_0xbf661a=parseFloat(document['getElementById'](_0x5a8cee(0x14a))[_0x5a8cee(0x114)]),_0x2043bf=parseFloat(document[_0x5a8cee(0x10b)](_0x5a8cee(0xef))['value']),_0x4cc331=0.0004,_0x4d3bff=_0xbf661a*(0x1-_0x4cc331*(_0x2043bf-0x14)),_0x685a7f=0x4,_0x336feb=0x4,_0x21bf0b=_0x685a7f*_0x336feb*height,_0x57d837=_0x21bf0b/0xf4240,_0x151ecc=_0x22bff0*_0x21bf0b/0x3e8,_0xed82f9=_0x151ecc*g,_0x2282d4=metal[_0x5a8cee(0xf3)]['y']-height/0x2,_0x4cb18c=metal[_0x5a8cee(0xf3)]['y']+height/0x2,_0x8fdb48=base1+waterHeight;let _0x55e43e=0x0;if(_0x4cb18c<_0x8fdb48)_0x55e43e=height;else _0x2282d4<_0x8fdb48?_0x55e43e=_0x8fdb48-_0x2282d4:_0x55e43e=0x0;const _0x3e7e7c=_0x685a7f*_0x336feb*_0x55e43e,_0x2b8b57=_0x3e7e7c/0xf4240,_0x4e1348=_0x4d3bff*0x3e8*g*_0x2b8b57,_0x465cb5=_0x4e1348-_0xed82f9,_0x5cde42=_0x2282d4<=base1;_0x5cde42?(metal['position']['y']=base1+height/0x2,_0x465cb5<=0x0?metal[_0x5a8cee(0xf4)]=0x0:(metal[_0x5a8cee(0xf4)]=(metal[_0x5a8cee(0xf4)]||0x0)+_0x465cb5*0.01-metal[_0x5a8cee(0xf4)]*0.1,metal['position']['y']+=_0x465cb5*0.05-(metal[_0x5a8cee(0xf4)]||0x0)*0.1)):(metal[_0x5a8cee(0xf4)]=(metal[_0x5a8cee(0xf4)]||0x0)+_0x465cb5*0.01-metal[_0x5a8cee(0xf4)]*0.1,metal[_0x5a8cee(0xf3)]['y']+=_0x465cb5*0.05-(metal[_0x5a8cee(0xf4)]||0x0)*0.1);if(!_0x5cde42||_0x465cb5>0x0){const _0x56a171=0.05,_0x4efb19=1.5;metal['rotation']['x']=_0x56a171*Math['sin'](_0x4efb19*_0x5c5bd4),metal[_0x5a8cee(0x13c)]['z']=_0x56a171*Math[_0x5a8cee(0x113)](_0x4efb19*_0x5c5bd4);}else metal[_0x5a8cee(0x13c)]['x']=0x0,metal[_0x5a8cee(0x13c)]['z']=0x0;updateWaterHeightDueToDisplacement(),document[_0x5a8cee(0x10b)](_0x5a8cee(0x148))[_0x5a8cee(0x114)]=_0x4e1348['toFixed'](0x3)+'\x20N',drawForces(_0xed82f9,_0x4e1348),renderer['render'](scene,camera);};		
+
+	window.onload = initScene;	
+</script>
+  
+</head>
+  
+<body>
+	<div id="info" style="text-align: left"> 
+		<h1 style="text-align: center">Buoyant Force </h1>
+		
+ <!-- Left Panel -->  
+	    <div class="control-panel">
+		    
+		<div class="control-group">	 
+		  <div class="slider-row">
+		    Object: <select id="objSelector">
+		      <option value="0.5" selected>Wood</option>
+		      <option value="0.9">Plastic</option>
+		      <option value="0.24">Cork </option>
+		      <option value="0.07">Foam </option>
+		      <option value="3.2">Unknown</option>
+		    </select>
+		  </div>
+		</div>
+			    
+		<div class="control-group">
+		  Object Volume (cm³):
+		  <div class="slider-row" style="display: flex; align-items: center;">
+		    <input type="range" id="volSlider" min="100" max="200" step="1" value="150" style="flex: 1; margin-right: 8px;">
+		    <input type="text" id="volValue" value="150" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+		  </div>
+		  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+		    <span>100</span>
+		    <span>200</span>
+		  </div>
+		</div>
+		    
+		 <button class="btn btn-success" id="reset">Reset</button><br><br>
+		    
+		  <div class="control-group">
+		    Buoyant Force (N):
+		    <input type="text" id="bForce" value="0.0°" readonly style="width: 90px;">
+		  </div>
+	</div>
+	<!-- Right Panel -->
+	      <div class="control-panel-right">
+		      
+		<div class="control-group"> 
+		  <div class="slider-row">
+		    Liquid: <select id="liquidSelector">
+		      <option value="0.800">Lamp Oil</option>
+		      <option value="0.789">Ethanol</option>
+		      <option value="1.000" selected>Water</option>
+		      <option value="0.5">Unknown</option>
+		    </select>
+		  </div>
+		</div>
+	  			
+		  <div class="control-group">
+		    Liquid Volume (cm³):
+		    <div class="slider-row">
+		      <input type="range" id="liquidVolSlider" min="1500" max="2900" step="10" value="2500">
+		      <input type="text" id="liquidVolValue" value="2500" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>1500</span><span>3000</span>
+		    </div>
+		  </div>
+			
+		  <div class="control-group">
+		    Liquid Temp (°C):
+		    <div class="slider-row">
+		      <input type="range" id="tempLiquidSlider" min="10" max="100" step="1" value="20">
+		      <input type="text" id="tempLiquidValue" value="20" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>10</span><span>100</span>
+		    </div>
+		  </div>
+		<button class="btn btn-danger" onclick="
+		  alert('This simulation demonstrates **buoyant force** — the upward force a fluid exerts on a submerged or floating object.\n\n' +
+		        'Key Concepts:\n' +
+		        '- Buoyant Force = ρ × g × V_submerged\n' +
+		        '- It depends on the density of the liquid and the volume of the object that is submerged.\n\n' +
+		        'This simulation also considers how different materials and temperature changes affect the object\'s volume and the fluid\'s density — both of which influence the buoyant force.\n\n' +
+		        'Object Parameters:\n' +
+		        '- Width = 8 cm, Depth = 4 cm (fixed)\n' +
+		        '- Height = Volume / (Width × Depth), dynamically calculated\n\n' +
+		        'This simulation takes into account:\n' +
+		        '• Different object materials (affecting density and thermal expansion)\n' +
+		        '• Various liquids, each with unique density and thermal behavior\n' +
+		        '• The temperature of both the object and the liquid, which modifies volume and density\n\n' +
+		        'Use the sliders to explore how these factors impact the buoyant force.'
+		  );
+		  alert('Material Densities Used:\n' +
+		        '- Wood: ~0.50 g/cm³\n' +
+		        '- Plastic: ~0.90 g/cm³\n' +
+		        '- Cork: ~0.24 g/cm³\n' +
+		        '- Foam: ~0.07 g/cm³\n' +
+		        '- Unknown: ~3.20 g/cm³\n\n' +
+		        'Liquid Densities at 20°C:\n' +
+		        '- Water: 1.000 g/cm³\n' +
+		        '- Ethanol: ~0.789 g/cm³\n' +
+		        '- Lamp Oil: ~0.8 g/cm³\n' +
+		        '- Unknown Liquid: ~0.5 g/cm³\n\n' +
+		        'Formulas Used:\n' +
+		        '• Buoyant Force = ρ × g × V_submerged\n' +
+		        '• ρ(T) = ρ₀ × (1 − β × (T − 20))\n' +
+		        '• V(T) = V₀ × (1 + 3α × (T − 20))\n\n' +
+		        'Where:\n' +
+		        '- β ≈ 0.0004 /°C (thermal expansion of liquids)\n' +
+		        '- α ≈ 25×10⁻⁶ /°C (thermal expansion of materials)'
+		  );
+		">What is Buoyant Force?</button>
+
+
+		
+		      
+	    </div>	
+
+	</div>           
+	<div id="viewport"></div>
+</body>
+</html>

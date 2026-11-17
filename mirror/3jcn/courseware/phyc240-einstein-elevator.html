@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<!-- Google tag (gtag.js) -->
+
+
+
+<!-- End Google Tag Manager -->
+  
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>乐启享 · 物理实验</title>
+<meta name="description" content="Interactive 3D Einstein elevator simulation: compare weightlessness in free fall with a ball falling inside an elevator accelerating upward at 9.8 m/s² in empty space.">
+<link rel="icon" href="/brand/favicon.ico">
+<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-einstein-elevator/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  
+<style>
+  html,body {margin:0; min-height:100%; background:#659471; color:white; font-family:Arial,sans-serif;}
+  #info {position:relative; z-index:2; text-align:center; padding:14px 10px 8px;}
+  #info h1 {font-size:clamp(22px,3.2vw,37px); margin:9px 0 12px;}
+  .toolbar {display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:7px;}
+  .toolbar .btn {margin:0;}
+  .mode-control {display:inline-flex; align-items:center; gap:6px; background:rgba(0,0,0,.18); padding:5px 9px; border-radius:5px;}
+  .mode-control select {color:#222; padding:6px; border:0; border-radius:3px; max-width:230px;}
+  #stage {position:relative; width:100%; height: min(74vh,690px); min-height:390px; overflow:hidden;}
+  #container {position:absolute; inset:0;}
+  #container canvas {display:block; width:100%; height:100%;}
+  #caption {position:absolute; right:2%; top:20px; width: min(310px,34vw); background:rgba(18,33,38,.84); border:1px solid rgba(255,255,255,.35); border-radius:6px; padding:12px 15px; pointer-events:none; font-size:15px; line-height:1.45; text-align:left;}
+  #caption strong {font-size:18px; display:block; margin-bottom:5px;}
+  #readout {position:absolute; left:12px; top:20px; background:rgba(14,27,35,.85); border-radius:5px; padding:8px 11px; pointer-events:none; font-size:14px; max-width:350px;}
+  #readout span {display:block;}
+  #note {text-align:center; padding:7px 18px; max-width:950px; margin:auto; font-size:13px; color:#fff;}
+  @media(max-width:650px) {#stage{height:65vh; min-height:440px;} #caption{right:7px; top:8px; width:46%; padding:8px; font-size:12px;} #caption strong{font-size:14px;} #readout{font-size:12px; max-width:55%;} .mode-control{width:100%; justify-content:center;} }
+</style>
+  
+</head>
+<body>
+<div id="info">
+  <h1>EINSTEIN'S IMAGINARY ELEVATOR</h1>
+  <div class="toolbar">
+    <button class="btn btn-warning" id="explain">What is Einstein's imaginary elevator?</button>
+    <label class="mode-control" for="mode">Simulation:
+      <select id="mode" aria-label="Select elevator scenario">
+        <option value="fall">1. Elevator in Free Fall</option>
+        <option value="accelerate">2. Elevator Accelerating Upward</option>
+      </select>
+    </label>
+    <button type="button" class="btn btn-primary" id="start">Start</button>
+    <button type="button" class="btn btn-warning" id="pauseResumeBtn">Pause</button>
+    <button type="button" class="btn btn-default" id="reset">Reset</button>
+  </div>
+</div>
+<div id="stage">
+  <div id="container"></div>
+  <div id="caption" aria-live="polite"></div>
+  <div id="readout" aria-live="off"></div>
+</div>
+<p id="note">Drag to rotate the 3D view; scroll to zoom. The elevator is enlarged for clarity; each scenario restarts before the cabin leaves the view.</p>
+
+<script type="module">
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { GLTFLoader } from '../jsm/GLTFLoader.js';
+
+// Scene units are meters. The ball's motion relative to an upward-accelerating
+// elevator obeys y_relative = y_release - 1/2 * a * t^2 (a = 9.8 m/s^2).
+const G = 9.8; // m/s²
+const FALL_START = 29;
+const UP_START = -27;
+const BALL_RELEASE_Y = 5.3;
+const BALL_REST_Y = -8.65;
+const BALL_RADIUS = 1.35;
+const PAUSE_AT_END = 0.75;
+const BALL_INITIAL_HEIGHT = 2.0; // meters
+const METERS_PER_UNIT = BALL_INITIAL_HEIGHT / (BALL_RELEASE_Y - BALL_REST_Y);
+const accelerationUnits = G / METERS_PER_UNIT;
+
+const EXTRA_UP_DISTANCE = 25;
+
+const CONTACT_TIME = Math.sqrt(
+    2 * (BALL_RELEASE_Y - BALL_REST_Y) /
+    accelerationUnits
+);
+
+const CONTACT_DISPLACEMENT =
+    BALL_RELEASE_Y - BALL_REST_Y;
+
+const FINAL_UP_Y =
+    UP_START +
+    CONTACT_DISPLACEMENT +
+    EXTRA_UP_DISTANCE;
+
+
+const container = document.getElementById('container');
+const stage = document.getElementById('stage');
+const modeSelect = document.getElementById('mode');
+const startBtn = document.getElementById('start');
+const pauseBtn = document.getElementById('pauseResumeBtn');
+const resetBtn = document.getElementById('reset');
+const caption = document.getElementById('caption');
+const readout = document.getElementById('readout');
+
+var _0x600dea = (584992 ^ 585001) + (472969 ^ 472960);
+const scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+_0x600dea = (218210 ^ 218210) + (598274 ^ 598273);
+scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0x659471);
+const camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](155924 ^ 155936, 808709 ^ 808708, 0.1, 749756 ^ 750420);
+camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](790548 ^ 790631, 764630 ^ 764636, 578100 ^ 578099);
+const renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+  '\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073': !![]
+});
+renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'] || 837398 ^ 837399, 461923 ^ 461921));
+container['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+const controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](-(667364 ^ 667361), -(694738 ^ 694742), 737170 ^ 737170);
+controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067'] = !![];
+controls['\u0064\u0061\u006D\u0070\u0069\u006E\u0067\u0046\u0061\u0063\u0074\u006F\u0072'] = 0.06;
+controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+scene['\u0061\u0064\u0064'](new THREE['\u0048\u0065\u006D\u0069\u0073\u0070\u0068\u0065\u0072\u0065\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0x445060, 1.5));
+var _0xce6f = (339795 ^ 339795) + (277472 ^ 277480);
+const sun = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 1.15);
+_0xce6f = (849974 ^ 849982) + (751771 ^ 751773);
+sun['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](421592 ^ 421616, 767858 ^ 767795, 381636 ^ 381686);
+scene['\u0061\u0064\u0064'](sun);
+let _0x9d70c;
+const buildingTexture = new THREE['\u0054\u0065\u0078\u0074\u0075\u0072\u0065\u004C\u006F\u0061\u0064\u0065\u0072']()['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0065\u006C\u0065\u0076\u0061\u0074\u006F\u0072\u002D\u006F\u0075\u0074\u002E\u0070\u006E\u0067");
+_0x9d70c = 765159 ^ 765156;
+const billboard = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](979637 ^ 979491, 435186 ^ 435094, 0.2), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  "map": buildingTexture,
+  "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+}));
+billboard['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = Math['\u0050\u0049'] / (688474 ^ 688472);
+billboard['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(526510 ^ 526500), -(733331 ^ 733334), 980479 ^ 980479);
+scene['\u0061\u0064\u0064'](billboard);
+var _0x9239ab = (628734 ^ 628735) + (641679 ^ 641678);
+const starPositions = [];
+_0x9239ab = (697554 ^ 697559) + (387042 ^ 387046);
+for (let i = 264035 ^ 264035; i < (203488 ^ 203554); i++) {
+  const a = i * 2.3999632297,
+    r = (545053 ^ 545039) + Math['\u0073\u0071\u0072\u0074'](i / (524854 ^ 525300)) * (645675 ^ 645818);
+  starPositions['\u0070\u0075\u0073\u0068'](-(281172 ^ 281152), Math['\u0073\u0069\u006E'](a) * r, Math['\u0063\u006F\u0073'](a) * r);
+}
+const starGeometry = new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();
+starGeometry['\u0073\u0065\u0074\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065']("\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E", new THREE['\u0046\u006C\u006F\u0061\u0074\u0033\u0032\u0042\u0075\u0066\u0066\u0065\u0072\u0041\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065'](starPositions, 331104 ^ 331107));
+const stars = new THREE['\u0050\u006F\u0069\u006E\u0074\u0073'](starGeometry, new THREE['\u0050\u006F\u0069\u006E\u0074\u0073\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xeef5ff,
+  '\u0073\u0069\u007A\u0065': .8,
+  '\u0073\u0069\u007A\u0065\u0041\u0074\u0074\u0065\u006E\u0075\u0061\u0074\u0069\u006F\u006E': false
+}));
+scene['\u0061\u0064\u0064'](stars);
+stars['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+let _0x24dg;
+const elevator = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+_0x24dg = 805190 ^ 805187;
+elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](327507 ^ 327507, FALL_START, 340252 ^ 340254);
+scene['\u0061\u0064\u0064'](elevator);
+const cabin = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](736494 ^ 736506, 119009 ^ 119029, 413662 ^ 413642), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xd6f2ff,
+  "transparent": !![],
+  "opacity": .15,
+  '\u0073\u0069\u0064\u0065': THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],
+  '\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065': false
+}));
+elevator['\u0061\u0064\u0064'](cabin);
+let _0x5e_0x952;
+const edges = new THREE['\u004C\u0069\u006E\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073'](new THREE['\u0045\u0064\u0067\u0065\u0073\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](746732 ^ 746744, 341786 ^ 341774, 649881 ^ 649869)), new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xc5e7ff
+}));
+_0x5e_0x952 = (305391 ^ 305390) + (575384 ^ 575390);
+elevator['\u0061\u0064\u0064'](edges);
+const floor = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](19.5, .3, 19.5), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0x566775
+}));
+floor['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -9.9;
+elevator['\u0061\u0064\u0064'](floor);
+let _0x7b967a;
+const ball = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](BALL_RADIUS, 268847 ^ 268851, 924755 ^ 924743), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xffbd38,
+  "shininess": 75
+}));
+_0x7b967a = '\u0070\u006D\u006A\u0065\u006F\u0062';
+var _0xa_0x5cb = (867712 ^ 867715) + (351074 ^ 351075);
+const heightMeters = Math['\u006D\u0061\u0078'](116795 ^ 116795, (ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] - BALL_REST_Y) * METERS_PER_UNIT);
+_0xa_0x5cb = "pqbknl";
+elevator['\u0061\u0064\u0064'](ball);
+var _0x_0x0a6 = (987217 ^ 987223) + (960138 ^ 960140);
+const releaseMarker = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.19, 328583 ^ 328587, 427963 ^ 427955), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+  '\u0063\u006F\u006C\u006F\u0072': 0xffffff,
+  "transparent": !![],
+  "opacity": .65
+}));
+_0x_0x0a6 = (517793 ^ 517799) + (845743 ^ 845739);
+releaseMarker['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);
+elevator['\u0061\u0064\u0064'](releaseMarker);
+var _0xedd23c = (629185 ^ 629187) + (911390 ^ 911390);
+let man = null;
+_0xedd23c = (804710 ^ 804706) + (823599 ^ 823592);
+const loader = new GLTFLoader();
+loader['\u006C\u006F\u0061\u0064']("\u002E\u002E\u002F\u006D\u006F\u0064\u0065\u006C\u0073\u002F\u0066\u0072\u0065\u0065\u005F\u006B\u0069\u0063\u006B\u002F\u0073\u0063\u0065\u006E\u0065\u002E\u0067\u006C\u0074\u0066", gltf => {
+  man = gltf['\u0073\u0063\u0065\u006E\u0065'];
+  man['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](child => {
+    if (child['\u0069\u0073\u004D\u0065\u0073\u0068'] && child['\u006E\u0061\u006D\u0065'] === "\u006D\u0065\u0073\u0068\u005F\u0038") child['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+  });
+  man['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](697380 ^ 697377, 717340 ^ 717337, 332612 ^ 332609);
+  man['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = Math['\u0050\u0049'] / (807972 ^ 807974);
+  man['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](565761 ^ 565764, -(462389 ^ 462399), 730425 ^ 730429);
+  elevator['\u0061\u0064\u0064'](man);
+}, undefined, error => console['\u0077\u0061\u0072\u006E']('Man model could not be loaded:', error));
+var _0x5cb = (429731 ^ 429733) + (490637 ^ 490632);
+let mode = 'fall';
+_0x5cb = '\u006D\u0071\u0071\u006A\u006D\u006F';
+var _0xg3934e = (406622 ^ 406614) + (890523 ^ 890523);
+let running = false;
+_0xg3934e = 140199 ^ 140198;
+let paused = false;
+let _0xc44dfa;
+let simTime = 231571 ^ 231571;
+_0xc44dfa = 256198 ^ 256198;
+var _0x2_0xbe3 = (224324 ^ 224321) + (430401 ^ 430405);
+let endHold = 234885 ^ 234885;
+_0x2_0xbe3 = 120350 ^ 120342;
+let cycleFinished = false;
+var _0x6bda = (463994 ^ 463987) + (469884 ^ 469877);
+let ballLanded = false;
+_0x6bda = (769643 ^ 769644) + (997974 ^ 997972);
+var _0x69787d = (360563 ^ 360561) + (452817 ^ 452823);
+const clock = new THREE['\u0043\u006C\u006F\u0063\u006B']();
+_0x69787d = '\u0063\u0064\u0062\u0063\u006E\u0071';
+function updateLabels() {
+  if (mode === 'fall') {
+    caption['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = '<strong>1. Elevator in Free Fall</strong>' + 'The elevator and its occupant accelerate downward together. ' + 'The occupant feels <b>weightless</b>; the ball floats relative to the cabin.';
+  } else {
+    caption['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = "\u003C\u0073\u0074\u0072\u006F\u006E\u0067\u003E\u0032\u002E\u0020\u0041\u0063\u0063\u0065\u006C\u0065\u0072\u0061\u0074\u0069\u006E\u0067\u0020\u0055\u0070\u0077\u0061\u0072\u0064\u0020\u0069\u006E\u0020\u0045\u006D\u0070\u0074\u0079\u0020\u0053\u0070\u0061\u0063\u0065\u003C\u002F\u0073\u0074\u0072\u006F\u006E\u0067\u003E" + 'The elevator accelerates upward at <b>9.8 m/s²</b>. ' + "\u0041\u0066\u0074\u0065\u0072\u0020\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u002C\u0020\u0074\u0068\u0065\u0020\u0062\u0061\u006C\u006C\u0020\u0068\u0061\u0073\u0020\u006E\u006F\u0020\u0064\u006F\u0077\u006E\u0077\u0061\u0072\u0064\u0020\u0067\u0072\u0061\u0076\u0069\u0074\u0061\u0074\u0069\u006F\u006E\u0061\u006C\u0020\u0061\u0063\u0063\u0065\u006C\u0065\u0072\u0061\u0074\u0069\u006F\u006E\u0020\u0069\u006E\u0020\u0073\u0070\u0061\u0063\u0065\u002C\u0020" + "\u0062\u0075\u0074\u0020\u0074\u0068\u0065\u0020\u0072\u0069\u0073\u0069\u006E\u0067\u0020\u0066\u006C\u006F\u006F\u0072\u0020\u0061\u0070\u0070\u0072\u006F\u0061\u0063\u0068\u0065\u0073\u0020\u0069\u0074\u002E\u0020\u0054\u006F\u0020\u0073\u006F\u006D\u0065\u006F\u006E\u0065\u0020\u0069\u006E\u0073\u0069\u0064\u0065\u002C\u0020\u0074\u0068\u0065\u0020\u0062\u0061\u006C\u006C\u0020\u0061\u0070\u0070\u0065\u0061\u0072\u0073\u0020\u0074\u006F\u0020\u0066\u0061\u006C\u006C\u002E";
+  }
+  updateReadout();
+}
+function updateReadout() {
+  var _0x1659bb = (684911 ^ 684905) + (867407 ^ 867399);
+  const a = mode === 'fall' ? '-9.8 m/s² (down)' : '+9.8 m/s² (up)';
+  _0x1659bb = "qbgnho";
+  var _0x3_0xc7a = (101739 ^ 101736) + (877120 ^ 877129);
+  const _0xgcf5bd = Math['\u006D\u0061\u0078'](604740 ^ 604740, (ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] - BALL_REST_Y) * METERS_PER_UNIT);
+  _0x3_0xc7a = (529692 ^ 529688) + (645500 ^ 645502);
+  let _0xe0d;
+  const _0x564ggf = _0xgcf5bd['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](259770 ^ 259768);
+  _0xe0d = (544126 ^ 544127) + (538373 ^ 538370);
+  readout['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `<span><b>Elevator acceleration:</b> ${a}</span>` + `<span><b>Elapsed time:</b> ${simTime['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](272103 ^ 272101)} s</span>` + `<span><b>Ball above floor:</b> ${_0x564ggf} m</span>` + `<span><b>Status:</b> ${paused ? "\u0050\u0061\u0075\u0073\u0065\u0064" : running ? 'Running' : 'Ready'}</span>`;
+}
+function resetCycle() {
+  simTime = 757133 ^ 757133;
+  endHold = 277743 ^ 277743;
+  cycleFinished = false;
+  ballLanded = false;
+  elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = mode === "\u0066\u0061\u006C\u006C" ? FALL_START : UP_START;
+  ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = BALL_RELEASE_Y;
+  if (man) {
+    man['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(307827 ^ 307833);
+  }
+  updateReadout();
+}
+function setMode(value) {
+  mode = value;
+  modeSelect['\u0076\u0061\u006C\u0075\u0065'] = value;
+  running = false;
+  paused = false;
+  pauseBtn['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+  billboard['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = mode === "\u0066\u0061\u006C\u006C";
+  stars['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = mode === "\u0061\u0063\u0063\u0065\u006C\u0065\u0072\u0061\u0074\u0065";
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](mode === "\u0066\u0061\u006C\u006C" ? 0x659471 : 0x0b172d);
+  resetCycle();
+  updateLabels();
+}
+function updatePhysics(dt) {
+  if (!running || paused) return;
+  if (cycleFinished) {
+    endHold -= dt;
+    if (endHold <= (959877 ^ 959877)) {
+      resetCycle();
+    }
+    updateReadout();
+    return;
+  }
+  simTime += dt;
+  let _0x37g6a;
+  const _0x05d32a = 0.5 * accelerationUnits * simTime * simTime;
+  _0x37g6a = (633084 ^ 633084) + (358566 ^ 358563);
+  if (mode === "\u0066\u0061\u006C\u006C") {
+    elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = FALL_START - _0x05d32a;
+    ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = BALL_RELEASE_Y;
+    if (man) {
+      man['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(485238 ^ 485244) + Math['\u006D\u0069\u006E'](2.2, simTime * 1.1);
+    }
+    if (elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] <= -(247042 ^ 247075)) {
+      elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(246895 ^ 246862);
+      cycleFinished = !![];
+      endHold = PAUSE_AT_END;
+    }
+  } else {
+    elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = UP_START + _0x05d32a;
+    ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = Math['\u006D\u0061\u0078'](BALL_REST_Y, BALL_RELEASE_Y - _0x05d32a);
+    if (man) {
+      man['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(224255 ^ 224245);
+    }
+    if (simTime >= CONTACT_TIME) {
+      ballLanded = !![];
+      ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = BALL_REST_Y;
+    }
+    if (ballLanded && elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] >= FINAL_UP_Y) {
+      elevator['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = FINAL_UP_Y;
+      cycleFinished = !![];
+      endHold = 1.2;
+    }
+  }
+  updateReadout();
+}
+startBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', () => {
+  if (!running) resetCycle();
+  running = !![];
+  paused = false;
+  pauseBtn['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+  updateReadout();
+});
+pauseBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  if (!running) return;
+  paused = !paused;
+  pauseBtn['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = paused ? 'Resume' : "\u0050\u0061\u0075\u0073\u0065";
+  updateReadout();
+});
+resetBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+  running = false;
+  paused = false;
+  pauseBtn['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+  resetCycle();
+});
+modeSelect['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('change', e => setMode(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']));
+document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0065\u0078\u0070\u006C\u0061\u0069\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => alert("\u0045\u0069\u006E\u0073\u0074\u0065\u0069\u006E\u0027\u0073\u0020\u0069\u006D\u0061\u0067\u0069\u006E\u0061\u0072\u0079\u0020\u0065\u006C\u0065\u0076\u0061\u0074\u006F\u0072\u0020\u0069\u006C\u006C\u0075\u0073\u0074\u0072\u0061\u0074\u0065\u0073\u0020\u0074\u0068\u0065\u0020\u006C\u006F\u0063\u0061\u006C\u0020\u0065\u0071\u0075\u0069\u0076\u0061\u006C\u0065\u006E\u0063\u0065\u0020\u0070\u0072\u0069\u006E\u0063\u0069\u0070\u006C\u0065\u002E\u000A\u000A" + "\u0031\u002E\u0020\u0046\u0052\u0045\u0045\u0020\u0046\u0041\u004C\u004C\u003A\u0020\u0054\u0068\u0065\u0020\u0063\u0061\u0062\u0069\u006E\u002C\u0020\u0070\u0065\u0072\u0073\u006F\u006E\u002C\u0020\u0061\u006E\u0064\u0020\u0066\u0072\u0065\u0065\u006C\u0079\u0020\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0064\u0020\u0062\u0061\u006C\u006C\u0020\u0061\u006C\u006C\u0020\u0061\u0063\u0063\u0065\u006C\u0065\u0072\u0061\u0074\u0065\u0020\u0064\u006F\u0077\u006E\u0077\u0061\u0072\u0064\u0020\u0074\u006F\u0067\u0065\u0074\u0068\u0065\u0072\u002E\u0020" + "\u0054\u0068\u0065\u0069\u0072\u0020\u0072\u0065\u006C\u0061\u0074\u0069\u0076\u0065\u0020\u006D\u006F\u0074\u0069\u006F\u006E\u0020\u0072\u0065\u0076\u0065\u0061\u006C\u0073\u0020\u0077\u0065\u0069\u0067\u0068\u0074\u006C\u0065\u0073\u0073\u006E\u0065\u0073\u0073\u002E\u000A\u000A" + "\u0032\u002E\u0020\u0055\u0050\u0057\u0041\u0052\u0044\u0020\u0041\u0043\u0043\u0045\u004C\u0045\u0052\u0041\u0054\u0049\u004F\u004E\u003A\u0020\u0049\u006E\u0020\u0067\u0072\u0061\u0076\u0069\u0074\u0079\u002D\u0066\u0072\u0065\u0065\u0020\u0073\u0070\u0061\u0063\u0065\u002C\u0020\u0074\u0068\u0065\u0020\u0063\u0061\u0062\u0069\u006E\u0020\u0061\u0063\u0063\u0065\u006C\u0065\u0072\u0061\u0074\u0065\u0073\u0020\u0075\u0070\u0077\u0061\u0072\u0064\u0020\u0061\u0074\u0020\u0039\u002E\u0038\u0020\u006D\u002F\u0073\u00B2\u002E\u0020" + "\u0041\u0020\u0072\u0065\u006C\u0065\u0061\u0073\u0065\u0064\u0020\u0062\u0061\u006C\u006C\u0020\u0063\u006F\u0061\u0073\u0074\u0073\u0020\u0069\u006E\u0065\u0072\u0074\u0069\u0061\u006C\u006C\u0079\u0020\u0077\u0068\u0069\u006C\u0065\u0020\u0074\u0068\u0065\u0020\u0063\u0061\u0062\u0069\u006E\u0020\u0072\u0069\u0073\u0065\u0073\u002C\u0020\u0073\u006F\u0020\u0074\u0068\u0065\u0020\u0062\u0061\u006C\u006C\u0020\u0061\u0070\u0070\u0065\u0061\u0072\u0073\u0020\u0074\u006F\u0020\u0066\u0061\u006C\u006C\u0020\u0074\u006F\u0077\u0061\u0072\u0064\u0020\u0074\u0068\u0065\u0020\u0066\u006C\u006F\u006F\u0072\u0020\u0061\u0074\u0020\u0039\u002E\u0038\u0020\u006D\u002F\u0073\u00B2\u002E\u0020" + "\u0054\u0068\u0069\u0073\u0020\u006C\u006F\u006F\u006B\u0073\u0020\u006C\u006F\u0063\u0061\u006C\u006C\u0079\u0020\u006C\u0069\u006B\u0065\u0020\u0064\u0072\u006F\u0070\u0070\u0069\u006E\u0067\u0020\u0061\u0020\u0062\u0061\u006C\u006C\u0020\u0069\u006E\u0020\u0061\u006E\u0020\u0065\u006C\u0065\u0076\u0061\u0074\u006F\u0072\u0020\u0061\u0074\u0020\u0072\u0065\u0073\u0074\u0020\u006F\u006E\u0020\u0045\u0061\u0072\u0074\u0068\u002E\u000A\u000A" + "\u0054\u0068\u0065\u0020\u0065\u0071\u0075\u0069\u0076\u0061\u006C\u0065\u006E\u0063\u0065\u0020\u0069\u0073\u0020\u006C\u006F\u0063\u0061\u006C\u002E\u0020\u004F\u0076\u0065\u0072\u0020\u006C\u0061\u0072\u0067\u0065\u0072\u0020\u0072\u0065\u0067\u0069\u006F\u006E\u0073\u002C\u0020\u0067\u0072\u0061\u0076\u0069\u0074\u0061\u0074\u0069\u006F\u006E\u0061\u006C\u0020\u0074\u0069\u0064\u0061\u006C\u0020\u0065\u0066\u0066\u0065\u0063\u0074\u0073\u0020\u0072\u0065\u0076\u0065\u0061\u006C\u0020\u0073\u0070\u0061\u0063\u0065\u0074\u0069\u006D\u0065\u0020\u0063\u0075\u0072\u0076\u0061\u0074\u0075\u0072\u0065\u002E"));
+function resize() {
+  const _0x5805c = stage['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'],
+    _0x1g85ee = stage['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074'];
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](_0x5805c, _0x1g85ee, false);
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = _0x5805c / _0x1g85ee;
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+}
+window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('resize', resize);
+resize();
+setMode('fall');
+function animate() {
+  requestAnimationFrame(animate);
+  let _0x947c5f;
+  const _0xf476e = Math['\u006D\u0069\u006E'](clock['\u0067\u0065\u0074\u0044\u0065\u006C\u0074\u0061'](), .05);
+  _0x947c5f = (887795 ^ 887797) + (508482 ^ 508480);
+  updatePhysics(_0xf476e);
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+animate();
+</script>
+</body>
+</html

@@ -27,7 +27,14 @@ for (const name of fs.readdirSync(LQ)) {
   if (!fs.existsSync(ext)) continue;
 
   const afe = name.startsWith('afe-');
-  const target = afe ? path.join(AFE, `${name.slice(4)}.assets`) : path.join(XB, name);
+  /*
+   * The built folder is called "afe-1302.assets"; the source folder it
+   * came from is called "1302.assets".  The name is already whole
+   * after the prefix is cut off -- adding ".assets" to it again wrote
+   * every mirrored library into a folder the build never reads, and
+   * the repaired files were lost on the next build.
+   */
+  const target = afe ? path.join(AFE, name.slice(4)) : path.join(XB, name);
 
   const walk = (dir, rel) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

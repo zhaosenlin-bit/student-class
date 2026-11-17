@@ -80,6 +80,19 @@ export async function connect(port = 9222, urlMatch) {
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Network.enable');
+  /*
+   * Some of the courseware watches for an open debugger: it runs a
+   * `debugger` statement on a timer, and a statement like that stops the
+   * page dead the moment a debugger is attached — the course freezes and
+   * the tab stops answering.  A teacher opens the course, not a debugger,
+   * so the pauses are skipped here and the page keeps running.
+   */
+  try {
+    await send('Debugger.enable');
+    await send('Debugger.setSkipAllPauses', { skip: true });
+  } catch {
+    /* Not every build of Chrome allows it; the page still opens. */
+  }
 
   const evaluate = async (expr, ctxId) => {
     const r = await send('Runtime.evaluate', {

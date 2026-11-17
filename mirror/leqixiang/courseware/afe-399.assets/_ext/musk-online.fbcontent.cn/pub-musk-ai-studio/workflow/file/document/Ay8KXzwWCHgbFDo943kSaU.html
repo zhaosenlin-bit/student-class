@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob: https://*.fbcontent.cn https://*.aliyuncs.com https://storage.googleapis.com; media-src 'self' data: blob: https://*.fbcontent.cn https://*.aliyuncs.com https://storage.googleapis.com;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>暗管排盐演示动画</title>
+    <!-- Tailwind CSS -->
+    <script src="https://metis-online.fbcontent.cn/metis-misc/zgLDUdmazTYc0B4K6Cor.js"></script>
+    <!-- p5.js -->
+    <script src="https://metis-online.fbcontent.cn/metis-misc/cnObWiSohGePYbyhB6LlQ.js"></script>
+    <!-- Anime.js -->
+    <script src="https://metis-online.fbcontent.cn/metis-misc/zZZY40t7WJC7UdQCPACm.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow: hidden;
+            background-color: #f0f4f8;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0A4737, #A7DBA8);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(10, 71, 55, 0.2);
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        .info-card {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            z-index: 10;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            z-index: 10;
+        }
+
+        .legend {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            z-index: 10;
+        }
+
+        /* 隐藏 p5 默认画布边框 */
+        canvas {
+            display: block;
+        }
+    </style>
+<script type="application/json" id="fx-resource-config" data-fx-resource-runtime="2">{"chatId":"4096777C49BF81B65B1C8E6FFB686E18","env":"online","onlineUrl":"https://musk-online.fbcontent.cn/pub-musk-ai-studio/workflow/file/document/Ay8KXzwWCHgbFDo943kSaU.html?v=1"}</script><script async src="https://www.feixianglaoshi.com/resource-runtime/v2.js" data-fx-resource-runtime="2"></script></head>
+<body>
+    <div id="canvas-container">
+        <!-- 标题 -->
+        <div class="absolute top-8 left-1/2 -translate-x-1/2 text-center z-10">
+            <h1 class="text-3xl font-bold text-[#0A4737] tracking-wider">暗管排盐技术演示</h1>
+            <p class="text-gray-600 mt-2">盐随水来 · 盐随水去</p>
+        </div>
+
+        <!-- 图例 -->
+        <div class="legend glass-panel p-4 rounded-2xl shadow-sm">
+            <div class="flex items-center mb-2">
+                <div class="w-4 h-4 rounded-full bg-blue-400 mr-2"></div>
+                <span class="text-sm text-gray-700">灌溉水/雨水</span>
+            </div>
+            <div class="flex items-center mb-2">
+                <div class="w-4 h-4 rounded-full bg-yellow-600 mr-2"></div>
+                <span class="text-sm text-gray-700">盐分颗粒</span>
+            </div>
+            <div class="flex items-center">
+                <div class="w-8 h-2 rounded-full bg-gray-400 mr-2"></div>
+                <span class="text-sm text-gray-700">排盐暗管</span>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="control-panel glass-panel p-6 rounded-3xl shadow-lg w-64">
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-3">模式选择</label>
+                <div class="flex flex-col gap-2">
+                    <button id="mode-on" class="px-4 py-2 rounded-xl text-sm font-medium border-2 border-[#0A4737] bg-[#0A4737] text-white transition-all">有暗管模式</button>
+                    <button id="mode-off" class="px-4 py-2 rounded-xl text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-[#0A4737] transition-all">无暗管模式</button>
+                </div>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-3">操作控制</label>
+                <button id="start-btn" class="w-full btn-primary text-white py-3 rounded-xl font-bold mb-2">开始灌溉</button>
+                <button id="reset-btn" class="w-full bg-gray-100 text-gray-600 py-2 rounded-xl text-sm hover:bg-gray-200 transition-all">重置场景</button>
+            </div>
+            <div class="text-xs text-gray-400 text-center">
+                提示：观察盐分随水流动的方向
+            </div>
+        </div>
+
+        <!-- 信息卡片 -->
+        <div class="info-card glass-panel p-6 rounded-3xl shadow-xl border-t-4 border-[#0A4737]">
+            <h3 id="info-title" class="text-lg font-bold text-[#0A4737] mb-2">准备就绪</h3>
+            <p id="info-desc" class="text-gray-600 text-sm leading-relaxed">
+                点击“开始灌溉”观察水分如何淋洗土壤中的盐分。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 资源配置
+        const ASSETS = {
+            soilBad: 'https://musk-online.fbcontent.cn/pub-musk-ai-studio/workflow/file/picture/ErTbN2omNnvTykvAGpWst2.jpg',
+            soilGood: 'https://musk-online.fbcontent.cn/pub-musk-ai-studio/workflow/file/picture/yusHAtm7kuPLW3gAvJruJK.jpg',
+            soilTexture: 'https://musk-online.fbcontent.cn/pub-musk-ai-studio/workflow/file/picture/CQ5PMXnNQt8UNULKrSsvuA.jpg',
+            pipe: 'https://musk-online.fbcontent.cn/pub-musk-ai-studio/workflow/file/picture/ZbxESpVwbBWLDoi3kpdpE2.jpg'
+        };
+
+        let imgSoilBad, imgSoilGood, imgSoilTexture, imgPipe;
+        let particles = [];
+        let salts = [];
+        let isIrrigating = false;
+        let mode = 'on'; // 'on' or 'off'
+        let pipeY;
+        let groundY;
+
+        function preload() {
+            imgSoilBad = loadImage(ASSETS.soilBad);
+            imgSoilGood = loadImage(ASSETS.soilGood);
+            imgSoilTexture = loadImage(ASSETS.soilTexture);
+            imgPipe = loadImage(ASSETS.pipe);
+        }
+
+        function setup() {
+            const canvas = createCanvas(windowWidth, windowHeight);
+            canvas.parent('canvas-container');
+            
+            groundY = height * 0.3;
+            pipeY = height * 0.7;
+            
+            initSalts();
+            
+            // UI 事件绑定
+            document.getElementById('mode-on').onclick = () => switchMode('on');
+            document.getElementById('mode-off').onclick = () => switchMode('off');
+            document.getElementById('start-btn').onclick = toggleIrrigation;
+            document.getElementById('reset-btn').onclick = resetScene;
+        }
+
+        function draw() {
+            background(245);
+            
+            // 1. 绘制背景土层
+            drawEnvironment();
+            
+            // 2. 绘制暗管 (仅在有暗管模式)
+            if (mode === 'on') {
+                drawPipe();
+            }
+
+            // 3. 更新和绘制粒子
+            if (isIrrigating) {
+                // 生成新水滴
+                if (frameCount % 5 === 0) {
+                    particles.push(new WaterParticle(random(width), groundY));
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].display();
+                if (particles[i].isDead) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 4. 更新和绘制盐分
+            for (let salt of salts) {
+                salt.update(particles);
+                salt.display();
+            }
+
+            // 5. 绘制地表覆盖
+            drawSurface();
+        }
+
+        function drawEnvironment() {
+            // 绘制土壤纹理
+            image(imgSoilTexture, 0, groundY, width, height - groundY);
+            
+            // 绘制地下水层
+            noStroke();
+            fill(100, 150, 255, 50);
+            rect(0, height * 0.85, width, height * 0.15);
+            
+            // 绘制分界线
+            stroke(0, 20);
+            line(0, groundY, width, groundY);
+        }
+
+        function drawSurface() {
+            // 根据模式和盐分状态绘制地表
+            let avgSaltY = 0;
+            salts.forEach(s => avgSaltY += s.pos.y);
+            avgSaltY /= salts.length;
+
+            // 如果盐分大量聚集在地表，显示盐碱地
+            let saltAtSurface = salts.filter(s => s.pos.y < groundY + 50).length;
+            let surfaceAlpha = map(saltAtSurface, 0, salts.length * 0.5, 0, 255);
+            
+            push();
+            if (mode === 'off' && saltAtSurface > 20) {
+                tint(255, surfaceAlpha);
+                image(imgSoilBad, 0, 0, width, groundY);
+            } else if (mode === 'on' && saltAtSurface < 10) {
+                image(imgSoilGood, 0, 0, width, groundY);
+            } else {
+                image(imgSoilBad, 0, 0, width, groundY);
+            }
+            pop();
+        }
+
+        function drawPipe() {
+            // 绘制多段暗管
+            const pipeW = 200;
+            const pipeH = 40;
+            for (let x = 0; x < width; x += pipeW) {
+                image(imgPipe, x, pipeY - pipeH/2, pipeW, pipeH);
+            }
+        }
+
+        function initSalts() {
+            salts = [];
+            particles = [];
+            // 初始盐分分布在土壤中上层
+            for (let i = 0; i < 150; i++) {
+                salts.push(new SaltParticle(random(width), random(groundY + 20, height * 0.6)));
+            }
+        }
+
+        function switchMode(m) {
+            mode = m;
+            const btnOn = document.getElementById('mode-on');
+            const btnOff = document.getElementById('mode-off');
+            
+            if (m === 'on') {
+                btnOn.className = "px-4 py-2 rounded-xl text-sm font-medium border-2 border-[#0A4737] bg-[#0A4737] text-white transition-all";
+                btnOff.className = "px-4 py-2 rounded-xl text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-[#0A4737] transition-all";
+                updateInfo("有暗管模式", "暗管埋设在地下，能够收集并排出含盐水分，防止盐分在地表累积。");
+            } else {
+                btnOff.className = "px-4 py-2 rounded-xl text-sm font-medium border-2 border-[#0A4737] bg-[#0A4737] text-white transition-all";
+                btnOn.className = "px-4 py-2 rounded-xl text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-[#0A4737] transition-all";
+                updateInfo("无暗管模式", "没有排水系统，水分蒸发后盐分会随毛细作用上升，导致地表盐碱化。");
+            }
+            resetScene();
+        }
+
+        function toggleIrrigation() {
+            isIrrigating = !isIrrigating;
+            const btn = document.getElementById('start-btn');
+            if (isIrrigating) {
+                btn.innerText = "停止灌溉";
+                btn.className = "w-full bg-red-500 text-white py-3 rounded-xl font-bold mb-2";
+                updateInfo("灌溉/降雨中", "水分正在向下渗透，溶解并带走土壤中的盐分（淋溶作用）。");
+            } else {
+                btn.innerText = "开始灌溉";
+                btn.className = "w-full btn-primary text-white py-3 rounded-xl font-bold mb-2";
+                if (mode === 'off') {
+                    updateInfo("水分蒸发中", "失去灌溉后，水分开始蒸发，注意观察盐分颗粒的动向。");
+                }
+            }
+        }
+
+        function resetScene() {
+            isIrrigating = false;
+            const btn = document.getElementById('start-btn');
+            btn.innerText = "开始灌溉";
+            btn.className = "w-full btn-primary text-white py-3 rounded-xl font-bold mb-2";
+            initSalts();
+            updateInfo("准备就绪", "点击“开始灌溉”观察水分如何淋洗土壤中的盐分。");
+        }
+
+        function updateInfo(title, desc) {
+            document.getElementById('info-title').innerText = title;
+            document.getElementById('info-desc').innerText = desc;
+            
+            anime({
+                targets: '.info-card',
+                translateY: [10, 0],
+                opacity: [0.5, 1],
+                duration: 500,
+                easing: 'easeOutQuad'
+            });
+        }
+
+        // 粒子类定义
+        class WaterParticle {
+            constructor(x, y) {
+                this.pos = createVector(x, y);
+                this.vel = createVector(random(-0.5, 0.5), random(1, 2));
+                this.acc = createVector(0, 0.05);
+                this.isDead = false;
+                this.inPipe = false;
+            }
+
+            update() {
+                if (this.inPipe) {
+                    this.pos.x += 4; // 在管子里向右流
+                    if (this.pos.x > width) this.isDead = true;
+                } else {
+                    // 有暗管模式下，水滴下渗速度更快
+                    let gravity = mode === 'on' ? 0.1 : 0.05;
+                    this.acc.y = gravity;
+                    
+                    this.vel.add(this.acc);
+                    this.pos.add(this.vel);
+
+                    // 碰到暗管 (有暗管模式)
+                    if (mode === 'on' && abs(this.pos.y - pipeY) < 10) {
+                        this.inPipe = true;
+                        this.vel.set(0, 0);
+                    }
+
+                    // 碰到地下水层
+                    if (this.pos.y > height * 0.85) {
+                        this.isDead = true;
+                    }
+                }
+            }
+
+            display() {
+                noStroke();
+                fill(100, 150, 255, 150);
+                ellipse(this.pos.x, this.pos.y, 6, 8);
+            }
+        }
+
+        class SaltParticle {
+            constructor(x, y) {
+                this.pos = createVector(x, y);
+                this.originPos = createVector(x, y);
+                this.isDissolved = false;
+                this.isOut = false;
+            }
+
+            update(waters) {
+                if (this.isOut) return;
+
+                if (isIrrigating) {
+                    // 寻找附近的水滴
+                    for (let w of waters) {
+                        let d = dist(this.pos.x, this.pos.y, w.pos.x, w.pos.y);
+                        if (d < 20) {
+                            this.isDissolved = true;
+                            // 有暗管模式下，盐分跟随水滴的耦合度更高，移动更快
+                            let followSpeed = mode === 'on' ? 0.25 : 0.1;
+                            this.pos.lerp(w.pos, followSpeed);
+                            if (w.inPipe) {
+                                this.isOut = true;
+                            }
+                            break;
+                        }
+                    }
+                } else if (mode === 'off') {
+                    // 模拟蒸发返盐：缓慢向上移动
+                    this.pos.y -= 0.2;
+                    if (this.pos.y < groundY + 10) {
+                        this.pos.y = groundY + 10 + random(-5, 5);
+                    }
+                }
+            }
+
+            display() {
+                if (this.isOut) return;
+                
+                noStroke();
+                if (this.isDissolved) {
+                    fill(255, 255, 255, 200); // 溶解后变白
+                } else {
+                    fill(180, 120, 50, 200); // 初始盐分颜色
+                }
+                ellipse(this.pos.x, this.pos.y, 4, 4);
+            }
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            groundY = height * 0.3;
+            pipeY = height * 0.7;
+        }
+    </script>
+</body>
+</html>

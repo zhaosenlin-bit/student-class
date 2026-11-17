@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>乐启享 · 物理实验</title>
+	  <link rel="stylesheet" href="/api/program-assets/3jcn-simulation-boat-racing/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	  <script src="/api/program-assets/3jcn-simulation-boat-racing/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	  <script src="/api/program-assets/3jcn-simulation-boat-racing/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-simulation-boat-racing/_ext/vendor/css/final.css">
+  <script async src="/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/build/three.module.js",
+    "OrbitControls": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js",
+    "RGBELoader": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/RGBELoader.js",
+    "Water": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/examples/jsm/objects/Water.js",
+    "GLTFLoader": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/GLTFLoader.js",
+    "OBJLoader": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/OBJLoader.js",
+    "FontLoader": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/FontLoader.js",
+    "TextGeometry": "/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.158.0/examples/jsm/geometries/TextGeometry.js"
+  }
+}
+</script>
+  <style> 
+    #vwsValue, #vbsValue{
+	  color: brown;             /* Bright green text */
+	  background-color: lightyellow;  /* Dark background */
+	  border: 1px solid #00ff00;  /* Green border */
+	  padding: 4px;
+	  border-radius: 4px;
+   } 
+   body { 
+	   color: black;
+   }
+    #info {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+      color: black;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+	  <button class="btn btn-danger" onclick="alert(
+	  'Two boats start from the same position on the left shore and race toward the right.\n\n' +
+	  'Boat 1 (bottom) travels with a constant velocity, while Boat 2 (top) starts later but accelerates uniformly.\n\n' +
+	  'You can control:\n' +
+	  '• The constant velocity of Boat 1\n' +
+	  '• The delay before Boat 2 starts\n' +
+	  '• The acceleration of Boat 2\n\n' +
+	  'Question:\n' +
+	  'Can Boat 2 catch up and reach the finish line before Boat 1?\n' +
+	  'Use the simulation to investigate how delay and acceleration affect the race outcome.')">
+	  Race Problem & Question
+	</button>
+
+   <button class="btn btn-success" id="start">Start</button>
+   <button class="btn btn-warning" id="pauseResume">Pause</button>
+   <button class="btn btn-warning" id="display">Show/Hide Result</button>
+   <br>
+	  
+	 <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 40px; flex-wrap: wrap;">
+		  <!-- Left Column -->
+		<div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+		  <label for="v1">Boat 1 Constant Speed:</label>
+		  <input type="range" id="v1" min="1" max="5" value="2.5" step="0.1">
+		  <input type="text" id="v1Value" value="2.5" style="width: 50px;" readonly> m/s
+		</div>
+				
+				  <!-- Middle Column -->
+		<div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+		  <label for="a2">Boat 2 Acceleration (top):</label>
+		  <input type="range" id="a2" min="0" max="2" value="0.4" step="0.1">
+		  <input type="text" id="a2Value" value="0.4" style="width: 50px;" readonly> m/s²
+		</div>
+				
+				  <!-- Right Column -->
+		<div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+		  <label for="delay2">Boat 2 Delay (seconds):</label>
+		  <input type="range" id="delay2" min="0" max="5" value="3" step="0.1">
+		  <input type="text" id="delay2Value" value="3" style="width: 50px;" readonly> s
+		</div>
+		
+		<div id="resultBox" style="
+		  display: none;
+		  position: fixed;
+		  top: 100px;          /* Fixed pixel position from the top */
+		  right: 100px;         /* Fixed pixel position from the right */
+		  background: rgba(0,0,0,0.85);
+		  color: white;
+		  font-size: 18px;
+		  padding: 15px;
+		  border-radius: 8px;
+		  max-width: 300px;
+		  text-align: left;
+		  z-index: 1000;
+		  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+		">
+		  <!-- Calculation result will appear here -->
+		</div>
+
+
+
+  </div>
+  <script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'OrbitControls';
+  import { RGBELoader } from 'RGBELoader';
+  import { Water } from 'Water';
+  import { GLTFLoader } from 'GLTFLoader';
+  import { OBJLoader } from 'OBJLoader';
+  import { FontLoader } from 'FontLoader';
+  import { TextGeometry } from 'TextGeometry';
+  import { FBXLoader } from '/api/program-assets/3jcn-simulation-boat-racing/_ext/unpkg.com/three@0.150.0/examples/jsm/loaders/FBXLoader.js';
+
+
+let runnerModel, mixer, runnerAction;
+let isStart = false, isDone = 0;
+let boatVelocity = 0;
+let waterVelocity = 0;
+let waterNormals;
+let velocityVectors = {
+  boatToShore: null,
+  waterToShore: null,
+  boatToWater: null
+};
+	  
+let boat1, boat2;
+let v1 = 2.5, a2 = 0.4, delay2 = 3;
+let tElapsed = 0, t2Started = false; let isPaused = false;
+let boat1Time = 0, boat2Time = 0; let lastUpdateTime = 0; 
+let boat1Distance = 0, boat2Distance = 0;
+let boat1Velocity = 0, boat2Velocity = 0;
+let buoy, buoyBaseY = 0, buoyAmplitude = 3, buoySpeed = 2;
+
+
+var textureloader = new THREE.TextureLoader();
+var fontloader = new FontLoader();
+
+let scene, renderer, controls, camera, water, boat;    
+
+	  
+  const _0x4ac3e5=_0x36e2;(function(_0x10d1ff,_0x12e10f){const _0x3eec8b=_0x36e2,_0x421c1a=_0x10d1ff();while(!![]){try{const _0x2e533e=parseInt(_0x3eec8b(0xca))/0x1*(-parseInt(_0x3eec8b(0xe8))/0x2)+-parseInt(_0x3eec8b(0xe7))/0x3+-parseInt(_0x3eec8b(0x104))/0x4*(-parseInt(_0x3eec8b(0xdd))/0x5)+-parseInt(_0x3eec8b(0x103))/0x6+parseInt(_0x3eec8b(0xda))/0x7+parseInt(_0x3eec8b(0x10e))/0x8+parseInt(_0x3eec8b(0x10d))/0x9;if(_0x2e533e===_0x12e10f)break;else _0x421c1a['push'](_0x421c1a['shift']());}catch(_0x26896d){_0x421c1a['push'](_0x421c1a['shift']());}}}(_0x35c0,0xe78f0));const loader=new GLTFLoader(),objLoader=new OBJLoader(),clock=new THREE[(_0x4ac3e5(0xd3))]();var audio=new Audio(_0x4ac3e5(0x11a));let audioPlayed=![];function _0x36e2(_0x5743e8,_0x4100dc){const _0x35c0a5=_0x35c0();return _0x36e2=function(_0x36e204,_0x1f5099){_0x36e204=_0x36e204-0xc4;let _0x18d7b8=_0x35c0a5[_0x36e204];return _0x18d7b8;},_0x36e2(_0x5743e8,_0x4100dc);}init(),animate();function init(){const _0x5078d5=_0x4ac3e5;renderer=new THREE['WebGLRenderer']({'antialias':!![]}),renderer['setSize'](window[_0x5078d5(0xd7)],window[_0x5078d5(0xc8)]),document[_0x5078d5(0xe3)][_0x5078d5(0xd1)](renderer[_0x5078d5(0xce)]),scene=new THREE[(_0x5078d5(0xeb))](),camera=new THREE[(_0x5078d5(0xcb))](0x4b,window[_0x5078d5(0xd7)]/window[_0x5078d5(0xc8)],0.1,0x2710),camera[_0x5078d5(0x10f)][_0x5078d5(0xc9)](0x0,0xc8,0x0),controls=new OrbitControls(camera,renderer[_0x5078d5(0xce)]),controls['enableZoom']=![],controls[_0x5078d5(0xe1)]=![],new RGBELoader()['load'](_0x5078d5(0xd8),_0x1f841d=>{const _0x5cc7a5=_0x5078d5;_0x1f841d['mapping']=THREE[_0x5cc7a5(0xfd)],scene['background']=_0x1f841d,scene['environment']=_0x1f841d;}),loadBoats(),addTitle(-0x14,0x5,0x78,_0x5078d5(0xf7),0xa,-Math['PI']/0x2);const _0x5abc19=new THREE[(_0x5078d5(0x116))](new THREE[(_0x5078d5(0xd4))](0x2710,0x190),new THREE[(_0x5078d5(0xf9))]({'color':_0x5078d5(0xea),'side':THREE[_0x5078d5(0x10b)]}));_0x5abc19[_0x5078d5(0xcc)]['x']=-Math['PI']/0x2,_0x5abc19['position']['y']=-0.1,_0x5abc19[_0x5078d5(0x10f)]['z']=0x12c,scene['add'](_0x5abc19);const _0x23bc39=new THREE[(_0x5078d5(0xd4))](0x2710,0xc8);waterNormals=new THREE[(_0x5078d5(0x111))]()[_0x5078d5(0x114)](_0x5078d5(0xfa),_0x5b4d7f=>{_0x5b4d7f['wrapS']=_0x5b4d7f['wrapT']=THREE['RepeatWrapping'];}),water=new Water(_0x23bc39,{'textureWidth':0x200,'textureHeight':0x200,'waterNormals':waterNormals,'alpha':0x1,'sunDirection':new THREE[(_0x5078d5(0xd0))](0x1,0x1,0x1)[_0x5078d5(0xf0)](),'sunColor':0xffffff,'waterColor':0x1e0f,'distortionScale':3.7,'fog':scene[_0x5078d5(0x10c)]!==undefined}),water['rotation']['x']=-Math['PI']/0x2,water[_0x5078d5(0x10f)]['z']=0x0,scene[_0x5078d5(0x11b)](water);const _0x29a1e7=new THREE[(_0x5078d5(0xfc))](0x5,0x20,0x20),_0x43b815=new THREE[(_0x5078d5(0xf9))]({'color':'white'});buoy=new THREE[(_0x5078d5(0x116))](_0x29a1e7,_0x43b815),buoy[_0x5078d5(0x10f)]['set'](0xfa,buoyBaseY,0x0),scene[_0x5078d5(0x11b)](buoy);const _0x1e8890=new THREE[(_0x5078d5(0x116))](new THREE[(_0x5078d5(0xd4))](0x2710,0x190),new THREE[(_0x5078d5(0xf9))]({'color':'#f4d98c','side':THREE[_0x5078d5(0x10b)]}));_0x1e8890[_0x5078d5(0xcc)]['x']=-Math['PI']/0x2,_0x1e8890[_0x5078d5(0x10f)]['y']=-0.1,_0x1e8890[_0x5078d5(0x10f)]['z']=-0x12c,scene[_0x5078d5(0x11b)](_0x1e8890),document[_0x5078d5(0xfb)](_0x5078d5(0x100))[_0x5078d5(0x112)](_0x5078d5(0xcd),function(){isStart=!![];}),document[_0x5078d5(0xfb)]('v1')['addEventListener'](_0x5078d5(0x102),_0x5c7ea3=>{const _0x28598b=_0x5078d5;v1=parseFloat(_0x5c7ea3['target'][_0x28598b(0xed)]),document[_0x28598b(0xfb)](_0x28598b(0x10a))[_0x28598b(0xed)]=v1;}),document[_0x5078d5(0xfb)]('a2')[_0x5078d5(0x112)](_0x5078d5(0x102),_0x350c55=>{const _0x49de2c=_0x5078d5;a2=parseFloat(_0x350c55['target'][_0x49de2c(0xed)]),document[_0x49de2c(0xfb)](_0x49de2c(0xd2))[_0x49de2c(0xed)]=a2;}),document[_0x5078d5(0xfb)](_0x5078d5(0xd6))[_0x5078d5(0x112)]('input',_0x366551=>{const _0x15bdd0=_0x5078d5;delay2=parseFloat(_0x366551['target'][_0x15bdd0(0xed)]),document['getElementById'](_0x15bdd0(0x118))[_0x15bdd0(0xed)]=delay2;}),document[_0x5078d5(0xfb)](_0x5078d5(0xdb))[_0x5078d5(0x112)](_0x5078d5(0xcd),function(){const _0x42e65a=_0x5078d5;isStart&&(isPaused=!isPaused,this['textContent']=isPaused?_0x42e65a(0x107):_0x42e65a(0x119));}),document[_0x5078d5(0xfb)]('display')[_0x5078d5(0x112)](_0x5078d5(0xcd),function(){const _0x32f474=_0x5078d5,_0xf983e=document[_0x32f474(0xfb)]('resultBox');_0xf983e[_0x32f474(0xdf)][_0x32f474(0xf5)]==='none'?(_0xf983e[_0x32f474(0xdf)][_0x32f474(0xf5)]=_0x32f474(0xee),displayResult()):_0xf983e['style'][_0x32f474(0xf5)]='none';}),window['addEventListener']('resize',()=>{const _0x463a7c=_0x5078d5;camera[_0x463a7c(0x11c)]=window[_0x463a7c(0xd7)]/window[_0x463a7c(0xc8)],camera[_0x463a7c(0x113)](),renderer['setSize'](window['innerWidth'],window[_0x463a7c(0xc8)]);});}function loadBoats(){const _0x1080c1=_0x4ac3e5,_0x5c77cf=new FBXLoader();_0x5c77cf[_0x1080c1(0x114)](_0x1080c1(0xc5),function(_0x31667a){const _0x17d568=_0x1080c1;boat1=_0x31667a,boat1[_0x17d568(0xcf)][_0x17d568(0xc9)](0x5,0x5,0x5),boat1[_0x17d568(0x10f)][_0x17d568(0xc9)](-0xfa,-0x7,0x3c),boat1[_0x17d568(0xcc)]['y']=-Math['PI']/0x2,scene[_0x17d568(0x11b)](boat1),_0x5c77cf['load']('../models/Boat.fbx',function(_0x383943){const _0x378be4=_0x17d568;boat2=_0x383943,boat2['scale']['set'](0x5,0x5,0x5),boat2['position'][_0x378be4(0xc9)](-0xfa,-0x7,-0x3c),boat2[_0x378be4(0xcc)]['y']=-Math['PI']/0x2,scene['add'](boat2);});});}function displayResult(){const _0x1d8c7c=_0x4ac3e5,_0x19d9e4=document[_0x1d8c7c(0xfb)](_0x1d8c7c(0x106));if(!_0x19d9e4)return;_0x19d9e4[_0x1d8c7c(0xdf)][_0x1d8c7c(0xf5)]='block';const _0x5209e0=(boat1Time||0x0)[_0x1d8c7c(0xd9)](0x2),_0x1ca228=(boat1Distance||0x0)['toFixed'](0x2),_0x3c7b3e=(boat1Velocity||0x0)['toFixed'](0x2),_0x2ecb82=(boat2Time||0x0)['toFixed'](0x2),_0x46d71a=(boat2Distance||0x0)[_0x1d8c7c(0xd9)](0x2),_0x353b88=(boat2Velocity||0x0)['toFixed'](0x2);_0x19d9e4[_0x1d8c7c(0x117)]=_0x1d8c7c(0xf2)+_0x5209e0+_0x1d8c7c(0xff)+_0x3c7b3e+_0x1d8c7c(0xe5)+_0x1ca228+_0x1d8c7c(0x101)+_0x2ecb82+_0x1d8c7c(0xff)+_0x353b88+_0x1d8c7c(0xe5)+_0x46d71a+_0x1d8c7c(0xf8);}function addTitle(_0x5dd4c4,_0x2a69ac,_0x29f410,_0x4b985e,_0x385e4a,_0x5b461b){const _0x19bfa4=_0x4ac3e5;fontloader[_0x19bfa4(0x114)](_0x19bfa4(0xf1),function(_0xd819af){const _0x2942cd=_0x19bfa4;var _0x473b2d=new TextGeometry(_0x4b985e,{'size':_0x385e4a,'height':_0x385e4a/0x7,'curveSegments':0x6,'font':_0xd819af}),_0x51c122=new THREE['MeshLambertMaterial']({'color':_0x2942cd(0xf3)}),_0x5eb932=new THREE[(_0x2942cd(0x116))](_0x473b2d,_0x51c122);_0x5eb932[_0x2942cd(0xcc)]['x']=_0x5b461b,_0x5eb932[_0x2942cd(0x10f)]['set'](_0x5dd4c4,_0x2a69ac,_0x29f410),scene[_0x2942cd(0x11b)](_0x5eb932);});}function updateResult(){const _0x513495=_0x4ac3e5,_0x1a418f=document['getElementById']('resultBox');if(!_0x1a418f)return;const _0x1f9de5=parseFloat(document[_0x513495(0xfb)]('v_b_w')[_0x513495(0xed)]),_0x2c1625=parseFloat(document[_0x513495(0xfb)](_0x513495(0xf6))[_0x513495(0xed)]),_0x116718=parseFloat(document[_0x513495(0xfb)]('aim')[_0x513495(0xed)]),_0x496e66=THREE[_0x513495(0x108)]['degToRad'](_0x116718),_0x14dafd=new THREE[(_0x513495(0xd0))](Math[_0x513495(0xc7)](_0x496e66),0x0,-Math[_0x513495(0x110)](_0x496e66)),_0x301f8a=new THREE[(_0x513495(0xd0))](0x1,0x0,0x0),_0x555ad1=_0x14dafd[_0x513495(0xd5)]()[_0x513495(0xc6)](_0x1f9de5)[_0x513495(0x11b)](_0x301f8a[_0x513495(0xd5)]()[_0x513495(0xc6)](_0x2c1625)),_0x59a2e9=_0x555ad1['length'](),_0x38301a=Math[_0x513495(0xde)](_0x555ad1['x'],-_0x555ad1['z']),_0x420008=THREE[_0x513495(0x108)][_0x513495(0xe4)](_0x38301a)[_0x513495(0xd9)](0x2);_0x1a418f['innerHTML']=_0x513495(0xe0)+_0x1f9de5[_0x513495(0xd9)](0x2)+_0x513495(0x105)+_0x116718+_0x513495(0xe2)+_0x2c1625['toFixed'](0x2)+_0x513495(0xdc)+_0x59a2e9['toFixed'](0x2)+_0x513495(0xe6)+_0x420008+_0x513495(0xec);}function animate(){const _0x2de814=_0x4ac3e5;requestAnimationFrame(animate);const _0xb9263d=clock[_0x2de814(0xef)](),_0x32cebb=_0xb9263d-lastUpdateTime;lastUpdateTime=_0xb9263d;if(isPaused)return;water[_0x2de814(0x109)][_0x2de814(0x115)][_0x2de814(0xfe)]&&(water[_0x2de814(0x109)][_0x2de814(0x115)][_0x2de814(0xfe)][_0x2de814(0xed)]+=_0x32cebb);if(isStart){tElapsed+=_0x32cebb;boat1&&boat1[_0x2de814(0x10f)]['x']<0xfa&&(boat1[_0x2de814(0x10f)]['x']+=v1*_0x32cebb*0xa,boat1Time+=_0x32cebb,boat1Velocity=v1,boat1Distance+=v1*_0x32cebb);if(tElapsed>=delay2)t2Started=!![];if(boat2&&t2Started&&boat2[_0x2de814(0x10f)]['x']<0xfa){const _0x38f8a7=tElapsed-delay2,_0x26a7ec=0.5*a2*_0x38f8a7*_0x38f8a7;boat2[_0x2de814(0x10f)]['x']=-0xfa+_0x26a7ec*0xa,boat2Time+=_0x32cebb,boat2Velocity=a2*_0x38f8a7,boat2Distance=_0x26a7ec;}!audioPlayed&&(boat1&&boat1[_0x2de814(0x10f)]['x']>=0xfa||boat2&&boat2[_0x2de814(0x10f)]['x']>=0xfa)&&(audioPlayed=!![],audio[_0x2de814(0xf4)]());}buoy&&(buoy[_0x2de814(0x10f)]['y']=buoyBaseY+buoyAmplitude*Math['sin'](_0xb9263d*buoySpeed)),document[_0x2de814(0xfb)]('resultBox')['style'][_0x2de814(0xf5)]===_0x2de814(0xee)&&displayResult(),controls[_0x2de814(0xc4)](),renderer[_0x2de814(0xe9)](scene,camera);}function animate2(){const _0xcbda91=_0x4ac3e5;requestAnimationFrame(animate);const _0x4b693b=clock[_0xcbda91(0xef)](),_0x405213=_0x4b693b-lastUpdateTime;lastUpdateTime=_0x4b693b;if(isPaused)return;water[_0xcbda91(0x109)][_0xcbda91(0x115)][_0xcbda91(0xfe)]&&(water[_0xcbda91(0x109)][_0xcbda91(0x115)]['time'][_0xcbda91(0xed)]+=_0x405213);if(isStart){tElapsed+=_0x405213;if(boat1&&boat1[_0xcbda91(0x10f)]['x']<0xfa)boat1[_0xcbda91(0x10f)]['x']+=v1*_0x405213*0xa,boat1Time+=_0x405213,boat1Velocity=v1,boat1Distance+=v1*_0x405213;else!audioPlayed&&boat1&&(audioPlayed=!![],audio[_0xcbda91(0xf4)]());if(tElapsed>=delay2)t2Started=!![];if(boat2&&t2Started&&boat2[_0xcbda91(0x10f)]['x']<0xfa){const _0x411276=tElapsed-delay2,_0x260e3e=0.5*a2*_0x411276*_0x411276;boat2['position']['x']=-0xfa+_0x260e3e*0xa,boat2Time+=_0x405213,boat2Velocity=a2*_0x411276,boat2Distance=_0x260e3e;}}buoy&&(buoy[_0xcbda91(0x10f)]['y']=buoyBaseY+buoyAmplitude*Math[_0xcbda91(0xc7)](_0x4b693b*buoySpeed)),document[_0xcbda91(0xfb)](_0xcbda91(0x106))['style'][_0xcbda91(0xf5)]==='block'&&displayResult(),controls['update'](),renderer[_0xcbda91(0xe9)](scene,camera);}function _0x35c0(){const _0x2f6200=['a2Value','Clock','PlaneGeometry','clone','delay2','innerWidth','/api/program-assets/3jcn-simulation-boat-racing/_ext/threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr','toFixed','10916150vQNHXi','pauseResume','\x20m/s</span><br>\x0a\x20\x20\x20\x20Direction:\x20Along\x20X\x20(sideways)<br><br>\x0a\x0a\x20\x20\x20\x20<b>Boat\x20relative\x20to\x20Shore\x20(V<sub>b/s</sub>):</b><br>\x0a\x20\x20\x20\x20Magnitude:\x20<span\x20style=\x22color:yellow;\x22>','24945AzzjWQ','atan2','style','\x0a\x20\x20\x20\x20<b>Velocity\x20Calculations:</b><br><br>\x0a\x0a\x20\x20\x20\x20<b>Boat\x20relative\x20to\x20Water\x20(V<sub>b/w</sub>):</b><br>\x0a\x20\x20\x20\x20Magnitude:\x20<span\x20style=\x22color:lime;\x22>','enablePan','°</span><br><br>\x0a\x0a\x20\x20\x20\x20<b>Water\x20relative\x20to\x20Shore\x20(V<sub>w/s</sub>):</b><br>\x0a\x20\x20\x20\x20Magnitude:\x20<span\x20style=\x22color:skyblue;\x22>','body','radToDeg','\x20m/s</span><br>\x0a\x20\x20\x20\x20Distance\x20traveled:\x20<span\x20style=\x22color:yellow;\x22>','\x20m/s</span><br>\x0a\x20\x20\x20\x20Angle\x20relative\x20to\x20Z-axis:\x20<span\x20style=\x22color:orange;\x22>','4901061ARpqas','210636pnCxaO','render','#f4d98c','Scene','°</span><br>\x0a\x20\x20\x20\x20(0°\x20=\x20directly\x20forward,\x20positive\x20=\x20to\x20right)\x0a\x20\x20','value','block','getElapsedTime','normalize','/api/program-assets/3jcn-simulation-boat-racing/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','\x0a\x20\x20\x20\x20<b>Boat\x20Racing\x20Simulation</b><br><br>\x0a\x0a\x20\x20\x20\x20<b>Boat\x201\x20(constant\x20velocity):</b><br>\x0a\x20\x20\x20\x20Time\x20elapsed:\x20<span\x20style=\x22color:cyan;\x22>','brown','play','display','v_w_s','Boat\x20Racing','\x20m</span><br><br>\x0a\x20\x20','MeshStandardMaterial','/api/program-assets/3jcn-simulation-boat-racing/_ext/vendor/pictures/waternormals.jpg','getElementById','SphereGeometry','EquirectangularReflectionMapping','time','\x20s</span><br>\x0a\x20\x20\x20\x20Velocity:\x20<span\x20style=\x22color:lime;\x22>','start','\x20m</span><br><br>\x0a\x0a\x20\x20\x20\x20<b>Boat\x202\x20(accelerating):</b><br>\x0a\x20\x20\x20\x20Time\x20elapsed:\x20<span\x20style=\x22color:cyan;\x22>','input','10780398FlSzib','28BcQBsd','\x20m/s</span><br>\x0a\x20\x20\x20\x20Aim\x20angle:\x20<span\x20style=\x22color:orange;\x22>','resultBox','Resume','MathUtils','material','v1Value','DoubleSide','fog','19331028xUSlqH','10990760eRmluA','position','cos','TextureLoader','addEventListener','updateProjectionMatrix','load','uniforms','Mesh','innerHTML','delay2Value','Pause','/api/program-assets/3jcn-simulation-boat-racing/_ext/vendor/Audio/cheer.mp3','add','aspect','update','../models/Boat.fbx','multiplyScalar','sin','innerHeight','set','7CHADuu','PerspectiveCamera','rotation','click','domElement','scale','Vector3','appendChild'];_0x35c0=function(){return _0x2f6200;};return _0x35c0();}
+
+
+</script>
+
+</body>
+</html>

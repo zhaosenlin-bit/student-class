@@ -35,7 +35,7 @@ function path(value) {
 }
 export function captureDeclaration(value) {
   exact(value, ['schema', 'entries']);
-  if (value.schema !== 'turing-reviewed-runtime/v1') fail('DECLARATION');
+  if (value.schema !== 'leqixiang-reviewed-runtime/v1') fail('DECLARATION');
   const entries = list(value.entries, 201).map(row => {
     exact(row, ['id', 'path', 'keys', 'destinations']);
     if (!entryId(row.id) || !path(row.path)) fail('ENTRY');
@@ -70,7 +70,7 @@ export async function prepareReviewedSession({declaration, context, storage, loc
   const abort = new AbortController();
   // Delimited JSON prevents aliasing; no raw identity is sent to the child.
   // Revision and policy changes intentionally start a separate local record.
-  const namespace = 'turing.course.runtime.v1:' + JSON.stringify([
+  const namespace = 'leqixiang.course.runtime.v1:' + JSON.stringify([
     owner.environment, owner.principalId, owner.programId, owner.revision, owner.policyDigest, owner.chapter
   ]);
   const current = signal => {

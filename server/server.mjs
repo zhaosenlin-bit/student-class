@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /*
- * Local replica server for the two courseware platforms.
+ * The server behind the 乐启享 interactive courseware library.
  *
- *   :4173  小白教育  (xbjiaoyu.com)  -> mirror/xbjiaoyu
- *   :4174  图灵智赋  (aifunengjiaoyu.com) -> mirror/aifunengjiaoyu
+ *   :4173  乐启享机器人 · 互动课件库  -> mirror/leqixiang
  *
- * The mirrored front-end code is served byte-for-byte as it was published.
- * Only the small set of API endpoints the shell actually calls is implemented
- * locally, so the original UI, routing, filtering and lesson player all keep
- * working without the commercial backend.
+ * Everything a lesson needs is served from this disk: the shell, the
+ * catalogue, the courseware bodies and the libraries they load.  Only
+ * the small set of API endpoints the shell actually calls is implemented
+ * locally, so the library works without the commercial backend and
+ * without a network.
  */
 
 import http from 'node:http';
@@ -29,6 +29,8 @@ const ROOT = process.env.LQ_ROOT
 const XB_ROOT = path.join(ROOT, 'mirror', 'xbjiaoyu');
 const AFE_ROOT = path.join(ROOT, 'mirror', 'aifunengjiaoyu');
 const LQ_ROOT = path.join(ROOT, 'mirror', 'leqixiang');
+/* Where this file lives — the launcher travels with it. */
+const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -189,14 +191,39 @@ function safeJoin(base, rel) {
   return target;
 }
 
-async function serveFile(res, file, { download = false, contentType, headers: extra } = {}) {
+/*
+ * The mirrored sites kept their pictures and their libraries in folders
+ * of their own.  A work that asks for one of them by its root-relative
+ * name is answered from the mirror of that site.
+ */
+const MIRROR_ROOT_HOSTS = ['vendor'];
+function mirroredRootAsset(rel) {
+  if (!rel || rel.includes('..')) return null;
+  const base = path.join(LQ_ROOT, '_shared-ext');
+  for (const host of MIRROR_ROOT_HOSTS) {
+    const file = safeJoin(path.join(base, host), rel);
+    if (!file) continue;
+    try {
+      if (fs.statSync(file).isFile()) return file;
+    } catch {
+      /* A name the mirror does not hold is simply not answered. */
+    }
+  }
+  return null;
+}
+
+async function serveFile(
+  res,
+  file,
+  { download = false, contentType, headers: extra, cache } = {}
+) {
   try {
     const stat = await fsp.stat(file);
     if (!stat.isFile()) return false;
     const headers = {
       'Content-Type': contentType || mimeFor(file),
       'Content-Length': stat.size,
-      'Cache-Control': 'no-cache',
+      'Cache-Control': cache || 'no-cache',
     };
     if (extra) Object.assign(headers, extra);
     if (download) {
@@ -316,6 +343,9 @@ const XB_LOCAL_NOTICE = `
 const LQ_EXT_HOSTS = [
   'https://cdnjs.cloudflare.com/',
   'https://cdn.jsdelivr.net/',
+  'https://threejs.org/',
+  'https://miaoda.feishu.cn/',
+  'https://sf3-scmcdn-cn.feishucdn.com/',
   'https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/',
   'https://unpkg.com/',
   'https://esm.sh/',
@@ -328,6 +358,12 @@ const LQ_EXT_HOSTS = [
   'https://musk-online.fbcontent.cn/',
   'https://www.feixianglaoshi.com/',
   'https://i.pinimg.com/',
+  'https://media.doubao.com/',
+  'https://zxkeben.szxuexiao.com/',
+  'https://keben.szxuexiao.com/',
+  'https://appsj.szxuexiao.com/',
+  'https://www.szxuexiao.com/',
+  'https://images.szxuexiao.com/',
 ];
 
 function rewriteCoursewareUrls(html, localId) {
@@ -382,6 +418,15 @@ function lqLocalId(programId) {
 }
 
 /*
+ * Some works are one document; others are a document plus a folder of
+ * assets, or an open simulation that asks for a copy of three.js.  The
+ * latter are handed over as a zip, because a single file would lose the
+ * library and stop drawing.
+ */
+const PACKAGED = ['afe-', 'openlab-', 'labsims-', 'blocklygames-', 'lab-'];
+const isPackagedCourse = (id) => PACKAGED.some((prefix) => id.startsWith(prefix));
+
+/*
  * Some works put the address of their pictures together while they run,
  * so the address cannot be found by looking at the document. The picture
  * is then asked of the public CDN even though a copy sits next to the
@@ -397,20 +442,7 @@ function injectLocalCdnShim(html, localId) {
     host,
     `/api/program-assets/${localId}/_ext/${host.replace(/^https?:\/\//, '')}`,
   ]);
-  const script = `<script>(function(){
-var map=${JSON.stringify(map)};
-function fix(u){
-  if(typeof u!=='string')return u;
-  for(var i=0;i<map.length;i++){if(u.indexOf(map[i][0])===0)return map[i][1]+u.slice(map[i][0].length);}
-  return u;
-}
-var f=window.fetch;
-if(f){window.fetch=function(u,o){try{u=fix(u);}catch(e){}return f.call(this,u,o);};}
-var x=XMLHttpRequest.prototype.open;
-if(x){XMLHttpRequest.prototype.open=function(m,u){try{u=fix(u);}catch(e){}return x.call(this,m,u);};}
-var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
-if(d&&d.set){Object.defineProperty(HTMLImageElement.prototype,'src',{get:d.get,set:function(v){d.set.call(this,fix(v));}});}
-})();</script>`;
+  const script = cdnShim(map);
   /* Right after the opening tag of the head, or of the body. */
   const head = /<head[^>]*>/i.exec(html);
   if (head) {
@@ -434,7 +466,24 @@ function injectArchiveCdnShim(html) {
     host,
     `./assets/_ext/${host.replace(/^https?:\/\//, '')}`,
   ]);
-  const script = `<script>(function(){
+  const script = cdnShim(map);
+  const head = /<head[^>]*>/i.exec(html);
+  if (head) {
+    const at = head.index + head[0].length;
+    return html.slice(0, at) + script + html.slice(at);
+  }
+  return script + html;
+}
+
+/*
+ * A lesson that names a public library at runtime does not always do it
+ * through fetch: some of them drop a <script> into the page while it
+ * runs, and some set the address of a picture as they go.  Every one
+ * of those ways out is closed here, so the copy on this disk is the
+ * copy that runs.
+ */
+function cdnShim(map) {
+  return `<script>(function(){
 var map=${JSON.stringify(map)};
 function fix(u){
   if(typeof u!=='string')return u;
@@ -447,13 +496,13 @@ var x=XMLHttpRequest.prototype.open;
 if(x){XMLHttpRequest.prototype.open=function(m,u){try{u=fix(u);}catch(e){}return x.call(this,m,u);};}
 var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
 if(d&&d.set){Object.defineProperty(HTMLImageElement.prototype,'src',{get:d.get,set:function(v){d.set.call(this,fix(v));}});}
+var s=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,'src');
+if(s&&s.set){Object.defineProperty(HTMLScriptElement.prototype,'src',{get:s.get,set:function(v){s.set.call(this,fix(v));}});}
+var l=Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype,'href');
+if(l&&l.set){Object.defineProperty(HTMLLinkElement.prototype,'href',{get:l.get,set:function(v){l.set.call(this,fix(v));}});}
+var sa=Element.prototype.setAttribute;
+Element.prototype.setAttribute=function(n,v){if((n==='src'||n==='href')&&typeof v==='string'){try{v=fix(v);}catch(e){}}return sa.call(this,n,v);};
 })();</script>`;
-  const head = /<head[^>]*>/i.exec(html);
-  if (head) {
-    const at = head.index + head[0].length;
-    return html.slice(0, at) + script + html.slice(at);
-  }
-  return script + html;
 }
 
 /*
@@ -572,10 +621,156 @@ function listFiles(root, base = '') {
 }
 
 /*
+ * The mirrored stylesheet of the Google Fonts service holds every family
+ * the crawler ever fetched, so a course that asks for two families would
+ * be handed all of them.  The answer is cut down to the families it
+ * named.
+ *
+ * The CJK families carry a hundred unicode-range pieces each, which would
+ * add megabytes to a download.  A copy opened from disk leaves those to
+ * the system font instead.
+ */
+const ARCHIVE_FONT_PIECES = 60;
+
+/*
+ * The Chinese families are cut into a hundred small files each, one for
+ * a stretch of the character set.  A copy opened from disk does not
+ * carry all of them: the system font takes the parts that are missing,
+ * and the archive stays a reasonable size.
+ */
+function trimArchiveFonts(css) {
+  const blocks = css.split(/(?=@font-face\s*\{)/).filter((b) => b.includes('@font-face'));
+  if (!blocks.length) return css;
+  const pieces = new Map();
+  for (const block of blocks) {
+    const family = /font-family:\s*'([^']+)'/.exec(block)?.[1];
+    if (!family) continue;
+    pieces.set(family, (pieces.get(family) || 0) + 1);
+  }
+  const kept = blocks.filter((block) => {
+    const family = /font-family:\s*'([^']+)'/.exec(block)?.[1];
+    if (!family) return true;
+    return (pieces.get(family) || 0) <= ARCHIVE_FONT_PIECES;
+  });
+  return kept.join('');
+}
+
+function googleFontsSheet(query, forArchive = false) {
+  return fontSheet(
+    path.join(LQ_ROOT, '_shared-ext', 'fonts.googleapis.com', 'css2'),
+    /\/_shared\/fonts\.gstatic\.com\/[^)"'\s]+/g,
+    query,
+    forArchive
+  );
+}
+
+/*
+ * The two hosted courseware pages ask a font service of their own for
+ * the Chinese families.  The stylesheet it hands out is kept here, and
+ * the answer is cut down to the family that was asked for.
+ */
+function feishuFontsSheet(query, forArchive = false) {
+  return fontSheet(
+    path.join(LQ_ROOT, '_shared-ext', 'miaoda.feishu.cn', 'fonts', 'css2'),
+    /\/_shared\/sf3-scmcdn-cn\.feishucdn\.com\/[^)"'\s]+/g,
+    query,
+    forArchive
+  );
+}
+
+function fontSheet(mergedFile, pieceRe, query, forArchive = false) {
+  const merged = mergedFile;
+  if (!fs.existsSync(merged)) return null;
+  const text = fs.readFileSync(merged, 'utf8');
+  const wanted = new Set();
+  for (const part of String(query || '').split('&')) {
+    const at = part.indexOf('=');
+    if (at < 0) continue;
+    if (part.slice(0, at) !== 'family') continue;
+    const value = part.slice(at + 1).replace(/\+/g, ' ');
+    for (const name of decodeURIComponent(value).split(',')) {
+      wanted.add(name.split(':')[0].trim());
+    }
+  }
+  const blocks = text.split(/(?=@font-face\s*\{)/).filter((b) => b.includes('@font-face'));
+  /* How many font files a family is worth. */
+  const weight = new Map();
+  for (const block of blocks) {
+    const family = /font-family:\s*'([^']+)'/.exec(block)?.[1];
+    if (!family) continue;
+    const pieces = [...block.matchAll(pieceRe)].length;
+    weight.set(family, (weight.get(family) || 0) + pieces);
+  }
+  const kept = [];
+  const files = new Set();
+  for (const block of blocks) {
+    const family = /font-family:\s*'([^']+)'/.exec(block)?.[1];
+    if (!family || !wanted.has(family)) continue;
+    if (forArchive && (weight.get(family) || 0) > ARCHIVE_FONT_PIECES) continue;
+    const pieces = [...block.matchAll(pieceRe)].map((m) => m[0]);
+    kept.push(block);
+    for (const piece of pieces) files.add(piece.replace(/^\/_shared\//, ''));
+  }
+  let css = kept.join('');
+  if (forArchive) css = css.replace(/\/_shared\//g, './assets/_ext/');
+  return { css, files: [...files] };
+}
+
+/*
  * A 图灵智赋 work is a document plus a folder of assets, so the offline copy
  * is handed over as a zip. Every path inside the document is rewritten to a
  * relative one, and the platform check is relaxed for file:// documents.
  */
+/*
+ * The guard that asks the platform for permission.
+ *
+ * It has been rewritten more than once, and the spellings it wears
+ * differ from one body to the next: some ask the platform outright,
+ * some ask only when the page does not run from the disk, some ask
+ * without brackets around the condition.  An archive is offline by
+ * definition, so every one of those questions is answered from inside
+ * the archive — otherwise a course opened with the launcher asks a
+ * local server that knows nothing about it and shows "课件启动失败".
+ */
+function answerVerifyAccessOffline(html) {
+  const answer = 'data:application/json,%7B%22ok%22%3Atrue%7D';
+  const spellings = [
+    [
+      /x\.open\(\\"GET\\",location\.origin\+\\"\\?\/api\\?\/program-file\\?\/verify-access(?:\?[^"'\\]*)?\\?"/g,
+      `x.open(\\"GET\\",\\"${answer}\\"`,
+    ],
+    [
+      /x\.open\("GET",location\.origin\+"\/?api\/program-file\/verify-access(?:\?[^"']*?)?"/g,
+      `x.open("GET","${answer}"`,
+    ],
+    [
+      /\(location\.protocol===\\"file:\\"\|\|location\.protocol===\\"about:\\"\)\?\\"data:application\/json,[^"'\\]*\\":location\.origin\+\\"\\?\/api\\?\/program-file\\?\/verify-access(?:\?[^"'\\]*)?\\?"/g,
+      `\\"${answer}\\"`,
+    ],
+    [
+      /\(location\.protocol==="file:"\|\|location\.protocol==="about:"\)\?"data:application\/json,[^"']*?"\:location\.origin\+"\/?api\/program-file\/verify-access(?:\?[^"']*?)?"/g,
+      `"${answer}"`,
+    ],
+    [
+      /\(p===\\"file:\\"\)\?\\"data:application\/json,[^"'\\]*\\":location\.origin\+\\"\\?\/api\\?\/program-file\\?\/verify-access(?:\?[^"'\\]*)?\\?"/g,
+      `\\"${answer}\\"`,
+    ],
+    [
+      /p===\\"file:\\"\?\\"data:application\/json,[^"'\\]*\\":location\.origin\+\\"\\?\/api\\?\/program-file\\?\/verify-access(?:\?[^"'\\]*)?\\?"/g,
+      `\\"${answer}\\"`,
+    ],
+    [
+      /p==="file:"\?"data:application\/json,[^"']*?"\:location\.origin\+"\/?api\/program-file\/verify-access(?:\?[^"']*?)?"/g,
+      `"${answer}"`,
+    ],
+  ];
+  let out = html;
+  for (const [pattern, to] of spellings) {
+    out = out.replace(pattern, to);
+  }
+  return out;
+}
+
 function buildLqZip(id) {
   const bodyFile = path.join(LQ_ROOT, 'courseware', `${id}.html`);
   if (!fs.existsSync(bodyFile)) return null;
@@ -605,10 +800,6 @@ function buildLqZip(id) {
     /if\(!ok&&h!==\\"localhost\\"&&h!==\\"127\.0\.0\.1\\"\)/g,
     'if(!ok&&h!==\\"localhost\\"&&h!==\\"127.0.0.1\\"&&h!==\\"\\")'
   );
-  html = html.replace(
-    /x\.open\(\\"GET\\",location\.origin\+\\"\/api\/program-file\/verify-access/g,
-    'x.open(\\"GET\\",p===\\"file:\\"?\\"data:application/json,%7B%22ok%22%3Atrue%7D\\":location.origin+\\"/api/program-file/verify-access'
-  );
   /*
    * The same guard, written with plain quotes instead of escaped ones.
    * 470 of the mirrored bodies use this spelling, and a document that
@@ -630,10 +821,7 @@ function buildLqZip(id) {
     /if\(!ok&&h!=="localhost"&&h!=="127\.0\.0\.1"\)\{/g,
     'if(false){'
   );
-  html = html.replace(
-    /x\.open\("GET",location\.origin\+"\/api\/program-file\/verify-access/g,
-    'x.open("GET",(location.protocol==="file:"||location.protocol==="about:")?"data:application/json,%7B%22ok%22%3Atrue%7D":location.origin+"/api/program-file/verify-access'
-  );
+  html = answerVerifyAccessOffline(html);
   html = html.replace(/<base href="\/api\/program-assets\/[^"]*">/g, '<base href="./assets/">');
   html = relaxStandaloneGuard(html);
   html = injectArchiveCdnShim(html);
@@ -649,7 +837,48 @@ function buildLqZip(id) {
     names.add(name);
     entries.push({ name, data });
   };
+  /*
+   * A course whose code is written as modules cannot be opened straight
+   * from the disk: a browser refuses to read a module from a file, for
+   * the same reason it refuses to let one page read another.  Such a
+   * course travels with a small launcher that hands it out over the
+   * local address instead, so the archive is usable on its own.
+   */
+  if (
+    /<script[^>]+type\s*=\s*["']module["']/i.test(html) ||
+    /type\s*=\s*["']importmap["']/i.test(html)
+  ) {
+    const launcher = path.join(SERVER_DIR, 'launcher');
+    const read = (name) => {
+      try {
+        return fs.readFileSync(path.join(launcher, name));
+      } catch {
+        return null;
+      }
+    };
+    const serve = read('serve.mjs');
+    const servePy = read('serve.py');
+    const cmd = read('start.cmd');
+    const sh = read('start.sh');
+    const notes = read('README.txt');
+    if (serve && servePy && cmd && sh && notes) {
+      const course = `${id}.html`;
+      add(
+        '启动课件.cmd',
+        Buffer.from(cmd.toString('utf8').replace(/\{\{COURSE\}\}/g, course), 'utf8')
+      );
+      add(
+        '启动课件.sh',
+        Buffer.from(sh.toString('utf8').replace(/\{\{COURSE\}\}/g, course), 'utf8')
+      );
+      add('serve.mjs', serve);
+      add('serve.py', servePy);
+      add('使用说明.txt', notes);
+    }
+  }
   const assets = path.join(LQ_ROOT, 'courseware', `${id}.assets`);
+  const assetFiles = listFiles(assets);
+
   for (const file of listFiles(assets)) {
     const data = fs.readFileSync(file.file);
     /* A script or a data file can name a public CDN too; inside the
@@ -657,19 +886,167 @@ function buildLqZip(id) {
     if (/\.(?:js|mjs|css|json|html?)$/i.test(file.name)) {
       const text = data.toString('utf8');
       let rewritten = rewriteCoursewareUrls(text, id);
-      if (rewritten !== text) {
-        for (const prefix of [
-          `/api/program-assets/${numeric}/`,
-          `/api/program-assets/${id}/`,
-        ]) {
-          rewritten = rewritten.split(`${prefix}_ext/`).join('./assets/_ext/');
-          rewritten = rewritten.split(prefix).join('./assets/');
-        }
-        add(`assets/${file.name}`, Buffer.from(rewritten, 'utf8'));
-        continue;
+      for (const prefix of [
+        `/api/program-assets/${numeric}/`,
+        `/api/program-assets/${id}/`,
+      ]) {
+        /*
+         * A file that stands inside the archive's own folder asks for
+         * the platform's address; the copy next to it is the very same
+         * file, so the name is pointed at the folder it already stands
+         * in.  A signed address carries a lease with it; the lease has
+         * no meaning here and goes with it.
+         */
+        const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        rewritten = rewritten.replace(
+          new RegExp(escaped + 't/[^"\'\\x60/]+/', 'g'),
+          './'
+        );
+        rewritten = rewritten.split(`${prefix}_ext/`).join('./_ext/');
+        rewritten = rewritten.split(prefix).join('./');
       }
+      /*
+       * The guard may sit in a file of its own — a chapter course keeps
+       * it in the page it shows in a frame — so the same answer is
+       * given there too.
+       */
+      rewritten = answerVerifyAccessOffline(rewritten);
+      add(`assets/${file.name}`, Buffer.from(rewritten, 'utf8'));
+      continue;
     }
     add(`assets/${file.name}`, data);
+  }
+
+  /*
+   * A work written for a site of its own asks for its own files by the
+   * root of that site: "../models/pencil/scene.gltf", "/jsm/…".  The
+   * library answers those names from the mirror of that root, but an
+   * archive has no root above it — the name would climb out of the
+   * folder and find nothing.  The file is therefore put inside the
+   * archive, and the name in the document is pointed at the copy.
+   *
+   * The course's own folder comes first: when both hold a file of the
+   * same name, the one that travelled with the course is the one that
+   * belongs to it.
+   */
+  {
+    const vendorRoot = path.join(LQ_ROOT, '_shared-ext', 'vendor');
+    const refs = new Set();
+    const collect = (text) => {
+      for (const m of text.matchAll(
+        /["'(](\.{1,2}\/)?([A-Za-z0-9_.\-\/]{3,120}\.[A-Za-z0-9]{2,5})["')]/g
+      )) {
+        refs.add(m[2]);
+      }
+    };
+    collect(html);
+    for (const file of assetFiles) {
+      if (!/\.(?:js|mjs|css|json|html?)$/i.test(file.name)) continue;
+      try {
+        collect(fs.readFileSync(file.file, 'utf8'));
+      } catch {
+        /* A file that cannot be read cannot name anything. */
+      }
+    }
+    for (const raw of refs) {
+      const rel = raw.replace(/^\/+/, '');
+      if (!rel || rel.includes('..') || rel.startsWith('api/')) continue;
+      const source = path.join(vendorRoot, rel);
+      let stat;
+      try {
+        stat = fs.statSync(source);
+      } catch {
+        continue;
+      }
+      if (!stat.isFile()) continue;
+      add(`assets/${rel}`, fs.readFileSync(source));
+      /*
+       * A model is two files: the scene and the buffer it points at.
+       * The buffer sits next to the scene and is named inside it, so it
+       * travels to the same place in the archive.
+       */
+      if (/\.gltf$/i.test(rel)) {
+        let scene;
+        try {
+          scene = JSON.parse(fs.readFileSync(source, 'utf8'));
+        } catch {
+          scene = null;
+        }
+        const parts = [
+          ...((scene && scene.buffers) || []),
+          ...((scene && scene.images) || []),
+        ];
+        for (const part of parts) {
+          const uri = part && part.uri;
+          if (!uri || /^[a-z]+:\/\//i.test(uri)) continue;
+          const sibling = path.join(path.dirname(rel), uri);
+          const from = path.join(vendorRoot, sibling);
+          let siblingStat;
+          try {
+            siblingStat = fs.statSync(from);
+          } catch {
+            continue;
+          }
+          if (siblingStat.isFile()) {
+            add(`assets/${sibling}`, fs.readFileSync(from));
+          }
+        }
+      }
+      /* The document is told where the copy inside the archive sits. */
+      for (const quote of ['"', "'"]) {
+        html = html.split(`${quote}../${rel}${quote}`).join(`${quote}./assets/${rel}${quote}`);
+        html = html.split(`${quote}/${rel}${quote}`).join(`${quote}./assets/${rel}${quote}`);
+      }
+    }
+    if (entries[0]) {
+      entries[0] = { name: `${id}.html`, data: Buffer.from(html, 'utf8') };
+    }
+  }
+
+  /*
+   * Some works ask for a picture under one extension while the platform
+   * keeps it under another.  The archive has to carry it under the name
+   * the document asks for, or the picture is missing once the course is
+   * unpacked and opened from disk.
+   */
+  const byStem = new Map();
+  for (const file of assetFiles) {
+    const dot = file.name.lastIndexOf('.');
+    if (dot < 0) continue;
+    if (!/\.(?:png|jpe?g|gif|webp|avif|bmp)$/i.test(file.name)) continue;
+    const dir = file.name.slice(0, file.name.lastIndexOf('/') + 1);
+    byStem.set(dir + file.name.slice(0, dot).toLowerCase(), file);
+  }
+  if (byStem.size) {
+    const wanted = new Set();
+    for (const m of html.matchAll(
+      /["'(]([A-Za-z0-9_./@-]{2,90}\.(?:png|jpe?g|gif|webp|avif|bmp))["')]/gi
+    )) {
+      wanted.add(m[1].replace(/^\.?\//, ''));
+    }
+    for (const file of assetFiles) {
+      if (!/\.(?:js|mjs|css|json|html?)$/i.test(file.name)) continue;
+      let text = '';
+      try {
+        text = fs.readFileSync(file.file, 'utf8');
+      } catch {
+        continue;
+      }
+      for (const m of text.matchAll(
+        /["'(]([A-Za-z0-9_./@-]{2,90}\.(?:png|jpe?g|gif|webp|avif|bmp))["')]/gi
+      )) {
+        wanted.add(m[1].replace(/^\.?\//, ''));
+      }
+    }
+    for (const name of wanted) {
+      const dot = name.lastIndexOf('.');
+      if (dot < 0) continue;
+      const dir = name.slice(0, name.lastIndexOf('/') + 1);
+      const key = (dir + name.slice(0, dot)).toLowerCase();
+      const file = byStem.get(key);
+      if (!file) continue;
+      add(`assets/${name}`, fs.readFileSync(file.file));
+    }
   }
   /*
    * The public libraries are mirrored once and shared. A course that is
@@ -678,6 +1055,13 @@ function buildLqZip(id) {
    */
   const sharedRoot = path.join(LQ_ROOT, '_shared-ext');
   const wanted = new Set();
+  /*
+   * The addresses in the document were already rewritten to the shape
+   * they take inside the archive, so that is what is read here.
+   */
+  for (const m of html.matchAll(/\.\/assets\/_ext\/([^"'`\s)]+)/g)) {
+    wanted.add(decodeURIComponent(m[1]));
+  }
   for (const m of html.matchAll(/\/api\/program-assets\/[^/"']+\/_ext\/([^"'`\s)]+)/g)) {
     wanted.add(decodeURIComponent(m[1]));
   }
@@ -699,19 +1083,55 @@ function buildLqZip(id) {
     for (const m of text.matchAll(/\/api\/program-assets\/[^/"']+\/_ext\/([^"'`\s)]+)/g)) {
       wanted.add(decodeURIComponent(m[1]));
     }
+    for (const m of text.matchAll(/\.\/assets\/_ext\/([^"'`\s)]+)/g)) {
+      wanted.add(decodeURIComponent(m[1]));
+    }
     for (const m of text.matchAll(/\/_shared\/([^"'`\s)]+)/g)) {
       wanted.add(decodeURIComponent(m[1]));
     }
   }
   const copied = new Set();
+  /*
+   * MathJax draws its glyphs from a font folder that sits next to the
+   * bundle.  The bundle itself names no font file, so the folder has to
+   * be recognised here — otherwise a copy opened from disk shows every
+   * formula in the fallback font.
+   */
+  if (/mathjax/i.test(html)) {
+    const mathjaxFonts =
+      'cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/';
+    for (const file of listFiles(path.join(sharedRoot, mathjaxFonts))) {
+      wanted.add(mathjaxFonts + file.name);
+    }
+  }
   const queue = [...wanted];
   while (queue.length) {
     const rel = queue.shift();
     if (copied.has(rel)) continue;
     copied.add(rel);
+    /* A stylesheet that was asked for by name comes with a query.  The
+       file on disk has no query, and the archive keeps the name the
+       document asks for. */
+    const plain = rel.split('?')[0];
+    if (plain.startsWith('fonts.googleapis.com/css2')) {
+      const sheet = googleFontsSheet(rel.split('?')[1] || '', true);
+      if (sheet) {
+        add(`assets/_ext/${rel}`, Buffer.from(sheet.css, 'utf8'));
+        for (const file of sheet.files) queue.push(file);
+        continue;
+      }
+    }
+    if (plain.startsWith('miaoda.feishu.cn/fonts/css2')) {
+      const sheet = feishuFontsSheet(rel.split('?')[1] || '', true);
+      if (sheet) {
+        add(`assets/_ext/${rel}`, Buffer.from(sheet.css, 'utf8'));
+        for (const file of sheet.files) queue.push(file);
+        continue;
+      }
+    }
     const candidates = [
-      path.join(assets, '_ext', rel),
-      path.join(sharedRoot, rel),
+      path.join(assets, '_ext', plain),
+      path.join(sharedRoot, plain),
     ];
     const source = candidates.find((c) => {
       try {
@@ -724,10 +1144,18 @@ function buildLqZip(id) {
     let data = fs.readFileSync(source);
     /* Inside the archive the shared folder sits next to the course files. */
     if (/\.(css2?|js)$/i.test(source) && source.startsWith(sharedRoot)) {
-      data = Buffer.from(
-        data.toString('utf8').replace(/\/_shared\//g, './assets/_ext/'),
-        'utf8'
+      let text = data.toString('utf8').replace(/\/_shared\//g, './assets/_ext/');
+      /* A shared file may name the platform's own copy of a library. */
+      text = text.replace(
+        /\/api\/program-assets\/[A-Za-z0-9_-]+\/_ext\//g,
+        './assets/_ext/'
       );
+      /* A shared stylesheet may still name a public library outright. */
+      for (const host of LQ_EXT_HOSTS) {
+        text = text.split(host).join(`./assets/_ext/${host.replace(/^https?:\/\//, '')}`);
+      }
+      if (/\.css2?$/i.test(source)) text = trimArchiveFonts(text);
+      data = Buffer.from(text, 'utf8');
     }
     add(`assets/_ext/${rel}`, data);
     /* A shared stylesheet points at further shared files. */
@@ -736,11 +1164,30 @@ function buildLqZip(id) {
         queue.push(decodeURIComponent(m[1]));
       }
     }
+    /*
+     * A shared module asks for the modules that sit beside it: a shader
+     * of three.js lives one folder up, a loader lives in the same one.
+     * Those are relative names, so they are resolved against the place
+     * the file has inside the archive.
+     */
+    if (/\.(?:m?js)$/i.test(source)) {
+      const text = data.toString('utf8');
+      const dir = path.posix.dirname(plain);
+      for (const m of text.matchAll(
+        /(?:from\s*["']|import\s*\(\s*["']|import\s*["'])([^"'\n]{1,240})["']/g
+      )) {
+        const ref = m[1].trim();
+        if (!ref.startsWith('./') && !ref.startsWith('../')) continue;
+        const next = path.posix.normalize(path.posix.join(dir, ref));
+        if (next.startsWith('..')) continue;
+        queue.push(next);
+      }
+    }
   }
   return buildZip(entries);
 }
 
-async function serveLqAssets(res, pathname) {
+async function serveLqAssets(res, pathname, search = '') {
   const rest = pathname.slice('/api/program-assets/'.length);
   const slash = rest.indexOf('/');
   if (slash < 0) return sendJson(res, 404, { error: '未找到' });
@@ -758,6 +1205,27 @@ async function serveLqAssets(res, pathname) {
   }
   if (!tail) return sendJson(res, 404, { error: '未找到' });
   const root = localId ? path.join(LQ_ROOT, 'courseware', `${localId}.assets`) : null;
+  /* A request for the Google Fonts stylesheet is answered with the
+     families the document named, not with every family that was ever
+     fetched. */
+  if (tail.startsWith('fonts.googleapis.com/css2')) {
+    const sheet = googleFontsSheet(search.replace(/^\?/, ''), false);
+    if (sheet) {
+      return send(res, 200, Buffer.from(sheet.css, 'utf8'), {
+        'Content-Type': 'text/css; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+      });
+    }
+  }
+  if (tail.startsWith('miaoda.feishu.cn/fonts/css2')) {
+    const sheet = feishuFontsSheet(search.replace(/^\?/, ''), false);
+    if (sheet) {
+      return send(res, 200, Buffer.from(sheet.css, 'utf8'), {
+        'Content-Type': 'text/css; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+ });
+    }
+  }
   /* Mirrored CDNs live under _ext/, the files that came with the body sit
      next to it. Both spellings can reach the same file. */
   /* Some resources are the same for every course — the web fonts, for one.
@@ -782,9 +1250,39 @@ async function serveLqAssets(res, pathname) {
       (await serveFile(res, candidate, {
         contentType: mimeForAsset(candidate),
         headers: { 'Access-Control-Allow-Origin': '*' },
+        /* The mirrored libraries never change; the browser may keep them. */
+        cache: 'public, max-age=31536000, immutable',
       }))
     )
       return;
+  }
+  /*
+   * A few works ask for an image under one extension and the platform only
+   * keeps it under another — 英雄知识 asks for "nezha.png" while the
+   * platform stores "nezha.jpg".  The same picture is served under the
+   * name that was asked for.
+   */
+  const dot = tail.lastIndexOf('.');
+  if (dot > 0 && /\.(?:png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(tail)) {
+    const stem = tail.slice(0, dot);
+    for (const ext of ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif']) {
+      if (ext === tail.slice(dot).toLowerCase()) continue;
+      const alt = stem + ext;
+      for (const candidate of [
+        root && safeJoin(root, alt),
+        safeJoin(shared, alt),
+      ]) {
+        if (
+          candidate &&
+          (await serveFile(res, candidate, {
+            contentType: mimeForAsset(candidate),
+            headers: { 'Access-Control-Allow-Origin': '*' },
+            cache: 'public, max-age=31536000, immutable',
+          }))
+        )
+          return;
+      }
+    }
   }
   return sendJson(res, 404, { error: '未找到' });
 }
@@ -820,50 +1318,9 @@ async function handleXb(req, res, url, profile) {
   const pathname = decodeURIComponent(url.pathname);
   const method = req.method.toUpperCase();
 
-  /*
-   * The WeChat sign-in code for the upstream platform. Its ticket lives
-   * for about a minute, so the page that shows it re-reads the picture
-   * every few seconds and the reader always scans a code that is still
-   * alive. Nothing here talks to the platform; the watcher process does
-   * that and leaves the picture behind.
-   */
-  if (pathname === '/login-qr' || pathname === '/login-qr.png') {
-    if (method !== 'GET' && method !== 'HEAD') {
-      return sendJson(res, 405, { error: '不支持此操作' });
-    }
-    const qr = path.join(ROOT, 'recon', 'scratch', 'afe-qr.png');
-    if (pathname === '/login-qr.png') {
-      if (!fs.existsSync(qr)) return sendJson(res, 404, { error: '还没有登录码' });
-      const body = fs.readFileSync(qr);
-      return send(res, 200, body, {
-        'Content-Type': 'image/png',
-        'Content-Length': body.length,
-        'Cache-Control': 'no-store',
-      });
-    }
-    const html =
-      '<!doctype html><meta charset="utf-8">' +
-      '<title>微信扫码登录</title>' +
-      '<style>body{margin:0;display:grid;place-items:center;min-height:100vh;' +
-      'font:16px/1.7 system-ui,"Microsoft YaHei",sans-serif;background:#f4f6f5;color:#1d2422}' +
-      'figure{margin:0;text-align:center;background:#fff;padding:28px 32px;border-radius:14px;' +
-      'box-shadow:0 18px 44px rgba(20,40,34,.12)}' +
-      'img{width:260px;height:260px;image-rendering:pixelated}' +
-      'p{margin:14px 0 0;color:#5d6a66;font-size:14px}</style>' +
-      '<figure><img src="/login-qr.png" alt="微信登录二维码">' +
-      '<p>用微信扫这个码，每 10 秒自动换一张新的。</p></figure>' +
-      '<script>setTimeout(function(){location.reload();},10000)</script>';
-    const body = Buffer.from(html, 'utf8');
-    return send(res, 200, body, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Length': body.length,
-      'Cache-Control': 'no-store',
-    });
-  }
-
-  /* Courseware assets that live next to the body (the 图灵智赋 works). */
+  /* Courseware assets that live next to the body. */
   if (pathname.startsWith('/api/program-assets/')) {
-    return serveLqAssets(res, pathname);
+    return serveLqAssets(res, pathname, url.search);
   }
 
   if (pathname.startsWith('/api/')) {
@@ -885,13 +1342,17 @@ async function handleXb(req, res, url, profile) {
     if (!fs.existsSync(file)) {
       return sendJson(res, 404, { error: '本地没有安装这份课件。' });
     }
-    // The published courseware hard-binds its classroom handshake to
-    // https://xbjiaoyu.com. Rebind it to this local origin so the parent
+    // The published courseware hard-binds its classroom handshake to the
+    // platform it came from. Rebind it to this local origin so the parent
     // shell can grant access. Everything else stays untouched.
     const origin = `http://${req.headers.host || 'localhost:' + profile.port}`;
     const html = fs.readFileSync(file, 'utf8');
     let patched = html.replace(
       /("origin"\s*:\s*)"https:\/\/xbjiaoyu\.com"/g,
+      `$1${JSON.stringify(origin)}`
+    );
+    patched = patched.replace(
+      /("origin"\s*:\s*)"__LQ_ORIGIN__"/g,
       `$1${JSON.stringify(origin)}`
     );
     if (profile.kind === 'leqixiang') {
@@ -904,6 +1365,30 @@ async function handleXb(req, res, url, profile) {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Length': body.length,
       'Cache-Control': 'no-cache',
+    });
+  }
+
+  /*
+   * The mirrored simulations ask whether a newer build of themselves is
+   * out.  The answer here is "there is none" — the copy on this disk is
+   * the one that is being used, and the check stays inside the machine.
+   */
+  if (pathname === '/offline-check') {
+    return sendJson(res, 200, { error: 'local copy' });
+  }
+
+  /*
+   * The mirrored simulations also send a one-pixel "ping" to say that the
+   * lesson was opened.  There is nobody to tell, so the ping is answered
+   * here with the smallest image there is; that keeps the browser console
+   * free of errors it cannot act on.
+   */
+  if (pathname.startsWith('/offline-yotta/')) {
+    const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+    return send(res, 200, gif, {
+      'Content-Type': 'image/gif',
+      'Content-Length': gif.length,
+      'Cache-Control': 'no-store',
     });
   }
 
@@ -932,8 +1417,26 @@ async function handleXb(req, res, url, profile) {
     if (shared && (await serveFile(res, shared, {
       contentType: mimeForAsset(shared),
       headers: { 'Access-Control-Allow-Origin': '*' },
+      cache: 'public, max-age=31536000, immutable',
     }))) return;
     return sendJson(res, 404, { error: '未找到' });
+  }
+
+  /*
+   * A work written for a site of its own asks for its files by the root
+   * of that site: /jsm/OrbitControls.js, /Phyc140/VolumetricFire.js.
+   * Those files were mirrored next to the work, so a request of that
+   * shape is answered from the mirror instead of being turned away.
+   * The mirror is only asked for a name it really holds, so the routes of
+   * the library itself are never shadowed.
+   */
+  if (pathname.startsWith('/') && !pathname.startsWith('//')) {
+    const rel = pathname.slice(1);
+    const mirrored = mirroredRootAsset(rel);
+    if (mirrored && (await serveFile(res, mirrored, {
+      contentType: mimeForAsset(mirrored),
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    }))) return;
   }
 
   // Static shell assets: the live site serves them over GET/HEAD only and
@@ -999,8 +1502,6 @@ async function handleXbApi(req, res, pathname, profile) {
 
   /* The shapes the live site answers with, reused across the routes. */
   const notFound = () => sendJson(res, 404, { error: '未找到' });
-  const notAllowed = () => sendJson(res, 405, { error: '不支持此操作' });
-  const needLogin = () => sendJson(res, 401, { error: '请先登录' });
   const gone = () =>
     sendJson(res, 410, { error: '此课件请下载后使用；标为免费的课件可在线体验' });
 
@@ -1019,34 +1520,6 @@ async function handleXbApi(req, res, pathname, profile) {
    * Locally the body is already on this machine, so the check passes.
    */
   if (pathname.startsWith('/api/program-file/verify-access')) {
-    return sendJson(res, 200, { ok: true });
-  }
-  if (pathname === '/api/auth/phone/status') {
-    if (method !== 'GET') return needLogin();
-    return sendJson(res, 200, {
-      enabled: false,
-      phoneOnly: true,
-      bound: false,
-      phoneMasked: null,
-      support: '本地副本不需要登录',
-      ownerPasswordOnly: false,
-      captcha: { required: false, ready: false, appId: null },
-    });
-  }
-  if (
-    pathname === '/api/auth/phone/send' ||
-    pathname === '/api/auth/phone/safety' ||
-    pathname === '/api/auth/phone/rebind-old'
-  ) {
-    if (method !== 'POST') return notAllowed();
-    return needLogin();
-  }
-  if (pathname === '/api/auth/phone/login') {
-    if (method !== 'POST') return notAllowed();
-    return sendJson(res, 400, { error: '请输入六位验证码' });
-  }
-  if (pathname === '/api/auth/logout') {
-    if (method !== 'POST') return notFound();
     return sendJson(res, 200, { ok: true });
   }
   if (pathname.startsWith('/api/access/')) {
@@ -1093,7 +1566,9 @@ async function handleXbApi(req, res, pathname, profile) {
       // The 图灵智赋 works read their own origin and talk to the host page
       // over postMessage, so they need a same-origin frame. The 小白教育
       // bodies keep the sandbox the published site hands them.
-      allowSameOrigin: profile.kind === 'leqixiang' && id.startsWith('afe-'),
+      allowSameOrigin:
+        profile.kind === 'leqixiang' &&
+/^(afe-|openlab-|phet-|tongjiang-|labsims-|aviary-|lab-|blocklygames-)/.test(id),
     });
   }
   if (pathname === '/api/classroom/viewer-check') {
@@ -1111,22 +1586,6 @@ async function handleXbApi(req, res, pathname, profile) {
     // back, and the original front-end reads that as "expired".
     return gone();
   }
-  if (pathname === '/api/library') {
-    if (method !== 'GET') return notFound();
-    // The live site answers 401 here (the library belongs to an account).
-    // The local copy has no accounts, so it lists what is on disk instead —
-    // a deliberate difference, so the page still renders offline.
-    return sendJson(res, 200, {
-      products: profile.state.catalog.products.filter((p) => p.localInstalled),
-    });
-  }
-  if (pathname === '/api/creator' || pathname === '/api/creator/profile') {
-    if (pathname === '/api/creator/profile' && method === 'GET') return notFound();
-    if (method === 'POST') {
-      return pathname === '/api/creator' ? notFound() : needLogin();
-    }
-    return sendJson(res, 200, { products: [], submissions: [], rules: {} });
-  }
   if (pathname.startsWith('/api/downloads/prepare')) {
     if (method !== 'POST') return notFound();
     // The local download endpoint hands over the mirrored courseware file.
@@ -1141,9 +1600,7 @@ async function handleXbApi(req, res, pathname, profile) {
     }
     const product = profile.state.catalog.products.find((p) => p.id === id);
     const title = product ? String(product.title || id) : id;
-    /* A 图灵智赋 work is a document plus a folder of assets, so it is
-       handed over as a zip; a 小白教育 work is a single file. */
-    const packaged = id.startsWith('afe-');
+    const packaged = isPackagedCourse(id);
     return sendJson(res, 200, {
       url: `/api/downloads/file/${id}`,
       filename: packaged ? `${safeName(title)}.zip` : `${safeName(title)}.html`,
@@ -1156,7 +1613,12 @@ async function handleXbApi(req, res, pathname, profile) {
     const id = decodeURIComponent(pathname.slice('/api/downloads/file/'.length));
     const product = profile.state.catalog.products.find((p) => p.id === id);
     const title = product ? String(product.title || id) : id;
-    if (id.startsWith('afe-')) {
+    /*
+     * A work that is more than one file is handed over as a zip, and so is
+     * an open simulation that asks for a copy of three.js: a single file
+     * would lose the library and stop drawing.
+     */
+    if (isPackagedCourse(id)) {
       const zip = buildLqZip(id);
       if (!zip) return sendJson(res, 404, { error: '本地没有安装这份课件。' });
       return send(res, 200, zip, {
@@ -1176,63 +1638,13 @@ async function handleXbApi(req, res, pathname, profile) {
       'Cache-Control': 'no-cache',
     });
   }
-  if (pathname === '/api/downloads/bulk') {
-    if (method !== 'GET') return notFound();
-    return sendJson(res, 200, {
-      eligible: false,
-      scopes: [],
-      policyVersion: 'subject-bulk-download-20261025-v3',
-      notice:
-        '一键下载该科目全部课件后，不适用七日无理由退货；文件损坏、功能故障或与商品说明不符等问题，仍可联系人工售后。如您还未试用课件，请先试用课件。\n您确定要继续下载吗？',
-    });
-  }
-  if (pathname === '/api/orders' || pathname.startsWith('/api/orders/')) {
-    if (method === 'POST') return needLogin();
-    return notFound();
-  }
-  if (pathname === '/api/feedback') {
-    return needLogin();
-  }
-  if (pathname === '/api/downloads/bulk/prepare') {
-    if (method === 'POST') return needLogin();
-    return notFound();
-  }
-  if (pathname.startsWith('/api/downloads/bulk/jobs/')) {
-    return notFound();
-  }
-  if (pathname === '/api/service-requests' || pathname === '/api/refund-requests') {
-    if (method === 'POST') return needLogin();
-    return notFound();
-  }
-  if (pathname.startsWith('/api/admin/')) {
-    // The admin pages are not part of the local copy; the live site asks for
-    // a login on some methods and 404s the others.
-    const notFoundOnGet = [
-      '/api/admin/marketplace/rules',
-      '/api/admin/products',
-      '/api/admin/refunds',
-      '/api/admin/refund-requests',
-      '/api/admin/service-requests',
-      '/api/admin/download-block',
-      '/api/admin/resource-covers',
-      '/api/admin/download-trace',
-    ];
-    const notFoundOnPost = [
-      '/api/admin/marketplace',
-      '/api/admin/content-deliveries',
-      '/api/admin/download-bulk-records',
-    ];
-    if (method === 'POST' && notFoundOnPost.includes(pathname)) return notFound();
-    if (method === 'GET' && notFoundOnGet.includes(pathname)) return notFound();
-    return needLogin();
-  }
-  if (pathname === '/api/admin') {
-    if (method === 'POST') return notFound();
-    return needLogin();
-  }
-  if (pathname.startsWith('/api/creator/submissions/')) {
-    return notFound();
-  }
+  /*
+   * Everything below this line belonged to the shop: the orders, the
+   * refunds, the feedback desk, the bulk-download desk, the teacher
+   * desk and the back office.  A local library has no account to bill,
+   * no order to keep and no one to answer, so those addresses are gone
+   * rather than merely empty.
+   */
   return notFound();
 }
 

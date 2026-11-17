@@ -39,7 +39,7 @@ export async function mountLongMarchSaveHost(frame, account, getAccount = browse
   // policy.revision is the stable save family. Compatible content revisions
   // share these exact legacy keys, including when reverting the content selector.
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([account, programId, policy.schema, policy.revision])));
-  const namespace = 'turing.longMarch.save.v1:' + Array.from(new Uint8Array(digest), n => n.toString(16).padStart(2,'0')).join('');
+  const namespace = 'leqixiang.longMarch.save.v1:' + Array.from(new Uint8Array(digest), n => n.toString(16).padStart(2,'0')).join('');
   const store = module.createLocalStore({storage:localStorage, locks:navigator.locks, namespace, keys:policy.keys, initial:{}});
   let stopped = false, port, connected = false, nonce, epoch = 0, version, serial = 0, chain = Promise.resolve(), checkpoint, fault;
   const session = crypto.randomUUID(), generation = crypto.randomUUID(), seenNonces = new Set();

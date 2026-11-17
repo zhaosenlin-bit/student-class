@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="utf-8">
+
+<title>乐启享 · 物理实验</title>
+
+<meta name="description" content="
+Interactive 2D center of mass physics simulation allowing students to explore mass distribution and balance.
+One of the best free physics simulations for students and teachers.
+">
+
+<meta name="keywords" content="physics simulation, best physics simulation, best 3D physics simulation, center of mass simulation, center of mass 2D simulation, mass distribution simulation, balance and torque simulation, statics physics simulation, interactive physics simulation, free physics simulation, 乐启享物理仿真">
+
+<meta name="robots" content="index, follow">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="canonical" href="/courseware/3jcn-simulation?local=1">
+
+<link rel="icon" href="/brand/favicon.ico">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Center of Mass (2D) – Best Physics Simulation">
+<meta property="og:description" content="Free interactive 2D center of mass physics simulation for learning mass distribution and balance.">
+<meta property="og:image" content="/api/program-assets/3jcn-phyc140-center-of-mass/_ext/vendor/pictures/physics-simulations.jpg">
+<meta property="og:url" content="/courseware/phyc140-center-of-mass">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Center of Mass (2D) – Best Physics Simulation">
+<meta name="twitter:description" content="Explore one of the best free physics simulations to understand center of mass in two dimensions.">
+<meta name="twitter:image" content="/api/program-assets/3jcn-phyc140-center-of-mass/_ext/vendor/pictures/physics-simulations.jpg">
+
+<!-- Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "EducationalApplication",
+  "name": "Center of Mass Physics Simulation (2D)",
+  "description": "Interactive 2D physics simulation illustrating center of mass and mass distribution.",
+  "applicationCategory": "Physics Simulation",
+  "operatingSystem": "Web",
+  "@id":"/courseware/lab-phyc140-center-of-mass.html",
+  "creator": {
+    "@type": "Person",
+    "name": "Thomas Nguyen"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "乐启享物理仿真",
+    "@id":"/courseware/lab-phyc140-center-of-mass.html"
+  }
+}
+</script>
+
+<link rel="stylesheet" href="/api/program-assets/3jcn-phyc140-center-of-mass/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<script src="/api/program-assets/3jcn-phyc140-center-of-mass/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="/api/program-assets/3jcn-phyc140-center-of-mass/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc140-center-of-mass/_ext/vendor/css/main3.css">
+	
+<style>
+		body {
+			color: black;
+		}
+		    #pulleyInput, #pulleyType, #forceValue, #weightValue, #effValue{
+			  color: brown;             /* Bright green text */
+			  background-color: lightyellow;  /* Dark background */
+			  border: 1px solid #00ff00;  /* Green border */
+			  padding: 4px;
+			  border-radius: 4px;
+		   }
+		
+		.control-panel {
+		  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+		  background-color: #eee;
+		  border: 2px solid #333;
+		  border-radius: 8px;
+		  padding: 15px;
+		  width: 220px;
+		  font-family: Arial, sans-serif;
+		  text-align: center;
+		}
+		.control-panel-right {
+		  position: absolute;
+		  top: 120px;
+		  right: 50px;
+		  background-color: #eee;
+		  border: 2px solid #333;
+		  border-radius: 8px;
+		  padding: 15px;
+		  width: 220px;
+		  text-align: center;
+		}
+		
+		.control-group {
+		  margin-bottom: 15px;
+		}
+		
+		.slider-row {
+		  display: flex;
+		  justify-content: space-between;
+		  align-items: center;
+		}
+		
+		input[type="range"] {
+		  width: 65%;
+		  accent-color: blue;
+		}
+		
+		input[type="text"] {
+		  width: 80px;
+		  font-weight: bold;
+		  text-align: center;
+		  color: blue;
+		}
+		
+		.minmax {
+		  display: flex;
+		  justify-content: space-between;
+		  font-size: 12px;
+		  margin-top: 5px;
+		}
+	</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 4 May 2025       -->
+	
+<script type="module">   
+	
+import THREE from '../jsm/three.js';
+	
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { DragControls } from '../jsm/DragControls.js';	
+import { FontLoader } from '../jsm/FontLoader.js';
+import { TextGeometry } from '../jsm/TextGeometry.js';	
+import { LineGeometry } from '../jsm/LineGeometry.js';
+import { Line2 } from '../jsm/Line2.js';
+import { LineMaterial } from '../jsm/LineMaterial.js';
+import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+	
+	/**  author: Thomas Nguyen   "3jcn.us"
+	 **  13 May 2024
+	 **  All rights reserved **/
+		
+var initScene, dragcontrols, controls, light;
+let dim = 2, dragObjs = [];
+let sphere1, sphere2, comSphere, radius = 1;
+let m1 = 2, m2 = 2;
+
+
+function _0x386a(_0x5af206,_0x5a957a){const _0x3582ef=_0x3582();return _0x386a=function(_0x386abd,_0x4560e5){_0x386abd=_0x386abd-0xed;let _0x5ed6b1=_0x3582ef[_0x386abd];return _0x5ed6b1;},_0x386a(_0x5af206,_0x5a957a);}const _0x26ed9c=_0x386a;(function(_0x3b18c8,_0xe3ad21){const _0x3ea075=_0x386a,_0x2818b0=_0x3b18c8();while(!![]){try{const _0x4c5491=parseInt(_0x3ea075(0x114))/0x1+-parseInt(_0x3ea075(0x13d))/0x2*(-parseInt(_0x3ea075(0x11c))/0x3)+-parseInt(_0x3ea075(0xfd))/0x4*(parseInt(_0x3ea075(0xfc))/0x5)+parseInt(_0x3ea075(0x117))/0x6*(-parseInt(_0x3ea075(0x101))/0x7)+-parseInt(_0x3ea075(0x100))/0x8+-parseInt(_0x3ea075(0x125))/0x9*(parseInt(_0x3ea075(0xf1))/0xa)+parseInt(_0x3ea075(0x108))/0xb;if(_0x4c5491===_0xe3ad21)break;else _0x2818b0['push'](_0x2818b0['shift']());}catch(_0x4c1477){_0x2818b0['push'](_0x2818b0['shift']());}}}(_0x3582,0x3fbd6));function _0x3582(){const _0x3306ca=['scale','rotateY','position','value','\x20kg','LineBasicMaterial','COM:\x20(','position1','toFixed','input','resize','70056IvIIZc','Line','background','1308EOyinG','AxesHelper','castShadow','drag','reset','1095507cMnCmL','update','springgreen','load','mass1','DirectionalLight','getElementById','enabled','min','66159edyits','shadowMap','yellow','setFromPoints','PerspectiveCamera','WebGLRenderer','(30,-20,0)','TextureLoader','appendChild','(-30,-20,0)','MeshBasicMaterial','cbrt','Mesh','innerWidth','set','render','domElement','Mass\x202:\x20(','object','updateProjectionMatrix','SphereGeometry','add','innerHeight','positionCOM','2QqzDEY','/api/program-assets/3jcn-phyc140-center-of-mass/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','addEventListener','innerText','Group','10SrnXHy','reload','setSize','click','white','MeshStandardMaterial','BufferGeometry','viewport','mass1Value','MeshPhongMaterial','mass2','834340LZfBXL','12mKBASq','SpotLight','BoxGeometry','35720iFPYfe','1694VbtizS','Mass\x201:\x20(','Color','Vector3','push','lookAt','dragstart','4301319gFDWdy'];_0x3582=function(){return _0x3306ca;};return _0x3582();}const textureloader=new THREE[(_0x26ed9c(0x12c))](),fontloader=new FontLoader();var scene=new THREE['Scene'](),camera=new THREE[(_0x26ed9c(0x129))](0x23,window[_0x26ed9c(0x132)]/window[_0x26ed9c(0x13b)],0x1,0x3e8);const renderer=new THREE[(_0x26ed9c(0x12a))]({'antialias':!![]});initScene=function(){const _0x2a02c2=_0x26ed9c;scene[_0x2a02c2(0x116)]=new THREE[(_0x2a02c2(0x103))](0x800020),camera=new THREE[(_0x2a02c2(0x129))](0x23,window[_0x2a02c2(0x132)]/window['innerHeight'],0x1,0x3e8),camera['position'][_0x2a02c2(0x133)](0x0,-0x8,0x5f),camera[_0x2a02c2(0x106)](scene[_0x2a02c2(0x10b)]),scene['add'](camera),controls=new OrbitControls(camera,renderer[_0x2a02c2(0x135)]),dragcontrols=new DragControls(dragObjs,camera,renderer['domElement']),dragcontrols[_0x2a02c2(0xee)](_0x2a02c2(0x107),()=>{controls['enabled']=![];}),dragcontrols['addEventListener'](_0x2a02c2(0x11a),function(_0x33e937){const _0x123f18=_0x2a02c2,_0x1ec2cf=_0x33e937[_0x123f18(0x137)];_0x1ec2cf[_0x123f18(0x10b)]['z']=0x0;const _0x5f0ec6=0x1e,_0x203059=0x14;_0x1ec2cf[_0x123f18(0x10b)]['x']=Math['max'](-_0x5f0ec6,Math[_0x123f18(0x124)](_0x5f0ec6,_0x1ec2cf[_0x123f18(0x10b)]['x'])),_0x1ec2cf[_0x123f18(0x10b)]['y']=Math['max'](-_0x203059,Math[_0x123f18(0x124)](_0x203059,_0x1ec2cf[_0x123f18(0x10b)]['y']));}),dragcontrols[_0x2a02c2(0xee)]('dragend',()=>{const _0x27c9e8=_0x2a02c2;controls[_0x27c9e8(0x123)]=!![];}),renderer[_0x2a02c2(0xf3)](window[_0x2a02c2(0x132)],window[_0x2a02c2(0x13b)]),renderer[_0x2a02c2(0x126)][_0x2a02c2(0x123)]=!![],document['getElementById'](_0x2a02c2(0xf8))[_0x2a02c2(0x12d)](renderer[_0x2a02c2(0x135)]);const _0x160a15=new THREE[(_0x2a02c2(0x118))](0xf);scene['add'](_0x160a15),setupLights(),addObjectsToScene(),document[_0x2a02c2(0x122)](_0x2a02c2(0x120))[_0x2a02c2(0xee)](_0x2a02c2(0x112),updateMass),document[_0x2a02c2(0x122)](_0x2a02c2(0xfb))[_0x2a02c2(0xee)](_0x2a02c2(0x112),updateMass),document['getElementById'](_0x2a02c2(0x11b))[_0x2a02c2(0xee)](_0x2a02c2(0xf4),function(){const _0x595b7f=_0x2a02c2;location[_0x595b7f(0xf2)]();}),window['addEventListener'](_0x2a02c2(0x113),onWindowResize,![]),requestAnimationFrame(render),render();};function addObjectsToScene(){const _0x59bf26=_0x26ed9c;sphere1=addSphere(Math[_0x59bf26(0x130)](m1),-0x14,0x0,0x0),sphere2=addSphere(Math[_0x59bf26(0x130)](m2),0x14,0x0,0x0),comSphere=addCOM(Math[_0x59bf26(0x130)](m1+m2),0x0,0x0,0x0),comSphere['material']['color']['set'](_0x59bf26(0x127)),updateCOM(),drawXYGrid(0x3c,0x28,0x5);var _0x222c58=new THREE[(_0x59bf26(0xff))](0x3c,0x2,0x28);const _0x859ac0=new THREE[(_0x59bf26(0x131))](_0x222c58,new THREE[(_0x59bf26(0xfa))]({'color':_0x59bf26(0x11e)}));_0x859ac0[_0x59bf26(0x10b)][_0x59bf26(0x133)](0x0,-0x15,0x0),scene[_0x59bf26(0x13a)](_0x859ac0),addText(0x1f,-0x14,0x0,_0x59bf26(0x12b),0x0),addText(-0x25,-0x14,0x0,_0x59bf26(0x12e),0x0);}function drawXYGrid(_0x17eff5=0x3c,_0x541b0d=0x28,_0x2ad495=0x5){const _0x45ab5d=_0x26ed9c,_0xf51e75=new THREE[(_0x45ab5d(0xf0))](),_0xf88683=new THREE[(_0x45ab5d(0x10e))]({'color':0xcccccc});for(let _0x24c787=-_0x17eff5/0x2;_0x24c787<=_0x17eff5/0x2;_0x24c787+=_0x2ad495){const _0x8835e=[];_0x8835e['push'](new THREE[(_0x45ab5d(0x104))](_0x24c787,-_0x541b0d/0x2,0x0)),_0x8835e[_0x45ab5d(0x105)](new THREE[(_0x45ab5d(0x104))](_0x24c787,_0x541b0d/0x2,0x0));const _0xa050c5=new THREE[(_0x45ab5d(0xf7))]()[_0x45ab5d(0x128)](_0x8835e),_0x32b03b=new THREE[(_0x45ab5d(0x115))](_0xa050c5,_0xf88683);_0xf51e75['add'](_0x32b03b);}for(let _0x471c02=-_0x541b0d/0x2;_0x471c02<=_0x541b0d/0x2;_0x471c02+=_0x2ad495){const _0xd4b055=[];_0xd4b055['push'](new THREE[(_0x45ab5d(0x104))](-_0x17eff5/0x2,_0x471c02,0x0)),_0xd4b055[_0x45ab5d(0x105)](new THREE['Vector3'](_0x17eff5/0x2,_0x471c02,0x0));const _0x54ee1b=new THREE[(_0x45ab5d(0xf7))]()[_0x45ab5d(0x128)](_0xd4b055),_0x30963d=new THREE['Line'](_0x54ee1b,_0xf88683);_0xf51e75[_0x45ab5d(0x13a)](_0x30963d);}scene[_0x45ab5d(0x13a)](_0xf51e75);}function addSphere(_0x435258,_0x3a113c,_0x2474d0,_0x5e678e){const _0x24f84d=_0x26ed9c,_0x4ec1a5=new THREE[(_0x24f84d(0x139))](_0x435258,0x20,0x20),_0x2aef2c=new THREE[(_0x24f84d(0xf6))]({'color':0xffffff});var _0x4088a9=new THREE[(_0x24f84d(0x131))](_0x4ec1a5,_0x2aef2c);return _0x4088a9[_0x24f84d(0x10b)][_0x24f84d(0x133)](_0x3a113c,_0x2474d0,_0x5e678e),scene['add'](_0x4088a9),dragObjs['push'](_0x4088a9),_0x4088a9;}function addCOM(_0x4edfa2,_0x1d6c18,_0x3424fd,_0x29bb3c){const _0x5902aa=_0x26ed9c,_0x15eb32=new THREE[(_0x5902aa(0x139))](_0x4edfa2,0x20,0x20),_0x10e8d7=new THREE['MeshStandardMaterial']({'color':0xff0000});var _0x1371bf=new THREE[(_0x5902aa(0x131))](_0x15eb32,_0x10e8d7);return _0x1371bf[_0x5902aa(0x10b)][_0x5902aa(0x133)](_0x1d6c18,_0x3424fd,_0x29bb3c),scene[_0x5902aa(0x13a)](_0x1371bf),_0x1371bf;}function updateMass(){const _0x58038f=_0x26ed9c;m1=parseFloat(document[_0x58038f(0x122)](_0x58038f(0x120))[_0x58038f(0x10c)]),m2=parseFloat(document[_0x58038f(0x122)](_0x58038f(0xfb))['value']),document['getElementById'](_0x58038f(0xf9))['value']=m1+_0x58038f(0x10d),document[_0x58038f(0x122)]('mass2Value')[_0x58038f(0x10c)]=m2+_0x58038f(0x10d);const _0x42574e=Math[_0x58038f(0x130)](m1),_0xde5703=Math[_0x58038f(0x130)](m2);sphere1[_0x58038f(0x109)][_0x58038f(0x133)](_0x42574e,_0x42574e,_0x42574e),sphere2[_0x58038f(0x109)]['set'](_0xde5703,_0xde5703,_0xde5703),updateCOM();}function updateCOM(){const _0x417c92=_0x26ed9c,_0x152b25=m1+m2,_0x357738=(sphere1[_0x417c92(0x10b)]['x']*m1+sphere2[_0x417c92(0x10b)]['x']*m2)/_0x152b25,_0x479a7e=(sphere1[_0x417c92(0x10b)]['y']*m1+sphere2[_0x417c92(0x10b)]['y']*m2)/_0x152b25,_0x27f2b0=dim===0x2?0x0:(sphere1[_0x417c92(0x10b)]['z']*m1+sphere2[_0x417c92(0x10b)]['z']*m2)/_0x152b25;comSphere[_0x417c92(0x10b)][_0x417c92(0x133)](_0x357738,_0x479a7e,_0x27f2b0);const _0x440aa3=Math[_0x417c92(0x130)](_0x152b25);comSphere[_0x417c92(0x109)]['set'](_0x440aa3,_0x440aa3,_0x440aa3);}function updatePositionDisplay(){const _0x18bb58=_0x26ed9c,_0xc475c7=sphere1[_0x18bb58(0x10b)],_0x3b26c9=sphere2[_0x18bb58(0x10b)],_0x4cece4=comSphere[_0x18bb58(0x10b)],_0x287138=_0x49642b=>_0x49642b[_0x18bb58(0x111)](0x2);document[_0x18bb58(0x122)](_0x18bb58(0x110))[_0x18bb58(0xef)]=_0x18bb58(0x102)+_0x287138(_0xc475c7['x'])+',\x20'+_0x287138(_0xc475c7['y'])+')',document[_0x18bb58(0x122)]('position2')['innerText']=_0x18bb58(0x136)+_0x287138(_0x3b26c9['x'])+',\x20'+_0x287138(_0x3b26c9['y'])+')',document[_0x18bb58(0x122)](_0x18bb58(0x13c))[_0x18bb58(0xef)]=_0x18bb58(0x10f)+_0x287138(_0x4cece4['x'])+',\x20'+_0x287138(_0x4cece4['y'])+')';}function setupLights(){const _0x28c40e=_0x26ed9c,_0x3e36e5=new THREE[(_0x28c40e(0x121))](0xffffff);_0x3e36e5[_0x28c40e(0x10b)][_0x28c40e(0x133)](0xa,0x28,0x14),_0x3e36e5['castShadow']=!![],scene[_0x28c40e(0x13a)](_0x3e36e5);const _0x3ddb9d=new THREE[(_0x28c40e(0xfe))](0xffffff);_0x3ddb9d[_0x28c40e(0x10b)][_0x28c40e(0x133)](0xa,0x28,0x1e),_0x3ddb9d[_0x28c40e(0x119)]=!![],_0x3ddb9d[_0x28c40e(0x106)](-0x1e,0xa,0x0),scene[_0x28c40e(0x13a)](_0x3ddb9d);}function onWindowResize(){const _0x18d83d=_0x26ed9c;camera['aspect']=window[_0x18d83d(0x132)]/window['innerHeight'],camera[_0x18d83d(0x138)](),renderer['setSize'](window[_0x18d83d(0x132)],window[_0x18d83d(0x13b)]);}function addText(_0x132019,_0x19301d,_0x48b624,_0x23014d,_0x2f1492){const _0xeb1a0c=_0x26ed9c;fontloader[_0xeb1a0c(0x11f)](_0xeb1a0c(0xed),function(_0x25560f){const _0x1e99f8=_0xeb1a0c;var _0xd6f2a2=new TextGeometry(_0x23014d,{'size':0x1,'height':0.05,'curveSegments':0x6,'font':_0x25560f}),_0x597f2e=new THREE[(_0x1e99f8(0x12f))]({'color':_0x1e99f8(0xf5)}),_0x1e44b6=new THREE[(_0x1e99f8(0x131))](_0xd6f2a2,_0x597f2e);_0x1e44b6['position']['set'](_0x132019,_0x19301d,_0x48b624),_0x1e44b6[_0x1e99f8(0x10a)](_0x2f1492),scene[_0x1e99f8(0x13a)](_0x1e44b6);});}const render=()=>{const _0x37ec12=_0x26ed9c;updateCOM(),updatePositionDisplay(),controls[_0x37ec12(0x11d)](),requestAnimationFrame(render),renderer[_0x37ec12(0x134)](scene,camera);};
+    
+window.onload = initScene;	
+		
+</script>
+  
+</head>
+  
+<body>
+<div id="info" style="text-align: left"> 
+     <h1 style="color: white; text-align: center;">CENTER OF MASS IN 2D</h1>
+     <p style="color: white; text-align: center;">Drag the white spheres to move them</p>
+
+     <div class="control-panel">
+		<button class="btn btn-warning" onclick="alert(
+		'The center of mass is the average position of all the mass in a system.\n' +
+		'It represents the balance point of the entire mass.\n\n' +
+		'For multiple objects in 2D space:\n\n' +
+		'  x_com = (m₁x₁ + m₂x₂ + m₃x₃ + ...) / (m₁ + m₂ + m₃ + ...)\n' +
+		'  y_com = (m₁y₁ + m₂y₂ + m₃y₃ + ...) / (m₁ + m₂ + m₃ + ...)\n\n' +
+		'This simulation visualizes the center of mass of 2 white spheres.'
+		);">
+		  What is Center of Mass?
+		</button><br>
+
+	        <div class="control-group">
+		    Mass 1 (left):
+		    <div class="slider-row">
+		      <input type="range" id="mass1" min="1" max="3" step="0.1" value="2">
+		      <input type="text" id="mass1Value" value="2 kg" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>1</span>
+		      <span>3</span>
+		    </div>
+		</div>
+	        <div class="control-group">
+		    Mass 2 (right):
+		    <div class="slider-row">
+		      <input type="range" id="mass2" min="1" max="3" step="0.1" value="2">
+		      <input type="text" id="mass2Value" value="2 kg" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>1</span>
+		      <span>3</span>
+		    </div>
+		</div>
+     </div>
+     <div class="control-panel-right">
+		  <h4><b>Object Positions</b></h4>
+		  <div id="position1">Mass 1: (x, y)</div>
+		  <div id="position2">Mass 2: (x, y)</div>
+		  <div id="positionCOM">COM: (x, y)</div><br>
+		  <button class="btn btn-success" id="reset">Reset</button>
+		  
+     </div>
+
+</div>
+<div id="viewport"></div>
+</body>
+</html>

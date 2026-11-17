@@ -28,13 +28,36 @@ const args = process.argv.slice(2);
 const onlyIds = args.includes('--ids') ? args[args.indexOf('--ids') + 1] : null;
 
 /* The chapter courses that are filed as chapters rather than as one file. */
-const CHAPTER_COURSES = [1360, 1016, 842, 841];
+const CHAPTER_COURSES = [1360, 1016, 842, 841, 1387];
+
+/* Sessions that are still alive are kept here, so a run does not have to
+   spend another trial opening a new one. */
+const SESSIONS_FILE = path.join(ROOT, 'recon', 'scratch', 'reviewed-sessions.json');
+const knownSessions = fs.existsSync(SESSIONS_FILE)
+  ? JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'))
+  : {};
+const saveSession = (programId, id) => {
+  knownSessions[String(programId)] = id;
+  fs.writeFileSync(SESSIONS_FILE, JSON.stringify(knownSessions, null, 1));
+};
 
 /* Sessions expire, so a new one is opened for every course on every run. */
 const openSession = async (programId) => {
   const opened = await post(`/api/reviewed-course-session/${programId}/open`, {});
-  if (!opened?.id) return null;
-  return opened.id;
+  if (opened?.id) {
+    saveSession(programId, opened.id);
+    return opened.id;
+  }
+  /* The account may have no trials left; a session opened earlier still
+     works until the site retires it. */
+  const stored = knownSessions[String(programId)];
+  if (!stored) return null;
+  const resumed = await post(`/api/reviewed-course-session/session/${stored}/resume`, {
+    programId: Number(programId),
+  });
+  if (!resumed?.descriptor?.entries) return null;
+  console.log(`${programId}: reusing session ${stored}`);
+  return stored;
 };
 
 const post = async (route, body) => {
@@ -81,6 +104,12 @@ const refsOf = (text) => {
     /["'`]([A-Za-z0-9_\-]+\.(?:png|jpe?g|gif|svg|webp|avif|glb|gltf|mp3|mp4|wav|ogg|m4a|json|js|mjs|css|wasm|bin|woff2?|ttf))["'`]/g
   ))
     add(m[1]);
+  /* A path that is built at run time: new URL('./adapter.json', import.meta.url). */
+  for (const m of text.matchAll(/new\s+URL\(\s*["']([^"']+)["']/g)) add(m[1]);
+  for (const m of text.matchAll(
+    /["'`]([A-Za-z0-9_\-./]+\.(?:mjs|js|css|json|html?|txt|wasm|glb|gltf|png|jpe?g|webp|svg|mp3|wav|ogg|woff2?|ttf))["'`]/g
+  ))
+    add(m[1]);
   return out;
 };
 
@@ -91,9 +120,11 @@ const fetchUnder = async (prefix, rel) => {
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': UA, Referer: `${ORIGIN}/` },
-        redirect: 'manual',
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        if (process.env.AFE_DEBUG) console.log(`        ${res.status} ${rel}`);
+        return null;
+      }
       return Buffer.from(await res.arrayBuffer());
     } catch {
       await sleep(600);
@@ -102,8 +133,33 @@ const fetchUnder = async (prefix, rel) => {
   return null;
 };
 
+/* A reference inside the course can be relative to the file that names it,
+   to the chapter, or to the course root; the platform mixes all three. */
+const candidatesFor = (rel, fromDir, chapterDir) => {
+  const clean = rel.replace(/^\/+/, '');
+  const list = [];
+  const add = (p) => {
+    const norm = path.posix.normalize(p).replace(/^(\.\.\/)+/, '');
+    if (norm && !norm.startsWith('..') && !list.includes(norm)) list.push(norm);
+  };
+  add(path.posix.join(fromDir, clean));
+  add(path.posix.join(chapterDir, clean));
+  add(clean);
+  return list;
+};
+
 const browser = await connect(9222);
-await browser.goto(ORIGIN + '/');
+/* The site keeps its sign-in in localStorage, and the frame that serves a
+   chapter checks it.  Seed it before any chapter is opened. */
+await browser.goto(`${ORIGIN}/play/${CHAPTER_COURSES[0]}`);
+await browser
+  .evaluate(
+    `try{localStorage.setItem('aiedu_token', ${JSON.stringify(TOKEN)});
+        if(!localStorage.getItem('aiedu_user'))
+          localStorage.setItem('aiedu_user', JSON.stringify({wechatId:'local-preview',name:'本地预览',role:'teacher'}));
+      }catch(e){}; true`
+  )
+  .catch(() => {});
 await sleep(1200);
 
 /* What was pulled, so the entry shell can be built without guessing. */
@@ -195,35 +251,57 @@ for (const programId of CHAPTER_COURSES) {
     /* Walk what the document names and fetch it from the mount address. */
     const queue = [];
     const seenRel = new Set();
-    const push = (rel) => {
-      if (!rel || seenRel.has(rel)) return;
-      seenRel.add(rel);
-      queue.push(rel);
+    const chapterDir = entry.path.split('/').slice(0, -1).join('/');
+    const push = (rel, fromDir) => {
+      if (!rel) return;
+      for (const candidate of candidatesFor(rel, fromDir, chapterDir)) {
+        if (seenRel.has(candidate)) continue;
+        seenRel.add(candidate);
+        queue.push(candidate);
+      }
     };
-    const base = entry.path.split('/').slice(0, -1).join('/');
     for (const r of refsOf(local)) {
       if (/^https?:\/\//i.test(r)) continue;
-      push(r.startsWith('/') ? r.slice(1) : path.posix.normalize(path.posix.join(base, r)));
+      push(r, chapterDir);
     }
-    for (const e of fs.readdirSync(outDir, { withFileTypes: true })) {
-      if (e.isFile() && /\.(?:js|mjs|css|html?|json|txt)$/i.test(e.name)) {
-        for (const r of refsOf(fs.readFileSync(path.join(outDir, e.name), 'utf8'))) {
-          if (/^https?:\/\//i.test(r)) continue;
-          push(r.startsWith('/') ? r.slice(1) : path.posix.normalize(path.posix.join(base, r)));
-        }
+    /* Files already on disk may name more files. */
+    for (const e of fs.readdirSync(outDir, { withFileTypes: true, recursive: true })) {
+      if (!e.isFile() || !/\.(?:js|mjs|css|html?|json|txt)$/i.test(e.name)) continue;
+      const rel = path.relative(outDir, path.join(e.parentPath || e.path, e.name)).split(path.sep).join('/');
+      const dir = path.posix.dirname(rel);
+      for (const r of refsOf(fs.readFileSync(path.join(outDir, rel), 'utf8'))) {
+        if (/^https?:\/\//i.test(r)) continue;
+        push(r, dir === '.' ? '' : dir);
       }
     }
 
     let fetched = 0;
     while (queue.length) {
       const rel = queue.shift();
+      if (process.env.AFE_DEBUG) console.log(`      ? ${rel}`);
       const target = path.join(outDir, rel);
-      if (fs.existsSync(target) && fs.statSync(target).size > 0) continue;
+      if (fs.existsSync(target) && fs.statSync(target).size > 0) {
+        /* A file that is already here may still name files we do not have. */
+        if (!/\.(?:js|mjs|css|html?|json|txt)$/i.test(rel)) continue;
+        const dir = path.posix.dirname(rel);
+        for (const r of refsOf(fs.readFileSync(target, 'utf8'))) {
+          if (/^https?:\/\//i.test(r)) continue;
+          push(r, dir === '.' ? '' : dir);
+        }
+        continue;
+      }
       const buf = await fetchUnder(prefix, rel);
       if (!buf) continue;
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, buf);
       fetched++;
+      if (/\.(?:js|mjs|css|html?|json|txt)$/i.test(rel)) {
+        const dir = path.posix.dirname(rel);
+        for (const r of refsOf(buf.toString('utf8'))) {
+          if (/^https?:\/\//i.test(r)) continue;
+          push(r, dir === '.' ? '' : dir);
+        }
+      }
     }
     console.log(`    direct fetch added ${fetched}`);
   }

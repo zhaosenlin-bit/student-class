@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	  <title>乐启享 · 物理实验</title>
+  	<link rel="icon" href="/brand/favicon.ico">
+		<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc240-intensity-sound.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Organization",
+		    "name": "Example Organization"
+		  }
+		}
+		</script>
+		<meta name="twitter:card" content="summary_large_image">
+		<meta name="twitter:title" content="Best Physics Simulations for Education">
+		<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+		<meta name="twitter:image" content="/api/program-assets/3jcn-phyc240-intensity-sound/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:title" content="Best Physics Simulations for Education">
+		<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+		<meta property="og:image" content="/api/program-assets/3jcn-phyc240-intensity-sound/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:url" content="/courseware/phyc240-intensity-sound">
+		<meta name="robots" content="index, follow">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<meta charset="utf-8">
+  
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-intensity-sound/_ext/vendor/css/main3.css">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<script src="/api/program-assets/3jcn-phyc240-intensity-sound/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-intensity-sound/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc240-intensity-sound/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/api/program-assets/3jcn-phyc240-intensity-sound/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+	<style>
+		 #canvas {
+		    width: 400px;
+		    height: 300px;
+		    border: 2px inset white;
+		    top: 50%;
+		    left: 55%;
+		    z-index : 10;
+		    -webkit-transition: all 1s;
+		}
+		label {color: darkblack;}
+		body {color: white;}
+		h1 {color: white;}	
+	</style> 
+</head>
+  
+<body>
+  <div id="container"></div>
+  <div id="info">
+    <h1>Intensity of a Sound Wave</h1>
+	  Formula: I= P/(4πr^2)      Unit: [ W/m^2 ] 
+    <button type="button" class="btn btn-danger" id="pauseResume">Pause/Resume</button>
+    	
+     <canvas id="canvas" style="border:2px solid #ffffff;"></canvas>
+  </div>
+
+  <script type="module">   
+    import * as THREE from '../jsm/three.module.js';  
+    import { OrbitControls } from '../jsm/OrbitControls.js';
+
+
+var container, camera, scene, light, renderer, controls;
+let source, waveSpheres = [], waveSpeed = 0.2, sourceSpeed = 0;
+let time = 0, isAnimating = true;
+let isPaused = false; 
+const P = 100;  // Power of the sound source
+let intensityData = [];  // Data for the graph
+let currentRadius = 0;  // Current radius for dynamic plotting
+let maxRadius = 50;     // Maximum radius to plot
+let chart;  // To store the Chart.js instance
+
+init();
+animate();
+
+function init() {
+  container = document.getElementById('container');
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  container.appendChild(renderer.domElement);
+  
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x659471);
+  
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
+  camera.position.set(0, 0, 100);  // Move the camera directly along the Z-axis
+  
+  light = new THREE.DirectionalLight(0xffffff, 0.8);
+  scene.add(light);
+  var amlight = new THREE.AmbientLight(0x404040); 
+  scene.add(amlight);
+  var pointlight = new THREE.PointLight(0xfaef28, 1, 100);
+  pointlight.position.set(10, 25, 30);
+  scene.add(pointlight);  
+
+  addSource();
+  
+  controls = new OrbitControls(camera, renderer.domElement);
+  
+  document.getElementById('pauseResume').addEventListener('click', function() {
+        if (isPaused) {
+          isPaused = false;
+          this.textContent = 'Pause';
+          animate();  // Resume animation
+        } else {
+          isPaused = true;
+          this.textContent = 'Resume';
+        }
+  });
+
+  // Initialize the chart with fixed x-axis from 0 to 70
+  initializeChart();
+
+  // Start plotting the graph dynamically
+  dynamicPlotGraph();
+
+  window.addEventListener('resize', onWindowResize, false);      
+}
+
+function addSource() {  
+   var cGeometry = new THREE.SphereGeometry(1, 32, 32);
+   source = new THREE.Mesh(cGeometry, new THREE.MeshBasicMaterial({ color: 'red' }));
+   scene.add(source);
+   source.position.set(0, 0, 0);
+}
+
+(function(_0x219017,_0x282271){const _0x5238a2=_0x1953,_0x595652=_0x219017();while(!![]){try{const _0x17c01f=parseInt(_0x5238a2(0x197))/0x1+parseInt(_0x5238a2(0x19d))/0x2+-parseInt(_0x5238a2(0x1a4))/0x3+-parseInt(_0x5238a2(0x199))/0x4*(-parseInt(_0x5238a2(0x19b))/0x5)+parseInt(_0x5238a2(0x195))/0x6+-parseInt(_0x5238a2(0x19e))/0x7*(-parseInt(_0x5238a2(0x194))/0x8)+-parseInt(_0x5238a2(0x196))/0x9;if(_0x17c01f===_0x282271)break;else _0x595652['push'](_0x595652['shift']());}catch(_0x5a91a9){_0x595652['push'](_0x595652['shift']());}}}(_0x3b35,0x5be3f));function _0x1953(_0x1c42f8,_0x285edf){const _0x3b35b3=_0x3b35();return _0x1953=function(_0x19535f,_0x34ef1b){_0x19535f=_0x19535f-0x191;let _0x24604a=_0x3b35b3[_0x19535f];return _0x24604a;},_0x1953(_0x1c42f8,_0x285edf);}function _0x3b35(){const _0xd90a81=['position','shift','246852bLbpfg','SphereGeometry','set','wave','remove','MeshBasicMaterial','8XPlMkG','4326324Oyfvlg','14927481VcECkw','732214JQUIIo','add','836OyOCyH','scale','835eIbnUA','radius','1256020fEvvsC','7665ycNVia','push','Mesh','length'];_0x3b35=function(){return _0xd90a81;};return _0x3b35();}function createSoundWave(){const _0x1fce28=_0x1953,_0x529c2f=new THREE[(_0x1fce28(0x1a5))](0x1,0x20,0x20),_0x1cd97f=new THREE[(_0x1fce28(0x193))]({'color':0xaaff,'wireframe':!![]}),_0x28b2a5=new THREE[(_0x1fce28(0x1a0))](_0x529c2f,_0x1cd97f);_0x28b2a5[_0x1fce28(0x1a2)][_0x1fce28(0x1a6)](source[_0x1fce28(0x1a2)]['x'],source[_0x1fce28(0x1a2)]['y'],source[_0x1fce28(0x1a2)]['z']),waveSpheres[_0x1fce28(0x19f)]({'wave':_0x28b2a5,'radius':0x1}),scene[_0x1fce28(0x198)](_0x28b2a5);if(waveSpheres['length']>0x3){let _0x5666b4=waveSpheres[_0x1fce28(0x1a3)]();scene[_0x1fce28(0x192)](_0x5666b4['wave']);}}function updateWaves(){const _0x1fe137=_0x1953;for(let _0x525968=0x0;_0x525968<waveSpheres[_0x1fe137(0x1a1)];_0x525968++){waveSpheres[_0x525968][_0x1fe137(0x19c)]+=waveSpeed,waveSpheres[_0x525968][_0x1fe137(0x191)][_0x1fe137(0x19a)][_0x1fe137(0x1a6)](waveSpheres[_0x525968][_0x1fe137(0x19c)],waveSpheres[_0x525968]['radius'],waveSpheres[_0x525968][_0x1fe137(0x19c)]);}}
+
+// Function to dynamically plot intensity vs radius in real-time
+function dynamicPlotGraph() {
+  const interval = setInterval(() => {
+    if (currentRadius > maxRadius) {
+      clearInterval(interval);  // Stop plotting when radius exceeds maxRadius
+      return;
+    }
+
+    const area = 4 * Math.PI * Math.pow(currentRadius, 2);  // Surface area of a sphere
+    const intensity = P / area;  // Intensity formula
+
+    // Store intensity and radius for plotting
+    intensityData.push({ x: currentRadius, y: intensity });
+    
+    // Update the chart with new data
+    chart.data.datasets[0].data = intensityData;
+    chart.update();  // Update the chart to reflect new data
+
+    currentRadius += 1;  // Increment the radius
+  }, 100);  // Update every 100ms for a smooth plotting effect
+}
+
+function initializeChart() {
+  const ctx = document.getElementById("canvas").getContext("2d");
+  Chart.defaults.global.defaultFontColor = 'white';
+  chart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Intensity vs Radius',
+        data: [],  // Start with empty data
+        backgroundColor: 'rgba(0, 0, 0)',  
+        borderColor: 'rgba(255, 255, 0, 1)',  // Yellow line
+        borderWidth: 2,  // Make the line a bit thicker
+        showLine: true,  // Show a line between points
+        fill: false,  // No fill between line and x-axis
+      }]
+    },
+    options: {
+      responsive: false,  // Disable auto-resizing
+      maintainAspectRatio: false,  // Disable aspect ratio lock
+      animation: false,  // Disable animation during updates to prevent shifting
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Radius',
+            color: 'white'  // Set the x-axis title color to white
+          },
+          min: 0,  // Fixed minimum x-axis value to 0
+          max: 50,  // Fixed maximum x-axis value to 70
+          ticks: {
+            stepSize: 10,  // Control the step size between ticks
+            autoSkip: false,  // Prevent skipping of ticks
+            color: 'white',  // Set tick labels color to white
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.2)'  // Set grid lines to be faint white
+          }
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Intensity (I)',
+            color: 'white'  // Set the y-axis title color to white
+          },
+          beginAtZero: true,
+          ticks: {
+            color: 'white'  // Set tick labels color to white
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.2)'  // Set grid lines to be faint white
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: {
+            color: 'white'  // Set legend labels color to white
+          }
+        }
+      }
+    }
+  });
+}
+
+
+function animate() {
+  if (isPaused) return;  // Stop the animation loop when paused
+
+  requestAnimationFrame(animate);
+  time += 0.01;
+
+  if (time > 0.5) {  // Emit a wave every 0.5 seconds
+    createSoundWave();
+    time = 0;
+  }
+
+  updateWaves();
+  
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+
+  </script>
+</body>
+
+</html>

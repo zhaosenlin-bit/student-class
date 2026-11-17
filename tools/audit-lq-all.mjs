@@ -107,6 +107,17 @@ const results = [];
 let cursor = 0;
 let done = 0;
 
+/*
+ * The report is written as the run goes on.  A heavy course can wedge the
+ * renderer at the very end of a long run, and a report that only appears
+ * at the end would then be lost with it.
+ */
+const outFile = path.join(ROOT, OUT);
+const flush = () => {
+  const bad = results.filter((r) => !r.ok);
+  fs.writeFileSync(outFile, JSON.stringify({ results, bad: bad.map((b) => b.id) }, null, 1));
+};
+
 async function worker() {
   const p = await connect(CDP_PORT);
   try {
@@ -166,6 +177,7 @@ async function worker() {
       }
       results.push(rep);
       done++;
+      flush();
       if (done % 25 === 0) {
         const bad = results.filter((r) => !r.ok).length;
         process.stdout.write(`[${done}/${ids.length}] bad=${bad}\n`);

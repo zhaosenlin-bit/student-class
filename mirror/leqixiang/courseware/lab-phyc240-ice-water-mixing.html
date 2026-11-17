@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="/brand/favicon.ico">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>乐启享 · 物理实验</title>
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc240-ice-water-mixing/_ext/vendor/css/yellow.css">
+  <link rel="stylesheet" href="/api/program-assets/lab-phyc240-ice-water-mixing/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+  <style>
+    body { margin:0; overflow:hidden; color:black; }
+    #viewport { position: fixed; inset: 0; }
+    h1{
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      margin: 0;
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.85);
+      border: 2px solid #333;
+      border-radius: 10px;
+      z-index: 10;           /* higher than #viewport */
+      pointer-events: none;  /* so mouse controls still work */
+    }
+    #ui {
+      position:absolute;
+      left: 20px;
+      top: 20px;
+      width: 360px;
+      background:#eee;
+      border:2px solid #333;
+      border-radius:10px;
+      padding:15px;
+      font-family: Arial, sans-serif;
+      z-index: 5;
+    }
+    .row2 { margin-bottom: 12px; }
+    .row2 label { display:block; margin-bottom:4px; }
+    input[type="range"] { width: 100%; }
+    .valLine { font-weight:bold; color:#0033cc; }
+    .small { font-size: 12px; color:#333; }
+    .block { margin-top: 10px; padding: 10px; background:#fff; border:1px solid #bbb; border-radius:8px; }
+    .mono { font-family: Consolas, monospace; white-space: pre-line; }
+    .btnRow { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  </style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/lab-phyc240-ice-water-mixing/_ext/unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "/api/program-assets/lab-phyc240-ice-water-mixing/_ext/unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '/api/program-assets/lab-phyc240-ice-water-mixing/_ext/unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from '/api/program-assets/lab-phyc240-ice-water-mixing/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from '/api/program-assets/lab-phyc240-ice-water-mixing/_ext/unpkg.com/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js';
+import { FontLoader } from '/api/program-assets/lab-phyc240-ice-water-mixing/_ext/unpkg.com/three@0.160.0/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from '/api/program-assets/lab-phyc240-ice-water-mixing/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/TextGeometry.js';
+
+    // ============================================================
+    // constants (Duffy-style)
+    // ============================================================
+    // units: calories, grams, Celsius
+    const cIce   = 0.5;   // cal/(g·°C)
+    const cWater = 1.0;   // cal/(g·°C)
+    const Lf     = 80.0;  // cal/g latent heat of fusion
+
+    // ---------- three.js globals ----------
+    let scene, camera, renderer, controls;
+    let bucketGroup, waterMesh, iceMesh;    
+    let pressureSensorGroup;
+    let pressureSphereMesh;
+    var textureloader = new THREE.TextureLoader();
+
+    // bucket geometry (your style)
+    const bucketHeight = 10;
+    const bucketTopRadius = 5;
+    const bucketBottomRadius = 2.8;
+
+    // visualization scaling
+    const MASS_MAX_G = 300;
+    const WATER_FILL_MAX_FRAC = 0.82; // at max water
+    let iceTime = 0;
+    let iceFloatPhase = 0;
+    let iceBaseRot = new THREE.Vector3(-0.2, 0.4, 0.0);
+    let iceIsFloating = false;
+    let iceBaseY = 0; const MIN_WATER_VIS_H = 0.12;
+
+    // UI helper
+    const $ = (id) => document.getElementById(id);
+    // Materials (reuse, don’t recreate every frame)
+    const waterMatLiquid = new THREE.MeshPhongMaterial({
+      color: 0x3399ff, transparent: true, opacity: 0.65
+    });
+    const waterMatFrozen = new THREE.MeshPhongMaterial({
+      color: 0xd9f2ff, transparent: true, opacity: 0.65  // white/ice look
+    });
+
+    function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+
+    // ============================================================
+    // Physics: mixing ice and water with variable initial temps
+    //
+    // Assumptions:
+    // - water starts liquid (even if Tw<0, we still treat it as "liquid water" for this demo)
+    // - ice starts solid (even if Ti>0, we still treat it as "ice"; user controls Ti range anyway)
+    // - equilibrium can be:
+    //   1) below 0°C (all ice, no liquid)
+    //   2) exactly 0°C (ice+water coexist)
+    //   3) above 0°C (all water)
+    // ============================================================
+    function mixIceWater(mi,mw,Ti,Tw,_0xa8g3f,_0x048c2d,_0x74f84c,_0x5eb8d,_0xe_0x8cb){mi=Math['\u006D\u0061\u0078'](280572^280572,mi);mw=Math['\u006D\u0061\u0078'](523030^523030,mw);if(mi===(833089^833089)&&mw===(536497^536497)){return{'\u0054\u0066':0,'\u0069\u0063\u0065\u004C\u0065\u0066\u0074':0,'\u0077\u0061\u0074\u0065\u0072\u004C\u0065\u0066\u0074':0};}if(mi===(638297^638297)){return{'\u0054\u0066':Tw,'\u0069\u0063\u0065\u004C\u0065\u0066\u0074':0,"waterLeft":mw};}if(mw===(437255^437255)){return{'\u0054\u0066':Ti,'\u0069\u0063\u0065\u004C\u0065\u0066\u0074':mi,'\u0077\u0061\u0074\u0065\u0072\u004C\u0065\u0066\u0074':0};}const _0x6229b=mw*cWater*(Tw-(231191^231191));_0xa8g3f='\u0063\u0064\u0066\u0069\u006C\u0070';var _0x2f8a7d=(951099^951090)+(835994^835986);const _0xb2139b=mi*cIce*((836142^836142)-Ti);_0x2f8a7d=(581828^581830)+(955620^955617);const A=mw*cWater;const B=mi*cIce;_0x048c2d=(834678^834676)+(458782^458777);let _0x5c9fcc=(A*Tw+B*Ti)/(A+B);_0x74f84c=490338^490340;if(_0x5c9fcc<(512021^512021)){return{'\u0054\u0066':_0x5c9fcc,"iceLeft":mi+mw,'\u0077\u0061\u0074\u0065\u0072\u004C\u0065\u0066\u0074':0};}var _0x383bee=(621215^621215)+(133764^133761);const _0x52d=_0x6229b-_0xb2139b;_0x383bee='\u0066\u0064\u0064\u0066\u006F\u006F';if(_0x52d<=(414184^414184)){return{'\u0054\u0066':0.0,'\u0069\u0063\u0065\u004C\u0065\u0066\u0074':mi,'\u0077\u0061\u0074\u0065\u0072\u004C\u0065\u0066\u0074':mw};}const _0xf3_0xa3e=mi*Lf;_0x5eb8d=(129183^129174)+(769957^769964);if(_0x52d<_0xf3_0xa3e){const _0x8b876e=_0x52d/Lf;const _0x554bb=mi-_0x8b876e;const _0x8g788b=mw+_0x8b876e;return{"Tf":0.0,"iceLeft":_0x554bb,'\u0077\u0061\u0074\u0065\u0072\u004C\u0065\u0066\u0074':_0x8g788b};}var _0xace9fa=(791302^791298)+(367355^367355);const _0x53949b=_0x52d-_0xf3_0xa3e;_0xace9fa=928436^928438;const _0x5f555d=mw+mi;const _0xe91cf=_0x53949b/(_0x5f555d*cWater);_0xe_0x8cb=(172032^172039)+(440063^440060);return{'\u0054\u0066':_0xe91cf,"iceLeft":0.0,"waterLeft":_0x5f555d};}function isFiniteNumber(x){return Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](x)&&!Number['\u0069\u0073\u004E\u0061\u004E'](x);}function createBucket(_0x176g,_0xg5dae){bucketGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();const _0xd83g=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](bucketTopRadius,bucketBottomRadius,bucketHeight,928229^928197,836849^836848,!![]);const _0xf921a=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x888888,'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],"transparent":!![],'\u006F\u0070\u0061\u0063\u0069\u0074\u0079':0.55});_0x176g=(640820^640823)+(111479^111486);const _0x8b_0xb15=new THREE['\u004D\u0065\u0073\u0068'](_0xd83g,_0xf921a);_0xg5dae=(685523^685530)+(845079^845079);bucketGroup['\u0061\u0064\u0064'](_0x8b_0xb15);var _0xa5b82b=(180751^180749)+(746945^746950);const _0xe5bc5f=new THREE['\u0043\u0069\u0072\u0063\u006C\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](bucketBottomRadius,595072^595104);_0xa5b82b='\u006E\u006D\u0070\u0064\u006B\u0068';const _0xg0bea=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x555555});const _0xe51ee=new THREE['\u004D\u0065\u0073\u0068'](_0xe5bc5f,_0xg0bea);_0xe51ee['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=-Math['\u0050\u0049']/(351579^351577);_0xe51ee['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-bucketHeight/(898847^898845);bucketGroup['\u0061\u0064\u0064'](_0xe51ee);bucketGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(103747^103753),-(273877^273884),240108^240108);scene['\u0061\u0064\u0064'](bucketGroup);}function setWaterByMassffectedByState(mw,isFrozen,_0xf9d35e,_0xdae2,_0x6311ee){mw=Number(mw);if(!Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](mw)||mw<=(589725^589725)){if(waterMesh)waterMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=false;return;}const _0x34f=WATER_FILL_MAX_FRAC;var _0x2cfa0b=(477605^477603)+(428477^428478);let _0xa85d=clamp(mw/MASS_MAX_G,540866^540866,296186^296187)*_0x34f;_0x2cfa0b='\u006C\u0068\u0064\u0062\u006D\u0061';_0xdae2=0.12;_0xf9d35e=(137087^137087)+(970734^970729);let h=bucketHeight*_0xa85d;_0x6311ee="pkmdbf".split("").reverse().join("");h=Math['\u006D\u0061\u0078'](h,_0xdae2);var _0x_0x01c=(369931^369922)+(315245^315236);let _0xce_0x236=bucketBottomRadius+(bucketTopRadius-bucketBottomRadius)*(h/bucketHeight);_0x_0x01c=(584949^584957)+(528999^528992);_0xce_0x236=Math['\u006D\u0061\u0078'](_0xce_0x236,bucketBottomRadius*1.001);var _0xebca=(275050^275054)+(756092^756090);const _0xeedbg=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xce_0x236,bucketBottomRadius,h,664959^664927,426927^426926,false);_0xebca='\u0069\u006F\u006E\u006A\u0070\u0065';if(!waterMesh){waterMesh=new THREE['\u004D\u0065\u0073\u0068'](_0xeedbg,isFrozen?waterMatFrozen:waterMatLiquid);bucketGroup['\u0061\u0064\u0064'](waterMesh);}else{waterMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();waterMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']=_0xeedbg;waterMesh['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']=isFrozen?waterMatFrozen:waterMatLiquid;}waterMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-bucketHeight/(978784^978786)+h/(818603^818601);waterMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=!![];}function setWaterByMass(mw,_0xfc0fc){mw=Number(mw);if(!Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](mw)||mw<=(426755^426755)){if(waterMesh)waterMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=false;return;}const _0x52e0ce=WATER_FILL_MAX_FRAC;let _0x8af3a=clamp(mw/MASS_MAX_G,852153^852153,959430^959431)*_0x52e0ce;var _0xf_0x709=(164803^164801)+(392187^392190);let h=bucketHeight*_0x8af3a;_0xf_0x709=(932886^932882)+(735135^735131);h=Math['\u006D\u0061\u0078'](h,MIN_WATER_VIS_H);let _0x9f_0x096=bucketBottomRadius+(bucketTopRadius-bucketBottomRadius)*(h/bucketHeight);_0x9f_0x096=Math['\u006D\u0061\u0078'](_0x9f_0x096,bucketBottomRadius*1.001);const _0xg_0xf6c=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x9f_0x096,bucketBottomRadius,h,678514^678482,303821^303820,false);_0xfc0fc='\u006E\u006E\u0062\u0071\u0063\u0068';if(!waterMesh){const _0x85a=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x3399ff,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],"opacity":0.65});waterMesh=new THREE['\u004D\u0065\u0073\u0068'](_0xg_0xf6c,_0x85a);bucketGroup['\u0061\u0064\u0064'](waterMesh);}else{waterMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();waterMesh['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']=_0xg_0xf6c;}waterMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=-bucketHeight/(780010^780008)+h/(347857^347859);waterMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=!![];}function waterFractionFromMass(mw){mw=Math['\u006D\u0061\u0078'](512856^512856,mw);return clamp(mw/MASS_MAX_G,814649^814649,574575^574574)*WATER_FILL_MAX_FRAC;}function setIceBlock(iceMassToShow,waterMassForSurface,_0x28035a,_0xf2_0x7a8,_0xae_0xd7g){if(!iceMesh){const _0x58ed=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xd9f2ff,"transparent":!![],"opacity":0.88});iceMesh=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](182081^182080,812737^812736,635431^635430),_0x58ed);bucketGroup['\u0061\u0064\u0064'](iceMesh);}if(iceMassToShow<=1e-6){iceMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=false;return;}iceMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=!![];_0x28035a=2.2;const _0x65961f=_0x28035a*Math['\u0063\u0062\u0072\u0074'](iceMassToShow/(912636^912536));iceMesh['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](_0x65961f,_0x65961f,_0x65961f);const _0x3_0xeb8=waterFractionFromMass(waterMassForSurface);let _0x4eae=bucketHeight*_0x3_0xeb8;_0xf2_0x7a8=(350262^350261)+(860242^860245);if(waterMassForSurface>1e-6)_0x4eae=Math['\u006D\u0061\u0078'](_0x4eae,MIN_WATER_VIS_H);const _0x2271a=-bucketHeight/(581097^581099)+_0x4eae;_0xae_0xd7g='\u0067\u006A\u0064\u006B\u0062\u0067';const _0x661bgc=_0x65961f;if(waterMassForSurface>1e-6){const _0x591e=0.917;let _0xc05f;const _0xgac99e=_0x2271a-_0x591e*_0x661bgc;_0xc05f="dombbp".split("").reverse().join("");iceMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](115049^115049,_0xgac99e+_0x661bgc/(951778^951776),304963^304963);}else{let _0x8f6bf;const _0xc3e3a=-bucketHeight/(952375^952373);_0x8f6bf=(849349^849356)+(765224^765225);iceMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](658450^658450,_0xc3e3a+_0x661bgc/(560193^560195),845651^845651);}iceMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](iceBaseRot['\u0078'],iceBaseRot['\u0079'],iceBaseRot['\u007A']);iceIsFloating=waterMassForSurface>1e-6;iceBaseY=iceMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'];}function recompute(_0x2689ca,_0x47eaad){const _0xa0c=parseFloat($("ssaMeci".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);const _0xa1fd=parseFloat($("ssaMretaw".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);_0x2689ca=(784693^784700)+(282215^282222);var _0xcg4e=(588732^588733)+(496470^496464);const _0xf14a0f=parseFloat($("pmeTeci".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);_0xcg4e="fcgokg".split("").reverse().join("");const _0x1bd=parseFloat($("\u0077\u0061\u0074\u0065\u0072\u0054\u0065\u006D\u0070")['\u0076\u0061\u006C\u0075\u0065']);$("laVssaMeci".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=_0xa0c['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](912398^912398);$("laVssaMretaw".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=_0xa1fd['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](156128^156128);$("laVpmeTeci".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=_0xf14a0f['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](178528^178529);$("\u0077\u0061\u0074\u0065\u0072\u0054\u0065\u006D\u0070\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=_0x1bd['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](368980^368981);var _0xe18d9a=(836632^836635)+(274631^274629);const r=mixIceWater(_0xa0c,_0xa1fd,_0xf14a0f,_0x1bd);_0xe18d9a='\u0069\u0066\u006C\u006E\u0065\u006A';const _0xe411ae=r['\u0054\u0066']<(545888^545888);_0x47eaad=(137978^137978)+(131802^131794);$("\u0062\u0065\u0066\u006F\u0072\u0065\u0054\u0065\u0078\u0074")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=`BEFORE: ${_0xa0c['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](572706^572707)} g of ice at ${_0xf14a0f['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](832675^832674)}°C
+    BEFORE: ${_0xa1fd['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](841908^841909)} g of water at ${_0x1bd['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](892403^892402)}°C`;$("txeTretfa".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=`AFTER:  ${r['\u0069\u0063\u0065\u004C\u0065\u0066\u0074']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](824087^824086)} g of ice
+    AFTER:  ${r['\u0077\u0061\u0074\u0065\u0072\u004C\u0065\u0066\u0074']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](130571^130570)} g of water`;$("pmeTlanif".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=`${r['\u0054\u0066']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](417679^417677)} °C`;const _0x76d50b=_0xe411ae?_0xa1fd:Math['\u006D\u0061\u0078'](369522^369522,r['\u0077\u0061\u0074\u0065\u0072\u004C\u0065\u0066\u0074']);setWaterByMassffectedByState(_0x76d50b,_0xe411ae);let _0xf78f=r['\u0069\u0063\u0065\u004C\u0065\u0066\u0074'];if(_0xa1fd<=1e-6&&_0xa0c>(304372^304372))_0xf78f=_0xa0c;setIceBlock(_0xf78f,_0x76d50b);}function showInfo(){alert(`Ice and water
+        
+        This simulation involves mixing ice and water and letting the system come to equilibrium.
+        
+        We use the following values:
+        • specific heat of liquid water: 1.0 cal/(g·°C)
+        • specific heat of ice: 0.5 cal/(g·°C)
+        • latent heat of fusion of water: 80 cal/g
+        
+        Try changing the masses and initial temperatures.
+        Notice that the final temperature often stays at 0°C across
+        a wide range, because the large amount of energy involved 
+        in the phase change (melting/freezing).`);}function init(_0x1e817a,_0x98293d,_0xcee6a){renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0065\u006E\u0061\u0062\u006C\u0065\u0064']=!![];document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u0069\u0065\u0077\u0070\u006F\u0072\u0074")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0x1DCBEA);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](696397^696430,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],322979^322978,968360^968000);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](701605^701605,606531^606537,871344^871308);scene['\u0061\u0064\u0064'](camera);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067']=!![];scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.45));const _0xfa_0x7ee=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,220546^220547);_0xfa_0x7ee['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](210190^210180,559522^559498,895788^895800);scene['\u0061\u0064\u0064'](_0xfa_0x7ee);var _0xg4cg=(387237^387237)+(656122^656115);const _0x7ca=new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](117325^117361,755119^755117,509199^509235),new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xE7ADA1}));_0xg4cg='\u0070\u0063\u006C\u0065\u006A\u0068';_0x7ca['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](859676^859677,-(393272^393271),177777^177777);scene['\u0061\u0064\u0064'](_0x7ca);createBucket();thermometer();tempSensor();createPascoInterface();var _0xd1e=(827104^827107)+(651639^651638);var _0x8ed=[new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](16.8,-12.7,-(623147^623162)),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](17.3,-(928667^928663),-(409336^409328)),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](820380^820357,-(423231^423219),-(892407^892402)),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](733989^734012,-(959490^959502),-(699880^699883)),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](830432^830438,-(156769^156781),-(144757^144758))];_0xd1e=(431697^431700)+(353208^353201);var _0xg4e9fa=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x8ed);var _0xdb1egd=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xg4e9fa,665398^665348,0.1,933660^933688,false);_0x1e817a=(729566^729558)+(876539^876538);var _0x8abe3b=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"gray"});_0x98293d=(707095^707092)+(990462^990456);var _0x304db=new THREE['\u004D\u0065\u0073\u0068'](_0xdb1egd,_0x8abe3b);scene['\u0061\u0064\u0064'](_0x304db);var _0x36c=[new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](453352^453356,-(938946^938958),-(514100^514103)),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](871457^871457,-(910800^910812),-(980310^980309)),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](348037^348037,971158^971157,-(653433^653434)),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(593091^593092),120913^120914,999220^999220),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(553890^553898),493046^493046,250296^250296),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(543641^543633),-(981895^981892),258321^258321)];_0xcee6a='\u0063\u006C\u006E\u0066\u0065\u0061';var _0xa_0x3db=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x36c);var _0x2b6e=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xa_0x3db,371839^371789,0.07,338363^338335,false);var _0x4_0x5a7=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0077\u0068\u0069\u0074\u0065"});var _0xfd0cdd=new THREE['\u004D\u0065\u0073\u0068'](_0x2b6e,_0x4_0x5a7);scene['\u0061\u0064\u0064'](_0xfd0cdd);var _0x7bde=(902123^902122)+(287991^287991);const _0xb8a=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.28,0.28,619293^619292,218377^218409);_0x7bde=252473^252477;var _0xg7cedc=(612897^612900)+(770958^770952);const _0x5ce1e=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"gray"});_0xg7cedc=(848132^848134)+(324998^324995);const _0x4828fd=new THREE['\u004D\u0065\u0073\u0068'](_0xb8a,_0x5ce1e);_0x4828fd['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=Math['\u0050\u0049']/(608380^608382);_0x4828fd['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](8.6,-(948568^948564),-(966335^966332));scene['\u0061\u0064\u0064'](_0x4828fd);$("ssaMeci".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),recompute);$("ssaMretaw".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",recompute);$("\u0069\u0063\u0065\u0054\u0065\u006D\u0070")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),recompute);$("\u0077\u0061\u0074\u0065\u0072\u0054\u0065\u006D\u0070")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",recompute);$("\u0062\u0074\u006E\u0052\u0065\u0073\u0065\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",()=>{$("ssaMeci".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=390631^390531;$("\u0077\u0061\u0074\u0065\u0072\u004D\u0061\u0073\u0073")['\u0076\u0061\u006C\u0075\u0065']=329800^329772;$("pmeTeci".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=-(625224^625218);$("\u0077\u0061\u0074\u0065\u0072\u0054\u0065\u006D\u0070")['\u0076\u0061\u006C\u0075\u0065']=798681^798675;recompute();});$("ofnIntb".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",showInfo);window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065",()=>{camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);});recompute();animate();}function tempSensor(_0xdae){let _0x8666c=new RoundedBoxGeometry(561203^561206,355389^355388,612303^612301,240745^240746,0.25)['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](157081^157081,0.5,441477^441477);var _0x896ad=(417413^417421)+(114796^114792);let _0x3bc8ac=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":new THREE['\u0043\u006F\u006C\u006F\u0072'](167112^167112,0.75,343227^343226)['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](0.5)});_0x896ad=(462233^462235)+(868800^868801);let _0x6c79fb=new THREE['\u004D\u0065\u0073\u0068'](_0x8666c,_0x3bc8ac);var _0xc30d1f=(226508^226507)+(247873^247880);let _0xaeb1be=new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](111024^111029,0.1,1.8);_0xc30d1f=(483864^483864)+(214956^214959);let _0x9169cb=textureloader['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0074\u0065\u006D\u0070\u002D\u0073\u0065\u006E\u0073\u006F\u0072\u002E\u0070\u006E\u0067");_0xdae=374561^374567;let _0xd1ce=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"map":_0x9169cb});var _0x4gf8d=new THREE['\u004D\u0065\u0073\u0068'](_0xaeb1be,_0xd1ce);_0x6c79fb['\u0061\u0064\u0064'](_0x4gf8d);_0x4gf8d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](770079^770079,0.98,487452^487452);_0x6c79fb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](169474^169476,-12.5,-(527741^527742));scene['\u0061\u0064\u0064'](_0x6c79fb);}function createPascoInterface(_0x0bac8c,_0xd_0x146){var _0xa3c48f=(269753^269759)+(319007^319004);let _0x64c3c=new RoundedBoxGeometry(360662^360647,320723^320726,264864^264871,491672^491677,0.4)['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](604200^604200,0.5,850929^850929);_0xa3c48f=(198706^198704)+(446132^446135);let _0x13777a=textureloader['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0070\u0061\u0073\u0063\u006F\u0032\u002E\u0070\u006E\u0067");_0x0bac8c='\u0063\u0067\u0063\u006A\u006D\u0063';let _0x3b6ebf=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"map":_0x13777a});_0xd_0x146=(540877^540873)+(724511^724503);let _0xcfff6b=new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](453621^453604,919780^919777,0.2);var _0x6gb=(459326^459320)+(325094^325093);var _0x5835bb=new THREE['\u004D\u0065\u0073\u0068'](_0xcfff6b,_0x3b6ebf);_0x6gb=(350192^350192)+(242162^242170);_0x5835bb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](682588^682588,0.5,3.5);const _0x6c686a=new THREE['\u004D\u0065\u0073\u0068'](_0x64c3c,new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"\u0062\u006C\u0061\u0063\u006B"}));_0x6c686a['\u0061\u0064\u0064'](_0x5835bb);_0x6c686a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](330499^330519,-(177807^177795),-(741775^741787));scene['\u0061\u0064\u0064'](_0x6c686a);}function thermometer(_0xf7ec0b,_0xbbc5db){pressureSensorGroup=new THREE['\u0047\u0072\u006F\u0075\u0070']();var _0x41ea=(883033^883036)+(873352^873344);let _0xbbc48g=new RoundedBoxGeometry(954873^954872,584336^584341,1.1,476253^476248,0.4)['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](994427^994427,0.5,417806^417806);_0x41ea='\u0061\u0061\u0066\u006F\u006C\u006A';const _0x07522d=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0062\u006C\u0075\u0065"});const _0x5_0xe9e=new THREE['\u004D\u0065\u0073\u0068'](_0xbbc48g,_0x07522d);const _0xafb3f=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.1,0.1,624506^624498,481255^481223);_0xf7ec0b=225059^225056;const _0x66fd8a=new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"gray"});_0xbbc5db=(349262^349254)+(428868^428867);var _0xe5dbab=(358947^358951)+(134232^134232);const _0x5686fg=new THREE['\u004D\u0065\u0073\u0068'](_0xafb3f,_0x66fd8a);_0xe5dbab=(983507^983505)+(377679^377677);_0x5_0xe9e['\u0061\u0064\u0064'](_0x5686fg);_0x5686fg['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](764211^764211,-(584418^584422),795917^795917);pressureSensorGroup['\u0061\u0064\u0064'](_0x5_0xe9e);pressureSensorGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(774288^774296),-(777761^777767),234890^234890);scene['\u0061\u0064\u0064'](pressureSensorGroup);}function animate(){requestAnimationFrame(animate);if(iceMesh&&iceMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']){if(iceIsFloating){iceFloatPhase+=0.02;var _0xc_0x73e=(121336^121340)+(558341^558339);const _0xd8313a=0.08*Math['\u0073\u0069\u006E'](iceFloatPhase);_0xc_0x73e=(901510^901507)+(501032^501039);iceMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=iceBaseY+_0xd8313a;iceMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=iceBaseRot['\u0078']+0.03*Math['\u0073\u0069\u006E'](0.9*iceFloatPhase);iceMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=iceBaseRot['\u0079']+0.03*Math['\u0063\u006F\u0073'](0.7*iceFloatPhase);iceMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=iceBaseRot['\u007A']+0.02*Math['\u0073\u0069\u006E'](1.1*iceFloatPhase);}else{iceMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']=iceBaseY;iceMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](iceBaseRot['\u0078'],iceBaseRot['\u0079'],iceBaseRot['\u007A']);}}controls['\u0075\u0070\u0064\u0061\u0074\u0065']();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}
+
+
+    window.onload = init;
+  </script>
+</head>
+
+<body>
+  <h1>Mix Ice and Water</h1>
+  <div id="ui">
+    <h3 style="margin-top:0;">Ice and Water (3D)</h3>
+
+    <div class="row2">
+      <label>Mass of ice (g): <span class="valLine"><span id="iceMassVal">100</span> g</span></label>
+      <input id="iceMass" type="range" min="0" max="300" step="1" value="100">
+    </div>
+
+    <div class="row2">
+      <label>Mass of water (g): <span class="valLine"><span id="waterMassVal">100</span> g</span></label>
+      <input id="waterMass" type="range" min="0" max="300" step="1" value="100">
+    </div>
+
+    <div class="row2">
+      <label>Initial ice temperature (°C): <span class="valLine"><span id="iceTempVal">-10.0</span> °C</span></label>
+      <input id="iceTemp" type="range" min="-30" max="0" step="0.5" value="-10">
+    </div>
+
+    <div class="row2">
+      <label>Initial water temperature (°C): <span class="valLine"><span id="waterTempVal">10.0</span> °C</span></label>
+      <input id="waterTemp" type="range" min="0" max="40" step="0.5" value="10">
+    </div>
+
+    <div class="btnRow">
+      <button id="btnReset" class="btn btn-warning btn-sm">Reset</button>
+      <button id="btnInfo" class="btn btn-success btn-sm">Info</button>
+      
+    </div>
+
+    <div class="block mono" id="beforeText"></div>
+    <div class="block mono" id="afterText"></div>
+
+    <div class="block">
+      <div class="valLine">Final temperature: <span id="finalTemp">0.00 °C</span></div>
+    </div>
+  </div>
+
+  <div id="viewport"></div>
+</body>
+</html>

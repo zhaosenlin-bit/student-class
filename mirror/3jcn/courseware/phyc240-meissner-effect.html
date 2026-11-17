@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+	  <title>乐启享 · 物理实验</title>
+		<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc240-meissner-effect.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Organization",
+		    "name": "Example Organization"
+		  }
+		}
+		</script>
+  		<link rel="icon" href="/brand/favicon.ico">
+		<meta name="twitter:card" content="summary_large_image">
+		<meta name="twitter:title" content="Best Physics Simulations for Education">
+		<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+		<meta name="twitter:image" content="/api/program-assets/3jcn-phyc240-meissner-effect/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:title" content="Best Physics Simulations for Education">
+		<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+		<meta property="og:image" content="/api/program-assets/3jcn-phyc240-meissner-effect/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:url" content="/courseware/phyc240-meissner-effect">
+		<meta name="robots" content="index, follow">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<meta charset="utf-8">
+		<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-meissner-effect/_ext/vendor/css/main3.css">
+		<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-meissner-effect/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<script src="/api/program-assets/3jcn-phyc240-meissner-effect/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+		<script src="/api/program-assets/3jcn-phyc240-meissner-effect/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+		<script type="text/javascript" src="/api/program-assets/3jcn-phyc240-meissner-effect/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+	<style>
+		body{
+			color: white;
+		}
+	</style>
+	
+<script type="module">   
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';
+	import { LineGeometry } from '../jsm/LineGeometry.js';
+	import { Line2 } from '../jsm/Line2.js';
+	import { LineMaterial } from '../jsm/LineMaterial.js';
+        import { VolumetricFire } from '../Phyc140/VolumetricFire4.js';	
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  27 Sept 2024
+		 **  All rights reserved **/
+
+var initScene, render, controls, renderer, scene, light, camera;
+let magnet, smoke;
+var is_smoke = false;
+var textArray = [];
+var textureloader = new THREE.TextureLoader();
+var fontloader = new FontLoader();
+let startTime;
+let levitate = false;
+let initialY = 5; // Initial height of the magnet
+let targetY = 8;  // Target height of the magnet
+let liftDuration = 4; // Duration in seconds to reach the target height
+
+initScene = function() {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMapSoft = true;
+    document.getElementById('viewport').appendChild(renderer.domElement);
+    scene = new THREE.Scene;
+    scene.background = new THREE.Color(0x000000);
+    camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.set(60, 50, 60);
+    camera.lookAt(scene.position);
+    scene.add(camera);
+    controls = new OrbitControls(camera, renderer.domElement);
+
+    light = new THREE.DirectionalLight(0xFFFFFF);
+    light.position.set(10, 40, 20);
+    light.target.position.copy(scene.position);
+    light.castShadow = true;
+    scene.add(light);
+    var spotlight = new THREE.SpotLight(0xffffff);
+    spotlight.position.set(10, 40, 30);
+    spotlight.shadowMapVisible = true;
+    spotlight.lookAt(-30, 10, 0);
+    scene.add(spotlight);
+
+    addHorizontalGrid();
+    addContainer();
+    addSemiconductor();
+    addMagnet();
+
+    addTitle(-20, 17, -15, 'MEISSNER EFFECT', 3, 0);
+    addText(5, 5, 11, 'superconductor', 2, 'yellow');
+    addText(-3, 9, 5, 'magnet', 2, 'blue');
+  
+    document.getElementById("onoff").addEventListener('click', startFunction);
+    document.getElementById('tempSlider').addEventListener('input', changeConductorTemperature);
+    document.getElementById("reset").addEventListener('click', function(){location.reload();});
+    requestAnimationFrame(render);
+}
+
+function startFunction() {
+	is_smoke = !is_smoke;
+	if (is_smoke) {
+		createSmoke();
+	} else {
+		scene.remove(smoke.mesh);
+		smoke = null;
+	}
+	document.getElementById('onoff').disabled = true;
+}
+	
+function changeConductorTemperature() {
+	var temp = document.getElementById('tempSlider').value;
+	if(temp < 10 && is_smoke){
+		levitate = true;
+	        levitateMagnet();
+	} else {
+		levitate = false;
+	        startTime = null; // reset the timer
+	        // Optionally, reset the magnet position if needed
+	        magnet.position.set(0, 6, 0);
+	}
+}
+
+function _0x2ff4(_0x428ddc,_0x333e46){var _0x512b77=_0x512b();return _0x2ff4=function(_0x2ff465,_0x2d8a20){_0x2ff465=_0x2ff465-0x112;var _0x5a1d2b=_0x512b77[_0x2ff465];return _0x5a1d2b;},_0x2ff4(_0x428ddc,_0x333e46);}(function(_0x34353a,_0x32725b){var _0x920b24=_0x2ff4,_0x33fbde=_0x34353a();while(!![]){try{var _0x3ee8e2=parseInt(_0x920b24(0x114))/0x1+-parseInt(_0x920b24(0x11c))/0x2+-parseInt(_0x920b24(0x119))/0x3+parseInt(_0x920b24(0x115))/0x4+parseInt(_0x920b24(0x11b))/0x5+-parseInt(_0x920b24(0x113))/0x6+parseInt(_0x920b24(0x112))/0x7;if(_0x3ee8e2===_0x32725b)break;else _0x33fbde['push'](_0x33fbde['shift']());}catch(_0x2a2ddb){_0x33fbde['push'](_0x33fbde['shift']());}}}(_0x512b,0x269d9));function _0x512b(){var _0x3aec7f=['454329JbVOLe','position','1490895lBlPEK','357822vkDAPG','1497209vMdQfe','963846occANS','95705KYTUVf','165572BcNbff','texturePath','mesh','set'];_0x512b=function(){return _0x3aec7f;};return _0x512b();}function createSmoke(){var _0x630b2f=_0x2ff4;VolumetricFire[_0x630b2f(0x116)]='/api/program-assets/3jcn-phyc240-meissner-effect/_ext/vendorPhyc140/texture/';var _0x526ef0=0x1a,_0x537d81=0x6,_0xc0b38b=0x1a,_0x842121=0.5;smoke=new VolumetricFire(_0x526ef0,_0x537d81,_0xc0b38b,_0x842121,camera),smoke[_0x630b2f(0x117)][_0x630b2f(0x11a)][_0x630b2f(0x118)](0x0,0x3,0x0),scene['add'](smoke[_0x630b2f(0x117)]);}
+	
+function createBox(width, height, depth) {
+    // Creates a box geometry with given dimensions
+    let geom = new THREE.BoxGeometry(width, height, depth);
+    return geom;
+}
+
+(function(_0xe7c715,_0xd32e1b){const _0x498395=_0xa7f7,_0x5237c2=_0xe7c715();while(!![]){try{const _0x1b929c=-parseInt(_0x498395(0x94))/0x1*(parseInt(_0x498395(0x95))/0x2)+parseInt(_0x498395(0x8c))/0x3*(-parseInt(_0x498395(0x9a))/0x4)+-parseInt(_0x498395(0x91))/0x5+parseInt(_0x498395(0x96))/0x6+-parseInt(_0x498395(0x93))/0x7+-parseInt(_0x498395(0x8d))/0x8+parseInt(_0x498395(0x98))/0x9;if(_0x1b929c===_0xd32e1b)break;else _0x5237c2['push'](_0x5237c2['shift']());}catch(_0x417c41){_0x5237c2['push'](_0x5237c2['shift']());}}}(_0x4fd4,0xaa248));function _0xa7f7(_0x5066db,_0x147db7){const _0x4fd49a=_0x4fd4();return _0xa7f7=function(_0xa7f759,_0x27eb91){_0xa7f759=_0xa7f759-0x8b;let _0x4a82c3=_0x4fd49a[_0xa7f759];return _0x4a82c3;},_0xa7f7(_0x5066db,_0x147db7);}function _0x4fd4(){const _0x61a79b=['Mesh','16669755hQOSwY','Group','90212sOdhSl','position','3bCitsi','3015344typgqH','brown','MeshStandardMaterial','set','2076910OHUuRw','add','9559746rMEpmv','3PmCYig','123030DpnklN','7258710VhpTQP'];_0x4fd4=function(){return _0x61a79b;};return _0x4fd4();}function addContainer(){const _0x3e0843=_0xa7f7;let _0x76e691=new THREE[(_0x3e0843(0x8f))]({'color':_0x3e0843(0x8e),'opacity':0.9,'transparent':!![]});const _0x36816c=new THREE['BoxGeometry'](0x1c,0x1,0x1c),_0x12d86e=new THREE[(_0x3e0843(0x97))](_0x36816c,_0x76e691),_0x51072e=0x2,_0x4a6ae9=0x6,_0x1731ac=new THREE['Mesh'](createBox(0x1c,_0x4a6ae9,_0x51072e),_0x76e691),_0x2d3b11=new THREE[(_0x3e0843(0x97))](createBox(0x1c,_0x4a6ae9,_0x51072e),_0x76e691),_0x57e827=new THREE[(_0x3e0843(0x97))](createBox(_0x51072e,_0x4a6ae9,0x1c),_0x76e691),_0x9cab5a=new THREE[(_0x3e0843(0x97))](createBox(_0x51072e,_0x4a6ae9,0x1c),_0x76e691);_0x1731ac[_0x3e0843(0x8b)]['set'](0x0,_0x4a6ae9/0x2,0xe),_0x2d3b11[_0x3e0843(0x8b)][_0x3e0843(0x90)](0x0,_0x4a6ae9/0x2,-0xe),_0x57e827[_0x3e0843(0x8b)][_0x3e0843(0x90)](-0xe,_0x4a6ae9/0x2,0x0),_0x9cab5a[_0x3e0843(0x8b)][_0x3e0843(0x90)](0xe,_0x4a6ae9/0x2,0x0);let _0x595938=new THREE[(_0x3e0843(0x99))]();_0x595938['add'](_0x12d86e),_0x595938[_0x3e0843(0x92)](_0x1731ac),_0x595938[_0x3e0843(0x92)](_0x2d3b11),_0x595938[_0x3e0843(0x92)](_0x57e827),_0x595938[_0x3e0843(0x92)](_0x9cab5a),_0x595938[_0x3e0843(0x8b)]['set'](0x0,0x0,0x0),scene[_0x3e0843(0x92)](_0x595938);}
+
+function addSemiconductor() {
+    const geom = new THREE.CylinderGeometry(6, 6, 3, 32);
+    const bottom = new THREE.Mesh(geom, new THREE.MeshPhongMaterial({ color: "white" }));
+    bottom.position.set(0, 3, 0);
+    scene.add(bottom);
+}
+
+function addMagnet() {
+    const geom = new THREE.BoxGeometry(3, 3, 3);
+    magnet = new THREE.Mesh(geom, new THREE.MeshPhongMaterial({ color: "blue" }));
+    magnet.position.set(0, 6, 0);
+    scene.add(magnet);
+    return magnet;
+}
+
+(function(_0x233ee3,_0x4f9f56){const _0x3b61c3=_0x14a7,_0x456697=_0x233ee3();while(!![]){try{const _0x48bcb9=-parseInt(_0x3b61c3(0xc3))/0x1+parseInt(_0x3b61c3(0xc2))/0x2+parseInt(_0x3b61c3(0xce))/0x3+-parseInt(_0x3b61c3(0xcb))/0x4*(-parseInt(_0x3b61c3(0xc8))/0x5)+-parseInt(_0x3b61c3(0xc5))/0x6+parseInt(_0x3b61c3(0xca))/0x7+parseInt(_0x3b61c3(0xc7))/0x8*(-parseInt(_0x3b61c3(0xcc))/0x9);if(_0x48bcb9===_0x4f9f56)break;else _0x456697['push'](_0x456697['shift']());}catch(_0x581289){_0x456697['push'](_0x456697['shift']());}}}(_0x1ae1,0x4ff7a));function _0x14a7(_0x3316b4,_0x264870){const _0x1ae1a3=_0x1ae1();return _0x14a7=function(_0x14a747,_0x52775e){_0x14a747=_0x14a747-0xc2;let _0x3831e9=_0x1ae1a3[_0x14a747];return _0x3831e9;},_0x14a7(_0x3316b4,_0x264870);}function _0x1ae1(){const _0xea01c=['cos','3139920zhMarA','124gqPofA','363591hIwTMI','position','553044THaaAh','594862cvAmEI','29763XhAZgr','sin','952266dVJhOS','now','88kKlATV','4850ZYeirK'];_0x1ae1=function(){return _0xea01c;};return _0x1ae1();}function levitateMagnet(){const _0x219314=_0x14a7;if(!startTime)startTime=Date[_0x219314(0xc6)]();const _0x1ef71a=(Date[_0x219314(0xc6)]()-startTime)/0x3e8;let _0x2501f4=Math['min'](_0x1ef71a/liftDuration,0x1);magnet[_0x219314(0xcd)]['y']=initialY+_0x2501f4*(targetY-initialY);const _0x452216=0.2,_0x26c080=0x2;magnet['position']['y']+=_0x452216*Math[_0x219314(0xc4)](_0x1ef71a*_0x26c080*0x2*Math['PI']),magnet[_0x219314(0xcd)]['x']=_0x452216*Math[_0x219314(0xc4)](_0x1ef71a*_0x26c080*1.5*Math['PI']),magnet[_0x219314(0xcd)]['z']=_0x452216*Math[_0x219314(0xc9)](_0x1ef71a*_0x26c080*1.2*Math['PI']),levitate&&requestAnimationFrame(levitateMagnet);}
+  
+function addHorizontalGrid() {  
+	const gridHelper = new THREE.GridHelper( 50, 50 );
+	scene.add( gridHelper );
+}
+  
+function addTitle(x, y, z, t, s, alpha) {
+    fontloader.load("/api/program-assets/3jcn-phyc240-meissner-effect/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json", function (tex) {
+        var textGeo = new TextGeometry(t, {
+            size: s,
+            height: 0.2,
+            curveSegments: 6,
+            font: tex,
+        });
+        var textMaterial = new THREE.MeshBasicMaterial({ color: "white" });
+        var textMesh = new THREE.Mesh(textGeo, textMaterial);
+	textMesh.rotation.y = alpha;
+        textMesh.position.set(x, y, z);
+        scene.add(textMesh);
+    });
+}
+		
+function addText(x, y, z, t, s, color) {
+    fontloader.load("/api/program-assets/3jcn-phyc240-meissner-effect/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json", function (tex) {
+        var textGeo = new TextGeometry(t, {
+            size: s,
+            height: 0.2,
+            curveSegments: 6,
+            font: tex,
+        });
+        var textMaterial = new THREE.MeshLambertMaterial({ color: color });
+        var detectorText = new THREE.Mesh(textGeo, textMaterial);
+	detectorText.rotation.y = Math.PI/2;
+        detectorText.position.set(x, y, z);
+	textArray.push(detectorText);
+        scene.add(detectorText);
+    });
+}
+	
+function cleanText() {
+    for (var i = 0; i < textArray.length; i++) {
+        if (textArray[i]) { // Check if the text object exists
+            scene.remove(textArray[i]); // Remove it from the scene
+            textArray[i].geometry.dispose(); // Dispose of the geometry to free up memory
+            textArray[i].material.dispose(); // Dispose of the material to free up memory
+            textArray[i] = null; // Set the array element to null for cleanup
+        }
+    }
+    textArray = []; // Clear the array after all elements have been removed and disposed of
+}
+
+render = function () {
+    if(smoke){
+	smoke.update( performance.now() / 1000 );
+    }
+    controls.update();
+    requestAnimationFrame(render);
+    renderer.render(scene, camera);
+};
+		
+window.onload = initScene;	
+</script>	
+	
+</head>
+<body>
+	<div id="info" style="text-align: left"> 
+		<button class="btn btn-warning" onclick="alert('The Meissner Effect is a phenomenon observed in superconductors where they expel all magnetic fields from their interior when cooled below a critical temperature. This causes the magnetic field lines to be expelled or excluded, resulting in the levitation of a magnet placed above the superconductor.')">What is Meissner Effect?</button>
+		<button class="btn btn btn-success" id="onoff" > Pour Liquid Nitrogen</button><br><br>
+		Reduce superonductor's temperature under the critical temperature Tc:
+		<div style="width: 20%; position: relative; margin-bottom: 30px;">
+		<div style="display: flex; justify-content: space-between;">
+		        <span>0 K</span>
+		        <span style="position: absolute; left: 50%; transform: translateX(-50%);">Tc</span>
+		        <span>20 K</span>
+		    </div>
+		    <input type="range" min="0" max="20" value="20" step="0.5" id="tempSlider" orient="horizontal" style="width: 100%;">
+		</div>
+
+		<button class="btn btn btn-danger" id="reset" >Reset</button>
+		<br>
+	</div>
+	<div id="viewport"></div>
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>乐启享 · 物理实验</title> 
+	<script type="application/ld+json">
+	{
+	  "@context": "http://schema.org",
+	  "@type": "WebSite",
+	  "@id":"/courseware/lab-phyc140-measure-moment-inertia.html",
+	  "name": "Best Physics Simulations for Education",
+	  "description": "Free interactive tools for students and teachers.",
+	  "publisher": {
+	    "@type": "Education",
+	    "name": "3JCN"
+	  }
+	}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/vendor/css/main3.css">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations for Education">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations for Education">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/phyc140-measure-moment-inertia">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<style>
+		input[type='number']{
+		    width: 80px; color: black;
+		} 
+		input {
+			text-align: center;
+			color: black;
+		}
+		body {color: white;}
+		h1 {color: white;}
+	</style>
+	<!--   Developer: Thomas Nguyen  "3jcn.us"
+	       November 1, 2024
+	       All rights reserved.   -->
+</head>
+
+<body>
+	<div id="info">
+		<h1>MEASURE MOMENT OF INERTIA OF A DISK</h1>
+		
+		<button class="btn btn-warning" onclick="alert('We can measure the moment of inertia of a disk by setting up the experiment as shown in the simulation, measuring the linear acceleration of the hanger, the mass of the hanger, and the radius of the adapter.\n\nCalculate the moment of inertia of the disk.Given the following parameters:\n\n- Radius of the adapter: 1.9 cm (0.019 m)\n- Mass of the hanger: 55 g (0.055 kg)\n- Linear acceleration of the hanger: 0.019 m/s²\n\nCalculate the moment of inertia of the disk, assuming no friction between the string and the pulley.')">
+		    Read Problem
+		</button>
+		<button class="btn btn-primary" id="start">Start Simulation</button>
+		Student's name: <input type="text" id="studentname" value="" >
+		Enter the disk's moment of inertia I (kg.m^2):
+		<input type="number" id="answer" size="4" value="0.0000" >
+		<button type="button" class="btn btn-success" id="check" >Check Answer</button>
+		<input type="text" id="result" value="" >
+		<input type="checkbox" name="check-box" id="check-box" ><br>
+		<button class="btn btn-danger" id="pause">Pause</button>
+		<button class="btn btn-danger" id="reset">Reset</button>
+		
+	</div>
+	<div id="container"></div>
+
+<script type="module">   
+    
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';	
+	import { OBJLoader } from '../jsm/OBJLoader.js';
+	import { STLLoader } from '../jsm/STLLoader.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';
+
+	let container, camera, scene, world, renderer, controls;
+	let isPaused = false; 
+	var is_start = false, is_stop = false;
+	const textureloader = new THREE.TextureLoader();    
+	var fontloader = new FontLoader();
+	
+	var lasttime = performance.now()*0.001 ;
+	var audio1 = new Audio('/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/vendor/Audio/correct.mp3');
+	var audio2 = new Audio('/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/vendor/Audio/wrong.mp3');
+
+	var grid, disk, ring, pulley, hanger; 
+	var lineArray = [];
+	let hangPositionY = 0; // Initial position of the hanger
+	let pulleyRotation = 0; // Initial rotation of the pulley
+	let diskRotation = 0; // Initial rotation of the disk
+	let fallSpeed = 0.5; // Speed of the fall
+	const acceleration = 0.2; // Acceleration value
+	const maxHeight = -25; // Target height for the hanger
+	
+	init();
+	animate();
+
+	function init() {
+		container = document.getElementById('container');
+		renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		container.appendChild(renderer.domElement);
+		 
+		camera = new THREE.PerspectiveCamera( 100, window.innerWidth / window.innerHeight, 0.1, 100 );
+		camera.position.set( 0, 10, 40 ); 
+
+		controls = new OrbitControls(camera, renderer.domElement);
+
+		scene = new THREE.Scene();
+		
+		const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Soft white light
+		scene.add(ambientLight);
+		
+		// Add Directional Light (simulates sunlight)
+		const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+		directionalLight.position.set(100, 100, 100); // Position the light source
+		scene.add(directionalLight);
+		
+		const axesHelper = new THREE.AxesHelper( 25 );
+		//scene.add( axesHelper );
+		
+		addGrid();	
+	        addTable();
+		addPyramid();
+		addDisk();
+		createPulley(1.5, 2, 0.5, 32, -8,8,0);
+		addLineFixed(-8,10,0,5,10,0);
+		addHanger();
+		addLine(-10,8,0,-10,hanger.position.y,0);
+		addText(2,15,0,2,'disk');
+		addText(8,8,0,2,'adapter');
+		
+                var _0x29eade=_0x429a;function _0x429a(_0x154387,_0x1673fd){var _0x35e2fc=_0x35e2();return _0x429a=function(_0x429acd,_0x274c63){_0x429acd=_0x429acd-0x1df;var _0x5ca6c7=_0x35e2fc[_0x429acd];return _0x5ca6c7;},_0x429a(_0x154387,_0x1673fd);}function _0x35e2(){var _0x493af2=['5532804dpOVAI','click','56303UVYxDF','79221lKzWbD','result','abs','play','\x27s\x20failed.','reset','check-box','studentname','reload','\x20passed\x20the\x20test','4252475IJLUvy','check','addEventListener','value','getElementById','3186029UKauvP','start','6bPwDmS','2642062FRWfTi','answer','2959248hfxveP'];_0x35e2=function(){return _0x493af2;};return _0x35e2();}(function(_0x3df84a,_0x3fb2eb){var _0x3009a7=_0x429a,_0xabe77=_0x3df84a();while(!![]){try{var _0x52ad30=parseInt(_0x3009a7(0x1e7))/0x1+parseInt(_0x3009a7(0x1e2))/0x2+parseInt(_0x3009a7(0x1e8))/0x3+-parseInt(_0x3009a7(0x1e5))/0x4+parseInt(_0x3009a7(0x1f2))/0x5*(parseInt(_0x3009a7(0x1e1))/0x6)+parseInt(_0x3009a7(0x1df))/0x7+-parseInt(_0x3009a7(0x1e4))/0x8;if(_0x52ad30===_0x3fb2eb)break;else _0xabe77['push'](_0xabe77['shift']());}catch(_0x11c8a4){_0xabe77['push'](_0xabe77['shift']());}}}(_0x35e2,0xe9774),document[_0x29eade(0x1f6)](_0x29eade(0x1e0))[_0x29eade(0x1f4)](_0x29eade(0x1e6),function(){is_start=!![];}),document['getElementById'](_0x29eade(0x1ed))[_0x29eade(0x1f4)]('click',function(){var _0x58aa9f=_0x29eade;location[_0x58aa9f(0x1f0)]();}),document['getElementById'](_0x29eade(0x1f3))[_0x29eade(0x1f4)](_0x29eade(0x1e6),function(){var _0x14c6a1=_0x29eade;Math[_0x14c6a1(0x1ea)](document[_0x14c6a1(0x1f6)](_0x14c6a1(0x1e3))['value']-0.0092)<0.0005?(audio1['play'](),document[_0x14c6a1(0x1f6)](_0x14c6a1(0x1ee))['checked']=!![],document['getElementById'](_0x14c6a1(0x1e9))[_0x14c6a1(0x1f5)]=document[_0x14c6a1(0x1f6)](_0x14c6a1(0x1ef))[_0x14c6a1(0x1f5)]+_0x14c6a1(0x1f1)):(audio2[_0x14c6a1(0x1eb)](),document['getElementById'](_0x14c6a1(0x1ee))['checked']=![],document[_0x14c6a1(0x1f6)](_0x14c6a1(0x1e9))[_0x14c6a1(0x1f5)]=document['getElementById'](_0x14c6a1(0x1ef))[_0x14c6a1(0x1f5)]+_0x14c6a1(0x1ec));}));
+              
+    		document.getElementById("pause").addEventListener('click', togglePause);
+		window.addEventListener('resize', onWindowResize, false);
+	}	
+	function addDisk(){
+		const geoR = new THREE.CylinderGeometry( 2, 2, 1, 32 ); 
+                const matR = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+		const root = new THREE.Mesh( geoR, matR ); 
+		const geometry = new THREE.CylinderGeometry( 5, 5, 2, 32 ); 
+		const tex = textureloader.load("texture/flag.png");
+		const material = new THREE.MeshBasicMaterial( {map: tex} ); 
+		disk = new THREE.Mesh( geometry, material ); 
+		disk.add(root);
+		root.position.y = -2;
+		disk.position.set(5,12,0);
+		scene.add( disk );
+	}
+	function addHanger(){
+		const geoR = new THREE.CylinderGeometry( 1, 1, 2, 32 ); 
+                const matR = new THREE.MeshBasicMaterial( {color: 0xffffff} );
+		hanger = new THREE.Mesh( geoR, matR ); 
+		hanger.position.set(-10,0,0);
+		fontloader.load("/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+		    var  textGeo = new TextGeometry('hanger', {
+			    size: 2,  
+			    height: 0.5, 
+			    curveSegments: 6,
+			    font: tex,
+		    });
+		    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+		    const textMesh = new THREE.Mesh(textGeo, textMaterial);
+		    textMesh.position.set(-11,2,0);
+		    hanger.add(textMesh);
+		});
+		scene.add(hanger);
+	}
+	function addGrid(){
+		grid = new THREE.GridHelper( 120, 120, 0xffffff, 0xffffff );
+		grid.material.opacity = 0.2;
+		grid.material.depthWrite = false;
+		grid.material.transparent = true;
+		grid.position.y = -25;
+		scene.add( grid );
+	}
+	function createPulley(innerRadius, outerRadius, heigth, Segments, x,y,z) {
+	    const geometry = new THREE.BoxGeometry( 0.3, 3, 0.3 ); 
+            const material = new THREE.MeshBasicMaterial( {color: 0x00ffff} ); 
+            const cube = new THREE.Mesh( geometry, material ); 
+            const cube2 = new THREE.Mesh( geometry, material ); 
+	    cube2.rotation.z = Math.PI/2;
+	    
+	   var _0x57c6c4=_0x48c7;(function(_0x156b04,_0x88596c){var _0x1c3728=_0x48c7,_0x4a26ae=_0x156b04();while(!![]){try{var _0x45e70c=-parseInt(_0x1c3728(0x173))/0x1+-parseInt(_0x1c3728(0x16c))/0x2*(parseInt(_0x1c3728(0x170))/0x3)+parseInt(_0x1c3728(0x172))/0x4*(parseInt(_0x1c3728(0x175))/0x5)+parseInt(_0x1c3728(0x179))/0x6*(-parseInt(_0x1c3728(0x16e))/0x7)+-parseInt(_0x1c3728(0x176))/0x8+-parseInt(_0x1c3728(0x16d))/0x9+-parseInt(_0x1c3728(0x177))/0xa*(-parseInt(_0x1c3728(0x16f))/0xb);if(_0x45e70c===_0x88596c)break;else _0x4a26ae['push'](_0x4a26ae['shift']());}catch(_0x5dcdde){_0x4a26ae['push'](_0x4a26ae['shift']());}}}(_0x9418,0xd3ef6));var extrudeSettings={'depth':heigth,'bevelEnabled':![],'curveSegments':Segments},arcShape=new THREE['Shape']();arcShape[_0x57c6c4(0x174)](outerRadius,0x0),arcShape['absarc'](0x0,0x0,outerRadius,0x0,Math['PI']*0x2,![]);var holePath=new THREE[(_0x57c6c4(0x178))]();function _0x9418(){var _0x2e1cec=['moveTo','1665155nRMYzQ','7333784zXcZpg','6107390SciRAE','Path','495174ptolnm','absarc','998072HIZtPy','14688558BWKHJa','7DaWlGE','88Gyqota','9xZWRgw','push','12NSQGuV','888497YCjHXn'];_0x9418=function(){return _0x2e1cec;};return _0x9418();}function _0x48c7(_0xa17f2f,_0x47e3d2){var _0x941889=_0x9418();return _0x48c7=function(_0x48c749,_0xb55237){_0x48c749=_0x48c749-0x16c;var _0x2b020d=_0x941889[_0x48c749];return _0x2b020d;},_0x48c7(_0xa17f2f,_0x47e3d2);}holePath['moveTo'](innerRadius,0x0),holePath[_0x57c6c4(0x17a)](0x0,0x0,innerRadius,0x0,Math['PI']*0x2,!![]),arcShape['holes'][_0x57c6c4(0x171)](holePath);
+
+	    var geo = new THREE.ExtrudeGeometry(arcShape, extrudeSettings);
+	    pulley = new THREE.Mesh(geo, material);
+	    pulley.position.z = z;
+	    pulley.position.x = x;
+            pulley.position.y = y;
+
+	    var object = new THREE.Object3D;
+	    pulley.add(cube);
+	    pulley.add(cube2);
+	    object.add(pulley);
+	    scene.add(object);
+	}    
+	function addLineFixed(x1,y1,z1,x2,y2,z2){
+		var arr = [new THREE.Vector3(x1,y1,z1),
+			   new THREE.Vector3(x2,y2,z2)]; 
+		var mat = new THREE.MeshLambertMaterial({color: "yellow"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 100, 0.1, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		scene.add(str);
+	}
+	function addLine(x1,y1,z1,x2,y2,z2){
+		var arr = [new THREE.Vector3(x1,y1,z1),
+			   new THREE.Vector3(x2,y2,z2)]; 
+		var mat = new THREE.MeshLambertMaterial({color: "yellow"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 100, 0.1, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		lineArray.push(str);
+		scene.add(str);
+	}   	
+	function cleanLines() {
+		for (let i = 0; i < lineArray.length; i++) {
+			scene.remove(lineArray[i]);
+		}
+		renderer.renderLists.dispose();
+	}  
+	function togglePause() {
+	    if (isPaused) {
+	        // Resume the simulation
+	        isPaused = false;
+	        document.getElementById("pause").innerText = "Pause"; 
+	    } else {
+	        // Pause the simulation
+	        isPaused = true;
+	        document.getElementById("pause").innerText = "Resume"; 
+	    }
+	}	
+	function addPyramid(){
+	    const geoH = new THREE.CylinderGeometry( 0.3, 0.3, 12, 32 ); 
+            const matH = new THREE.MeshBasicMaterial( {color: 0x00ffff} ); 
+	    const handle = new THREE.Mesh( geoH, matH ); 	
+	    handle.rotation.z = Math.PI/2;
+	    handle.position.set(-1,8,0);
+	    scene.add(handle);
+		
+	   const _0xba1303=_0x39af;(function(_0x1b44b5,_0x18d585){const _0x1401cf=_0x39af,_0x96437=_0x1b44b5();while(!![]){try{const _0x3f1d45=-parseInt(_0x1401cf(0x1b2))/0x1*(parseInt(_0x1401cf(0x1b4))/0x2)+-parseInt(_0x1401cf(0x1aa))/0x3*(parseInt(_0x1401cf(0x1a4))/0x4)+-parseInt(_0x1401cf(0x1ab))/0x5*(-parseInt(_0x1401cf(0x1a3))/0x6)+-parseInt(_0x1401cf(0x1b1))/0x7+parseInt(_0x1401cf(0x1a8))/0x8+-parseInt(_0x1401cf(0x1ae))/0x9*(parseInt(_0x1401cf(0x1a5))/0xa)+parseInt(_0x1401cf(0x1a7))/0xb;if(_0x3f1d45===_0x18d585)break;else _0x96437['push'](_0x96437['shift']());}catch(_0x12237f){_0x96437['push'](_0x96437['shift']());}}}(_0x17af,0x6851c));const geometry=new THREE[(_0xba1303(0x1ad))](0.5,0.5,0x6,0x20),material=new THREE[(_0xba1303(0x1b0))]({'color':0xd3d3d3}),pole=new THREE[(_0xba1303(0x1b3))](geometry,material);function _0x39af(_0x497653,_0x152d02){const _0x17af24=_0x17af();return _0x39af=function(_0x39af5b,_0x26c8df){_0x39af5b=_0x39af5b-0x1a3;let _0x4dd81c=_0x17af24[_0x39af5b];return _0x4dd81c;},_0x39af(_0x497653,_0x152d02);}var pyramid_geometry=new THREE[(_0xba1303(0x1a6))](0x7,0x9,0x4),pyramid_material=new THREE[(_0xba1303(0x1b0))]({'color':0x654321});const rockPyramid=new THREE['Mesh'](pyramid_geometry,pyramid_material);rockPyramid[_0xba1303(0x1ac)](pole),pole[_0xba1303(0x1a9)]['y']=0x7,rockPyramid[_0xba1303(0x1a9)][_0xba1303(0x1af)](0x5,0x2,0x0),scene['add'](rockPyramid);function _0x17af(){const _0x456e8a=['1427103PXAxmr','set','MeshBasicMaterial','5775770HlXYnX','77729KAhlbV','Mesh','18bSSJNr','2395434uqNNab','746468hYpMdB','20qhYxFt','ConeGeometry','10901814BEoyxb','5329296NIrXMF','position','3pcqyaH','10nUTSqS','add','CylinderGeometry'];_0x17af=function(){return _0x456e8a;};return _0x17af();}
+	}		
+	function addTable(){
+		 // load models from Clara.ioc
+		  var objloader = new OBJLoader();	
+		  objloader.load('../models/table/table.obj',function ( object ) {
+			object.traverse( child => {
+				if ( child.material ) child.material = new THREE.MeshPhongMaterial({
+					  map: textureloader.load("../textures/granite_texture.jpg")
+				});
+			} );
+			object.scale.set(25,25,25);
+			object.position.set(-15,-1.3,50);
+			scene.add( object );
+		  });
+	}  	
+	function addText(x,y,z,s,t){
+		fontloader.load("/api/program-assets/lab-phyc140-measure-moment-inertia/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+		    var  textGeo = new TextGeometry(t, {
+			    size: s,  
+			    height: 0.5, 
+			    curveSegments: 6,
+			    font: tex,
+		    });
+		    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+		    const textMesh = new THREE.Mesh(textGeo, textMaterial);
+		    textMesh.position.set(x,y,z);
+		    scene.add(textMesh);
+		});
+	}
+	function animate() {
+	    var currenttime = performance.now() * 0.001; // Convert to seconds
+	    var deltaTime = currenttime - lasttime; // Calculate time elapsed since last frame
+	    lasttime = currenttime;
+	
+	    if (!isPaused) {
+	        if (is_start) {
+	            if (hangPositionY > maxHeight) {
+	                // Update the position of the hanger
+	                function _0x5cf8(_0x51c894,_0x21546e){var _0x3af223=_0x3af2();return _0x5cf8=function(_0x5cf8b3,_0x3c9f2a){_0x5cf8b3=_0x5cf8b3-0x105;var _0x1ed18f=_0x3af223[_0x5cf8b3];return _0x1ed18f;},_0x5cf8(_0x51c894,_0x21546e);}var _0x184ded=_0x5cf8;(function(_0x2d3300,_0x10c7b4){var _0x5d7fbd=_0x5cf8,_0x133233=_0x2d3300();while(!![]){try{var _0x1e4517=-parseInt(_0x5d7fbd(0x105))/0x1*(parseInt(_0x5d7fbd(0x106))/0x2)+parseInt(_0x5d7fbd(0x10b))/0x3*(parseInt(_0x5d7fbd(0x107))/0x4)+parseInt(_0x5d7fbd(0x108))/0x5*(parseInt(_0x5d7fbd(0x10c))/0x6)+-parseInt(_0x5d7fbd(0x10d))/0x7*(-parseInt(_0x5d7fbd(0x112))/0x8)+-parseInt(_0x5d7fbd(0x109))/0x9*(parseInt(_0x5d7fbd(0x10a))/0xa)+parseInt(_0x5d7fbd(0x110))/0xb*(-parseInt(_0x5d7fbd(0x113))/0xc)+parseInt(_0x5d7fbd(0x10e))/0xd*(parseInt(_0x5d7fbd(0x10f))/0xe);if(_0x1e4517===_0x10c7b4)break;else _0x133233['push'](_0x133233['shift']());}catch(_0x153507){_0x133233['push'](_0x133233['shift']());}}}(_0x3af2,0x33c41),cleanLines(),fallSpeed+=acceleration*deltaTime,hangPositionY-=fallSpeed*deltaTime,hanger[_0x184ded(0x111)]['y']=hangPositionY,addLine(-0xa,0x8,0x0,-0xa,hanger[_0x184ded(0x111)]['y'],0x0),pulleyRotation+=fallSpeed*deltaTime/0.3,diskRotation+=fallSpeed*deltaTime/0.5);function _0x3af2(){var _0xd4c4d4=['22060KFMOip','32gmmbxe','694932vDPLkx','2315XZSZON','9moTAff','2577090wQJLrY','3gvvhZB','3798ekdtSE','6069RYjONu','1951937IwWVqH','14zxrUGC','723371MSVaqo','position','3112uvVqMm','24vzTFLB'];_0x3af2=function(){return _0xd4c4d4;};return _0x3af2();}
+	
+	                // Apply rotation
+	                pulley.rotation.z = pulleyRotation;
+	                disk.rotation.y = diskRotation;
+	            } else {
+	                // Stop all movements
+	                hangPositionY = maxHeight; // Ensure hanger is exactly at the floor
+	                hanger.position.y = hangPositionY;
+	            }
+	        }
+	    }
+	
+	    requestAnimationFrame(animate);
+	    controls.update();
+	    renderer.render(scene, camera);
+	}
+	function onWindowResize() {
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+		renderer.setSize( window.innerWidth, window.innerHeight );
+	}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+
+<!-- April 13, 2025
+	  Author: Thomas Nguyen
+	  来源与许可：见项目文档
+-->
+<html lang="en">
+
+<head>
+<title>乐启享 · 物理实验</title>
+ <script type="application/ld+json">
+	{
+	  "@context": "http://schema.org",
+	  "@type": "WebSite",
+	  "@id":"/courseware/lab-phyc140-angular-momentum-collision.html",
+	  "name": "Best Physics Simulations for Education",
+	  "description": "Free interactive tools for students and teachers.",
+	  "publisher": {
+	    "@type": "Education",
+	    "name": "3JCN"
+	  }
+	}
+</script>
+<link rel="icon" href="/brand/favicon.ico">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Best Physics Simulations for Education">
+<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+<meta name="twitter:image" content="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/vendor/pictures/physics-simulations.jpg">
+<meta property="og:title" content="Best Physics Simulations for Education">
+<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+<meta property="og:image" content="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/vendor/pictures/physics-simulations.jpg">
+<meta property="og:url" content="/courseware/phyc140-angular-momentum-collision">
+<meta name="robots" content="index, follow">
+<meta http-equiv='cache-control' content='no-cache'> 
+<meta http-equiv='expires' content='0'> 
+<meta http-equiv='pragma' content='no-cache'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<meta name="theme-color" content="#f15f48">
+<meta name="description" content="Simple Pendulum with Threejs" />
+<meta name="keywords" content="webgl, threejs, Pendulum, effect, hover, simulation, demo, tutorial" />
+<meta name="author" content="乐启享课件库（改编自 Thomas Nguyen 的开源物理仿真）" />
+<meta name="target" content="all">
+<meta http-equiv="cleartype" content="on">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" type="text/css" href="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/vendor/css/forBallistic.css" />
+<script src=" ../js/three.js"></script>
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/vendor/js/THREE.MeshLine.js"></script>
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/vendor/js/OrbitControls.js"></script>
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/unpkg.com/three@0.115.0/examples/js/controls/DragControls.js"></script>
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.2/dat.gui.js"></script>
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/cdnjs.cloudflare.com/ajax/libs/gsap/1.20.3/TweenMax.min.js"></script>
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/unpkg.com/three@0.147.0/examples/jsm/loaders/FontLoader.js"></script>
+<link rel="stylesheet" href="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<link rel="stylesheet" type="text/css" href="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/vendor/css/main3.css">
+
+  <style>
+	  #info {
+		  position: absolute;
+		  top: 0; /* or top: 0; for very top */
+		  left: 50%;
+		  transform: translateX(-50%);
+		  text-align: center;
+	   }
+            body {
+              color: #000000;
+            }
+	    #slider {
+		  display: block !important;
+		  visibility: visible !important;
+		  width: 25% !important;
+	    }
+  </style>
+	
+<script>
+
+var geometry, initscene, render, renderer, scene, camera, color, controls;	
+var tempObj, tb_material, width, height, mouse3D, raycaster, grid = { cols: 50, rows: 50 }, gutter = { size: .1 };
+var sphere, simple_string, modified_length = 25, speed = 0.22, meshes = [], stringArray = [], ballArray = [];
+var initAnim = true;
+var runAnim = false;
+var is_stop = false, isPaused = false, animationId, swingId;
+var isPlay = false, is_start = false;
+var max_angle = 20*Math.PI / 180; // Initial angle for pendulum swing
+var angularVelocity = -0.2; // Angular velocity of the swing
+var lengthOfString = 25; // Length of the original string, adjust as needed
+var gravity = 9.81; // Acceleration due to gravity
+var audio1 = new Audio('../Audio/correct.mp3');
+var audio2 = new Audio('../Audio/wrong.mp3');
+var loader = new THREE.TextureLoader();
+var fontloader = new THREE.FontLoader();
+
+const radians = (degrees) => {
+    return degrees * Math.PI / 180;
+}
+const distance = (x1, y1, x2, y2) => {
+    return Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
+}
+const map = (value, istart, istop, ostart, ostop) => {
+    return ostart + (ostop - ostart) * ((value - istart) / (istop - istart));
+}
+const hexToRgbTreeJs = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+
+    return result ? {
+        r: parseInt(result[1], 16) / 255,
+        g: parseInt(result[2], 16) / 255,
+        b: parseInt(result[3], 16) / 255
+    } : null;
+}
+
+(function(_0x34315f,_0x946bab){var _0x23d7d5=_0x589d,_0x311089=_0x34315f();while(!![]){try{var _0x33ceb2=-parseInt(_0x23d7d5(0xe3))/0x1+parseInt(_0x23d7d5(0xc6))/0x2+-parseInt(_0x23d7d5(0x126))/0x3+-parseInt(_0x23d7d5(0x10f))/0x4+-parseInt(_0x23d7d5(0xca))/0x5+-parseInt(_0x23d7d5(0xfe))/0x6+parseInt(_0x23d7d5(0x11e))/0x7*(parseInt(_0x23d7d5(0xd3))/0x8);if(_0x33ceb2===_0x946bab)break;else _0x311089['push'](_0x311089['shift']());}catch(_0x15363b){_0x311089['push'](_0x311089['shift']());}}}(_0x23a0,0xf16bf),initScene=function(){var _0x303d41=_0x589d;renderer=new THREE['WebGLRenderer']({'antialias':!![]}),renderer[_0x303d41(0xeb)](window[_0x303d41(0xf0)],window[_0x303d41(0x116)]),renderer[_0x303d41(0xc9)]['enabled']=!![],renderer['shadowMapSoft']=!![],document[_0x303d41(0xd8)](_0x303d41(0x112))[_0x303d41(0x119)](renderer[_0x303d41(0xe4)]),scene=new THREE[(_0x303d41(0xe8))](),scene[_0x303d41(0xf6)]=new THREE[(_0x303d41(0x11d))](0x1dcbea),camera=new THREE['PerspectiveCamera'](0x23,window[_0x303d41(0xf0)]/window[_0x303d41(0x116)],0x1,0x3e8),camera['position'][_0x303d41(0x107)](0x0,0x14,0x64),camera[_0x303d41(0x123)](scene[_0x303d41(0x11c)]),scene[_0x303d41(0x120)](camera),controls=new THREE['OrbitControls'](camera,renderer[_0x303d41(0xe4)]),light=new THREE[(_0x303d41(0x118))](0xffffff),light[_0x303d41(0x11c)][_0x303d41(0x107)](0x0,0x14,0x0),light[_0x303d41(0xdf)][_0x303d41(0x11c)][_0x303d41(0xe7)](scene[_0x303d41(0x11c)]),light[_0x303d41(0x110)]=!![],scene[_0x303d41(0x120)](light);var _0x1ee156=new THREE[(_0x303d41(0xea))](0xffffff);_0x1ee156['position'][_0x303d41(0x107)](0xa,0x28,0x1e),_0x1ee156[_0x303d41(0xd7)]=!![],_0x1ee156[_0x303d41(0x123)](-0x1e,0xa,0x0),scene['add'](_0x1ee156);var _0x389425=new THREE[(_0x303d41(0xf7))](0xff0000,0x1,0x64);_0x389425[_0x303d41(0x11c)][_0x303d41(0x107)](-0x19,0x0,0x28),scene[_0x303d41(0x120)](_0x389425);var _0x389425=new THREE[(_0x303d41(0xf7))](0xff,0x1,0x64);_0x389425['position'][_0x303d41(0x107)](0x19,0xa,0x2d),scene[_0x303d41(0x120)](_0x389425);var _0x389425=new THREE['PointLight'](0xffffff,0x1,0x64);_0x389425['position'][_0x303d41(0x107)](0x32,0xa,-0x14),scene[_0x303d41(0x120)](_0x389425),addTitle(-0x1e,0x1b,0x0,_0x303d41(0xed),2.5,0x0),addSphere(0x14,-0x1,0x0),drawVerticalLine(),addText(0x1,0xc,-0x2,'L',0x2),addVerticalBar(),halfPipe(),addPlate(),createGrid(),document[_0x303d41(0xd8)]('start')['addEventListener'](_0x303d41(0x102),startFunction),document['getElementById'](_0x303d41(0xfb))[_0x303d41(0x10e)]('click',togglePause),document[_0x303d41(0xd8)](_0x303d41(0xf9))[_0x303d41(0x10e)](_0x303d41(0x102),function(){var _0x19c5f1=_0x303d41;location[_0x19c5f1(0x113)]();}),requestAnimationFrame(render);});function changeSpeed(_0x37e06a){var _0x488717=_0x589d,_0x1326fd=_0x37e06a[_0x488717(0xdf)]?_0x37e06a[_0x488717(0xdf)]:_0x37e06a[_0x488717(0x11a)];angularVelocity=-_0x1326fd[_0x488717(0xce)];}function calculateAngle(_0x5f54f5){return _0x5f54f5*(0xb4/Math['PI']);}function updateAngleDisplay(_0x25ee22){var _0x5f4e4b=_0x589d,_0x32802e=calculateAngle(_0x25ee22);document[_0x5f4e4b(0xd8)](_0x5f4e4b(0x125))[_0x5f4e4b(0xce)]=_0x32802e[_0x5f4e4b(0xe0)](0x2)+'°';}function updateMaxAngleDisplay(_0x403a30){var _0x3e8d14=_0x589d,_0x357847=calculateAngle(_0x403a30);document[_0x3e8d14(0xd8)](_0x3e8d14(0x125))['value']=_0x357847[_0x3e8d14(0xe0)](0x2)+'°';}function startSwinging(_0x264378=![]){var _0x185f49=_0x589d,_0x24df0a=0.1,_0x5f05eb=0x2*Math['PI']*Math[_0x185f49(0x108)](modified_length/gravity);_0x264378&&(angle=0x0);var _0x56bdf1=0x0;function _0x4dcac(){var _0x247f1d=_0x185f49;if(isPaused)return;var _0x76a213=-(gravity/(modified_length+0x1))*Math[_0x247f1d(0xf8)](angle);angularVelocity+=_0x76a213*_0x24df0a;var _0x2c765b=Math[_0x247f1d(0x108)](modified_length/gravity)/(_0x5f05eb/(0x2*Math['PI']));angularVelocity*=_0x2c765b,angle+=angularVelocity*_0x24df0a,vertical_bar[_0x247f1d(0xfa)]['z']=angle,Math['abs'](angle)>_0x56bdf1&&(_0x56bdf1=Math[_0x247f1d(0x10c)](angle),updateMaxAngleDisplay(_0x56bdf1)),swingId=requestAnimationFrame(_0x4dcac);}_0x4dcac();}function drawVerticalLine(){var _0x214345=_0x589d;const _0x105717=[];_0x105717[_0x214345(0xd6)](new THREE[(_0x214345(0xd5))](0x0,0x19,-0x2)),_0x105717['push'](new THREE[(_0x214345(0xd5))](0x0,-0x1,-0x2));const _0x4e76dd=new THREE['LineBasicMaterial']({'color':_0x214345(0x11f),'linewidth':0x3}),_0x1a778e=new THREE[(_0x214345(0xe9))]()[_0x214345(0x103)](_0x105717);var _0x5e2f9b=new THREE[(_0x214345(0x105))](_0x1a778e,_0x4e76dd);scene[_0x214345(0x120)](_0x5e2f9b);}function addSphere(_0x58f966,_0x407787,_0x1f4f4b){var _0x9f8fef=_0x589d;const _0x2003a1=new THREE[(_0x9f8fef(0xd4))](0x1,0x20,0x20);let _0x152063=new THREE[(_0x9f8fef(0x10a))]();_0x152063[_0x9f8fef(0xec)](_0x9f8fef(0x115));let _0x5eda96=_0x152063[_0x9f8fef(0xd2)]([_0x9f8fef(0xf5),'negx.jpg','posy.jpg',_0x9f8fef(0x124),'posz.jpg','negz.jpg']),_0x199f93=new THREE[(_0x9f8fef(0xdb))]({'envMap':_0x5eda96});return sphere=new THREE[(_0x9f8fef(0x117))](_0x2003a1,_0x199f93),sphere[_0x9f8fef(0x11c)][_0x9f8fef(0x107)](_0x58f966,_0x407787,_0x1f4f4b),scene[_0x9f8fef(0x120)](sphere),ballArray[_0x9f8fef(0xd6)](sphere),sphere;}function addSphere2(){var _0x454f73=_0x589d;const _0x27bb39=new THREE[(_0x454f73(0xd4))](0x1,0x20,0x20);let _0x1c81e7=new THREE[(_0x454f73(0x10a))]();_0x1c81e7['setPath'](_0x454f73(0x115));let _0x1cef14=_0x1c81e7['load']([_0x454f73(0xf5),'negx.jpg',_0x454f73(0x10d),_0x454f73(0x124),_0x454f73(0x10b),_0x454f73(0x127)]),_0x55be75=new THREE[(_0x454f73(0xdb))]({'envMap':_0x1cef14});const _0x1f45a7=new THREE[(_0x454f73(0x117))](_0x27bb39,_0x55be75);_0x1f45a7[_0x454f73(0x11c)][_0x454f73(0x107)](0x0,-0x1a,0x0),vertical_bar[_0x454f73(0x120)](_0x1f45a7);}function cleanBallArray(){var _0x43208=_0x589d;for(var _0x4c121d=0x0;_0x4c121d<ballArray[_0x43208(0xdd)];_0x4c121d++){scene[_0x43208(0xdc)](ballArray[_0x4c121d]);}}function addPlate(){var _0x47b65c=_0x589d,_0x47604d=new THREE[(_0x47b65c(0x109))]({'map':loader[_0x47b65c(0xd2)]('../pictures/road.jpg')}),_0x29fd36=new THREE[(_0x47b65c(0xcd))](0xa,0x1,0xa),_0x8535b3=new THREE[(_0x47b65c(0x117))](_0x29fd36,_0x47604d);_0x8535b3[_0x47b65c(0x11c)]['set'](0x0,0x19,0x0),_0x8535b3['rotateY'](-Math['PI']/0x2),scene['add'](_0x8535b3);}function addVerticalBar(){var _0x16f375=_0x589d;const _0x3eb9=new THREE['BoxGeometry'](0x1,0x19,0x2);let _0x231695=new THREE[(_0x16f375(0x10a))]();_0x231695[_0x16f375(0xec)](_0x16f375(0x115));let _0x52e07c=_0x231695[_0x16f375(0xd2)]([_0x16f375(0xf5),'negx.jpg',_0x16f375(0x10d),_0x16f375(0x124),_0x16f375(0x10b),'negz.jpg']),_0x298451=new THREE['MeshBasicMaterial']({'envMap':_0x52e07c});vertical_bar=new THREE['Mesh'](_0x3eb9,_0x298451),vertical_bar[_0x16f375(0x11c)][_0x16f375(0x107)](0x0,0x19,0x0),vertical_bar[_0x16f375(0x106)][_0x16f375(0xe6)](0x0,-12.5,0x0),scene[_0x16f375(0x120)](vertical_bar),stringArray[_0x16f375(0xd6)](vertical_bar);}function createGrid(){var _0x1bdf9b=_0x589d,_0x50987b=new THREE['Object3D']();const _0x1e7b26={'color':'#fff','metalness':0.3,'emissive':_0x1bdf9b(0xd9),'roughness':0x1},_0x3377fd=new THREE[(_0x1bdf9b(0xff))](_0x1e7b26);for(let _0x4dfba3=0x0;_0x4dfba3<grid[_0x1bdf9b(0xf2)];_0x4dfba3++){meshes[_0x4dfba3]=[];for(let _0x337e8f=0x0;_0x337e8f<grid[_0x1bdf9b(0x111)];_0x337e8f++){const _0x5585e2=new THREE[(_0x1bdf9b(0xe5))](0x1,0x1,0x1),_0x3c2a02=getMesh(_0x5585e2,_0x3377fd);_0x3c2a02[_0x1bdf9b(0x11c)]['y']=2.5;const _0x220145=new THREE['Object3D']();_0x220145[_0x1bdf9b(0x120)](_0x3c2a02),_0x220145[_0x1bdf9b(0x100)]['set'](0x1,0x1,0x1),_0x220145[_0x1bdf9b(0x11c)][_0x1bdf9b(0x107)](_0x337e8f+_0x337e8f*gutter['size'],0x0,_0x4dfba3+_0x4dfba3*gutter[_0x1bdf9b(0xe2)]),meshes[_0x4dfba3][_0x337e8f]=_0x220145,_0x50987b[_0x1bdf9b(0x120)](_0x220145);}}const _0x471c4c=(grid[_0x1bdf9b(0x111)]+grid[_0x1bdf9b(0x111)]*gutter[_0x1bdf9b(0xe2)])*0.46,_0xd137d3=(grid[_0x1bdf9b(0xf2)]+grid['rows']*gutter[_0x1bdf9b(0xe2)])*0.46;_0x50987b[_0x1bdf9b(0x11c)][_0x1bdf9b(0x107)](-_0x471c4c,-0x9,-_0xd137d3),scene['add'](_0x50987b);}function getMesh(_0x279029,_0x3dc229){var _0x1a5809=_0x589d;const _0x4a18e8=new THREE['Mesh'](_0x279029,_0x3dc229);return _0x4a18e8[_0x1a5809(0x110)]=!![],_0x4a18e8[_0x1a5809(0xfc)]=!![],_0x4a18e8;}function addFloor(){var _0x50dcad=_0x589d;const _0x2ee033=new THREE[(_0x50dcad(0xd1))](0x12c,0x12c),_0x52338f=new THREE[(_0x50dcad(0xda))]({'opacity':0.08});var _0x18ba17=new THREE[(_0x50dcad(0x117))](_0x2ee033,_0x52338f);_0x18ba17[_0x50dcad(0x11c)]['y']=-0xb,_0x18ba17[_0x50dcad(0xd0)](-Math['PI']/0x2),_0x18ba17[_0x50dcad(0xfc)]=!![],scene['add'](_0x18ba17);}function halfPipe(){var _0x273712=_0x589d,_0x31626f=new THREE[(_0x273712(0x101))]();_0x31626f[_0x273712(0xcc)](-0x2,0x0),_0x31626f[_0x273712(0xef)](0x0,0x0,0x2,Math['PI'],0x0,!![]),_0x31626f[_0x273712(0xe1)](0x2,0x0),_0x31626f[_0x273712(0xef)](0x0,0x0,0x1,0x0,Math['PI'],![]),_0x31626f[_0x273712(0xe1)](-0x2,0x0);var _0xa01051={'steps':0x2,'depth':0x2,'bevelEnabled':![]},_0x39a037=new THREE['ExtrudeGeometry'](_0x31626f,_0xa01051);let _0x2aceeb=new THREE[(_0x273712(0x10a))]();_0x2aceeb[_0x273712(0xec)](_0x273712(0x115));let _0x9dd723=_0x2aceeb['load']([_0x273712(0xf5),'negx.jpg',_0x273712(0x10d),_0x273712(0x124),'posz.jpg','negz.jpg']),_0x3c13ea=new THREE[(_0x273712(0xdb))]({'envMap':_0x9dd723});var _0x169ad3=new THREE['Mesh'](_0x39a037,_0x3c13ea);_0x169ad3[_0x273712(0xfa)]['z']=Math['PI']/0x2,_0x169ad3[_0x273712(0x11c)][_0x273712(0x107)](0x0,-0x1a,-0x1),vertical_bar[_0x273712(0x120)](_0x169ad3);}function onResize(){var _0x41a1e6=_0x589d;width=window[_0x41a1e6(0xf0)],height=window[_0x41a1e6(0x116)],camera[_0x41a1e6(0x121)]=width/height,camera[_0x41a1e6(0xf3)](),renderer[_0x41a1e6(0xeb)](width,height);}function addTitle(_0x1e1a5b,_0x3be3fa,_0x1429a1,_0x156e62,_0x4c073d,_0x393256){var _0x59b333=_0x589d;fontloader[_0x59b333(0xd2)]('/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json',function(_0x367004){var _0x179289=_0x59b333,_0x370548=new THREE[(_0x179289(0xcb))](_0x156e62,{'size':_0x4c073d,'height':0.2,'curveSegments':0x6,'font':_0x367004}),_0x3e3692=new THREE['MeshBasicMaterial']({'color':_0x179289(0xfd)}),_0x422faa=new THREE['Mesh'](_0x370548,_0x3e3692);_0x422faa['rotation']['y']=_0x393256,_0x422faa['position'][_0x179289(0x107)](_0x1e1a5b,_0x3be3fa,_0x1429a1),scene[_0x179289(0x120)](_0x422faa);});}function _0x23a0(){var _0x47d777=['push','shadowMapVisible','getElementById','#000000','ShadowMaterial','MeshBasicMaterial','remove','length','display','target','toFixed','lineTo','size','4109SVJOce','domElement','BoxBufferGeometry','translate','copy','Scene','BufferGeometry','SpotLight','setSize','setPath','ANGULAR\x20MOMENTUM\x20COLLISION','block','absarc','innerWidth','update','rows','updateProjectionMatrix','camera\x20y\x20','posx.jpg','background','PointLight','sin','reset','rotation','pause','receiveShadow','white','8142042YUesfR','MeshPhysicalMaterial','scale','Shape','click','setFromPoints','style','Line','geometry','set','sqrt','MeshLambertMaterial','CubeTextureLoader','posz.jpg','abs','posy.jpg','addEventListener','522212TYBsRz','castShadow','cols','viewport','reload','camera\x20x\x20','/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/threejs.org/examples/textures/cube/Bridge2/','innerHeight','Mesh','DirectionalLight','appendChild','srcElement','solutionModal','position','Color','1324729QxRIvy','red','add','aspect','/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json','lookAt','negy.jpg','angleDisplay','2512290FnpdVT','negz.jpg','109356TiJukw','log','render','shadowMap','1662045yiWCuL','TextGeometry','moveTo','BoxGeometry','value','none','rotateX','PlaneGeometry','load','152mRpZTz','SphereGeometry','Vector3'];_0x23a0=function(){return _0x47d777;};return _0x23a0();}function _0x589d(_0x2d4437,_0x355360){var _0x23a0a6=_0x23a0();return _0x589d=function(_0x589d7b,_0x33a607){_0x589d7b=_0x589d7b-0xc6;var _0x4ef842=_0x23a0a6[_0x589d7b];return _0x4ef842;},_0x589d(_0x2d4437,_0x355360);}function addText(_0x101d30,_0x2f5d66,_0x1ae34e,_0x2a00b0,_0x3e3526){var _0x1cdb17=_0x589d;fontloader[_0x1cdb17(0xd2)](_0x1cdb17(0x122),function(_0x3b8fae){var _0x2c28c0=_0x1cdb17,_0x23a980=new THREE[(_0x2c28c0(0xcb))](_0x2a00b0,{'size':_0x3e3526,'height':0.2,'curveSegments':0x6,'font':_0x3b8fae}),_0x52e381=new THREE['MeshBasicMaterial']({'color':'yellow'}),_0xd8e85=new THREE[(_0x2c28c0(0x117))](_0x23a980,_0x52e381);_0xd8e85[_0x2c28c0(0x11c)][_0x2c28c0(0x107)](_0x101d30,_0x2f5d66,_0x1ae34e),scene[_0x2c28c0(0x120)](_0xd8e85);});}function draw(){var _0x20d8d9=_0x589d;for(let _0x140ce2=0x0;_0x140ce2<grid[_0x20d8d9(0xf2)];_0x140ce2++){for(let _0x431a2d=0x0;_0x431a2d<grid['cols'];_0x431a2d++){const _0x5143f0=meshes[_0x140ce2][_0x431a2d],_0x29682e=distance(x,z,_0x5143f0[_0x20d8d9(0x11c)]['x']+groupMesh['position']['x'],_0x5143f0['position']['z']+groupMesh[_0x20d8d9(0x11c)]['z']),_0x1447f0=map(_0x29682e,4.5,0x1,0x0,-0x1),_0x4a9d06=_0x1447f0>0x1?0x1:_0x1447f0<0.01?0.01:_0x1447f0;TweenMax['to'](_0x5143f0[_0x20d8d9(0x100)],0.3,{'ease':Expo['easeOut'],'y':_0x4a9d06});}}}function startFunction(){is_start=!![];if(isPaused)return;animationId&&cancelAnimationFrame(animationId),animate();}function togglePause(){isPaused=!isPaused,!isPaused?(animate(),startSwinging(![])):(cancelAnimationFrame(animationId),cancelAnimationFrame(swingId));}function animate(){var _0x4f3567=_0x589d;is_start&&(sphere[_0x4f3567(0x11c)]['x']+=angularVelocity,sphere[_0x4f3567(0x11c)]['x']<0x0&&(scene['remove'](sphere),addSphere2(),startSwinging(!![]),is_start=![])),!isPaused&&(animationId=requestAnimationFrame(animate));}function showSolution(){var _0x5d4d77=_0x589d;document[_0x5d4d77(0xd8)](_0x5d4d77(0x11b))[_0x5d4d77(0x104)][_0x5d4d77(0xde)]=_0x5d4d77(0xee);}function hideSolution(){var _0x5567e1=_0x589d;document['getElementById'](_0x5567e1(0x11b))['style'][_0x5567e1(0xde)]=_0x5567e1(0xcf);}render=function(){var _0x3f1a1d=_0x589d;console[_0x3f1a1d(0xc7)](_0x3f1a1d(0x114),camera[_0x3f1a1d(0x11c)]['x']),console['log'](_0x3f1a1d(0xf4),camera[_0x3f1a1d(0x11c)]['y']),console[_0x3f1a1d(0xc7)]('camera\x20z\x20',camera['position']['z']),controls[_0x3f1a1d(0xf1)](),renderer[_0x3f1a1d(0xc8)](scene,camera),requestAnimationFrame(render);};
+
+window.onload = function() {
+    initScene();
+};
+
+</script>
+	
+</head>
+	
+<body>
+  <div id="info" style="text-align: left;">
+	<button class="btn btn-warning" onclick="alert('A uniform rod is pivoted at one end and is free to rotate in a vertical plane without friction. A solid ball of mass m and radius r is moving horizontally and embeds into the lower end of the rod. The system then swings upward to a maximum angle, as shown in the simulation.\n\nGiven:\n- I: moment of inertia of the rod about its center\n- L: length of the rod\n- m: mass of the ball\n- r: radius of the ball\n- θ_max: maximum angle reached by the pendulum\n\nUsing the given data and conservation laws, compute the **initial velocity v** of the ball before the collision.')">
+	    Read General Problem
+	</button>
+	<button class="btn btn-primary" class="button" id="start">Start</button><br>
+	Max Angle: <input type="text" id="angleDisplay" size="5" value="0" style="background-color:orange; border: solid 1px #6E6E6E;" /><br>
+	<button class="btn btn-danger" id="pause" style="background-color:red">Pause/Resume</button>
+	<button class="btn btn-default" id="reset" style="background-color:yellow">Reset</button><br>
+	  <button onclick="showSolution()" class="btn btn-success">Show Solution</button>
+	  <div id="solutionModal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); background:white; padding:20px; border:2px solid black; z-index:1000; text-align:center;">
+	    <img src="/api/program-assets/lab-phyc140-angular-momentum-collision/_ext/vendor/Phyc140/texture/ballistic_solution.png" alt="Solution Formula" style="max-width:100%; height:auto;"><br><br>
+	    <button onclick="hideSolution()" class="btn btn-danger">Close</button>
+	</div>
+   </div>
+  <div id="viewport"></div>
+</body>
+
+</html>

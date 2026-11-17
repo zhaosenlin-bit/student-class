@@ -17,7 +17,7 @@
  */
 function downloadGalleryFilters(){
   const stages=['全部',...['小学','初中','高中'].filter(s=>catalog.some(p=>p.stages?.includes(s)))];
-  const subjects=availableSubjects(),symbols={'全部':'◈','物理':'Φ','化学':'H₂','数学':'π','生物':'◎','地理':'⌁'};
+  const subjects=availableSubjects(),symbols={'全部':'◈','物理':'Φ','化学':'H₂','数学':'π','生物':'◎','地理':'⌁','科学':'❋'};
   const counts=new Map();
   for(const p of catalog){
     if(!matchesOrigin(p,originFilter))continue;

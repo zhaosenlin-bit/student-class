@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-impedance-triangle/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc240-impedance-triangle/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/3jcn-phyc240-impedance-triangle/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-impedance-triangle/_ext/vendor/css/final.css">
+	<style>
+		body {
+			color: black;
+		}
+		    #density2Value, #density1Value, #h1Value{
+			  color: brown;             /* Bright green text */
+			  background-color: lightyellow;  /* Dark background */
+			  border: 1px solid #00ff00;  /* Green border */
+			  padding: 4px;
+			  border-radius: 4px;
+		   }
+
+		.control-panel {
+			position: absolute;       /* Or use 'fixed' to keep it in place while scrolling */
+			top: 20px;                /* Distance from the top of the window */
+			right: 20px;              /* Distance from the right edge */
+			background-color: #eee;
+			border: 2px solid #333;
+			border-radius: 8px;
+			padding: 15px;
+			width: 220px;
+			font-family: Arial, sans-serif;
+			text-align: center;
+			z-index: 10;              /* Ensures it stays above other elements */
+		}
+	
+		.control-group {
+		  margin-bottom: 15px;
+		}
+		
+		.slider-row {
+		  display: flex;
+		  justify-content: space-between;
+		  align-items: center;
+		}
+		
+		input[type="range"] {
+		  width: 65%;
+		  accent-color: blue;
+		}
+		
+		input[type="text"] {
+		  width: 80px;
+		  font-weight: bold;
+		  text-align: center;
+		  color: blue;
+		}
+		
+		.minmax {
+		  display: flex;
+		  justify-content: space-between;
+		  font-size: 12px;
+		  margin-top: 5px;
+		}
+	
+        /* =====================================================
+           RLC VOLTAGE GRAPH
+           ===================================================== */
+        #graphPanel {
+            display: none;
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            width: min(760px, calc(100vw - 280px));
+            height: 330px;
+            background: rgba(255,255,255,0.96);
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 10px 12px 12px 12px;
+            z-index: 20;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        }
+
+        #graphPanel h4 {
+            margin: 0 0 6px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        #voltageGraph {
+            display: block;
+            width: 100%;
+            height: 255px;
+            background: white;
+            border: 1px solid #aaa;
+        }
+
+        #graphReadout {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 900px) {
+            #graphPanel {
+                width: calc(100vw - 40px);
+                height: 300px;
+            }
+            #voltageGraph {
+                height: 225px;
+            }
+        }
+
+	</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 31 May 2025       -->
+	
+	<script type="module">   
+		
+	import THREE from '../jsm/three.js';
+		
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';	
+	import { LineGeometry } from '../jsm/LineGeometry.js';
+	import { Line2 } from '../jsm/Line2.js';
+	import { LineMaterial } from '../jsm/LineMaterial.js';
+        import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  15 June 2025
+		 **  All rights reserved **/
+		
+	var initScene, controls, camera, light, string, referenceLine;
+	let isStart = false;
+	let stopSimulation = true;
+	let simulationTime = 0; 
+	var band1, band2, band3, band4;
+	var count = 1, step = 0;
+	var NTWISTS = 10; var objs = [];
+	var springMesh, LmeshArray = []; var dragArray = []; var arrowArray = []; 
+	let isRunning = false; 
+	let tOffset = 0; // time shift for dynamic scrolling
+	let lastTime = null;
+	let animationId = null;
+	
+	let ironcore, resistor;
+    let resistorGroup = null; // NEW: procedural resistor
+	
+	// DOM elements
+	const freqSlider = document.getElementById("freqSlider");
+	const resSlider = document.getElementById("resSlider");
+	const indSlider = document.getElementById("indSlider");
+	const capSlider = document.getElementById("capSlider");
+	const voltageSlider = document.getElementById("voltageSlider");
+	
+	const freqValue = document.getElementById("freqValue");
+	const resValue = document.getElementById("resValue");
+	const indValue = document.getElementById("indValue");
+	const capValue = document.getElementById("capValue");
+	
+	// Update labels
+	[freqSlider, resSlider, indSlider, capSlider].forEach(slider => {
+      slider.addEventListener("input", () => {
+        freqValue.textContent = freqSlider.value;
+        resValue.value = resSlider.value;
+        indValue.value = indSlider.value;
+        capValue.value = capSlider.value;
+
+        if (document.getElementById("graphPanel")?.style.display === "block") {
+          drawVoltageGraph();
+        }
+      });
+    });
+
+	let time = 0;
+	const triangleOrigin = new THREE.Vector3(-20, 5, 0);  // 3D position in front of the left panel
+	const scale = 0.05; let vectorArrows = [];
+	let canvas, ctx; let scene2, camera2, renderer2;
+	let vectorArrows2 = [];
+		
+	const textureloader = new THREE.TextureLoader();
+	const fontloader = new FontLoader();
+	var scene = new THREE.Scene();
+	const renderer = new THREE.WebGLRenderer({ antialias: true });
+		
+	initScene = function () {
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0x87CEEB);
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](909028 ^ 908999, window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'], 746888 ^ 746889, 480547 ^ 480971);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](127228 ^ 127166, 831573 ^ 831605, 548730 ^ 548677);
+  camera['\u006C\u006F\u006F\u006B\u0041\u0074'](scene['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);
+  scene['\u0061\u0064\u0064'](camera);
+  controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+  renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0065\u006E\u0061\u0062\u006C\u0065\u0064'] = !![];
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u0069\u0065\u0077\u0070\u006F\u0072\u0074")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  setupLights();
+  addSphere(13.5, 260243 ^ 260240, -(760607 ^ 760630));
+  addSphere(-12.5, 881108 ^ 881111, -(745295 ^ 745319));
+  addWireZ(0.1, 111231 ^ 111202, 13.5, 508831 ^ 508828, -26.5);
+  addLine(-12.5, 348373 ^ 348374, 611661 ^ 611661, -12.5, 878209 ^ 878210, -(191544 ^ 191504));
+  addLine(13.5, 650868 ^ 650871, -(524156 ^ 524148), 13.5, 967473 ^ 967474, 3.4);
+  addLine(13.5, 717883 ^ 717880, 3.4, 773291 ^ 773291, 938267 ^ 938264, 3.4);
+  addLine(690957 ^ 690952, 375978 ^ 375977, 872942 ^ 872941, 956938 ^ 956938, 918295 ^ 918292, 869945 ^ 869946);
+  addLine(388805 ^ 388800, 629703 ^ 629700, 901223 ^ 901220, 154770 ^ 154775, 987930 ^ 987929, 204609 ^ 204609);
+  addLine(752147 ^ 752150, 396189 ^ 396190, 358531 ^ 358531, -12.5, 476456 ^ 476459, 303688 ^ 303688);
+  addTitle(159321 ^ 159321, 311772 ^ 311770, -(667526 ^ 667566), "\u004C", 1.6, 'black', 618567 ^ 618567);
+  addTitle(-(383498 ^ 383495), 149031 ^ 149025, -(930505 ^ 930499), "\u0052", 1.6, "\u0062\u006C\u0061\u0063\u006B", Math['\u0050\u0049'] / (723878 ^ 723876));
+  addTitle(501129 ^ 501147, -(249166 ^ 249162), -(473164 ^ 473158), "\u0043", 1.6, "\u0062\u006C\u0061\u0063\u006B", 421422 ^ 421422);
+  addTitle(802630 ^ 802627, -(620681 ^ 620686), 333153 ^ 333173, "\u0046\u0075\u006E\u0063\u0074\u0069\u006F\u006E\u0020\u0047\u0065\u006E\u0065\u0072\u0061\u0074\u006F\u0072", 1.6, 'purple', Math['\u0050\u0049'] / (405796 ^ 405798));
+  var _0x2a_0xfe6 = (475332 ^ 475340) + (109254 ^ 109255);
+  var _0xdd_0xb82 = new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xffffff
+  });
+  _0x2a_0xfe6 = '\u006B\u006B\u006D\u0070\u0065\u0063';
+  var _0xc0ebc = [];
+  _0xc0ebc['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(331935 ^ 331910), 836869 ^ 836870, -(841769 ^ 841763)));
+  _0xc0ebc['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](742919 ^ 742942, 187204 ^ 187207, -(387824 ^ 387834)));
+  var _0x1be = new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']()['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0050\u006F\u0069\u006E\u0074\u0073'](_0xc0ebc);
+  var _0xe611d = (332185 ^ 332187) + (398111 ^ 398103);
+  var _0xbd6fdb = new THREE['\u004C\u0069\u006E\u0065'](_0x1be, _0xdd_0xb82);
+  _0xe611d = (174696 ^ 174697) + (197856 ^ 197858);
+  scene['\u0061\u0064\u0064'](_0xbd6fdb);
+  createSpring(403981 ^ 404005, 127082 ^ 127082, -(334729 ^ 334749));
+  let _0xd388dg;
+  var _0xf07cb = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](659409 ^ 659411, 970951 ^ 970949, 553692 ^ 553666, 922833 ^ 922865);
+  _0xd388dg = 830756 ^ 830758;
+  ironcore = new THREE['\u004D\u0065\u0073\u0068'](_0xf07cb, new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': "white"
+  }));
+  ironcore['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](195309 ^ 195309, 840178 ^ 840178, -(722002 ^ 722042));
+  ironcore['\u0072\u006F\u0074\u0061\u0074\u0065\u005A'](Math['\u0050\u0049'] / (177509 ^ 177511));
+  scene['\u0061\u0064\u0064'](ironcore);
+  let _0x4c_0x845;
+  const _0x7f033c = Number(resSlider['\u0076\u0061\u006C\u0075\u0065']);
+  _0x4c_0x845 = 246751 ^ 246751;
+  resistorGroup = createResistor({
+    "bodyRadius": 1.0,
+    '\u0062\u006F\u0064\u0079\u004C\u0065\u006E\u0067\u0074\u0068': 5.0,
+    '\u006C\u0065\u0061\u0064\u0052\u0061\u0064\u0069\u0075\u0073': 0.12,
+    "leadLength": 2.0,
+    '\u0062\u0061\u006E\u0064\u0054\u0068\u0069\u0063\u006B\u006E\u0065\u0073\u0073': 0.7,
+    '\u0062\u0061\u006E\u0064\u0047\u0061\u0070': 1.2,
+    '\u006F\u0068\u006D\u0073': _0x7f033c,
+    "tolerance": "\u0067\u006F\u006C\u0064"
+  });
+  resistorGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-12.5, 650444 ^ 650447, -(476730 ^ 476720));
+  resistorGroup['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](1.1, 1.1, 1.1);
+  resistorGroup['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](o => {
+    if (o['\u0069\u0073\u004D\u0065\u0073\u0068']) {
+      o['\u0063\u0061\u0073\u0074\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+      o['\u0072\u0065\u0063\u0065\u0069\u0076\u0065\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+    }
+  });
+  scene['\u0061\u0064\u0064'](resistorGroup);
+  let _0x7c6a2c;
+  var _0x6abf = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](711932 ^ 711935, 810281 ^ 810282, 871784 ^ 871790, 776226 ^ 776194);
+  _0x7c6a2c = 809650 ^ 809650;
+  let _0xc_0x3e3;
+  var _0xc3_0x77d = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "map": textureloader['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0043\u0061\u0070\u0061\u0063\u0069\u0074\u006F\u0072\u002D\u0054\u0065\u0078\u0074\u0075\u0072\u0065\u0032\u002E\u006A\u0070\u0067")
+  });
+  _0xc_0x3e3 = (916871 ^ 916878) + (730742 ^ 730736);
+  var _0xf4fefg = new THREE['\u004D\u0065\u0073\u0068'](_0x6abf, _0xc3_0x77d);
+  _0xf4fefg['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](13.5, -(837422 ^ 837421), -(329357 ^ 329351));
+  scene['\u0061\u0064\u0064'](_0xf4fefg);
+  addWireY(0.1, 207714 ^ 207716, 13.5, 364376 ^ 364376, -(185905 ^ 185917));
+  addWireY(0.1, 901849 ^ 901855, 13.5, 787478 ^ 787478, -(715784 ^ 715776));
+  addFunctionGenerator(585128 ^ 585128, 446167 ^ 446166, 429046 ^ 429052, Math['\u0050\u0049'] / (641593 ^ 641595));
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0074\u0061\u0072\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("click", () => {
+    let _0x_0x9ac;
+    const _0x1c9df = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0067\u0072\u0061\u0070\u0068\u0050\u0061\u006E\u0065\u006C");
+    _0x_0x9ac = (531888 ^ 531893) + (885651 ^ 885659);
+    var _0xd235f = (310159 ^ 310156) + (606320 ^ 606320);
+    const _0xd7f38a = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0074\u0061\u0072\u0074");
+    _0xd235f = 517893 ^ 517891;
+    let _0xae12a;
+    const _0x475f = _0x1c9df['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] === "\u0062\u006C\u006F\u0063\u006B";
+    _0xae12a = 369881 ^ 369883;
+    if (_0x475f) {
+      _0x1c9df['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "none";
+      _0xd7f38a['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0053\u0068\u006F\u0077\u0020\u0047\u0072\u0061\u0070\u0068";
+      isRunning = false;
+    } else {
+      _0x1c9df['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "block";
+      _0xd7f38a['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0048\u0069\u0064\u0065\u0020\u0047\u0072\u0061\u0070\u0068";
+      isRunning = !![];
+      drawVoltageGraph();
+    }
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("reset")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("click", () => {
+    isRunning = false;
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0067\u0072\u0061\u0070\u0068\u0050\u0061\u006E\u0065\u006C")['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = "\u006E\u006F\u006E\u0065";
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("start")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0053\u0068\u006F\u0077\u0020\u0047\u0072\u0061\u0070\u0068";
+  });
+  resSlider['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074", () => {
+    resValue['\u0076\u0061\u006C\u0075\u0065'] = resSlider['\u0076\u0061\u006C\u0075\u0065'];
+    if (resistorGroup?.userData?.setOhms) {
+      resistorGroup['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0065\u0074\u004F\u0068\u006D\u0073'](Number(resSlider['\u0076\u0061\u006C\u0075\u0065']));
+    }
+  });
+  capSlider['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074", () => {
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("capValue")['\u0076\u0061\u006C\u0075\u0065'] = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("capSlider")['\u0076\u0061\u006C\u0075\u0065'];
+  });
+  indSlider['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074", () => {
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0069\u006E\u0064\u0056\u0061\u006C\u0075\u0065")['\u0076\u0061\u006C\u0075\u0065'] = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0069\u006E\u0064\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065'];
+  });
+  voltageSlider['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074", () => {
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u006F\u006C\u0074\u0061\u0067\u0065\u0056\u0061\u006C\u0075\u0065")['\u0076\u0061\u006C\u0075\u0065'] = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u006F\u006C\u0074\u0061\u0067\u0065\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065'];
+    if (document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("graphPanel")?.style.display === "\u0062\u006C\u006F\u0063\u006B") {
+      drawVoltageGraph();
+    }
+  });
+  window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065", onWindowResize, false);
+  requestAnimationFrame(render);
+  render();
+};
+function addLine(x1, y1, z1, x2, y2, z2) {
+  var _0x4ba8ec = (502413 ^ 502414) + (691193 ^ 691196);
+  var _0x02cf4f = [new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x1, y1, z1), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x2, y2, z2)];
+  _0x4ba8ec = (545412 ^ 545413) + (370688 ^ 370690);
+  var _0x969dab = new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 'black'
+  });
+  let _0x6dd7d;
+  var _0xbaf = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x02cf4f);
+  _0x6dd7d = "chlcdo";
+  var _0xa16a = (592806 ^ 592801) + (815345 ^ 815351);
+  var _0xe501ed = new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xbaf, 496575 ^ 496603, 0.1, 771994 ^ 772030, false);
+  _0xa16a = "kccaqo";
+  var _0x2164d = (676115 ^ 676119) + (151457 ^ 151461);
+  var _0x89eab = new THREE['\u004D\u0065\u0073\u0068'](_0xe501ed, _0x969dab);
+  _0x2164d = 983877 ^ 983873;
+  scene['\u0061\u0064\u0064'](_0x89eab);
+}
+function addWireX(r, l, x, y, z) {
+  var _0x68f3c = (361148 ^ 361148) + (917307 ^ 917305);
+  var _0x4f716d = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](r, r, l, 768277 ^ 768309);
+  _0x68f3c = (142955 ^ 142956) + (944242 ^ 944245);
+  let _0xc611a;
+  var _0x8042a = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x000000
+  });
+  _0xc611a = 894610 ^ 894615;
+  let _0xg622b;
+  var _0x72d1eb = new THREE['\u004D\u0065\u0073\u0068'](_0x4f716d, _0x8042a);
+  _0xg622b = (587274 ^ 587277) + (911993 ^ 911999);
+  _0x72d1eb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  _0x72d1eb['\u0072\u006F\u0074\u0061\u0074\u0065\u005A'](Math['\u0050\u0049'] / (184127 ^ 184125));
+  scene['\u0061\u0064\u0064'](_0x72d1eb);
+}
+function addWireY(r, l, x, y, z) {
+  var _0x5_0x6ad = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](r, r, l, 586542 ^ 586510);
+  var _0x4gc = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x000000
+  });
+  var _0xe7ce = new THREE['\u004D\u0065\u0073\u0068'](_0x5_0x6ad, _0x4gc);
+  _0xe7ce['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  scene['\u0061\u0064\u0064'](_0xe7ce);
+}
+function addWireZ(r, l, x, y, z) {
+  let _0x4e_0xdeg;
+  var _0x5fc = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](r, r, l, 913241 ^ 913273);
+  _0x4e_0xdeg = (317604 ^ 317605) + (116173 ^ 116172);
+  var _0x72e07b = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x000000
+  });
+  var _0xa1f6a = (710451 ^ 710459) + (763055 ^ 763053);
+  var _0x9d16g = new THREE['\u004D\u0065\u0073\u0068'](_0x5fc, _0x72e07b);
+  _0xa1f6a = 847418 ^ 847417;
+  _0x9d16g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  _0x9d16g['\u0072\u006F\u0074\u0061\u0074\u0065\u0058'](Math['\u0050\u0049'] / (258783 ^ 258781));
+  scene['\u0061\u0064\u0064'](_0x9d16g);
+}
+function addFunctionGenerator(x, y, z, alpha) {
+  var _0x673gdd = (513482 ^ 513483) + (598265 ^ 598267);
+  const _0xge28da = 787533 ^ 787551;
+  _0x673gdd = "nmfdep";
+  const _0xgg32ee = 911415 ^ 911421;
+  const _0x6_0xg38 = 686196 ^ 686195;
+  var _0xe65d = (423389 ^ 423384) + (423995 ^ 423997);
+  const _0x86d72g = 0.5;
+  _0xe65d = 641743 ^ 641739;
+  const _0xf4882g = 520157 ^ 520153;
+  var _0xf8f1ce = (871466 ^ 871465) + (230589 ^ 230584);
+  const _0xd40de = new RoundedBoxGeometry(_0xge28da, _0xgg32ee, _0x6_0xg38, _0xf4882g, _0x86d72g);
+  _0xf8f1ce = (339659 ^ 339661) + (299628 ^ 299625);
+  const _0xdg141a = new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xeeeeee,
+    '\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073': 0.4,
+    "metalness": 0.1
+  });
+  const _0x730fbe = new THREE['\u004D\u0065\u0073\u0068'](_0xd40de, _0xdg141a);
+  _0x730fbe['\u0063\u0061\u0073\u0074\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+  _0x730fbe['\u0072\u0065\u0063\u0065\u0069\u0076\u0065\u0053\u0068\u0061\u0064\u006F\u0077'] = !![];
+  const _0xa5dd9e = textureloader['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0066\u0075\u006E\u0063\u0074\u0069\u006F\u006E\u005F\u0067\u0065\u006E\u0065\u0072\u0061\u0074\u006F\u0072\u002E\u0070\u006E\u0067");
+  var _0xaa23a = (471626 ^ 471624) + (924870 ^ 924866);
+  const _0xe35e9e = new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xge28da - (288111 ^ 288109), _0xgg32ee - (421989 ^ 421991), 0.2);
+  _0xaa23a = (239345 ^ 239346) + (157543 ^ 157550);
+  const _0xc527c = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "map": _0xa5dd9e
+  });
+  let _0x2_0xeee;
+  const _0xd1c5fa = new THREE['\u004D\u0065\u0073\u0068'](_0xe35e9e, _0xc527c);
+  _0x2_0xeee = 686896 ^ 686902;
+  _0xd1c5fa['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](788296 ^ 788296, 124147 ^ 124147, _0x6_0xg38 / (981242 ^ 981240) + 0.1);
+  _0x730fbe['\u0061\u0064\u0064'](_0xd1c5fa);
+  _0x730fbe['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  _0x730fbe['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079'] = alpha;
+  scene['\u0061\u0064\u0064'](_0x730fbe);
+}
+function createResistor({
+  '\u0062\u006F\u0064\u0079\u0052\u0061\u0064\u0069\u0075\u0073': bodyRadius = 767898 ^ 767899,
+  "bodyLength": bodyLength = 587444 ^ 587441,
+  '\u006C\u0065\u0061\u0064\u0052\u0061\u0064\u0069\u0075\u0073': leadRadius = 0.12,
+  "leadLength": leadLength = 362011 ^ 362009,
+  "bandThickness": bandThickness = 0.7,
+  '\u0062\u0061\u006E\u0064\u0047\u0061\u0070': bandGap = 1.2,
+  "ohms": ohms = 254214 ^ 254352,
+  '\u0074\u006F\u006C\u0065\u0072\u0061\u006E\u0063\u0065': tolerance = "\u0067\u006F\u006C\u0064"
+} = {}) {
+  const g = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  g['\u006E\u0061\u006D\u0065'] = "\u0072\u0065\u0073\u0069\u0073\u0074\u006F\u0072\u0047\u0072\u006F\u0075\u0070";
+  let _0x1g6a8g;
+  const _0x288c6f = new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xC8D9DC,
+    "metalness": 0.05,
+    '\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073': 0.7
+  });
+  _0x1g6a8g = (374136 ^ 374142) + (189751 ^ 189751);
+  var _0x921dfa = (288810 ^ 288803) + (250281 ^ 250281);
+  const _0xea1e3c = new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x444444,
+    "metalness": 0.7,
+    "roughness": 0.35
+  });
+  _0x921dfa = '\u0068\u006E\u0068\u0063\u006F\u006A';
+  var _0x119f = (757734 ^ 757734) + (975623 ^ 975617);
+  const _0x6e6bbd = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](bodyRadius, bodyRadius, bodyLength, 466763 ^ 466795);
+  _0x119f = 688653 ^ 688652;
+  var _0x564d = (802973 ^ 802971) + (370735 ^ 370726);
+  const _0xc23g = new THREE['\u004D\u0065\u0073\u0068'](_0x6e6bbd, _0x288c6f);
+  _0x564d = (732677 ^ 732684) + (173157 ^ 173153);
+  _0xc23g['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0050\u0049'] / (914803 ^ 914801);
+  g['\u0061\u0064\u0064'](_0xc23g);
+  let _0xgb22e;
+  const _0xc2789f = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](leadRadius, leadRadius, leadLength, 857146 ^ 857130);
+  _0xgb22e = 159625 ^ 159626;
+  const _0xa235c = new THREE['\u004D\u0065\u0073\u0068'](_0xc2789f, _0xea1e3c);
+  const _0x8a61bf = new THREE['\u004D\u0065\u0073\u0068'](_0xc2789f, _0xea1e3c);
+  _0xa235c['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0050\u0049'] / (978876 ^ 978878);
+  _0x8a61bf['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0050\u0049'] / (567417 ^ 567419);
+  _0xa235c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = -(bodyLength / (602278 ^ 602276) + leadLength / (963358 ^ 963356));
+  _0x8a61bf['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = +(bodyLength / (357696 ^ 357698) + leadLength / (201773 ^ 201775));
+  g['\u0061\u0064\u0064'](_0xa235c, _0x8a61bf);
+  const _0xf4fb = [541959 ^ 541959, 0x8b4513, 0xff0000, 0xffa500, 0xffff00, 626225 ^ 618801, 434810 ^ 434821, 0x8a2be2, 0x808080, 0xffffff];
+  const _0x2f14c = {
+    "\u002D\u0032": 0xc0c0c0,
+    "\u002D\u0031": 0xffd700,
+    "\u0030": 0x000000,
+    "\u0031": 0x8b4513,
+    "\u0032": 0xff0000,
+    "\u0033": 0xffa500,
+    "\u0034": 0xffff00,
+    "\u0035": 0x00ff00,
+    "\u0036": 0x0000ff,
+    "\u0037": 0x8a2be2,
+    "\u0038": 0x808080,
+    "\u0039": 0xffffff
+  };
+  const _0xdc_0xce8 = {
+    "gold": 0xffd700,
+    "silver": 0xc0c0c0,
+    '\u0062\u0072\u006F\u0077\u006E': 0x8b4513,
+    "red": 0xff0000,
+    '\u0067\u0072\u0065\u0065\u006E': 0x00ff00,
+    "blue": 0x0000ff
+  };
+  function _0x3a6eea(R) {
+    R = Math['\u006D\u0061\u0078'](891094 ^ 891095, Math['\u0072\u006F\u0075\u006E\u0064'](R));
+    var _0x57a1d = (215615 ^ 215615) + (789466 ^ 789468);
+    const _0x56ca9d = Math['\u0066\u006C\u006F\u006F\u0072'](Math['\u006C\u006F\u0067\u0031\u0030'](R));
+    _0x57a1d = (720519 ^ 720517) + (787149 ^ 787146);
+    const _0x90f4de = Math['\u0072\u006F\u0075\u006E\u0064'](R / Math['\u0070\u006F\u0077'](176751 ^ 176741, _0x56ca9d - (943774 ^ 943775)));
+    var _0x1gbe5a = (193961 ^ 193953) + (193160 ^ 193165);
+    let _0xfc_0xea9 = Math['\u0066\u006C\u006F\u006F\u0072'](_0x90f4de / (196714 ^ 196704));
+    _0x1gbe5a = (301001 ^ 301003) + (272401 ^ 272408);
+    let _0x8717a = _0x90f4de % (658350 ^ 658340);
+    _0xfc_0xea9 = Math['\u006D\u0069\u006E'](Math['\u006D\u0061\u0078'](_0xfc_0xea9, 459260 ^ 459260), 176721 ^ 176728);
+    _0x8717a = Math['\u006D\u0069\u006E'](Math['\u006D\u0061\u0078'](_0x8717a, 937530 ^ 937530), 276053 ^ 276060);
+    const _0xb429b = _0x56ca9d - (361608 ^ 361609);
+    return [_0xfc_0xea9, _0x8717a, _0xb429b, tolerance];
+  }
+  const _0x1734ae = bodyRadius * 1.05;
+  var _0x796bd = (397341 ^ 397332) + (155007 ^ 155002);
+  const _0xe42ca = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x1734ae, _0x1734ae, bandThickness, 147040 ^ 147008);
+  _0x796bd = (290054 ^ 290063) + (844738 ^ 844741);
+  function _0x4bd84f() {
+    for (let i = g['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068'] - (879342 ^ 879343); i >= (503052 ^ 503052); i--) {
+      const _0xab4ffc = g['\u0063\u0068\u0069\u006C\u0064\u0072\u0065\u006E'][i];
+      if (_0xab4ffc && _0xab4ffc['\u006E\u0061\u006D\u0065'] === "\u0062\u0061\u006E\u0064\u005F") {
+        g['\u0072\u0065\u006D\u006F\u0076\u0065'](_0xab4ffc);
+        _0xab4ffc['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']?.dispose();
+        if (Array['\u0069\u0073\u0041\u0072\u0072\u0061\u0079'](_0xab4ffc['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C'])) _0xab4ffc['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](m => m['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']());else _0xab4ffc['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']?.dispose();
+      }
+    }
+  }
+  function _0xedd(color, zPos) {
+    var _0x4ae5b = (800637 ^ 800628) + (825694 ^ 825691);
+    const _0xb7b04c = new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      "color": color,
+      '\u006D\u0065\u0074\u0061\u006C\u006E\u0065\u0073\u0073': 0.1,
+      "roughness": 0.6
+    });
+    _0x4ae5b = '\u0070\u006A\u006E\u006A\u006D\u0068';
+    const _0x8aea = new THREE['\u004D\u0065\u0073\u0068'](_0xe42ca, _0xb7b04c);
+    _0x8aea['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0050\u0049'] / (532001 ^ 532003);
+    _0x8aea['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = zPos;
+    _0x8aea['\u006E\u0061\u006D\u0065'] = "band_";
+    g['\u0061\u0064\u0064'](_0x8aea);
+  }
+  function _0xb3a5ef(newOhms) {
+    _0x4bd84f();
+    const [d1, d2, mult, tol] = _0x3a6eea(newOhms);
+    let _0x65fb;
+    const _0xfd_0xc5d = [_0xf4fb[d1], _0xf4fb[d2], _0x2f14c[String(mult)] ?? 910554 ^ 910554, _0xdc_0xce8[tol] ?? 0xffd700];
+    _0x65fb = (681831 ^ 681838) + (400308 ^ 400310);
+    let _0xb2622a;
+    const _0xf_0xcba = -bodyLength / (511487 ^ 511485) + 0.8;
+    _0xb2622a = (257622 ^ 257630) + (564649 ^ 564649);
+    const _0x2fc8c = [_0xf_0xcba, _0xf_0xcba + bandGap, _0xf_0xcba + (526173 ^ 526175) * bandGap, bodyLength / (635407 ^ 635405) - 0.8];
+    for (let i = 429440 ^ 429440; i < (500056 ^ 500060); i++) _0xedd(_0xfd_0xc5d[i], _0x2fc8c[i]);
+  }
+  _0xb3a5ef(ohms);
+  g['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0065\u0074\u004F\u0068\u006D\u0073'] = _0xb3a5ef;
+  return g;
+}
+function createSpring(posX, posY, posZ) {
+  var _0x7g9ced = (652486 ^ 652481) + (165468 ^ 165461);
+  var _0xd7f = Math['\u0050\u0049'] * (230542 ^ 230540);
+  _0x7g9ced = '\u006A\u006C\u0062\u0067\u006A\u0061';
+  var _0xa08a = Math['\u0050\u0049'] / (206759 ^ 206763);
+  var _0xac3ee = -(764652 ^ 764589) - posX;
+  var _0x2g0cbe = -(562963 ^ 563029) - _0xac3ee * 0.5;
+  var y, z;
+  let _0xecgabd;
+  var x = _0xac3ee / (583368 ^ 583370);
+  _0xecgabd = '\u0063\u0063\u0061\u0064\u006A\u0065';
+  var _0xf11b5f = (602064 ^ 602067) + (946307 ^ 946304);
+  var _0x07b29f = 323347 ^ 323344;
+  _0xf11b5f = (629232 ^ 629236) + (814579 ^ 814580);
+  var n = 873939 ^ 873939;
+  let _0x1189g;
+  var _0x51bd9d = _0xac3ee / (_0xd7f / _0xa08a * NTWISTS);
+  _0x1189g = 691627 ^ 691624;
+  var _0xg8e74g = (260609 ^ 260608) + (989847 ^ 989841);
+  var _0x6ba5ce = [];
+  _0xg8e74g = (124790 ^ 124785) + (248111 ^ 248111);
+  var _0x6b799c = new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": "brown"
+  });
+  for (var _0x3e0d1c = 970187 ^ 970187; _0x3e0d1c <= _0xd7f * NTWISTS; _0x3e0d1c += _0xa08a) {
+    y = posY + Math['\u0063\u006F\u0073'](_0x3e0d1c) * _0x07b29f;
+    x -= _0x51bd9d / (494742 ^ 494738);
+    z = posZ + Math['\u0073\u0069\u006E'](_0x3e0d1c) * _0x07b29f;
+    _0x6ba5ce['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, y, z));
+    n++;
+  }
+  var _0xc0e4c = (855078 ^ 855074) + (306063 ^ 306063);
+  var _0x38f93f = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x6ba5ce);
+  _0xc0e4c = '\u0071\u006E\u0068\u0069\u0067\u0066';
+  var _0xc73b = new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x38f93f, n, 0.5, 308651 ^ 308623, false);
+  springMesh = new THREE['\u004D\u0065\u0073\u0068'](_0xc73b, _0x6b799c);
+  springMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](posX, posY, posZ);
+  scene['\u0061\u0064\u0064'](springMesh);
+}
+function addTitle(x, y, z, t, s, hex, theta) {
+  fontloader['\u006C\u006F\u0061\u0064']("/api/program-assets/3jcn-phyc240-impedance-triangle/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json", function (tex) {
+    let _0x9912b;
+    var _0x57fg3c = new TextGeometry(t, {
+      "size": s,
+      "height": s / (663848 ^ 663855),
+      '\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073': 6,
+      '\u0066\u006F\u006E\u0074': tex
+    });
+    _0x9912b = (293981 ^ 293973) + (502986 ^ 502985);
+    var _0xc7c3d = new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      '\u0063\u006F\u006C\u006F\u0072': hex
+    });
+    var _0x16agc = (252146 ^ 252155) + (818986 ^ 818978);
+    var _0x52f = new THREE['\u004D\u0065\u0073\u0068'](_0x57fg3c, _0xc7c3d);
+    _0x16agc = (253166 ^ 253162) + (235294 ^ 235291);
+    _0x52f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+    _0x52f['\u0072\u006F\u0074\u0061\u0074\u0065\u0059'](theta);
+    scene['\u0061\u0064\u0064'](_0x52f);
+  });
+}
+function createVector(position, direction, length, color = 0xffff00, thickness = 0.3, labelText = "") {
+  const _0xd82e = length;
+  const _0xd36e = 808827 ^ 808824;
+  let _0x8f_0x8ge;
+  const _0x6c_0x365 = 1.5;
+  _0x8f_0x8ge = 287576 ^ 287580;
+  var _0xb19fb = (131751 ^ 131748) + (781698 ^ 781698);
+  const _0xfb_0x829 = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](thickness, thickness, _0xd82e - _0xd36e, 181140 ^ 181172);
+  _0xb19fb = "gkkggd";
+  let _0x3724a;
+  const _0xbd655g = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color
+  });
+  _0x3724a = (809638 ^ 809639) + (544454 ^ 544449);
+  const _0x2e76fe = new THREE['\u004D\u0065\u0073\u0068'](_0xfb_0x829, _0xbd655g);
+  var _0xddb4e = (248985 ^ 248989) + (171564 ^ 171561);
+  const _0xec18a = new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](direction, position, _0xd82e, color, _0xd36e, _0x6c_0x365);
+  _0xddb4e = 336414 ^ 336411;
+  let _0xb7beag;
+  const _0xea_0x01c = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0061\u0064\u0064\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](position, direction['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072']((_0xd82e - _0xd36e) / (636547 ^ 636545)));
+  _0xb7beag = (275208 ^ 275210) + (573377 ^ 573382);
+  _0x2e76fe['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0xea_0x01c);
+  _0x2e76fe['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](500328 ^ 500328, 293493 ^ 293492, 374383 ^ 374383), direction['\u0063\u006C\u006F\u006E\u0065']()['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());
+  var _0xee6da = (920134 ^ 920130) + (254343 ^ 254342);
+  let _0xe5f7fa;
+  _0xee6da = "bljffe";
+  if (labelText !== "") {
+    const _0xfcb3eb = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("canvas");
+    var _0x0e740b = (786001 ^ 786000) + (917514 ^ 917513);
+    const _0xe8f2ba = _0xfcb3eb['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064");
+    _0x0e740b = "fjfdck";
+    _0xe8f2ba['\u0066\u006F\u006E\u0074'] = "bold 32px Arial";
+    _0xe8f2ba['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "#000000";
+    _0xe8f2ba['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](labelText, 912956 ^ 912950, 469478 ^ 469460);
+    const _0x09aaec = new THREE['\u0043\u0061\u006E\u0076\u0061\u0073\u0054\u0065\u0078\u0074\u0075\u0072\u0065'](_0xfcb3eb);
+    const _0xbe59d = new THREE['\u0053\u0070\u0072\u0069\u0074\u0065\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+      '\u006D\u0061\u0070': _0x09aaec
+    });
+    _0xe5f7fa = new THREE['\u0053\u0070\u0072\u0069\u0074\u0065'](_0xbe59d);
+    let _0x874cd;
+    const _0x1de33d = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0061\u0064\u0064\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](position, direction['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](_0xd82e + (453147 ^ 453146)));
+    _0x874cd = 545201 ^ 545209;
+    _0xe5f7fa['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x1de33d);
+    _0xe5f7fa['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](996557 ^ 996551, 529086 ^ 529083, 162894 ^ 162895);
+    scene['\u0061\u0064\u0064'](_0xe5f7fa);
+  }
+  scene['\u0061\u0064\u0064'](_0x2e76fe);
+  scene['\u0061\u0064\u0064'](_0xec18a);
+  return {
+    "shaft": _0x2e76fe,
+    "arrowHelper": _0xec18a,
+    "label": _0xe5f7fa
+  };
+}
+function showImpedanceTriangle(R, XL, XC, Z) {
+  vectorArrows['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](obj => {
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](obj['\u0061\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072']);
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](obj['\u0073\u0068\u0061\u0066\u0074']);
+    if (obj['\u006C\u0061\u0062\u0065\u006C']) scene['\u0072\u0065\u006D\u006F\u0076\u0065'](obj['\u006C\u0061\u0062\u0065\u006C']);
+  });
+  vectorArrows = [];
+  const _0x76c = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(421960 ^ 422010), 586468 ^ 586468, 484825 ^ 484813);
+  const _0x14f48f = 0.2;
+  const _0x8e_0xfe3 = R * _0x14f48f;
+  let _0x84f;
+  const _0xc2bce = XL * _0x14f48f;
+  _0x84f = '\u0069\u006D\u0062\u0064\u0063\u0064';
+  const _0x2b5d = XC * _0x14f48f;
+  var _0x6fd = (758686 ^ 758683) + (783972 ^ 783970);
+  const _0xf34cf = (XL - XC) * _0x14f48f;
+  _0x6fd = 344071 ^ 344070;
+  let _0x21g5c;
+  const _0xcbb0fe = Z * _0x14f48f;
+  _0x21g5c = (918385 ^ 918385) + (593869 ^ 593869);
+  vectorArrows['\u0070\u0075\u0073\u0068'](createVector(_0x76c, new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](714832 ^ 714833, 507423 ^ 507423, 724759 ^ 724759), _0x8e_0xfe3, 698090 ^ 697877, 0.3, `R = ${R['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](244505 ^ 244504)} Ω`));
+  if (XL > (609804 ^ 609804)) {
+    vectorArrows['\u0070\u0075\u0073\u0068'](createVector(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](_0x76c['\u0078'] + _0x8e_0xfe3, _0x76c['\u0079'], _0x76c['\u007A']), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](130142 ^ 130142, 741352 ^ 741353, 801327 ^ 801327), _0xc2bce, 0xff0000, 0.3, `Xᴸ = ${XL['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](796722 ^ 796723)} Ω`));
+  }
+  if (XC > (486260 ^ 486260)) {
+    vectorArrows['\u0070\u0075\u0073\u0068'](createVector(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](_0x76c['\u0078'] + _0x8e_0xfe3, _0x76c['\u0079'], _0x76c['\u007A']), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](140624 ^ 140624, -(920396 ^ 920397), 455193 ^ 455193), _0x2b5d, 0xffff00, 0.3, `Xᶜ = ${XC['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](588994 ^ 588995)} Ω`));
+  }
+  const _0x4gg = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](_0x8e_0xfe3, _0xf34cf, 346917 ^ 346917)['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();
+  vectorArrows['\u0070\u0075\u0073\u0068'](createVector(_0x76c, _0x4gg, _0xcbb0fe, 559780 ^ 559780, 0.3, `Z = ${Z['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](507113 ^ 507115)} Ω`));
+}
+function addSphere(x, y, z) {
+  let _0x8ed3f;
+  var _0x819fc = new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.5, 652421 ^ 652453, 896086 ^ 896078);
+  _0x8ed3f = (796180 ^ 796183) + (967811 ^ 967811);
+  var _0xb9125f = (330673 ^ 330674) + (811121 ^ 811124);
+  var _0xefe7df = new THREE['\u004D\u0065\u0073\u0068'](_0x819fc, new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': "\u0077\u0068\u0069\u0074\u0065"
+  }));
+  _0xb9125f = (122503 ^ 122510) + (881048 ^ 881048);
+  _0xefe7df['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  scene['\u0061\u0064\u0064'](_0xefe7df);
+}
+function setupLights() {
+  let _0xab88g;
+  const _0x751a9b = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 197733 ^ 197732);
+  _0xab88g = 292011 ^ 292012;
+  _0x751a9b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](467933 ^ 467927, 238701 ^ 238661, 222542 ^ 222554);
+  scene['\u0061\u0064\u0064'](_0x751a9b);
+  const _0x10_0x13b = new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0.6);
+  scene['\u0061\u0064\u0064'](_0x10_0x13b);
+}
+function onWindowResize() {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+  if (document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0067\u0072\u0061\u0070\u0068\u0050\u0061\u006E\u0065\u006C")?.style.display === "\u0062\u006C\u006F\u0063\u006B") {
+    drawVoltageGraph();
+  }
+}
+function drawVoltageGraph() {
+  let _0x8fbef;
+  const _0xa8e5d = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("voltageGraph");
+  _0x8fbef = (710172 ^ 710164) + (260089 ^ 260080);
+  if (!_0xa8e5d) return;
+  const _0x4bc7g = window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'] || 243507 ^ 243506;
+  var _0xg_0x627 = (832003 ^ 832003) + (591116 ^ 591114);
+  const _0x466cc = _0xa8e5d['\u0067\u0065\u0074\u0042\u006F\u0075\u006E\u0064\u0069\u006E\u0067\u0043\u006C\u0069\u0065\u006E\u0074\u0052\u0065\u0063\u0074']();
+  _0xg_0x627 = (829600 ^ 829608) + (796745 ^ 796750);
+  _0xa8e5d['\u0077\u0069\u0064\u0074\u0068'] = Math['\u006D\u0061\u0078'](427088 ^ 427089, Math['\u0072\u006F\u0075\u006E\u0064'](_0x466cc['\u0077\u0069\u0064\u0074\u0068'] * _0x4bc7g));
+  _0xa8e5d['\u0068\u0065\u0069\u0067\u0068\u0074'] = Math['\u006D\u0061\u0078'](992233 ^ 992232, Math['\u0072\u006F\u0075\u006E\u0064'](_0x466cc['\u0068\u0065\u0069\u0067\u0068\u0074'] * _0x4bc7g));
+  const _0xde44b = _0xa8e5d['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("\u0032\u0064");
+  _0xde44b['\u0073\u0065\u0074\u0054\u0072\u0061\u006E\u0073\u0066\u006F\u0072\u006D'](_0x4bc7g, 249528 ^ 249528, 138930 ^ 138930, _0x4bc7g, 747112 ^ 747112, 344144 ^ 344144);
+  const W = _0x466cc['\u0077\u0069\u0064\u0074\u0068'];
+  var _0x5584bb = (738888 ^ 738894) + (206074 ^ 206072);
+  const H = _0x466cc['\u0068\u0065\u0069\u0067\u0068\u0074'];
+  _0x5584bb = 977836 ^ 977836;
+  let _0x1fac;
+  const R = Number(resSlider['\u0076\u0061\u006C\u0075\u0065']);
+  _0x1fac = (756554 ^ 756547) + (935115 ^ 935115);
+  var _0x7486be = (427926 ^ 427934) + (665134 ^ 665128);
+  const C = Number(capSlider['\u0076\u0061\u006C\u0075\u0065']) * 1e-6;
+  _0x7486be = (265337 ^ 265338) + (634093 ^ 634090);
+  let _0x2bef5e;
+  const L = Number(indSlider['\u0076\u0061\u006C\u0075\u0065']);
+  _0x2bef5e = (660919 ^ 660918) + (477715 ^ 477717);
+  var _0xb_0xf13 = (983522 ^ 983521) + (303021 ^ 303020);
+  const f = Number(freqSlider['\u0076\u0061\u006C\u0075\u0065']);
+  _0xb_0xf13 = (485362 ^ 485362) + (212877 ^ 212872);
+  const _0xc6bfc = Number(voltageSlider['\u0076\u0061\u006C\u0075\u0065']);
+  var _0x45b = (199577 ^ 199569) + (491812 ^ 491808);
+  const _0xgeb2ce = (699943 ^ 699941) * Math['\u0050\u0049'] * f;
+  _0x45b = "jhhkfg";
+  const _0x7c11gf = _0xgeb2ce * L;
+  var _0x6d5g = (790978 ^ 790976) + (874669 ^ 874670);
+  const _0xbcf3d = (201280 ^ 201281) / (_0xgeb2ce * C);
+  _0x6d5g = (113397 ^ 113399) + (111833 ^ 111825);
+  const Z = Math['\u0073\u0071\u0072\u0074'](R * R + (_0x7c11gf - _0xbcf3d) * (_0x7c11gf - _0xbcf3d));
+  const _0xf6c4e = _0xc6bfc / Z;
+  let _0xed729g;
+  const _0x4d8agf = Math['\u0061\u0074\u0061\u006E\u0032'](_0x7c11gf - _0xbcf3d, R);
+  _0xed729g = (447715 ^ 447718) + (754660 ^ 754669);
+  var _0xa97e5d = (322603 ^ 322605) + (435021 ^ 435017);
+  const _0x4e88d = _0xf6c4e * R;
+  _0xa97e5d = 427566 ^ 427561;
+  var _0x75eb = (943391 ^ 943384) + (847572 ^ 847573);
+  const _0xd10e1c = _0xf6c4e * _0x7c11gf;
+  _0x75eb = '\u0062\u0068\u006C\u0063\u0066\u0062';
+  const _0xe9a = _0xf6c4e * _0xbcf3d;
+  var _0x6e_0xaa5 = (219114 ^ 219116) + (426773 ^ 426772);
+  const _0xa49dg = (349391 ^ 349389) / f;
+  _0x6e_0xaa5 = (469173 ^ 469181) + (701771 ^ 701773);
+  const _0xg93fdb = 694934 ^ 694944;
+  let _0x8db;
+  const _0x15a2c = 892681 ^ 892697;
+  _0x8db = 708702 ^ 708697;
+  var _0x4da4g = (443823 ^ 443818) + (417029 ^ 417028);
+  const _0x2d474e = 122965 ^ 122951;
+  _0x4da4g = 717607 ^ 717606;
+  const _0xga5ec = 614486 ^ 614512;
+  let _0x2b829g;
+  const _0x7ec = W - _0xg93fdb - _0x15a2c;
+  _0x2b829g = 504688 ^ 504692;
+  let _0x87609f;
+  const _0x84ca = H - _0x2d474e - _0xga5ec;
+  _0x87609f = (530777 ^ 530779) + (331077 ^ 331079);
+  let _0xa47d;
+  const _0x01eg = _0x2d474e + _0x84ca / (523602 ^ 523600);
+  _0xa47d = "cfdqeq";
+  var _0xc988e = (597293 ^ 597294) + (130838 ^ 130833);
+  const _0x16004a = Math['\u006D\u0061\u0078'](_0xc6bfc, _0x4e88d, _0xd10e1c, _0xe9a, 0.1);
+  _0xc988e = '\u006E\u0062\u0062\u0064\u006F\u0070';
+  const _0x76c36f = _0x16004a * 1.15;
+  var _0x46a66b = (659983 ^ 659977) + (211760 ^ 211762);
+  const _0xd3_0xd1g = t => _0xg93fdb + t / _0xa49dg * _0x7ec;
+  _0x46a66b = "cgkdcp";
+  var _0x77a98b = (519259 ^ 519263) + (461487 ^ 461485);
+  const _0x31e19a = v => _0x01eg - v / _0x76c36f * (_0x84ca / (102457 ^ 102459));
+  _0x77a98b = (941844 ^ 941847) + (371447 ^ 371446);
+  _0xde44b['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](683794 ^ 683794, 896518 ^ 896518, W, H);
+  _0xde44b['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0066\u0066\u0066\u0066\u0066\u0066";
+  _0xde44b['\u0066\u0069\u006C\u006C\u0052\u0065\u0063\u0074'](496534 ^ 496534, 558584 ^ 558584, W, H);
+  _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "#dddddd";
+  _0xde44b['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 499987 ^ 499986;
+  for (let i = 513324 ^ 513324; i <= (547484 ^ 547476); i++) {
+    var _0x3_0xc95 = (759158 ^ 759154) + (903855 ^ 903851);
+    const x = _0xg93fdb + i / (249150 ^ 249142) * _0x7ec;
+    _0x3_0xc95 = (369356 ^ 369359) + (699400 ^ 699400);
+    _0xde44b['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    _0xde44b['\u006D\u006F\u0076\u0065\u0054\u006F'](x, _0x2d474e);
+    _0xde44b['\u006C\u0069\u006E\u0065\u0054\u006F'](x, _0x2d474e + _0x84ca);
+    _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  }
+  for (let i = 896663 ^ 896663; i <= (550934 ^ 550928); i++) {
+    var _0xd5d = (816894 ^ 816888) + (628176 ^ 628178);
+    const y = _0x2d474e + i / (620595 ^ 620597) * _0x84ca;
+    _0xd5d = 300080 ^ 300082;
+    _0xde44b['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    _0xde44b['\u006D\u006F\u0076\u0065\u0054\u006F'](_0xg93fdb, y);
+    _0xde44b['\u006C\u0069\u006E\u0065\u0054\u006F'](_0xg93fdb + _0x7ec, y);
+    _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  }
+  _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "#222";
+  _0xde44b['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 1.5;
+  _0xde44b['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  _0xde44b['\u006D\u006F\u0076\u0065\u0054\u006F'](_0xg93fdb, _0x2d474e);
+  _0xde44b['\u006C\u0069\u006E\u0065\u0054\u006F'](_0xg93fdb, _0x2d474e + _0x84ca);
+  _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  _0xde44b['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  _0xde44b['\u006D\u006F\u0076\u0065\u0054\u006F'](_0xg93fdb, _0x01eg);
+  _0xde44b['\u006C\u0069\u006E\u0065\u0054\u006F'](_0xg93fdb + _0x7ec, _0x01eg);
+  _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  _0xde44b['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0031\u0031\u0031";
+  _0xde44b['\u0066\u006F\u006E\u0074'] = "12px Arial";
+  _0xde44b['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = "center";
+  _0xde44b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("Time", _0xg93fdb + _0x7ec / (490415 ^ 490413), H - (325002 ^ 325005));
+  _0xde44b['\u0073\u0061\u0076\u0065']();
+  _0xde44b['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](374830 ^ 374816, _0x2d474e + _0x84ca / (782622 ^ 782620));
+  _0xde44b['\u0072\u006F\u0074\u0061\u0074\u0065'](-Math['\u0050\u0049'] / (435244 ^ 435246));
+  _0xde44b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("Voltage (V)", 537703 ^ 537703, 324839 ^ 324839);
+  _0xde44b['\u0072\u0065\u0073\u0074\u006F\u0072\u0065']();
+  _0xde44b['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = "\u0072\u0069\u0067\u0068\u0074";
+  _0xde44b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u002B" + _0x76c36f['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](740510 ^ 740508), _0xg93fdb - (790967 ^ 790961), _0x2d474e + (868422 ^ 868419));
+  _0xde44b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u0030", _0xg93fdb - (291578 ^ 291580), _0x01eg + (405217 ^ 405221));
+  _0xde44b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u002D" + _0x76c36f['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](297579 ^ 297577), _0xg93fdb - (399479 ^ 399473), _0x2d474e + _0x84ca);
+  _0xde44b['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = "\u0063\u0065\u006E\u0074\u0065\u0072";
+  for (let i = 707817 ^ 707817; i <= (205269 ^ 205265); i++) {
+    const t = i / (530604 ^ 530600) * _0xa49dg;
+    _0xde44b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](((111958 ^ 112318) * t)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](959085 ^ 959084) + "\u0020\u006D\u0073", _0xd3_0xd1g(t), _0x2d474e + _0x84ca + (236395 ^ 236409));
+  }
+  function _0x43a(fn, color, width = 822486 ^ 822484) {
+    _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = color;
+    _0xde44b['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = width;
+    _0xde44b['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    const N = 834057 ^ 833717;
+    for (let i = 316560 ^ 316560; i <= N; i++) {
+      let _0x8114a;
+      const t = i / N * _0xa49dg;
+      _0x8114a = '\u006A\u0065\u0064\u0064\u006F\u0065';
+      const v = fn(t);
+      let _0x83ee3d;
+      const x = _0xd3_0xd1g(t);
+      _0x83ee3d = (408493 ^ 408484) + (648248 ^ 648252);
+      let _0xc2_0x335;
+      const y = _0x31e19a(v);
+      _0xc2_0x335 = (451014 ^ 451022) + (119088 ^ 119093);
+      if (i === (545204 ^ 545204)) _0xde44b['\u006D\u006F\u0076\u0065\u0054\u006F'](x, y);else _0xde44b['\u006C\u0069\u006E\u0065\u0054\u006F'](x, y);
+    }
+    _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  }
+  _0x43a(t => _0xc6bfc * Math['\u0073\u0069\u006E'](_0xgeb2ce * t), "\u0023\u0030\u0030\u0030\u0030\u0030\u0030", 2.6);
+  _0x43a(t => _0x4e88d * Math['\u0073\u0069\u006E'](_0xgeb2ce * t - _0x4d8agf), "\u0023\u0030\u0030\u0036\u0036\u0063\u0063");
+  _0x43a(t => _0xd10e1c * Math['\u0073\u0069\u006E'](_0xgeb2ce * t - _0x4d8agf + Math['\u0050\u0049'] / (825964 ^ 825966)), "#cc0000");
+  _0x43a(t => _0xe9a * Math['\u0073\u0069\u006E'](_0xgeb2ce * t - _0x4d8agf - Math['\u0050\u0049'] / (945558 ^ 945556)), "#d28b00");
+  const _0xd676b = [["\u0056\u0073", "\u0023\u0030\u0030\u0030\u0030\u0030\u0030"], ["VR", "\u0023\u0030\u0030\u0036\u0036\u0063\u0063"], ["\u0056\u004C", "\u0023\u0063\u0063\u0030\u0030\u0030\u0030"], ["\u0056\u0043", "\u0023\u0064\u0032\u0038\u0062\u0030\u0030"]];
+  _0xde44b['\u0066\u006F\u006E\u0074'] = "bold 12px Arial";
+  _0xde44b['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = "left";
+  var _0xaf5afe = (602999 ^ 603006) + (843815 ^ 843813);
+  let _0x348c = _0xg93fdb + (207867 ^ 207859);
+  _0xaf5afe = (974403 ^ 974405) + (854608 ^ 854616);
+  const _0x0e_0xc87 = _0x2d474e + (592224 ^ 592238);
+  _0xd676b['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](([label, color]) => {
+    _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = color;
+    _0xde44b['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 364144 ^ 364147;
+    _0xde44b['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    _0xde44b['\u006D\u006F\u0076\u0065\u0054\u006F'](_0x348c, _0x0e_0xc87);
+    _0xde44b['\u006C\u0069\u006E\u0065\u0054\u006F'](_0x348c + (184837 ^ 184849), _0x0e_0xc87);
+    _0xde44b['\u0073\u0074\u0072\u006F\u006B\u0065']();
+    _0xde44b['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0031\u0031\u0031";
+    _0xde44b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](label, _0x348c + (544868 ^ 544893), _0x0e_0xc87 + (100565 ^ 100561));
+    _0x348c += 108632 ^ 108569;
+  });
+  var _0x55757f = (565280 ^ 565286) + (219815 ^ 219811);
+  const _0x6c94bd = _0x4d8agf * (686180 ^ 686288) / Math['\u0050\u0049'];
+  _0x55757f = (168619 ^ 168621) + (809168 ^ 809174);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("graphReadout")['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `I<sub>0</sub> = ${_0xf6c4e['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](828855 ^ 828851)} A &nbsp; | &nbsp; ` + `V<sub>R</sub> = ${_0x4e88d['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](813948 ^ 813950)} V &nbsp; | &nbsp; ` + `V<sub>L</sub> = ${_0xd10e1c['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](894864 ^ 894866)} V &nbsp; | &nbsp; ` + `V<sub>C</sub> = ${_0xe9a['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](950130 ^ 950128)} V &nbsp; | &nbsp; ` + `φ = ${_0x6c94bd['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](826452 ^ 826453)}°`;
+}
+var _0x4_0x9ee = (819381 ^ 819377) + (762774 ^ 762771);
+const render = () => {
+  console['\u006C\u006F\u0067']('camera x', camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']);
+  console['\u006C\u006F\u0067']('camera y', camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']);
+  console['\u006C\u006F\u0067']('camera z', camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']);
+  const R = parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);
+  const C = parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("capSlider")['\u0076\u0061\u006C\u0075\u0065']) * 1e-6;
+  const L = parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0069\u006E\u0064\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);
+  var _0x15e = (819521 ^ 819526) + (885716 ^ 885717);
+  const f = parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("freqSlider")['\u0076\u0061\u006C\u0075\u0065']);
+  _0x15e = 967299 ^ 967299;
+  var _0x38cc5f = (256704 ^ 256704) + (827763 ^ 827761);
+  const V = parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("voltageSlider")['\u0076\u0061\u006C\u0075\u0065']);
+  _0x38cc5f = (602364 ^ 602363) + (321694 ^ 321686);
+  const XC = (378121 ^ 378120) / ((319503 ^ 319501) * Math['\u0050\u0049'] * f * C);
+  var _0x231c = (912071 ^ 912067) + (872922 ^ 872925);
+  const XL = (238745 ^ 238747) * Math['\u0050\u0049'] * f * L;
+  _0x231c = (493317 ^ 493325) + (628969 ^ 628975);
+  var _0x5cfbd = (226669 ^ 226671) + (165673 ^ 165674);
+  const Z = Math['\u0073\u0071\u0072\u0074'](R * R + Math['\u0070\u006F\u0077'](XL - XC, 371655 ^ 371653));
+  _0x5cfbd = (576273 ^ 576275) + (173333 ^ 173340);
+  var _0xfe_0xd35 = (663091 ^ 663091) + (616823 ^ 616817);
+  const I = V / Z;
+  _0xfe_0xd35 = (293637 ^ 293633) + (136934 ^ 136932);
+  showImpedanceTriangle(R, XL, XC, Z);
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  requestAnimationFrame(render);
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+};
+_0x4_0x9ee = (745290 ^ 745290) + (635658 ^ 635651);
+window['\u006F\u006E\u006C\u006F\u0061\u0064'] = function () {
+  initScene();
+};
+		
+</script>
+  
+</head>
+  
+<body>
+<div id="info" style="text-align: left"> 
+	<h1 style="text-align: center">The Impedance Triangle </h1>	
+
+	<div class="control-panel">
+	
+		<div class="control-group">	
+		    Frequency (Hz):<br>
+			  <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+			    <input type="range" id="freqSlider" min="1" max="60" step ="0.5" value="10">
+			    <span id="freqValue">10</span> Hz
+			  </div>
+		</div>	
+		
+		<div class="control-group">
+		  Resistor (Ω):
+		  <div class="slider-row" style="display: flex; align-items: center;">
+		    <input type="range" id="resSlider" min="20" max="300" step="1" value="150" style="flex: 1; margin-right: 8px;">
+		    <input type="text" id="resValue" value="150" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+		  </div>
+		  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+		    <span>20</span>
+		    <span>300</span>
+		  </div>
+		</div>
+		    		
+		  <div class="control-group">
+		    Capacitor (µF):
+		    <div class="slider-row">
+		      <input type="range" id="capSlider" min="100" max="500" step="10" value="300">
+		      <input type="text" id="capValue" value="300" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>100</span><span>500</span>
+		    </div>
+		  </div>
+		    
+		  <div class="control-group">
+		    Inductor (H):
+		    <div class="slider-row">
+		      <input type="range" id="indSlider" min="0.1" max="2" step="0.1" value="1.5">
+		      <input type="text" id="indValue" value="1.5" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>0.1</span>
+		      <span>2</span>
+		    </div>
+		  </div>
+		    	     
+		  <div class="control-group">
+		    Voltage Amplitude (V):
+		    <div class="slider-row">
+		      <input type="range" id="voltageSlider" min="0.4" max="5" step="0.2" value="3">
+		      <input type="text" id="voltageValue" value="3" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>0</span>
+		      <span>5</span>
+		    </div>
+		  </div>	
+		
+		 <button class="btn btn-danger" id="start">Show Graph</button><br>
+		
+		 <button class="btn btn-success" id="reset">Reset</button>
+		 	
+	</div>
+		      
+</div>           
+<div id="graphPanel">
+    <h4>Series RLC Voltages vs. Time</h4>
+    <canvas id="voltageGraph"></canvas>
+    <div id="graphReadout"></div>
+</div>
+
+<div id="viewport"></div>
+</body>
+</html>

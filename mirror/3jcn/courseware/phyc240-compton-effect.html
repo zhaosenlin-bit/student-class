@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>乐启享 · 物理实验</title>
+
+  <link rel="icon" href="/brand/favicon.ico">
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <meta charset="utf-8">
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-compton-effect/_ext/vendor/css/main3.css">
+  <link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-compton-effect/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+  <style>
+    body{ margin:0; overflow:hidden; color:black; font-family: Arial, sans-serif; }
+/* LEFT control box (already) */
+#info{
+  position:absolute;
+  top:12px;
+  left:12px;
+  z-index:10;
+  background: transparent;   /* let inner box show */
+  padding:0;
+}
+
+/* Keep your .control-panel as-is, but make it consistent */
+.control-panel{
+  background: rgba(255,255,255,0.65);
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 12px 14px;
+  width: 360px;              /* pick a width you like */
+  max-width: 44vw;
+  font-family: Arial, sans-serif;
+}
+
+/* RIGHT physics panel — symmetric with the left */
+#panel{
+  position:absolute;
+  top:12px;
+  right:12px;
+  z-index:10;
+
+  background: rgba(255,255,255,0.65);
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 12px 14px;
+
+  width: 360px;              /* same as left */
+  max-width: 44vw;
+
+  color:#000;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Small screens: stack so they don't overlap */
+@media (max-width: 900px){
+  #panel{
+    top:auto;
+    bottom:12px;
+    right:12px;
+    left:12px;
+    width:auto;
+    max-width:none;
+  }
+  #info{
+    left:12px;
+    right:12px;
+  }
+  .control-panel{
+    width:auto;
+    max-width:none;
+  }
+}
+
+  </style>
+
+<script type="module">
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { FontLoader } from '../jsm/FontLoader.js';
+import { TextGeometry } from '../jsm/TextGeometry.js';
+
+/**  Thomas Nguyen — 3JCN
+ *   Compton Effect (upgraded with real physics panel) Date: Feb 14, 2026
+ */
+
+let controls, renderer, scene, light, camera;
+let electron, detector, xraySine1, xraySine2, xrayLine, electronLine;
+let xCurve, eCurve;
+let xrayParticle;
+const VISUAL_K_SCALE = 0.10; // tweak for nice looking wave
+
+const radius = 22;
+const detectorDistance = -26;
+let xraySpeed = 0.2;
+let frequency = 7;        // base wave frequency (visual)
+let longFrequency = 4;    // will update from λ' / λ0
+let deflecXrayAngle = 0;      // θ in radians (detector angle)
+let deflecElectronAngle = 0;  // φ in radians (recoil angle)
+let xrayDeflected = false;
+const THETA_EPS = 1e-6;  // "zero angle" tolerance
+
+const textureloader = new THREE.TextureLoader();
+const fontloader = new FontLoader();
+let textArray = [];
+
+const C = 299792458;                 // m/s
+const H = 6.62607015e-34;            // J*s
+const E_CHARGE = 1.602176634e-19;    // C
+const ME = 9.1093837015e-31;         // kg
+const LAMBDA_C = H/(ME*C);           // Compton wavelength (m) ~ 2.426e-12
+
+// User controls
+let lambda0_pm = 71.0; // typical X-ray ~ 0.071 nm = 71 pm (good default)
+
+// ------------------------- INIT -------------------------
+initScene();
+requestAnimationFrame(render);
+
+function initScene(){renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u0073\u0068\u0061\u0064\u006F\u0077\u004D\u0061\u0070']['\u0065\u006E\u0061\u0062\u006C\u0065\u0064']=!![];document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("tropweiv".split("").reverse().join(""))['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0x1DCBEA);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](665866^665897,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],729595^729594,181741^181765);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](157606^157594,224639^224589,994327^994347);camera['\u006C\u006F\u006F\u006B\u0041\u0074'](scene['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);scene['\u0061\u0064\u0064'](camera);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);light=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xFFFFFF,218159^218158);light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](613549^613543,440797^440821,495028^495008);light['\u0063\u0061\u0073\u0074\u0053\u0068\u0061\u0064\u006F\u0077']=!![];scene['\u0061\u0064\u0064'](light);addLine(987086^987086,437308^437308,654064^654054,803402^803402,157308^157308,-(609382^609392));addLine(576373^576373,718554^718540,275510^275510,818508^818508,-(553118^553096),518476^518476);addVacuumSphere();addXrayParticle();addElectron(278261^278261,873320^873320,634596^634596);addXraySource();addDetector();addTitle(-(548834^548854),888777^888797,-(865264^865279),"TCEFFE NOTPMOC".split("").reverse().join(""),253178^253177,843099^843099);addTitle(883201^883201,557275^557273,273665^273695,"yar-X".split("").reverse().join(""),136517^136519,Math['\u0050\u0049']/(394025^394027));addText(120201^120201,399707^399707,-(844855^844822),"\u0064\u0065\u0074\u0065\u0063\u0074\u006F\u0072",167624^167626);addText(111916^111916,-(215858^215857),517314^517319,"nortcele".split("").reverse().join(""),693645^693647);addVerticalGrid();addTitle(151736^151728,-(275044^275052),725362^725368,"\u0074\u0068\u0069\u006E\u0020\u006D\u0065\u0074\u0061\u006C\u0020\u0070\u006C\u0061\u0074\u0065",708490^708488,Math['\u0050\u0049']/(463902^463900));xrayLine=addLine(101314^101314,602939^602939,665559^665559,639210^639210,detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'],detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']);electronLine=addLine(863368^863368,764058^764058,799472^799472,185877^185877,electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'],electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006F\u006E\u006F\u0066\u0066")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",beamFunction);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redilSelgna".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",updateDetectorPosition);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006C\u0061\u006D\u0062\u0064\u0061\u0053\u006C\u0069\u0064\u0065\u0072")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),updateLambda0);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0065\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",()=>location['\u0072\u0065\u006C\u006F\u0061\u0064']());updateDetectorPosition();updatePanel();window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065",onResize);}function buildWavePacketLine({'\u007A\u004C\u0065\u006E':zLen=677996^677995,"pointsCount":pointsCount=226149^225889,'\u0061\u006D\u0070':amp=0.7,'\u006B\u0056\u0069\u0073':kVis=811270^811269,"sigma":sigma=0.28,'\u0070\u0068\u0061\u0073\u0065':phase=885027^885027,'\u0063\u006F\u006C\u006F\u0072':color=0xffffff}={},_0x92dad){const _0x9d_0xe16=[];_0x92dad=259894^259903;for(let i=653421^653421;i<=pointsCount;i++){var _0xb16a=(215597^215597)+(818207^818198);const u=i/pointsCount;_0xb16a=(106952^106955)+(723746^723746);var _0xe66afc=(194232^194238)+(492428^492430);const t=u*(403387^403385)-(506897^506896);_0xe66afc=(307828^307836)+(361146^361144);const _0xcf5d=Math['\u0065\u0078\u0070'](-(t*t)/((891274^891272)*sigma*sigma));var _0x391f0c=(877176^877180)+(769687^769687);const z=u*zLen;_0x391f0c=873643^873641;const _0xa_0x9b5=Math['\u0063\u006F\u0073'](kVis*z+phase);var _0xf48ba=(266276^266277)+(515817^515816);const y=amp*_0xcf5d*_0xa_0x9b5;_0xf48ba=971092^971089;_0x9d_0xe16['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](219272^219272,y,z));}var _0xa68aad=(214647^214641)+(258289^258290);const _0x408e=new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']()['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0050\u006F\u0069\u006E\u0074\u0073'](_0x9d_0xe16);_0xa68aad=(463021^463021)+(428613^428610);const _0x77df=new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':color});return new THREE['\u004C\u0069\u006E\u0065'](_0x408e,_0x77df);}function kVisFromLambda0(){return Math['\u006D\u0061\u0078'](0.5,visualK_fromLambdaPm(lambda0_pm)*0.9);}function visualK_fromLambdaPm(lambdaPm){var _0xfa_0x6fb=(893331^893329)+(370522^370526);const _0x1aefag=Math['\u006D\u0061\u0078'](1e-15,lambdaPm*1e-12);_0xfa_0x6fb=(117411^117415)+(531487^531481);const k=(666917^666919)*Math['\u0050\u0049']/_0x1aefag;return k*VISUAL_K_SCALE;}function onResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function computeCompton(thetaRad,_0x3g262a,_0xce18cd,_0xdc_0x440,_0x9deff,_0x24f9df){var _0x7e3d=(274693^274692)+(864298^864300);const _0xde72gc=lambda0_pm*1e-12;_0x7e3d=312162^312161;const _0x56796a=LAMBDA_C*((380497^380496)-Math['\u0063\u006F\u0073'](thetaRad));const _0xde_0x3b7=_0xde72gc+_0x56796a;_0x3g262a=(158026^158018)+(115026^115025);const _0x86e=H*C/_0xde72gc;_0xce18cd=(493466^493470)+(548636^548633);const _0x6aa=H*C/_0xde_0x3b7;const _0x0debe=Math['\u006D\u0061\u0078'](463913^463913,_0x86e-_0x6aa);_0xdc_0x440=(962925^962921)+(689232^689237);var _0x6a8f7e=(343146^343147)+(807258^807262);const _0x967be=_0x86e/((976212^976572)*E_CHARGE);_0x6a8f7e=(725188^725191)+(179298^179301);var _0xb11bc=(116427^116424)+(810721^810728);const _0x19c20e=_0x6aa/((883790^884646)*E_CHARGE);_0xb11bc=401611^401612;var _0x6ef7a=(191893^191892)+(660316^660317);const _0xdadf=_0x0debe/((657234^656570)*E_CHARGE);_0x6ef7a=(614514^614514)+(474395^474396);const _0x6813ec=_0x86e/C;_0x9deff=525229^525221;const _0x5_0x384=_0x6aa/C;const _0x466fe=Math['\u0073\u0071\u0072\u0074'](Math['\u006D\u0061\u0078'](637871^637871,_0x6813ec*_0x6813ec+_0x5_0x384*_0x5_0x384-(792350^792348)*_0x6813ec*_0x5_0x384*Math['\u0063\u006F\u0073'](thetaRad)));_0x24f9df=450663^450658;const _0x4d_0x46a=_0x5_0x384*Math['\u0073\u0069\u006E'](thetaRad);const _0x8643fg=_0x6813ec-_0x5_0x384*Math['\u0063\u006F\u0073'](thetaRad);const _0xe3b=Math['\u0061\u0074\u0061\u006E\u0032'](_0x4d_0x46a,_0x8643fg);return{"lambda0":_0xde72gc,'\u006C\u0061\u006D\u0062\u0064\u0061\u0050':_0xde_0x3b7,'\u0064\u004C\u0061\u006D\u0062\u0064\u0061':_0x56796a,'\u0045\u0030\u005F\u006B\u0065\u0056':_0x967be,"Ep_keV":_0x19c20e,"Ke_keV":_0xdadf,"p0":_0x6813ec,'\u0070\u0070':_0x5_0x384,"pe":_0x466fe,'\u0070\u0068\u0069':_0xe3b};}function updateLambda0(){lambda0_pm=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redilSadbmal".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006C\u0061\u006D\u0062\u0064\u0061\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=lambda0_pm['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](295071^295070);updateDetectorPosition();if(xraySine1){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xraySine1);xraySine1['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1=null;}}function updateDetectorPosition(_0x38e7dc,_0x2c7acb){cleanText();if(xCurve){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xCurve);xCurve['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xCurve['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xCurve=null;}if(xrayLine){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xrayLine);xrayLine['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xrayLine['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xrayLine=null;}const _0x4fcdgg=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redilSelgna".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']);_0x38e7dc=325320^325313;deflecXrayAngle=_0x4fcdgg*Math['\u0050\u0049']/(489339^489423);const _0x81b66a=-detectorDistance*Math['\u0073\u0069\u006E'](deflecXrayAngle);const _0x31cda=detectorDistance*Math['\u0063\u006F\u0073'](deflecXrayAngle);_0x2c7acb='\u0062\u0066\u0069\u0062\u0071\u006B';detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'],_0x81b66a,_0x31cda);detector['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=Math['\u0050\u0049']/(269615^269613);detector['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A']=deflecXrayAngle;xCurve=drawCurve(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](964213^964213,926714^926714,490786^490786),839868^839865,_0x4fcdgg,"der".split("").reverse().join(""));xrayLine=addLine(567345^567345,817661^817661,308862^308862,776623^776623,detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'],detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']);const _0xe930df=computeCompton(deflecXrayAngle);deflecElectronAngle=_0xe930df['\u0070\u0068\u0069'];const _0xd556b=visualK_fromLambdaPm(lambda0_pm);longFrequency=_0xd556b*(_0xe930df['\u006C\u0061\u006D\u0062\u0064\u0061\u0030']/_0xe930df['\u006C\u0061\u006D\u0062\u0064\u0061\u0050']);updatePanel();}function beamFunction(){emitXraySineWave();document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("ffono".split("").reverse().join(""))['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064']=!![];}function emitXraySineWave(){if(xraySine1){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xraySine1);xraySine1['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1=null;}const _0x360d=buildWavePacketLine({'\u007A\u004C\u0065\u006E':8.0,"pointsCount":300,'\u0061\u006D\u0070':0.75,'\u006B\u0056\u0069\u0073':kVisFromLambda0(),"sigma":0.30,'\u0070\u0068\u0061\u0073\u0065':0.0,'\u0063\u006F\u006C\u006F\u0072':0xaa00ff});xraySine1=_0x360d;xraySine1['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](549362^549362,509852^509852,692731^692719);scene['\u0061\u0064\u0064'](xraySine1);moveXray();}function moveXray(){var _0x27881b=(111240^111247)+(131289^131290);const _0x2256e=Math['\u0061\u0062\u0073'](deflecXrayAngle)<THETA_EPS;_0x27881b="bjedjg".split("").reverse().join("");if(xraySine1['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']>=(102165^102165)){xraySine1['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']-=xraySpeed;requestAnimationFrame(moveXray);return;}if(_0x2256e){if(xraySine1['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']>detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']){xraySine1['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']-=xraySpeed;requestAnimationFrame(moveXray);}else{scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xraySine1);xraySine1['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1=null;}}else{scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xraySine1);xraySine1['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine1=null;deflectXrayAndElectron();}}function deflectXrayAndElectron(){xrayDeflected=!![];if(xraySine2)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xraySine2);const _0x3730ad=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](660545^660545,detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']-xrayParticle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'],detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']-xrayParticle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'])['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();moveParticleTowardsDetector(_0x3730ad);moveElectron();}function moveParticleTowardsDetector(dir){if(xraySine2){xrayParticle['\u0072\u0065\u006D\u006F\u0076\u0065'](xraySine2);xraySine2['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine2['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine2=null;}const _0x67fge=buildWavePacketLine({'\u007A\u004C\u0065\u006E':8.0,'\u0070\u006F\u0069\u006E\u0074\u0073\u0043\u006F\u0075\u006E\u0074':300,'\u0061\u006D\u0070':0.75,"kVis":Math['\u006D\u0061\u0078'](0.5,longFrequency),'\u0073\u0069\u0067\u006D\u0061':0.30,'\u0070\u0068\u0061\u0073\u0065':0.0,'\u0063\u006F\u006C\u006F\u0072':0xff0000});xraySine2=_0x67fge;xrayParticle['\u0061\u0064\u0064'](xraySine2);xraySine2['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](398552^398552,869223^869223,384658^384658);xraySine2['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=deflecXrayAngle;xrayParticle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0061\u0064\u0064'](dir['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](xraySpeed));const _0x384ege=xrayParticle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0064\u0069\u0073\u0074\u0061\u006E\u0063\u0065\u0054\u006F'](detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']);var _0xcca=(320415^320410)+(955781^955788);const r=xrayParticle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u006C\u0065\u006E\u0067\u0074\u0068']();_0xcca=(785915^785907)+(344049^344051);if(_0x384ege>(558871^558870)&&r<radius){requestAnimationFrame(()=>moveParticleTowardsDetector(dir));}else{if(xraySine2){xrayParticle['\u0072\u0065\u006D\u006F\u0076\u0065'](xraySine2);xraySine2['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine2['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xraySine2=null;}scene['\u0072\u0065\u006D\u006F\u0076\u0065'](xrayParticle);xrayParticle['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xrayParticle['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();xrayParticle=null;}}function moveElectron(_0x_0xg64,_0x59e,_0x580de){if(eCurve){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](eCurve);eCurve['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();eCurve['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();eCurve=null;}if(Math['\u0061\u0062\u0073'](deflecXrayAngle)<1e-6){return;}_0x59e=0.2;_0x_0xg64='\u006A\u0065\u0061\u0071\u006E\u0066';var _0xfca=(405232^405233)+(856244^856252);let _0x3b_0x7b8=-radius*Math['\u0063\u006F\u0073'](deflecElectronAngle);_0xfca=(849337^849342)+(543224^543228);let _0xee43ee=radius*Math['\u0073\u0069\u006E'](deflecElectronAngle);_0x580de=260839^260837;var _0x34gg=(832068^832070)+(129572^129574);let r=Math['\u0073\u0071\u0072\u0074'](electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']**(127534^127532)+electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']**(293030^293028)+electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']**(243919^243917));_0x34gg=856605^856600;if(r<radius){electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']-=_0x59e*Math['\u0063\u006F\u0073'](deflecElectronAngle);electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079']-=_0x59e*Math['\u0073\u0069\u006E'](deflecElectronAngle);if(electronLine)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](electronLine);electronLine=addLine(308024^308024,200113^200113,239625^239625,703056^703056,electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'],electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A']);requestAnimationFrame(moveElectron);}else{scene['\u0072\u0065\u006D\u006F\u0076\u0065'](electron);electronLine=addLine(832571^832571,139144^139144,531286^531286,744937^744937,-_0xee43ee,_0x3b_0x7b8);eCurve=drawCurve(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](509570^509570,185001^185001,483045^483045),546659^546663,-deflecElectronAngle*(139084^139256)/Math['\u0050\u0049'],"\u0062\u006C\u0061\u0063\u006B");}}function updatePanel(_0x89f1f){const _0x74b3be=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("lenap".split("").reverse().join(""));const _0xcb0f5b=deflecXrayAngle*(236172^236088)/Math['\u0050\u0049'];const _0xe_0xfa0=computeCompton(deflecXrayAngle);const _0x71748a=_0xe_0xfa0['\u006C\u0061\u006D\u0062\u0064\u0061\u0030']*1e12;const _0x8cc73b=_0xe_0xfa0['\u006C\u0061\u006D\u0062\u0064\u0061\u0050']*1e12;const _0x261eaf=_0xe_0xfa0['\u0064\u004C\u0061\u006D\u0062\u0064\u0061']*1e12;_0x89f1f='\u006D\u006A\u0063\u0062\u0064\u006C';_0x74b3be['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C']=`
+    <div><b>Compton Effect (X-ray photon scattering)</b></div>
+    <div class="small" style="opacity:0.9;">Detector angle θ = <b>${_0xcb0f5b['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](422938^422939)}°</b></div>
+    <hr style="opacity:0.35;">
+    <div><b>Compton shift:</b>
+	  Δλ = λ<sub>C</sub>(1 − cosθ),
+	  &nbsp; λ<sub>C</sub> = 2.43 pm
+	</div>
+
+    <div style="margin-top:6px;">
+      <b>λ₀</b> = ${_0x71748a['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](181826^181824)} pm &nbsp; | &nbsp;
+      <b>λ′</b> = ${_0x8cc73b['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](904085^904087)} pm &nbsp; | &nbsp;
+      <b>Δλ</b> = ${_0x261eaf['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](983816^983818)} pm
+    </div>
+    <div style="margin-top:6px;">
+      <b>E₀</b> = ${_0xe_0xfa0['\u0045\u0030\u005F\u006B\u0065\u0056']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](197295^197293)} keV &nbsp; | &nbsp;
+      <b>E′</b> = ${_0xe_0xfa0['\u0045\u0070\u005F\u006B\u0065\u0056']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](583650^583648)} keV &nbsp; | &nbsp;
+      <b>Kₑ</b> = ${_0xe_0xfa0['\u004B\u0065\u005F\u006B\u0065\u0056']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](995928^995930)} keV
+    </div>
+    <div style="margin-top:6px;">
+      <b>Recoil angle (electron)</b> φ ≈ ${(_0xe_0xfa0['\u0070\u0068\u0069']*(926048^926164)/Math['\u0050\u0049'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](867336^867337)}°
+      <span class="small" style="opacity:0.85;">(from momentum conservation)</span>
+    </div>
+  `;}function addVacuumSphere(_0x96g3ga){const _0x2g97fa=new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](radius,261520^261552,304782^304814);_0x96g3ga=211774^211769;var _0xf2d52e=(655948^655940)+(811096^811089);const _0xe2_0x3af=new THREE['\u004D\u0065\u0073\u0068'](_0x2g97fa,new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"white","opacity":0.4,"transparent":!![]}));_0xf2d52e=733392^733392;scene['\u0061\u0064\u0064'](_0xe2_0x3af);}function addXraySource(){var _0x7d97b=(758742^758751)+(799484^799486);const _0xcc_0xa16=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](873168^873169,840199^840198,819973^819981,425630^425662);_0x7d97b="hdfcfn".split("").reverse().join("");const _0x2ee=new THREE['\u004D\u0065\u0073\u0068'](_0xcc_0xa16,new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0062\u006C\u0061\u0063\u006B"}));_0x2ee['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](924176^924176,554128^554128,297565^297540);_0x2ee['\u0072\u006F\u0074\u0061\u0074\u0065\u0058'](Math['\u0050\u0049']/(570415^570413));scene['\u0061\u0064\u0064'](_0x2ee);}function addDetector(){const _0xc7117a=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](156361^156360,505541^505540,143015^143023,112928^112896);detector=new THREE['\u004D\u0065\u0073\u0068'](_0xc7117a,new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0062\u006C\u0075\u0065"}));detector['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](717116^717116,706748^706748,detectorDistance);detector['\u0072\u006F\u0074\u0061\u0074\u0065\u0058'](Math['\u0050\u0049']/(750191^750189));scene['\u0061\u0064\u0064'](detector);}function addXrayParticle(){var _0xba24f=(184389^184389)+(302324^302327);const _0xb0565a=new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.5,893397^893381,452454^452470);_0xba24f='\u0068\u006F\u0067\u0069\u0062\u0070';xrayParticle=new THREE['\u004D\u0065\u0073\u0068'](_0xb0565a,new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"white","opacity":0.2,'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![]}));xrayParticle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](578247^578247,111768^111768,521968^521968);scene['\u0061\u0064\u0064'](xrayParticle);}function addElectron(x,y,z){const _0xd4f7b=new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.5,919305^919337,919124^919116);electron=new THREE['\u004D\u0065\u0073\u0068'](_0xd4f7b,new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"red"}));electron['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](electron);return electron;}function addVerticalGrid(){var _0x02fd=(866207^866201)+(450664^450670);const _0xdbd4c=new THREE['\u0047\u0072\u0069\u0064\u0048\u0065\u006C\u0070\u0065\u0072'](589815^589799,260176^260160);_0x02fd=(594076^594075)+(240556^240556);_0xdbd4c['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078']=Math['\u0050\u0049']/(784997^784999);scene['\u0061\u0064\u0064'](_0xdbd4c);}function addTitle(x,y,z,t,s,alpha){fontloader['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0064\u0072\u006F\u0069\u0064\u002F\u0064\u0072\u006F\u0069\u0064\u005F\u0073\u0065\u0072\u0069\u0066\u005F\u0062\u006F\u006C\u0064\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E",function(tex,_0x80gg){const _0x5945f=new TextGeometry(t,{"size":s,'\u0068\u0065\u0069\u0067\u0068\u0074':0.2,'\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073':6,'\u0066\u006F\u006E\u0074':tex});var _0x9223e=(232159^232150)+(674216^674218);const _0x10fe8e=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"\u0072\u0065\u0064"});_0x9223e=(230354^230353)+(731252^731249);const _0x27eb=new THREE['\u004D\u0065\u0073\u0068'](_0x5945f,_0x10fe8e);_0x80gg="loecap".split("").reverse().join("");_0x27eb['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=alpha;_0x27eb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](_0x27eb);});}function addText(x,y,z,t,s){fontloader['\u006C\u006F\u0061\u0064']("nosj.ecafepyt.dlob_fires_diord/diord/stnof/selpmaxe/gro.sjeerht//:sptth".split("").reverse().join(""),function(tex,_0x25712c){const _0xa6caca=new TextGeometry(t,{'\u0073\u0069\u007A\u0065':s,"height":0.2,"curveSegments":6,'\u0066\u006F\u006E\u0074':tex});const _0xc2bff=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":"black"});_0x25712c=(268751^268748)+(589933^589925);const _0x1a7dgb=new THREE['\u004D\u0065\u0073\u0068'](_0xa6caca,_0xc2bff);_0x1a7dgb['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0079']=Math['\u0050\u0049']/(587935^587933);_0x1a7dgb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);textArray['\u0070\u0075\u0073\u0068'](_0x1a7dgb);scene['\u0061\u0064\u0064'](_0x1a7dgb);});}function cleanText(){for(let i=227652^227652;i<textArray['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){if(!textArray[i])continue;scene['\u0072\u0065\u006D\u006F\u0076\u0065'](textArray[i]);textArray[i]['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();textArray[i]['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();textArray[i]=null;}textArray=[];}function drawCurve(center,radius,thetaDeg,color,_0xffa){const _0x9_0xe63=[];_0xffa=715936^715956;var _0xcf45b=(747853^747855)+(452584^452586);const _0xc900de=Math['\u0050\u0049'];_0xcf45b="gnhkfh".split("").reverse().join("");var _0x504ad=(159017^159023)+(739318^739312);const _0x3136b=_0xc900de+Math['\u0050\u0049']/(972119^972259)*thetaDeg;_0x504ad="afeiml".split("").reverse().join("");for(let i=591548^591548;i<=_0xffa;i++){let _0x2_0xf5d;const _0xafdb8d=_0xc900de+i/_0xffa*(_0xc900de-_0x3136b);_0x2_0xf5d=(239415^239423)+(932106^932105);const z=radius*Math['\u0063\u006F\u0073'](_0xafdb8d);var _0x3647c=(339735^339729)+(555061^555062);const y=radius*Math['\u0073\u0069\u006E'](_0xafdb8d);_0x3647c=(382745^382737)+(840532^840531);_0x9_0xe63['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](163331^163331,y,z));}const _0xa3964c=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x9_0xe63);var _0x47162f=(410211^410214)+(970551^970551);const _0xf64b=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xa3964c,_0xffa,0.2,228519^228516,false);_0x47162f=(505989^505996)+(381218^381226);const _0x2b_0xed2=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':color});const _0xa39c8g=new THREE['\u004D\u0065\u0073\u0068'](_0xf64b,_0x2b_0xed2);scene['\u0061\u0064\u0064'](_0xa39c8g);return _0xa39c8g;}function addLine(x1,y1,z1,x2,y2,z2){var _0xc942db=(881666^881671)+(339567^339558);const _0x8d_0x589=[new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x1,y1,z1),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x2,y2,z2)];_0xc942db=461830^461839;const _0xgc6ce=new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"blue"});var _0x3aec=(545545^545544)+(370521^370524);const _0x9c44ea=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0x8d_0x589);_0x3aec=(929093^929093)+(516231^516239);const _0x8b7e=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x9c44ea,297901^297929,0.05,429172^429136,false);const _0x34311b=new THREE['\u004D\u0065\u0073\u0068'](_0x8b7e,_0xgc6ce);scene['\u0061\u0064\u0064'](_0x34311b);return _0x34311b;}function render(){controls['\u0075\u0070\u0064\u0061\u0074\u0065']();requestAnimationFrame(render);renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}
+</script>
+</head>
+
+<body>
+<div id="info">
+	<div class="control-panel">
+	<div class="control-group">    
+    <div class="rowFlex">
+     <button class="btn btn-warning"
+	onclick="alert('Compton Effect:\n\nAn X-ray photon scatters from an electron.\nThe scattered photon has a longer wavelength (lower energy).\n\nCompton shift formula:\nΔλ = λc (1 − cosθ)\n\nλc = h / (mₑ c) ≈ 2.43 pm\n\nThis confirms the particle nature of light and conserves both energy and momentum.')">
+	    What is Compton Effect?
+	</button><br>
+
+      <button class="btn btn-success" id="onoff">X-ray On</button>
+      <button class="btn btn-danger" id="reset">Reset</button><br><br>
+    </div>
+
+    <div class="rowFlex small">
+      <div><b>Detector angle θ</b></div>
+      <input type="range" min="0" max="180" value="0" step="1" id="angleSlider">
+      <div><span id="thetaVal"></span></div>
+    </div>
+
+    <div class="rowFlex small">
+      <div><b>Initial λ₀</b> (pm)</div>
+      <input type="range" min="22" max="190" value="71" step="1" id="lambdaSlider">
+      <div>λ₀ = <span id="lambdaVal">71.0</span> pm</div>
+    </div>
+  </div>
+  </div>
+</div>
+  
+  <div id="panel"></div>
+  <div id="viewport"></div>
+
+  <script>
+    // small UI helper to show theta number (non-module)
+    document.addEventListener('input', (e) => {
+      if (e.target && e.target.id === 'angleSlider') {
+        document.getElementById('thetaVal').textContent = e.target.value + '°';
+      }
+    });
+    document.getElementById('thetaVal').textContent = document.getElementById('angleSlider').value + '°';
+  </script>
+</body>
+</html>

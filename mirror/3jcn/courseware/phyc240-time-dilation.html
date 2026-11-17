@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<!-- Google tag (gtag.js) -->
+
+
+
+<!-- End Google Tag Manager -->
+	
+	  <title>乐启享 · 物理实验</title>
+		<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc240-time-dilation.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Organization",
+		    "name": "Example Organization"
+		  }
+		}
+		</script>
+  		<link rel="icon" href="/brand/favicon.ico">
+		<meta name="twitter:card" content="summary_large_image">
+		<meta name="twitter:title" content="Best Physics Simulations for Education">
+		<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+		<meta name="twitter:image" content="/api/program-assets/3jcn-phyc240-time-dilation/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:title" content="Best Physics Simulations for Education">
+		<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+		<meta property="og:image" content="/api/program-assets/3jcn-phyc240-time-dilation/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:url" content="/courseware/phyc240-time-dilation">
+		<meta name="robots" content="index, follow">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<meta charset="utf-8">
+		<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-time-dilation/_ext/vendor/css/main3.css">
+		<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-time-dilation/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<script src="/api/program-assets/3jcn-phyc240-time-dilation/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+		<script src="/api/program-assets/3jcn-phyc240-time-dilation/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+		<script type="text/javascript" src="/api/program-assets/3jcn-phyc240-time-dilation/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+#viewport {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+}
+
+#info {
+    position: absolute;
+    top: 12px;
+    left: 15px;
+    z-index: 10;
+    width: 315px;
+    max-width: calc(100vw - 30px);
+
+    /* Align all contents to the left */
+    text-align: left !important;
+}
+
+#info > div {
+    text-align: left;
+}
+
+#info button {
+    margin-bottom: 8px;
+}
+
+#speedSlider {
+    width: 100%;
+}
+
+#timeDilationInfo {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    width: 310px;
+    max-width: calc(100vw - 30px);
+    padding: 16px;
+    background: rgba(0,0,0,.82);
+    border: 1px solid #555;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+#liveTimes {
+    margin-top: 10px;
+    color: #a9e5ff;
+}
+
+#rulerCanvas {
+    position: absolute;
+    top: 56%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    width: min(90vw,1000px);
+    height: auto;
+    pointer-events: none;
+}
+
+@media(max-width:750px) {
+    #timeDilationInfo {
+        top: auto;
+        bottom: 8px;
+        right: 8px;
+        padding: 9px;
+        font-size: 12px;
+        width: 245px;
+    }
+
+    #info {
+        width: 225px;
+        font-size: 12px;
+    }
+}
+</style>
+
+<!-- Original page's analytics tags can remain here if needed. -->
+
+<script type="module">
+
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { FontLoader } from '../jsm/FontLoader.js';
+import { TextGeometry } from '../jsm/TextGeometry.js';
+
+// 乐启享物理仿真 — Thomas Nguyen
+
+const c = 299792458;
+
+// One light-second in the ground frame
+const trackDistance = c;
+
+// Scene units representing one light-second
+const sceneWidth = 80;
+const START_X = -sceneWidth / 2;
+
+let speed = 0.02;
+
+let scene, camera, renderer, controls;
+let movingObj, stationaryObj;
+let blueNeedle, redNeedle;
+
+let isRunning = false;
+let isPaused = false;
+let lastFrameTime = null;
+
+let groundElapsed = 0;
+let blueElapsed = 0;
+let distanceTravelled = 0;
+
+const textureloader = new THREE.TextureLoader();
+const fontloader = new FontLoader();
+
+// --------------------------------------------
+// CREATE OBJECT
+// --------------------------------------------
+
+function createObject(x, y, z, color) {
+  var _0xb9f52f = (665781 ^ 665779) + (987363 ^ 987370);
+  const _0x164eb = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](239186 ^ 239185, 398155 ^ 398187, 758075 ^ 758043), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": color,
+    '\u0073\u0068\u0069\u006E\u0069\u006E\u0065\u0073\u0073': 80
+  }));
+  _0xb9f52f = 106101 ^ 106103;
+  _0x164eb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  scene['\u0061\u0064\u0064'](_0x164eb);
+  return _0x164eb;
+}
+function addClock() {
+  const _0xdg_0xg15 = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](277159 ^ 277155, 282485 ^ 282481, 988722 ^ 988723, 108680 ^ 108728), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u006D\u0061\u0070': textureloader['\u006C\u006F\u0061\u0064']("\u0074\u0065\u0078\u0074\u0075\u0072\u0065\u0073\u002F\u0063\u006C\u006F\u0063\u006B\u002E\u0070\u006E\u0067")
+  }));
+  _0xdg_0xg15['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = Math['\u0050\u0049'] / (558426 ^ 558424);
+  return _0xdg_0xg15;
+}
+function addNeedle() {
+  let _0xb7ef;
+  const _0xe3bd0a = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  _0xb7ef = '\u0063\u006A\u0070\u006D\u0064\u0065';
+  const _0x828dae = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xff1111,
+    "depthTest": false
+  });
+  const _0xcaa7d = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.09, .09, 3.2, 760359 ^ 760363), _0x828dae);
+  _0xcaa7d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = 1.6;
+  _0xcaa7d['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072'] = 921377 ^ 921397;
+  _0xe3bd0a['\u0061\u0064\u0064'](_0xcaa7d);
+  var _0xbc171f = (116231 ^ 116238) + (845780 ^ 845782);
+  const _0x24e = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.18, 222194 ^ 222178, 816206 ^ 816222), _0x828dae);
+  _0xbc171f = (385127 ^ 385120) + (547426 ^ 547424);
+  _0x24e['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072'] = 436382 ^ 436363;
+  _0xe3bd0a['\u0061\u0064\u0064'](_0x24e);
+  return _0xe3bd0a;
+}
+function addObjectLabel(parent, x, y, z, label, size, color, font) {
+  const _0x629eee = new THREE['\u004D\u0065\u0073\u0068'](new TextGeometry(label, {
+    '\u0066\u006F\u006E\u0074': font,
+    "size": size,
+    '\u0068\u0065\u0069\u0067\u0068\u0074': .08,
+    '\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073': 5
+  }), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": color,
+    '\u0064\u0065\u0070\u0074\u0068\u0054\u0065\u0073\u0074': false
+  }));
+  _0x629eee['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  _0x629eee['\u0072\u0065\u006E\u0064\u0065\u0072\u004F\u0072\u0064\u0065\u0072'] = 210979 ^ 210988;
+  parent['\u0061\u0064\u0064'](_0x629eee);
+}
+function addTitle(x, y, z, text, size, font) {
+  const _0x4cc68g = new THREE['\u004D\u0065\u0073\u0068'](new TextGeometry(text, {
+    '\u0066\u006F\u006E\u0074': font,
+    "size": size,
+    "height": .15,
+    '\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073': 5
+  }), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xffffff
+  }));
+  _0x4cc68g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x, y, z);
+  scene['\u0061\u0064\u0064'](_0x4cc68g);
+}
+function drawRuler() {
+  var _0xa9fd2c = (390779 ^ 390779) + (367039 ^ 367038);
+  const _0xf3dbed = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']('canvas');
+  _0xa9fd2c = 465505 ^ 465505;
+  _0xf3dbed['\u0069\u0064'] = 'rulerCanvas';
+  _0xf3dbed['\u0077\u0069\u0064\u0074\u0068'] = 994697 ^ 994913;
+  _0xf3dbed['\u0068\u0065\u0069\u0067\u0068\u0074'] = 995701 ^ 995611;
+  document['\u0062\u006F\u0064\u0079']['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](_0xf3dbed);
+  let _0xc16e;
+  const _0x674e = _0xf3dbed['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']('2d');
+  _0xc16e = (632195 ^ 632195) + (125595 ^ 125595);
+  _0x674e['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0066\u0066\u0066";
+  _0x674e['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 612091 ^ 612088;
+  _0x674e['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  _0x674e['\u006D\u006F\u0076\u0065\u0054\u006F'](878871 ^ 878885, 437347 ^ 437323);
+  _0x674e['\u006C\u0069\u006E\u0065\u0054\u006F'](212036 ^ 212978, 532315 ^ 532339);
+  _0x674e['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  for (let _0x71b7e = 950480 ^ 950480; _0x71b7e <= 250000000; _0x71b7e += 50000000) {
+    const x = (243824 ^ 243778) + (666420 ^ 665776) * _0x71b7e / trackDistance;
+    _0x674e['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    _0x674e['\u006D\u006F\u0076\u0065\u0054\u006F'](x, 178795 ^ 178805);
+    _0x674e['\u006C\u0069\u006E\u0065\u0054\u006F'](x, 649458 ^ 649408);
+    _0x674e['\u0073\u0074\u0072\u006F\u006B\u0065']();
+    _0x674e['\u0066\u006F\u006E\u0074'] = "\u0031\u0034\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+    _0x674e['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0066\u0066\u0066";
+    _0x674e['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = 'center';
+    _0x674e['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']((_0x71b7e / (659860 ^ 660092))['\u0074\u006F\u004C\u006F\u0063\u0061\u006C\u0065\u0053\u0074\u0072\u0069\u006E\u0067']() + "\u0020\u006B\u006D", x, 236956 ^ 237016);
+  }
+  _0x674e['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  _0x674e['\u006D\u006F\u0076\u0065\u0054\u006F'](896439 ^ 896513, 926953 ^ 926960);
+  _0x674e['\u006C\u0069\u006E\u0065\u0054\u006F'](383344 ^ 383686, 228179 ^ 228196);
+  _0x674e['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  _0x674e['\u0066\u006F\u006E\u0074'] = "\u0031\u0035\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+  _0x674e['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = '#fff';
+  _0x674e['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = 'center';
+  _0x674e['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']('Travel Distance: 299,792,458 m (one light-second)', 491164 ^ 491368, 997185 ^ 997203);
+}
+function lorentzFactor(beta) {
+  return (686390 ^ 686391) / Math['\u0073\u0071\u0072\u0074']((971642 ^ 971643) - beta * beta);
+}
+function timeDilationFactor(beta) {
+  return Math['\u0073\u0071\u0072\u0074']((810627 ^ 810626) - beta * beta);
+}
+function displayTimeDilation() {
+  const _0xd9cf2f = lorentzFactor(speed);
+  var _0xc318d = (781562 ^ 781564) + (955196 ^ 955197);
+  const _0x2171d = 321845 ^ 321844;
+  _0xc318d = (549710 ^ 549706) + (854006 ^ 854006);
+  var _0x19eb1c = (795402 ^ 795403) + (234951 ^ 234958);
+  const _0x24a = _0xd9cf2f * _0x2171d;
+  _0x19eb1c = (168245 ^ 168244) + (271025 ^ 271026);
+  const _0x7aa = (303413 ^ 303412) / speed;
+  let _0xebae3a;
+  const _0x93487d = _0x7aa / _0xd9cf2f;
+  _0xebae3a = "knbbdf";
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0074\u0069\u006D\u0065\u0044\u0069\u006C\u0061\u0074\u0069\u006F\u006E\u0049\u006E\u0066\u006F")['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `
+
+        <strong>Time Dilation Calculation</strong>
+
+        <hr style="margin:8px 0">
+
+        Reference Frame: Ground (Red Sphere)<br>
+
+        Blue Sphere Velocity:
+        ${(speed * (661910 ^ 662002))['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](568918 ^ 568919)}% of c<br>
+
+       
+		Lorentz Factor (γ):
+		${_0xd9cf2f['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](257201 ^ 257204)}<br>
+		
+		<br>
+		<strong style="color:#a9e5ff;">
+		    Example: When Blue Clock Advances 1.00 s
+		</strong><br>
+		
+		Blue Clock — Proper Time (Δτ):
+		${_0x2171d['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](750682 ^ 750680)} s<br>
+		
+		Ground-Frame Time (Δt = γΔτ):
+		${_0x24a['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](755793 ^ 755795)} s<br>
+
+
+        <br>
+
+        Travel Distance:
+        299,792,458 m<br>
+
+        Time per Trip (Ground):
+        ${_0x7aa['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](692344 ^ 692347)} s<br>
+
+        Time per Trip (Blue):
+        ${_0x93487d['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](624942 ^ 624941)} s
+
+        <div id="liveTimes"></div>
+    `;
+  updateLiveTime();
+}
+function updateLiveTime() {
+  var _0x82beeb = (135590 ^ 135590) + (953882 ^ 953875);
+  const _0x7a_0xa56 = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('liveTimes');
+  _0x82beeb = (619875 ^ 619883) + (497318 ^ 497319);
+  if (!_0x7a_0xa56) return;
+  const _0xg6bc = distanceTravelled / (834179 ^ 833899);
+  var _0x2b52de = (188359 ^ 188352) + (384276 ^ 384273);
+  const _0xgfd4c = Math['\u0066\u006C\u006F\u006F\u0072'](distanceTravelled / trackDistance + 1e-12);
+  _0x2b52de = (689151 ^ 689151) + (916549 ^ 916550);
+  _0x7a_0xa56['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = `
+
+        <hr style="margin:8px 0">
+
+        <strong>Live Simulation</strong><br>
+
+        Ground Elapsed Time:
+        ${groundElapsed['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](153447 ^ 153444)} s<br>
+
+        Blue Clock (Proper Time):
+        ${blueElapsed['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](718445 ^ 718446)} s<br>
+
+        Total Distance Traveled:
+        ${_0xg6bc['\u0074\u006F\u004C\u006F\u0063\u0061\u006C\u0065\u0053\u0074\u0072\u0069\u006E\u0067']("\u0065\u006E\u002D\u0055\u0053", {
+    '\u006D\u0061\u0078\u0069\u006D\u0075\u006D\u0046\u0072\u0061\u0063\u0074\u0069\u006F\u006E\u0044\u0069\u0067\u0069\u0074\u0073': 0
+  })} km<br>
+
+        Completed Trips:
+        ${_0xgfd4c}
+    `;
+}
+const SECONDS_PER_REVOLUTION = 385377 ^ 385373;
+function updateNeedles() {
+  var _0xb9cd2e = (970221 ^ 970218) + (626870 ^ 626878);
+  const _0x78f1e = groundElapsed % SECONDS_PER_REVOLUTION;
+  _0xb9cd2e = (105423 ^ 105419) + (126510 ^ 126508);
+  var _0xe_0xebf = (978578 ^ 978578) + (861852 ^ 861850);
+  const _0x32366f = blueElapsed % SECONDS_PER_REVOLUTION;
+  _0xe_0xebf = 493019 ^ 493018;
+  redNeedle['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = -(235528 ^ 235530) * Math['\u0050\u0049'] * _0x78f1e / SECONDS_PER_REVOLUTION;
+  blueNeedle['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = -(228033 ^ 228035) * Math['\u0050\u0049'] * _0x32366f / SECONDS_PER_REVOLUTION;
+}
+function updatePosition() {
+  const _0x9a953a = distanceTravelled % trackDistance / trackDistance;
+  movingObj['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = START_X + sceneWidth * _0x9a953a;
+}
+function animate(timestamp) {
+  requestAnimationFrame(animate);
+  if (isRunning && !isPaused) {
+    if (lastFrameTime === null) {
+      lastFrameTime = timestamp;
+    }
+    const _0x54d8ga = Math['\u006D\u0061\u0078'](988523 ^ 988523, (timestamp - lastFrameTime) / (918650 ^ 919442));
+    lastFrameTime = timestamp;
+    groundElapsed += _0x54d8ga;
+    distanceTravelled += speed * c * _0x54d8ga;
+    blueElapsed += _0x54d8ga * timeDilationFactor(speed);
+    updatePosition();
+    updateNeedles();
+    updateLiveTime();
+  }
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+function startFunction() {
+  isRunning = !![];
+  isPaused = false;
+  lastFrameTime = null;
+  groundElapsed = 512915 ^ 512915;
+  blueElapsed = 467068 ^ 467068;
+  distanceTravelled = 319064 ^ 319064;
+  updatePosition();
+  updateNeedles();
+  updateLiveTime();
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('pause')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+}
+function togglePause() {
+  if (!isRunning) return;
+  isPaused = !isPaused;
+  lastFrameTime = null;
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = isPaused ? 'Resume' : "\u0050\u0061\u0075\u0073\u0065";
+}
+function resetSimulation() {
+  isRunning = false;
+  isPaused = false;
+  lastFrameTime = null;
+  groundElapsed = 244901 ^ 244901;
+  blueElapsed = 408374 ^ 408374;
+  distanceTravelled = 809343 ^ 809343;
+  updatePosition();
+  updateNeedles();
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('pause')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+  displayTimeDilation();
+}
+function changeSpeed() {
+  speed = Number(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0073\u0070\u0065\u0065\u0064\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']) / (499060 ^ 498960);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('speedValue')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (speed * (491796 ^ 491888))['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](190373 ^ 190372) + '% c';
+  displayTimeDilation();
+}
+function initScene() {
+  renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+    '\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073': !![]
+  });
+  renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'], 548439 ^ 548437));
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('viewport')['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](742767 ^ 742767);
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](853426 ^ 853393, window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'], 416713 ^ 416712, 579244 ^ 578884);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](624132 ^ 624132, 734528 ^ 734548, 108407 ^ 108333);
+  camera['\u006C\u006F\u006F\u006B\u0041\u0074'](471734 ^ 471734, 729569 ^ 729569, 915745 ^ 915745);
+  controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067'] = !![];
+  let _0x67f;
+  const _0x4179ab = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 1.2);
+  _0x67f = "lejqok";
+  _0x4179ab['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](555784 ^ 555778, 441780 ^ 441756, 420440 ^ 420428);
+  scene['\u0061\u0064\u0064'](_0x4179ab);
+  scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, .5));
+  var _0xg368bd = (664118 ^ 664112) + (296429 ^ 296431);
+  const _0xe4825c = new THREE['\u0047\u0072\u0069\u0064\u0048\u0065\u006C\u0070\u0065\u0072'](461673 ^ 461625, 972665 ^ 972625, 0x666666, 0x333333);
+  _0xg368bd = "mcofnn";
+  _0xe4825c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(289246 ^ 289226);
+  scene['\u0061\u0064\u0064'](_0xe4825c);
+  drawRuler();
+  movingObj = createObject(START_X, 811298 ^ 811303, 373157 ^ 373157, 407295 ^ 413696);
+  var _0xgf_0xf2g = (552410 ^ 552403) + (401789 ^ 401787);
+  const _0xg62f = addClock();
+  _0xgf_0xf2g = 665430 ^ 665426;
+  _0xg62f['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](818116 ^ 818126, 400805 ^ 400805, 391113 ^ 391113);
+  movingObj['\u0061\u0064\u0064'](_0xg62f);
+  blueNeedle = addNeedle();
+  blueNeedle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](281191 ^ 281197, 815895 ^ 815895, 0.8);
+  movingObj['\u0061\u0064\u0064'](blueNeedle);
+  stationaryObj = createObject(850505 ^ 850505, -(480548 ^ 480555), 609200 ^ 609200, 0xff3333);
+  const _0x31c9e = addClock();
+  _0x31c9e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](558279 ^ 558285, 251806 ^ 251806, 772243 ^ 772243);
+  stationaryObj['\u0061\u0064\u0064'](_0x31c9e);
+  redNeedle = addNeedle();
+  redNeedle['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](500377 ^ 500371, 143922 ^ 143922, 0.8);
+  stationaryObj['\u0061\u0064\u0064'](redNeedle);
+  fontloader['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0064\u0072\u006F\u0069\u0064\u002F\u0064\u0072\u006F\u0069\u0064\u005F\u0073\u0065\u0072\u0069\u0066\u005F\u0062\u006F\u006C\u0064\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E", font => {
+    addTitle(-(137363 ^ 137351), 909019 ^ 909007, 265657 ^ 265657, "\u0054\u0049\u004D\u0045\u0020\u0044\u0049\u004C\u0041\u0054\u0049\u004F\u004E", 2.7, font);
+    addTitle(-(718106 ^ 718084), 423170 ^ 423181, 504229 ^ 504229, "\u0045\u0069\u006E\u0073\u0074\u0065\u0069\u006E\u0027\u0073\u0020\u0053\u0070\u0065\u0063\u0069\u0061\u006C\u0020\u0054\u0068\u0065\u006F\u0072\u0079\u0020\u006F\u0066\u0020\u0052\u0065\u006C\u0061\u0074\u0069\u0076\u0069\u0074\u0079\u0020\u0028\u0031\u0039\u0030\u0035\u0029", 1.6, font);
+    addObjectLabel(movingObj, -(657617 ^ 657625), 666035 ^ 666038, 623213 ^ 623213, "\u004D\u006F\u0076\u0069\u006E\u0067\u0020\u006F\u0062\u006A\u0065\u0063\u0074\u0020\u0028\u0062\u006C\u0075\u0065\u0020\u0073\u0070\u0068\u0065\u0072\u0065\u0029", 1.25, 0x66ccff, font);
+    addObjectLabel(stationaryObj, -(392984 ^ 392977), -(424044 ^ 424041), 641149 ^ 641149, 'Ground-frame object', 1.4, 0xffffff, font);
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006F\u006E\u006F\u0066\u0066")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', startFunction);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", togglePause);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0065\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", resetSimulation);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']('speedSlider')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('input', changeSpeed);
+  window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('resize', () => {
+    camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];
+    camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+    renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+  });
+  changeSpeed();
+  requestAnimationFrame(animate);
+}
+window.addEventListener('load', initScene);
+
+</script>
+
+</head>
+
+<body>
+
+<div id="info">
+
+    <button
+        class="btn btn-warning"
+        onclick="alert('In special relativity, the blue moving clock accumulates proper time Δτ = Δt √(1 − v²/c²), where Δt is ground-frame elapsed time. Its needle therefore turns more slowly than the ground-frame needle.')">
+        What is Time Dilation?
+    </button>
+    <button class="btn btn-success" id="onoff"> Start Simulation </button>
+
+    <br>
+
+    <strong>
+        Change the blue object's speed:
+    </strong>
+
+    <div style="margin-top:10px">
+
+        <div style="
+            display:flex;
+            justify-content:space-between
+        ">
+            <span>1% c</span>
+            <span>50% c</span>
+            <span>99% c</span>
+        </div>
+
+        <input
+            type="range"
+            min="1"
+            max="99"
+            value="2"
+            step="0.5"
+            id="speedSlider">
+
+        <div style="
+            text-align:center;
+            margin-top:5px
+        ">
+            Speed:
+            <strong id="speedValue">
+                2% c
+            </strong>
+        </div>
+
+    </div>
+
+    <br>
+
+    <button
+        class="btn btn-danger"
+        id="pause">
+        Pause
+    </button>
+
+    <button
+        class="btn btn-danger"
+        id="reset">
+        Reset
+    </button>
+
+</div>
+
+<div id="timeDilationInfo"></div>
+
+<div id="viewport"></div>
+
+</body>
+</html>

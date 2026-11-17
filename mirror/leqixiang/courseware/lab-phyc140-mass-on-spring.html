@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>乐启享 · 物理实验</title>
+	<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc140-mass-on-spring.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Education",
+		    "name": "3JCN"
+		  }
+		}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations for Education">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-phyc140-mass-on-spring/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations for Education">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-phyc140-mass-on-spring/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/phyc140-mass-on-spring">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-mass-on-spring/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-mass-on-spring/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-mass-on-spring/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-mass-on-spring/_ext/vendor/css/main3.css">
+	<style>
+		input {
+			 text-align: center;
+		}
+		label {
+			 color: darkblack;
+		}
+		body {
+			color: yellow;
+		}
+		#info input[type="text"] {
+		  color: #000000 !important;
+		  background-color: #ffffff;
+		}
+	</style> 
+</head>
+<body>
+    <div id="info" style="text-align: center">
+		<h1>Dropping a mass on an oscillating mass</h1>
+		<button type="button" class="btn btn-primary" id="end" >Drop mass at end</button>
+		<button type="button" class="btn btn-primary" id="center" >Drop mass at center</button>
+		<button type="button" class="btn btn-danger" id="stop" >Stop Oscillate</button>
+		<br><br>
+		
+		Original Amplitide: <input type="text" size="7" id="amp" value="10 cm">
+		Original max veloctiy: <input type="text" size="7" id="omega" value="10 cm/s">
+		Original Period: <input type="text" size="7" id="period" value="6.28 s">
+	
+		Final Amplitide: <input type="text" size="7" id="amp2" value="">
+		Final max veloctiy: <input type="text" size="7" id="omega2" value="">
+		Final Period: <input type="text" size="7" id="period2" value="">
+	</div>
+	<div id="container"></div>
+	
+	<script type="module">   
+    
+	  import * as THREE from '../jsm/three.module.js';	
+	  import { OrbitControls } from '../jsm/OrbitControls.js';	
+	  import { GLTFLoader } from '../jsm/GLTFLoaderB.js';
+	  import { FontLoader } from '../jsm/FontLoader.js';
+	  import { TextGeometry } from '../jsm/TextGeometry.js';
+	
+			
+		var container, stats, springMesh,horzLine, textLine, parameters;
+		var camera, scene, light, renderer, loader, box, densityball, geometry;
+		var controls, drag_controls, water, sphere, material;
+		var amplitude = 35, spring_constant = 0.92;
+		var box_mass = 0.5, dropping_mass = 1.0;
+		var redBox, greenBox, T, omega = Math.sqrt(spring_constant/box_mass);
+		var is_push = true;
+		var is_stop = false;
+		var is_end = false, is_center = false;
+		var blockArray = [];
+		
+		var textureloader = new THREE.TextureLoader();
+		const fontloader = new FontLoader();
+	
+		var lasttime = performance.now() * 0.001;
+	
+		var audioNo = new Audio('../Audio/wrong.mp3');
+		var audioYes = new Audio('../Audio/correct.mp3');
+
+		init();
+		animate();
+	
+		function horizontalSpring( posX,posY,posZ) {   
+			    var TWO_PI = Math.PI * 2.0;
+			    var NTWISTS = 20;
+			    var ANGLE_INCR = Math.PI / 6;
+
+			    var length = (55 - posX);  
+			    var topX = (50 - length * 0.5);  // spring's top 
+
+			    var y,z;
+			    var x = length/2;
+			    var radius = 2; 
+			    var n = 0;
+			   
+			    var xIncr = length / (TWO_PI / ANGLE_INCR * NTWISTS );
+			    var helix = [];
+			    var springMaterial = new THREE.MeshNormalMaterial();
+			    
+			    for( var phi=0; phi<=TWO_PI*NTWISTS; phi+=ANGLE_INCR ) {
+				x -= xIncr;
+				y = posY + Math.cos(phi) * radius;
+				z = posZ + Math.sin(phi) * radius;
+
+				helix.push( new THREE.Vector3(x, y, z));
+
+				n++;
+			    }   
+
+			    var curve = new THREE.CatmullRomCurve3( helix );
+			    var geometry = new THREE.TubeGeometry( curve, n, 0.35, 6, false ); //0.2
+			    springMesh = new THREE.Mesh(geometry, springMaterial);
+
+			    springMesh.position.set(topX,posY,posZ);  // spring's end position
+			    scene.add( springMesh );
+		}    
+		function addDropMass(x,y,z, color){
+			var dropGeo = new THREE.BoxGeometry(14,8,8);
+			var dropMat = new THREE.MeshBasicMaterial({color: color});
+			var drop_box = new THREE.Mesh(dropGeo, dropMat);
+			fontloader.load( '/api/program-assets/lab-phyc140-mass-on-spring/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+				var  textGeo = new TextGeometry('2 kg', {
+				    size: 3,  
+				    height: 0.2, 
+				    curveSegments: 6,
+				    font: tex,
+			        }); 
+			    	var  textMaterial = new THREE.MeshBasicMaterial({color: 'white'});  
+			    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+			    	textMesh.position.set(-4,0,4.2);
+			    	textMesh.rotateY(0);
+			    	drop_box.add(textMesh);
+			});
+			blockArray.push(drop_box);
+			drop_box.position.set(x,y,z);
+			scene.add(drop_box);
+			return drop_box;
+		}
+		function cleanBlockArray(){
+			for(var i=0; i < blockArray.length; i++){
+				blockArray[i].geometry.dispose();
+				blockArray[i].material.dispose();
+				scene.remove(blockArray[i]);
+			}
+		}
+		function init() {
+			container = document.getElementById( 'container' );
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			container.appendChild( renderer.domElement );
+			
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x659471);
+			
+			camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 1, 20000 );
+			camera.position.set( 0, 30, 100 ); //x,y=30
+			
+			light = new THREE.DirectionalLight( 0xffffff, 0.8 );
+			scene.add( light );
+			var amlight = new THREE.AmbientLight( 0x404040 ); // soft white light
+			scene.add( amlight );
+			var pointlight = new THREE.PointLight( 0xfaef28, 1, 100 );
+			pointlight.position.set( 10, 25, 30 );
+			scene.add( pointlight );
+
+			// spring box
+			var boxGeometry = new THREE.BoxGeometry(10,8,8);
+			box = new THREE.Mesh(boxGeometry, new THREE.MeshBasicMaterial({color: 'purple'}));
+			fontloader.load( '/api/program-assets/lab-phyc140-mass-on-spring/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+				var  textGeo = new TextGeometry('1 kg', {
+				    size: 3,  
+				    height: 0.2, 
+				    curveSegments: 6,
+				    font: tex,
+			        }); 
+			    	var  textMaterial = new THREE.MeshBasicMaterial({color: 'white'});  
+			    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+			    	textMesh.position.set(-4,0,4.2);
+			    	textMesh.rotateY(0);
+			    	box.add(textMesh);
+			});
+			box.position.set(0, 4-20, 0);
+			scene.add(box);
+			
+			horizontalSpring(2,2-20,0);
+			redBox = addDropMass(0,15-20,0, 'red');
+			greenBox = addDropMass(-35,15-20,0, 'green');
+			addText(49.8,10-20,-24, "Spring constant k = 1 N/m", -Math.PI/2, "white");
+			
+			// create Breadboard:
+			var geometry1 = new THREE.BoxGeometry( 100,2,60 ); 
+			var mat = new THREE.MeshPhongMaterial({color: 'red'});
+			var base = new THREE.Mesh(geometry1, mat);
+			var surface = new THREE.BoxGeometry( 100,0.2,60 ); 
+			var texture = textureloader.load('texture/cross.png');
+			var covermesh = new THREE.Mesh(surface, new THREE.MeshBasicMaterial( { map:texture } ));
+			base.add(covermesh);
+			covermesh.position.set(0,1.1,0);
+			var geomet = new THREE.BoxGeometry( 2,20,60 ); 
+			var mate = new THREE.MeshBasicMaterial({color: 'brown'});
+			var wall = new THREE.Mesh(geomet, mate);
+			base.add(wall);
+			wall.position.set(51,9,0);
+			base.position.set(0,-1.8-20,0);
+			scene.add(base);
+		
+			controls = new OrbitControls( camera, renderer.domElement );
+			
+			document.getElementById('center').addEventListener('click', addRedBox);
+			document.getElementById('end').addEventListener('click', addGreenBox);
+			document.getElementById('stop').addEventListener('click', function(){is_stop = true;});
+			window.addEventListener( 'resize', onWindowResize, false );			
+
+		}   
+		function updateAmplitude(val) {
+			document.getElementById('amp2').value=val; 
+		}
+		function updateOmega(val) {
+			document.getElementById('omega2').value=val; 
+		}
+		function updatePeriod(val) {
+			document.getElementById('period2').value=val; 
+		}
+		function addRedBox(){
+			updateAmplitude('5.77 cm');
+			updateOmega('3.33 cm/s');
+			updatePeriod('10.88 s');
+			var box_x = box.position.x;
+			if(box_x > -5 && box_x < 5){
+				scene.remove(greenBox); scene.remove(redBox);
+				omega = 0.8;
+				amplitude = 20;
+				document.getElementById('end').disabled = true;
+				var drop_box = addDropMass(0,8,0, 'red');
+				box.add(drop_box);
+			}
+			
+			scene.add(box);
+		}
+		function addGreenBox() {
+			updateAmplitude('10 cm');
+			updateOmega('5.77 cm/s');
+			updatePeriod('10.88 s');
+			var box_x = box.position.x;
+			if(box_x < -33){
+				scene.remove(greenBox); scene.remove(redBox);
+				omega = 1;
+				amplitude = 35;
+				//omega = Math.sqrt((box_mass + dropping_mass)/spring_constant);
+				document.getElementById('center').disabled = true;
+				var drop_box = addDropMass(0,8,0, 'green');
+				box.add(drop_box);
+			}
+			
+			scene.add(box);
+		}
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+		}
+		function addText(x,y,z,t,alpha,color){
+			fontloader.load( '/api/program-assets/lab-phyc140-mass-on-spring/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+				var  textGeo = new TextGeometry(t, {
+				    size: 3,  
+				    height: 0.2, 
+				    curveSegments: 6,
+				    font: tex,
+			        }); 
+			    	var  textMaterial = new THREE.MeshBasicMaterial({color: color});  
+			    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+			    	textMesh.position.set(x,y,z);
+			    	textMesh.rotateY(alpha);
+			    	scene.add(textMesh);
+				return textMesh;
+			});
+		}
+		function animate() {
+			requestAnimationFrame( animate );
+			render();
+		}
+
+		function render() {
+			    T = (2*Math.PI)/omega;  // period
+			
+			    var time = performance.now() * 0.001;
+			    var deltaTime = time - lasttime;
+			    if (!is_stop) {
+				if (is_push) {
+				    if (springMesh) {
+					scene.remove(springMesh);
+				    }
+				    box.position.x = Math.cos(omega * deltaTime) * amplitude;
+				    horizontalSpring(10+box.position.x, -8, 0);
+				}
+			    }
+			    controls.update();
+			    renderer.render(scene, camera);
+			   // lasttime = time; // Update lasttime for correct deltaTime calculation
+		}
+ 
+	</script>  
+</body>
+</html>

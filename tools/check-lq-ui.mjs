@@ -72,9 +72,45 @@ await read('精品课 detail', `(() => {
 })()`);
 await browser.shot('recon/scratch/lq-ui-detail.png');
 
-/* 4. Play it. */
+/*
+ * 4. The about dialog.  It is the one place where the library says who
+ *    it belongs to, so it must name 乐启享 and carry nothing that rings
+ *    a phone or opens a mailbox.
+ */
+await browser.goto('http://localhost:' + PORT + '/#catalog');
+await sleep(2500);
 await browser.evaluate(`(() => {
-  const b = [...document.querySelectorAll('button')].find((e) => /在线使用/.test(e.innerText || ''));
+  const b = [...document.querySelectorAll('button')]
+    .find((e) => /关于我们/.test(e.textContent || ''));
+  if (b) b.click();
+  return !!b;
+})()`);
+await sleep(900);
+await read('about', `(() => {
+  const dialog = document.querySelector('.dialog-content');
+  const text = dialog ? dialog.innerText : '';
+  return {
+    open: !!dialog,
+    text: text.replace(/\s+/g, ' ').trim().slice(0, 300),
+    phones: text.match(/(?<![\w.-])1[3-9]\d{9}(?![\w.-])/g) || [],
+    emails: text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [],
+    namesUs: /乐启享/.test(text),
+    linksToSite: [...document.querySelectorAll('.dialog-content a')].map((a) => a.href),
+  };
+})()`);
+await browser.shot('recon/scratch/lq-ui-about.png');
+
+/* 5. Play it. */
+await browser.evaluate(`(() => {
+  const c = document.querySelector('[data-action="close"]');
+  if (c) c.click();
+  return !!c;
+})()`);
+await browser.goto('http://localhost:' + PORT + '/#course/afe-846');
+await sleep(2500);
+await browser.evaluate(`(() => {
+  const b = document.querySelector('[data-lq-preview]')
+    || [...document.querySelectorAll('button')].find((e) => /在线预览|在线使用/.test(e.innerText || ''));
   if (!b) return false;
   b.click();
   return true;

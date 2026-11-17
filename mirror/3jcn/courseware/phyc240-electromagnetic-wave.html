@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>乐启享 · 物理实验</title>
+
+  <!-- Better SEO / Sharing -->
+  <meta name="description" content="Interactive 3D Electromagnetic Wave simulation (E ⟂ B ⟂ k). Adjust amplitude, wavelength, frequency, and speed. Visualize propagation direction and Poynting vector. Free physics simulation by 3JCN.">
+  <meta name="keywords" content="electromagnetic wave simulation, EM wave, electric field, magnetic field, Poynting vector, Maxwell equations, physics simulation, interactive 3D physics, 乐启享物理仿真">
+  <link rel="canonical" href="/courseware/3jcn-phyc240-electromagnetic-wave.html">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Electromagnetic Waves (Interactive 3D Simulation)",
+    "@id":"/courseware/lab-phyc240-electromagnetic-wave.html",
+    "description": "Interactive 3D Electromagnetic Wave simulation showing E-field, B-field, propagation direction k, and energy flow (Poynting vector).",
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "乐启享物理仿真",
+      "@id":"/courseware/lab-phyc240-electromagnetic-wave.html"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "Thomas Nguyen"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "乐启享物理仿真"
+    }
+  }
+  </script>
+
+  <link rel="icon" href="/brand/favicon.ico">
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <meta charset="utf-8">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Electromagnetic Waves | 乐启享物理仿真">
+  <meta name="twitter:description" content="Interactive 3D EM wave: E ⟂ B ⟂ k, plus Poynting vector and controls.">
+  <meta name="twitter:image" content="/api/program-assets/3jcn-phyc240-electromagnetic-wave/_ext/vendor/pictures/physics-simulations.jpg">
+
+  <meta property="og:title" content="Electromagnetic Waves | 乐启享物理仿真">
+  <meta property="og:description" content="Interactive 3D EM wave: Electric field, magnetic field, propagation direction, and energy flow.">
+  <meta property="og:image" content="/api/program-assets/3jcn-phyc240-electromagnetic-wave/_ext/vendor/pictures/physics-simulations.jpg">
+  <meta property="og:url" content="/courseware/phyc240-electromagnetic-wave">
+  <meta name="robots" content="index, follow">
+
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-electromagnetic-wave/_ext/vendor/css/main3.css">
+  <link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-electromagnetic-wave/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="/api/program-assets/3jcn-phyc240-electromagnetic-wave/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="/api/program-assets/3jcn-phyc240-electromagnetic-wave/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+  <style>
+body{
+  color: white;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* Canvas stays full screen */
+#viewport{
+  position: fixed;
+  inset: 0;
+}
+
+/* Bottom UI bar */
+#uiBar{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.55);
+  border-top: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(2px);
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Top row buttons */
+#uiTop{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chk{
+  margin: 0 0 0 10px;
+  font-weight: 600;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Controls area = wide + short */
+#uiControls{
+  background: rgba(0,0,0,0.30);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+
+  /* keep it short */
+  max-height: 140px;
+  overflow: hidden;
+}
+
+/* Each control row: label | slider | value (value right next to slider) */
+.ctrl{
+  display: grid;
+  grid-template-columns: 170px 320px 70px;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+}
+
+.lbl{
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ctrl input[type="range"]{
+  width: 100%;
+}
+
+.val{
+  font-family: monospace;
+  text-align: left;
+  white-space: nowrap;
+  opacity: 0.95;
+}
+
+/* Readout compact */
+#readout{
+  margin-top: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.25;
+  opacity: 0.95;
+
+  /* keep readout from making panel tall */
+  max-height: 38px;
+  overflow: hidden;
+}
+
+/* Responsive */
+@media (max-width: 950px){
+  .ctrl{
+    grid-template-columns: 140px 1fr 60px;
+  }
+}
+
+@media (max-width: 650px){
+  #uiControls{ max-height: 190px; overflow: auto; }
+  .ctrl{
+    grid-template-columns: 110px 1fr 55px;
+  }
+  .lbl{ text-align: left; }
+}
+
+#viewport{
+  position: fixed;
+  inset: 0;
+  padding-bottom: 170px; /* adjust if you change panel height */
+  box-sizing: border-box;
+}
+
+</style>
+
+<script type="module">
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { FontLoader } from '../jsm/FontLoader.js';
+import { TextGeometry } from '../jsm/TextGeometry.js';
+
+/**  author: Thomas Nguyen   "3jcn.us"
+ **  Updated: Feb 2026
+ **  EM Wave improvements:
+ **  - Start/Pause toggle (no runaway requestAnimationFrame)
+ **  - Propagation direction k arrow
+ **  - Poynting vector S arrow (E x B)
+ **  - Controls: amplitude, wavelength, speed (phase), show/hide arrows
+ **  - Small axes helper for 3D orientation
+ **/
+
+let renderer, scene, light, camera, controls;
+let fontloader = new FontLoader();
+let kLabel, sLabel;
+const kDir = new THREE.Vector3(1, 0, 0);   // propagation direction
+const sDir = new THREE.Vector3(1, 0, 0);   // Poynting direction (same here)
+let kLen = 18;
+let sLen = 18;
+let electricArrows = [];
+let magneticArrows = [];
+let electricFieldLine, magneticFieldLine;
+let isRunning = false;
+let waveOffset = 0;
+let kArrow, sArrow;
+let axes;
+
+const TWO_PI = Math.PI * 2;
+
+// Parameters (controlled by sliders)
+const params = {
+  amplitude: 8,
+  wavelength: 15,
+  speed: 0.05,
+  showArrows: true,
+  showVectors: true,
+  waveHeight: 6  // vertical shift in world units
+};
+
+// Geometry density across N wavelengths
+const N_WAVES = 8;
+const LINE_POINTS_PER_WAVE = 120;  // smoother line
+const ARROWS_PER_WAVE = 28;        // not too heavy
+
+function initScene(){renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({'\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073':!![]});renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'],791643^791641));document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0076\u0069\u0065\u0077\u0070\u006F\u0072\u0074")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](863665^863665);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](464758^464714,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],0.1,458525^456909);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(860616^860610),117828^117838,317131^317069);camera['\u006C\u006F\u006F\u006B\u0041\u0074'](275737^275737,542729^542729,512157^512157);scene['\u0061\u0064\u0064'](camera);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067']=!![];light=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,439045^439044);light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](431693^431687,984521^984545,594901^594881);scene['\u0061\u0064\u0064'](light);var _0x1gbf=(733453^733450)+(870089^870081);const _0x874ca=new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.35);_0x1gbf=(211178^211178)+(552861^552852);scene['\u0061\u0064\u0064'](_0x874ca);axes=new THREE['\u0041\u0078\u0065\u0073\u0048\u0065\u006C\u0070\u0065\u0072'](992779^992775);axes['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(119048^119096),-(116468^116478),-(513647^513661));scene['\u0061\u0064\u0064'](axes);addTitle(-(552853^552836),603331^603349,658349^658349,"\u0045\u006C\u0065\u0063\u0074\u0072\u006F\u006D\u0061\u0067\u006E\u0065\u0074\u0069\u0063\u0020\u0057\u0061\u0076\u0065\u0073",866007^866005,0xffffff);addTitle(-(307500^307462),439682^439692,678651^678651,")E( dleiF cirtcelE".split("").reverse().join(""),1.8,0xff3333);addTitle(-(720886^720862),448843^448835,151367^151373,")B( dleiF citengaM".split("").reverse().join(""),1.8,0x33aaff);createElectricField();createMagneticField();addElectricFieldArrows();addMagneticFieldArrows();kArrow=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](848539^848538,257371^257371,953890^953890),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(585486^585474),-(759843^759851),920079^920079),528990^528972,0xffffff);scene['\u0061\u0064\u0064'](kArrow);sArrow=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](753422^753423,391448^391448,958738^958738),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(140241^140253),-(402296^402291),795109^795109),703473^703459,0xffcc33);scene['\u0061\u0064\u0064'](sArrow);kLabel=makeLabelSprite("\u006B","\u0023\u0066\u0066\u0066\u0066\u0066\u0066");sLabel=makeLabelSprite("\u0053","33ccff#".split("").reverse().join(""));scene['\u0061\u0064\u0064'](kLabel);scene['\u0061\u0064\u0064'](sLabel);updateVectorLabels();setVectorsVisible(params['\u0073\u0068\u006F\u0077\u0056\u0065\u0063\u0074\u006F\u0072\u0073']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006F\u006E\u006F\u0066\u0066")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),toggleRun);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0065\u0074")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("kcilc".split("").reverse().join(""),resetSim);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0061\u006D\u0070")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",e=>{params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065']=Number(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0061\u006D\u0070\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](689423^689422);rebuildFieldGeometry();updateReadout();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0077\u006C")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),e=>{params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068']=Number(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0077\u006C\u0056\u0061\u006C")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](766529^766528);rebuildFieldGeometry();updateReadout();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("dps".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),e=>{params['\u0073\u0070\u0065\u0065\u0064']=Number(e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0076\u0061\u006C\u0075\u0065']);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("laVdps".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=params['\u0073\u0070\u0065\u0065\u0064']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](767445^767446);updateReadout();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("sworrAwohs".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065",e=>{params['\u0073\u0068\u006F\u0077\u0041\u0072\u0072\u006F\u0077\u0073']=e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'];setArrowsVisible(params['\u0073\u0068\u006F\u0077\u0041\u0072\u0072\u006F\u0077\u0073']);});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("srotceVwohs".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("egnahc".split("").reverse().join(""),e=>{params['\u0073\u0068\u006F\u0077\u0056\u0065\u0063\u0074\u006F\u0072\u0073']=e['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'];setVectorsVisible(params['\u0073\u0068\u006F\u0077\u0056\u0065\u0063\u0074\u006F\u0072\u0073']);});window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("eziser".split("").reverse().join(""),onWindowResize);updateReadout();render();}function toggleRun(){isRunning=!isRunning;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006F\u006E\u006F\u0066\u0066")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=isRunning?"esuaP".split("").reverse().join(""):"\u0053\u0074\u0061\u0072\u0074\u0020\u0053\u0069\u006D\u0075\u006C\u0061\u0074\u0069\u006F\u006E";if(isRunning)animateWave();}function makeLabelSprite(text,color="\u0023\u0066\u0066\u0066\u0066\u0066\u0066",_0x_0xaag){var _0x35ab=(631056^631061)+(456777^456781);const _0x55f=document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0063\u0061\u006E\u0076\u0061\u0073");_0x35ab=(385141^385143)+(144158^144158);const _0xa0b=_0x55f['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("d2".split("").reverse().join(""));_0x_0xaag='\u0070\u0068\u0071\u006B\u0062\u006D';_0x55f['\u0077\u0069\u0064\u0074\u0068']=939462^939206;_0x55f['\u0068\u0065\u0069\u0067\u0068\u0074']=847787^847659;_0xa0b['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](381761^381761,727256^727256,_0x55f['\u0077\u0069\u0064\u0074\u0068'],_0x55f['\u0068\u0065\u0069\u0067\u0068\u0074']);_0xa0b['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065']="\u0072\u0067\u0062\u0061\u0028\u0030\u002C\u0030\u002C\u0030\u002C\u0030\u002E\u0034\u0035\u0029";_0xa0b['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();_0xa0b['\u0072\u006F\u0075\u006E\u0064\u0052\u0065\u0063\u0074'](675582^675572,349412^349430,184817^184747,675482^675494,248374^248380);_0xa0b['\u0066\u0069\u006C\u006C']();_0xa0b['\u0066\u006F\u006E\u0074']="lairA xp65 dlob".split("").reverse().join("");_0xa0b['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065']=color;_0xa0b['\u0074\u0065\u0078\u0074\u0042\u0061\u0073\u0065\u006C\u0069\u006E\u0065']="elddim".split("").reverse().join("");_0xa0b['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](text,545673^545685,766989^767037);const _0x1d0dd=new THREE['\u0043\u0061\u006E\u0076\u0061\u0073\u0054\u0065\u0078\u0074\u0075\u0072\u0065'](_0x55f);_0x1d0dd['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];const _0x55f2=new THREE['\u0053\u0070\u0072\u0069\u0074\u0065\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"map":_0x1d0dd,"transparent":!![],"depthTest":false});const _0x4_0xa66=new THREE['\u0053\u0070\u0072\u0069\u0074\u0065'](_0x55f2);_0x4_0xa66['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](312295^312289,192750^192749,349789^349788);return _0x4_0xa66;}function updateVectorLabels(){const _0x26da=kArrow['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']()['\u0061\u0064\u0064'](kDir['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](kLen));const _0x84fa4b=sArrow['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']()['\u0061\u0064\u0064'](sDir['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](sLen));kLabel['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x26da)['\u0061\u0064\u0064'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](861244^861244,1.2,281079^281079));sLabel['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x84fa4b)['\u0061\u0064\u0064'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](722222^722222,1.2,769392^769392));}function setVectorsVisible(v){kArrow['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=v;sArrow['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=v;if(kLabel)kLabel['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=v;if(sLabel)sLabel['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=v;}function resetSim(){isRunning=false;waveOffset=404708^404708;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("ffono".split("").reverse().join(""))['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']="\u0053\u0074\u0061\u0072\u0074\u0020\u0053\u0069\u006D\u0075\u006C\u0061\u0074\u0069\u006F\u006E";rebuildFieldGeometry();updateReadout();}function onWindowResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function phase(x){return x*TWO_PI/params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068']-waveOffset;}function animateWave(_0xb1b30f){if(!isRunning)return;waveOffset+=params['\u0073\u0070\u0065\u0065\u0064'];const _0xb6e74c=electricFieldLine['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0061\u0072\u0072\u0061\u0079'];for(let i=619473^619473;i<_0xb6e74c['\u006C\u0065\u006E\u0067\u0074\u0068'];i+=614367^614364){const x=_0xb6e74c[i];_0xb6e74c[i+(958295^958294)]=Math['\u0073\u0069\u006E'](phase(x))*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065']+params['\u0077\u0061\u0076\u0065\u0048\u0065\u0069\u0067\u0068\u0074'];}electricFieldLine['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];const _0x410be=magneticFieldLine['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0061\u0072\u0072\u0061\u0079'];_0xb1b30f=(743518^743519)+(655520^655526);for(let i=666969^666969;i<_0x410be['\u006C\u0065\u006E\u0067\u0074\u0068'];i+=604891^604888){let _0x67d;const x=_0x410be[i];_0x67d=(956114^956112)+(115085^115087);_0x410be[i+(356983^356981)]=Math['\u0073\u0069\u006E'](phase(x))*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065'];}magneticFieldLine['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0061\u0074\u0074\u0072\u0069\u0062\u0075\u0074\u0065\u0073']['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u006E\u0065\u0065\u0064\u0073\u0055\u0070\u0064\u0061\u0074\u0065']=!![];if(params['\u0073\u0068\u006F\u0077\u0041\u0072\u0072\u006F\u0077\u0073']){for(let i=690651^690651;i<electricArrows['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){const x=electricArrows[i]['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'];const y=Math['\u0073\u0069\u006E'](phase(x))*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065'];electricArrows[i]['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,params['\u0077\u0061\u0076\u0065\u0048\u0065\u0069\u0067\u0068\u0074'],408499^408499);electricArrows[i]['\u0073\u0065\u0074\u004C\u0065\u006E\u0067\u0074\u0068'](Math['\u006D\u0061\u0078'](0.001,Math['\u0061\u0062\u0073'](y)));electricArrows[i]['\u0073\u0065\u0074\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](887617^887617,y>=(397028^397028)?934995^934994:-(332627^332626),103313^103313));}for(let i=190178^190178;i<magneticArrows['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){var _0x64a=(747225^747231)+(372035^372037);const x=magneticArrows[i]['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'];_0x64a=(454551^454558)+(471522^471520);const z=Math['\u0073\u0069\u006E'](phase(x))*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065'];magneticArrows[i]['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,params['\u0077\u0061\u0076\u0065\u0048\u0065\u0069\u0067\u0068\u0074'],796545^796545);magneticArrows[i]['\u0073\u0065\u0074\u004C\u0065\u006E\u0067\u0074\u0068'](Math['\u006D\u0061\u0078'](0.001,Math['\u0061\u0062\u0073'](z)));magneticArrows[i]['\u0073\u0065\u0074\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](936635^936635,156544^156544,z>=(716476^716476)?604515^604514:-(994183^994182)));}}updateReadout();requestAnimationFrame(animateWave);}function rebuildFieldGeometry(){if(electricFieldLine)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](electricFieldLine);if(magneticFieldLine)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](magneticFieldLine);for(const a of electricArrows)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](a);for(const a of magneticArrows)scene['\u0072\u0065\u006D\u006F\u0076\u0065'](a);electricArrows=[];magneticArrows=[];createElectricField();createMagneticField();addElectricFieldArrows();addMagneticFieldArrows();setArrowsVisible(params['\u0073\u0068\u006F\u0077\u0041\u0072\u0072\u006F\u0077\u0073']);}function createElectricField(_0x51db0f){const _0xb028d=new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();var _0x07faee=(740367^740364)+(149880^149872);const _0x78c3e=[];_0x07faee='\u0070\u006B\u0066\u006D\u006A\u0066';const _0xc7cgc=LINE_POINTS_PER_WAVE*N_WAVES;const _0x84874c=N_WAVES*params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'];const _0x4d03fe=_0x84874c/_0xc7cgc;_0x51db0f=(878326^878325)+(890221^890213);for(let i=765294^765294;i<=_0xc7cgc;i++){var _0xc534c=(598249^598255)+(279999^279997);const x=i*_0x4d03fe-_0x84874c/(489847^489845);_0xc534c=(218193^218200)+(926765^926762);let _0xafe;const y=Math['\u0073\u0069\u006E'](x*TWO_PI/params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'])*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065']+params['\u0077\u0061\u0076\u0065\u0048\u0065\u0069\u0067\u0068\u0074'];_0xafe=(136926^136927)+(750152^750156);_0x78c3e['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,y,731823^731823));}_0xb028d['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0050\u006F\u0069\u006E\u0074\u0073'](_0x78c3e);const _0x4c68b=new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0xff3333});electricFieldLine=new THREE['\u004C\u0069\u006E\u0065'](_0xb028d,_0x4c68b);scene['\u0061\u0064\u0064'](electricFieldLine);}function createMagneticField(_0xbbb){const _0x1a1dbc=new THREE['\u0042\u0075\u0066\u0066\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079']();const _0xbca1b=[];const _0x7e4ga=LINE_POINTS_PER_WAVE*N_WAVES;const _0x698a=N_WAVES*params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'];const _0xcd_0x944=_0x698a/_0x7e4ga;for(let i=871987^871987;i<=_0x7e4ga;i++){const x=i*_0xcd_0x944-_0x698a/(725067^725065);const z=Math['\u0073\u0069\u006E'](x*TWO_PI/params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'])*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065'];_0xbca1b['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,params['\u0077\u0061\u0076\u0065\u0048\u0065\u0069\u0067\u0068\u0074'],z));}_0x1a1dbc['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0050\u006F\u0069\u006E\u0074\u0073'](_0xbca1b);const _0x15b41f=new THREE['\u004C\u0069\u006E\u0065\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":0x33aaff});_0xbbb=854477^854478;magneticFieldLine=new THREE['\u004C\u0069\u006E\u0065'](_0x1a1dbc,_0x15b41f);scene['\u0061\u0064\u0064'](magneticFieldLine);}function addElectricFieldArrows(_0xa_0x1b9,_0xbf3bce){const _0x768bee=ARROWS_PER_WAVE*N_WAVES;_0xa_0x1b9=(380033^380040)+(586219^586218);const _0x3dc=N_WAVES*params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'];const _0xe_0x80b=_0x3dc/_0x768bee;_0xbf3bce=(495352^495354)+(691249^691251);for(let i=835700^835700;i<=_0x768bee;i++){const x=i*_0xe_0x80b-_0x3dc/(256736^256738);const _0xcf_0x132=Math['\u0073\u0069\u006E'](x*TWO_PI/params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'])*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065'];const _0x955g=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](172367^172367,_0xcf_0x132>=(712696^712696)?328045^328044:-(336118^336119),920985^920985);const _0x49efde=Math['\u006D\u0061\u0078'](0.001,Math['\u0061\u0062\u0073'](_0xcf_0x132));var _0x61ad=(793939^793939)+(784010^784013);const _0x0edf3g=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](_0x955g,new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,params['\u0077\u0061\u0076\u0065\u0048\u0065\u0069\u0067\u0068\u0074'],570264^570264),_0x49efde,0xff3333);_0x61ad='\u0064\u0068\u0063\u006C\u006C\u0061';scene['\u0061\u0064\u0064'](_0x0edf3g);electricArrows['\u0070\u0075\u0073\u0068'](_0x0edf3g);}}function addMagneticFieldArrows(){const _0x2eag=ARROWS_PER_WAVE*N_WAVES;var _0x2_0x717=(995854^995848)+(322260^322262);const _0xf84ece=N_WAVES*params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'];_0x2_0x717=222967^222964;const _0xd4c6dc=_0xf84ece/_0x2eag;for(let i=121358^121358;i<=_0x2eag;i++){const x=i*_0xd4c6dc-_0xf84ece/(249782^249780);let _0xg221f;const _0x7d1ca=Math['\u0073\u0069\u006E'](x*TWO_PI/params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068'])*params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065'];_0xg221f=603882^603875;var _0x3_0x5cd=(712568^712561)+(821890^821895);const _0x643ac=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](745379^745379,965752^965752,_0x7d1ca>=(435782^435782)?987696^987697:-(902202^902203));_0x3_0x5cd=(469084^469082)+(217847^217841);var _0x97fg5b=(494028^494028)+(618915^618923);const _0x7ca6ad=Math['\u006D\u0061\u0078'](0.001,Math['\u0061\u0062\u0073'](_0x7d1ca));_0x97fg5b=(647040^647048)+(759515^759517);const _0xe0300a=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](_0x643ac,new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,params['\u0077\u0061\u0076\u0065\u0048\u0065\u0069\u0067\u0068\u0074'],533388^533388),_0x7ca6ad,700448^675654);scene['\u0061\u0064\u0064'](_0xe0300a);magneticArrows['\u0070\u0075\u0073\u0068'](_0xe0300a);}}function setArrowsVisible(v){for(const a of electricArrows)a['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=v;for(const a of magneticArrows)a['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']=v;}function addTitle(x,y,z,t,s,color){fontloader['\u006C\u006F\u0061\u0064']("nosj.ecafepyt.dlob_fires_diord/diord/stnof/selpmaxe/gro.sjeerht//:sptth".split("").reverse().join(""),tex=>{const _0x5_0x4ea=new TextGeometry(t,{'\u0073\u0069\u007A\u0065':s,'\u0068\u0065\u0069\u0067\u0068\u0074':0.2,'\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073':6,"font":tex});let _0xfcf8g;const _0x1c43b=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":color});_0xfcf8g=863737^863740;let _0xadca;const _0x56adcc=new THREE['\u004D\u0065\u0073\u0068'](_0x5_0x4ea,_0x1c43b);_0xadca='\u0061\u006E\u0065\u006A\u0070\u0065';_0x56adcc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](_0x56adcc);});}function updateReadout(){const f=params['\u0073\u0070\u0065\u0065\u0064']/TWO_PI*(779777^779837);const c=params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068']*f;const _0x1d55d=`E ⟂ B ⟂ k
+Poynting: S = (1/μ0) E × B  (→ +x)
+
+λ = ${params['\u0077\u0061\u0076\u0065\u006C\u0065\u006E\u0067\u0074\u0068']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](844991^844989)} (world units)
+Amplitude = ${params['\u0061\u006D\u0070\u006C\u0069\u0074\u0075\u0064\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](637293^637295)}
+Phase speed = ${params['\u0073\u0070\u0065\u0065\u0064']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](574395^574392)} (rad/frame)
+
+Approx f ≈ ${f['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](295158^295156)} Hz (assumes 60 fps)
+Approx c = λ f ≈ ${c['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](230040^230042)} units/s`;document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0061\u0064\u006F\u0075\u0074")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074']=_0x1d55d;}function render(){controls['\u0075\u0070\u0064\u0061\u0074\u0065']();updateVectorLabels();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);requestAnimationFrame(render);}
+
+window.onload = initScene;
+</script>
+
+</head>
+
+<body>
+<div id="uiBar">
+  <div id="uiTop">
+    <button class="btn btn-warning smallBtn" onclick="alert('Electromagnetic waves consist of oscillating electric (E) and magnetic (B) fields that propagate through space. The fields are mutually perpendicular and perpendicular to the direction of propagation (k). They transport energy and momentum, represented by the Poynting vector S = (1/μo) E × B.\n\nSimulation Notes:\n• 1 world unit = 1 meter (visual scale)\n• Time is scaled for visualization purposes')">
+          What are Electromagnetic Waves?
+    </button>
+
+    <button class="btn btn-success smallBtn" id="onoff">Start Simulation</button>
+    <button class="btn btn-danger smallBtn" id="reset">Reset</button>
+
+    <label class="chk"><input id="showArrows" type="checkbox" checked> Show E/B arrows</label>
+    <label class="chk"><input id="showVectors" type="checkbox" checked> Show k (propagation direction) &amp; S (energy flow) vectors</label>
+  </div>
+
+  <div id="uiControls">
+    <div class="ctrl">
+      <div class="lbl">Amplitude:</div>
+      <input id="amp" type="range" min="0" max="14" step="0.1" value="8">
+      <div class="val" id="ampVal">8.0</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="lbl">Wavelength (λ):</div>
+      <input id="wl" type="range" min="6" max="28" step="0.5" value="15">
+      <div class="val" id="wlVal">15.0</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="lbl">Phase Speed (ω per frame):</div>
+      <input id="spd" type="range" min="0" max="0.20" step="0.005" value="0.05">
+      <div class="val" id="spdVal">0.050</div>
+    </div>
+
+    <div id="readout"></div>
+  </div>
+</div>
+
+<div id="viewport"></div>
+
+</body>
+</html>

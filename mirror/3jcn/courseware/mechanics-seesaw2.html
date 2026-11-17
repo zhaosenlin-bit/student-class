@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>乐启享 · 物理实验</title>
+
+<meta name="description" content="Free interactive 3D physics simulation for measuring the unknown mass of a uniform beam using torque, a movable pivot, and rotational equilibrium.">
+<meta name="keywords" content="physics simulation, 3D physics simulation, measure beam mass, seesaw simulation, torque simulation, rotational equilibrium, center of mass, moment arm, 乐启享物理仿真">
+<meta name="author" content="乐启享课件库（改编自 Thomas Nguyen 的开源物理仿真）">
+<meta name="robots" content="index,follow,max-image-preview:large">
+
+<link rel="canonical" href="/courseware/3jcn-phyc140-seesaw2?local=1">
+<link rel="icon" href="/brand/favicon.ico">
+<link rel="stylesheet" type="text/css" href="/api/program-assets/3jcn-mechanics-seesaw2/_ext/vendor/mechanics/css/balance-act.css" >
+<link rel="stylesheet" href="/api/program-assets/3jcn-mechanics-seesaw2/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/3jcn-mechanics-seesaw2/_ext/unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "/api/program-assets/3jcn-mechanics-seesaw2/_ext/unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+</head>
+
+<body>
+
+<!-- ===================================
+     PART 1: 3D SIMULATION
+=================================== -->
+
+<div id="sceneWrapper">
+
+  <div id="container"></div>
+
+  <div id="titleOverlay">
+    <h1>Measure Beam Mass</h1>
+    <p>
+      Adjust the object and pivot to achieve zero net torque.<br>
+      Click: 0.01 | Shift + click: 0.0001
+    </p>
+  </div>
+
+  <!-- LEFT PANEL -->
+
+  <div id="leftPanel">
+
+    <h2>Controls</h2>
+
+    <div class="controlGroup">
+      <label>Object Position x<sub>O</sub></label>
+      <input id="leftPosSlider" type="range"
+             min="-20" max="0"
+             step="0.0001" value="-10">
+
+      <div class="valueBox">
+        x<sub>O</sub> =
+        <span id="leftPosValue">-10.0000</span> m
+      </div>
+    </div>
+
+    <div class="controlGroup">
+      <label>Object Mass m<sub>O</sub></label>
+      <input id="leftMassSlider" type="range"
+             min="1" max="5"
+             step="0.0001" value="2">
+
+      <div class="valueBox">
+        m<sub>O</sub> =
+        <span id="leftMassValue">2.0000</span> kg
+      </div>
+    </div>
+
+    <div class="controlGroup">
+      <label>Pivot Position x<sub>P</sub></label>
+      <input id="pivotSlider" type="range"
+             min="-10" max="-2"
+             step="0.0001" value="-4">
+
+      <div class="valueBox">
+        x<sub>P</sub> =
+        <span id="pivotValue">-4.0000</span> m
+      </div>
+    </div>
+
+    <div class="valueBox">
+      <b>Physics:</b><br>
+      g = 9.8 m/s²<br>
+      τ = r × F<br>
+      CCW: Positive (+)<br>
+      CW: Negative (−)<br>
+      Balance: Στ = 0
+    </div>
+
+    <div class="button-row">
+      <button id="resetBtn" class="btn btn-success">
+        Reset
+      </button>
+      <button id="infoBtn" class="btn btn-danger">
+        Info
+      </button>
+    </div>
+
+    <div class="button-row">
+      
+
+      
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+
+  <div id="rightPanel">
+
+    <h2>Torque Results</h2>
+
+    <div class="resultBox">
+
+      <h3>Real-Time Calculation</h3>
+
+      <div class="resultRow">
+        <span>Object Lever Arm:</span>
+        <b id="objectArm">-6.0000 m</b>
+      </div>
+
+      <div class="resultRow">
+        <span>Beam Lever Arm:</span>
+        <b id="beamArm">4.0000 m</b>
+      </div>
+
+      <hr>
+
+      <div class="resultRow">
+        <span>Object Torque:</span>
+        <b id="objectTorque">117.60 N·m</b>
+      </div>
+
+      <div class="resultRow">
+        <span>Beam Torque:</span>
+        <b id="beamTorque">Unknown</b>
+      </div>
+
+      <div class="resultRow">
+        <span>Net Torque:</span>
+        <b id="netTorque">-78.4000 N·m</b>
+      </div>
+
+      <div class="resultRow">
+        <span>Beam Angle:</span>
+        <b id="angleValue">0.00°</b>
+      </div>
+
+      <hr>
+
+      <b>Status:</b>
+      <span id="balanceStatus" class="statusCW">
+        CW — Right side goes down
+      </span>
+
+    </div>
+
+    <div class="resultBox">
+
+      <h3>Torque Magnitudes</h3>
+
+      <div class="torqueBars">
+
+        <div class="torqueCol">
+          <div class="barFrame">
+            <div id="objectBar"
+                 class="torqueFill objectFill"></div>
+          </div>
+          <div class="barLabel">Object</div>
+        </div>
+
+        <div class="torqueCol">
+          <div class="barFrame">
+            <div id="beamBar"
+                 class="torqueFill beamFill"></div>
+          </div>
+          <div class="barLabel">Beam</div>
+        </div>
+
+        <div class="torqueCol">
+          <div class="barFrame">
+            <div id="netBar"
+                 class="torqueFill netFill"></div>
+          </div>
+          <div class="barLabel">Net</div>
+        </div>
+
+      </div>
+
+      <p style="font-size:12px;text-align:center;margin-top:10px;">
+        Bars show absolute torque magnitudes.
+      </p>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================================
+     PART 2: INSTRUCTIONS
+=================================== -->
+
+<section id="instructionSection">
+
+<h2>Measure Beam Mass: Instructions and Physics</h2>
+
+<p>
+This interactive 3D physics simulation demonstrates
+how the mass of a uniform beam can be determined
+using a known object and the principle of rotational
+equilibrium.
+</p>
+
+<h3>1. Objective</h3>
+
+<p>
+Determine the unknown mass of a uniform beam
+by adjusting the position and mass of a known object
+and the position of the pivot until the beam
+is in rotational equilibrium.
+</p>
+
+<h3>2. How to Use the Simulation</h3>
+
+<div class="instruction-card">
+<ol>
+  <li>
+    Adjust the <b>Object Position</b> slider
+    to move the red object along the beam.
+  </li>
+  <li>
+    Adjust the <b>Object Mass</b> slider
+    to change the known mass.
+  </li>
+  <li>
+    Adjust the <b>Pivot Position</b>
+    to move the support point.
+  </li>
+  <li>
+    Use the +/− buttons for precise adjustment.
+    Normal click: 0.01; Shift + click: 0.0001.
+  </li>
+  <li>
+    Observe the beam rotation and net torque.
+  </li>
+  <li>
+    Continue adjusting until the net torque
+    is approximately zero.
+  </li>
+  <li>
+    Record the object mass, object position,
+    and pivot position.
+  </li>
+  <li>
+    Calculate the unknown beam mass
+    using the rotational equilibrium equation.
+  </li>
+</ol>
+</div>
+
+<h3>3. Torque and Sign Convention</h3>
+
+<p>
+Torque describes the turning effect of a force
+about a pivot.
+</p>
+
+<div class="formula-box">
+  τ = r × F
+</div>
+
+<p>
+For this experiment:
+</p>
+
+<ul>
+  <li>Counterclockwise torque is positive (+).</li>
+  <li>Clockwise torque is negative (−).</li>
+  <li>The net torque is zero at rotational equilibrium.</li>
+</ul>
+
+<div class="formula-box">
+  Στ = 0
+</div>
+
+<h3>4. Determining the Unknown Beam Mass</h3>
+
+<p>
+Let x<sub>O</sub> represent the object position,
+x<sub>P</sub> the pivot position, and
+x<sub>B</sub> the beam's center of mass.
+</p>
+
+<p>
+The uniform beam extends from −20 m to +20 m,
+so its center of mass is at x<sub>B</sub> = 0.
+</p>
+
+<div class="formula-box">
+  r<sub>O</sub> = x<sub>O</sub> − x<sub>P</sub><br>
+  r<sub>B</sub> = x<sub>B</sub> − x<sub>P</sub>
+</div>
+
+<p>
+The gravitational torque of each mass is:
+</p>
+
+<div class="formula-box">
+  τ<sub>O</sub> = −r<sub>O</sub>m<sub>O</sub>g<br>
+  τ<sub>B</sub> = −r<sub>B</sub>m<sub>B</sub>g
+</div>
+
+<p>
+At equilibrium:
+</p>
+
+<div class="formula-box">
+  τ<sub>O</sub> + τ<sub>B</sub> = 0
+</div>
+
+<p>
+Solving for the unknown beam mass:
+</p>
+
+<div class="formula-box">
+  m<sub>B</sub> =
+  −m<sub>O</sub>
+  (x<sub>O</sub> − x<sub>P</sub>) /
+  (x<sub>B</sub> − x<sub>P</sub>)
+</div>
+
+<p>
+Since x<sub>B</sub> = 0:
+</p>
+
+<div class="formula-box">
+  m<sub>B</sub> =
+  m<sub>O</sub>
+  (x<sub>O</sub> − x<sub>P</sub>) /
+  x<sub>P</sub>
+</div>
+
+<h3>5. Suggested Experiment</h3>
+
+<div class="instruction-card">
+<ol>
+  <li>Set the object mass to 2.00 kg.</li>
+  <li>Set the object position to −10.00 m.</li>
+  <li>Move the pivot until net torque is zero.</li>
+  <li>Record the balanced pivot position.</li>
+  <li>Calculate the unknown beam mass.</li>
+  <li>Repeat using different object masses.</li>
+  <li>Compare your calculated results.</li>
+</ol>
+</div>
+
+<h3>6. Important Physics Notes</h3>
+
+<ul>
+  <li>The beam is assumed to be uniform.</li>
+  <li>Its center of mass is at the geometric center.</li>
+  <li>The unknown beam mass is included in torque calculations.</li>
+  <li>The pivot is assumed frictionless.</li>
+  <li>The pivot force produces zero torque about the pivot.</li>
+  <li>Nonzero net torque produces rotational acceleration.</li>
+  <li>Rotational equilibrium occurs when net torque is zero.</li>
+</ul>
+
+<h3>7. Related Physics Simulations</h3>
+
+<ul>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li> 
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li><a href="/simulation.html">全部物理仿真</a></li>
+</ul>
+
+</section>
+
+<footer>
+  Measure Beam Mass | 乐启享物理仿真<br>
+  
+</footer>
+
+<!-- ===================================
+     ORIGINAL THREE.JS SCENE AND PHYSICS
+=================================== -->
+
+<script type="module">
+
+import * as THREE from "three";
+
+import { OrbitControls }
+from "/api/program-assets/3jcn-mechanics-seesaw2/_ext/unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+import { RoundedBoxGeometry }
+from "/api/program-assets/3jcn-mechanics-seesaw2/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
+
+// ===================================
+// GLOBAL VARIABLES
+// ===================================
+
+let scene, camera, renderer, controls;
+let plank, pivotGroup, pivotMesh, leftBox;
+
+const g = 9.8;
+
+// Internal unknown beam mass
+const beamMass = 5;
+
+const leftParams = {
+  position: -10,
+  mass: 2
+};
+
+let beamPivotOffset = -4;
+
+let angularVelocity = 0;
+let angle = 0;
+
+let lastTime = performance.now();
+
+const arrowArray = [];
+
+// ===================================
+// INITIALIZATION
+// ===================================
+
+init();
+animate();
+
+function init() {
+  var _0x7fb5a = (929839 ^ 929837) + (210257 ^ 210256);
+  const _0x54dfcf = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u006F\u006E\u0074\u0061\u0069\u006E\u0065\u0072");
+  _0x7fb5a = 915736 ^ 915729;
+  renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+    '\u0061\u006E\u0074\u0069\u0061\u006C\u0069\u0061\u0073': !![]
+  });
+  renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](Math['\u006D\u0069\u006E'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'], 741426 ^ 741424));
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](_0x54dfcf['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'], _0x54dfcf['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074']);
+  _0x54dfcf['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0xfefefe);
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](523205 ^ 523240, _0x54dfcf['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'] / _0x54dfcf['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074'], 0.1, 145045 ^ 144765);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](917217 ^ 917217, 176448 ^ 176458, 558403 ^ 558449);
+  camera['\u006C\u006F\u006F\u006B\u0041\u0074'](984727 ^ 984727, 579287 ^ 579285, 894497 ^ 894497);
+  controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067'] = !![];
+  controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](169927 ^ 169927, 830440 ^ 830442, 445987 ^ 445987);
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  const _0x7ef6fa = new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0.55);
+  scene['\u0061\u0064\u0064'](_0x7ef6fa);
+  var _0x0dbf8g = (334738 ^ 334740) + (178659 ^ 178661);
+  const _0xfc4ce = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 1.1);
+  _0x0dbf8g = (843245 ^ 843240) + (810710 ^ 810704);
+  _0xfc4ce['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](103465 ^ 103459, 604438 ^ 604418, 399280 ^ 399290);
+  scene['\u0061\u0064\u0064'](_0xfc4ce);
+  pivotMesh = createTriangularWedge(652525 ^ 652521, 411331 ^ 411337, 346838 ^ 346836);
+  scene['\u0061\u0064\u0064'](pivotMesh);
+  pivotGroup = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  pivotGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](beamPivotOffset, 413574 ^ 413572, 272259 ^ 272259);
+  scene['\u0061\u0064\u0064'](pivotGroup);
+  const _0xe_0x788 = new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](879174 ^ 879214, 0.5, 406232 ^ 406234);
+  const _0xff997e = new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x8b4513
+  });
+  plank = new THREE['\u004D\u0065\u0073\u0068'](_0xe_0x788, _0xff997e);
+  plank['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-beamPivotOffset, 572581 ^ 572581, 941620 ^ 941620);
+  pivotGroup['\u0061\u0064\u0064'](plank);
+  var _0x56ed = (801872 ^ 801873) + (816753 ^ 816752);
+  const _0x8d5a7d = new RoundedBoxGeometry(149893 ^ 149895, 296595 ^ 296593, 318153 ^ 318155, 702005 ^ 702001, 0.3);
+  _0x56ed = (563777 ^ 563781) + (993317 ^ 993316);
+  let _0x6c441f;
+  const _0x54d = new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xff0000
+  });
+  _0x6c441f = '\u0067\u006B\u006C\u0063\u0061\u0071';
+  leftBox = new THREE['\u004D\u0065\u0073\u0068'](_0x8d5a7d, _0x54d);
+  pivotGroup['\u0061\u0064\u0064'](leftBox);
+  var _0xde73d = (159772 ^ 159773) + (625710 ^ 625704);
+  const _0x6504af = new THREE['\u0047\u0072\u0069\u0064\u0048\u0065\u006C\u0070\u0065\u0072'](251672 ^ 251696, 467827 ^ 467833);
+  _0xde73d = 299781 ^ 299783;
+  _0x6504af['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(717716 ^ 717724);
+  scene['\u0061\u0064\u0064'](_0x6504af);
+  createRuler();
+  updatePivotPosition();
+  updateObjectPosition();
+  setupUI();
+  displayBeamTorqueInfo();
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0065\u0074\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", resetSimulation);
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("infoBtn")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("click", () => {
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("instructionSection")['\u0073\u0063\u0072\u006F\u006C\u006C\u0049\u006E\u0074\u006F\u0056\u0069\u0065\u0077']({
+      '\u0062\u0065\u0068\u0061\u0076\u0069\u006F\u0072': "smooth",
+      '\u0062\u006C\u006F\u0063\u006B': "start"
+    });
+  });
+  window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065", onWindowResize);
+}
+function createRuler() {
+  let _0x9d3cec;
+  const _0xf_0x104 = 731232 ^ 731208;
+  _0x9d3cec = (452209 ^ 452215) + (510026 ^ 510030);
+  const _0x2d_0x37a = -0.4;
+  const _0x8c11fa = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xf_0x104, 0.7, 0.1), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xffff00
+  }));
+  _0x8c11fa['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](388252 ^ 388252, _0x2d_0x37a, 464346 ^ 464347);
+  plank['\u0061\u0064\u0064'](_0x8c11fa);
+  var _0xg34f = (315194 ^ 315197) + (303342 ^ 303343);
+  const _0x6dbb2d = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x000000
+  });
+  _0xg34f = (817829 ^ 817827) + (252653 ^ 252655);
+  for (let i = -(504962 ^ 504982); i <= (904037 ^ 904049); i++) {
+    var _0xbafd = (534542 ^ 534543) + (463151 ^ 463143);
+    const _0x4a5c = i % (926795 ^ 926799) === (982229 ^ 982229) ? 0.6 : 0.2;
+    _0xbafd = (379736 ^ 379740) + (985597 ^ 985594);
+    var _0x306fa = (610437 ^ 610444) + (848598 ^ 848597);
+    const _0x2046b = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.05, _0x4a5c, 0.05), _0x6dbb2d);
+    _0x306fa = (811162 ^ 811162) + (990926 ^ 990920);
+    _0x2046b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](i, _0x2d_0x37a + _0x4a5c / (559414 ^ 559412), 1.05);
+    plank['\u0061\u0064\u0064'](_0x2046b);
+  }
+}
+function createTriangularWedge(width, height, depth) {
+  const _0xa0287c = new THREE['\u0053\u0068\u0061\u0070\u0065']();
+  _0xa0287c['\u006D\u006F\u0076\u0065\u0054\u006F'](337399 ^ 337399, 863962 ^ 863962);
+  _0xa0287c['\u006C\u0069\u006E\u0065\u0054\u006F'](width / (478773 ^ 478775), height);
+  _0xa0287c['\u006C\u0069\u006E\u0065\u0054\u006F'](width, 565308 ^ 565308);
+  _0xa0287c['\u006C\u0069\u006E\u0065\u0054\u006F'](366156 ^ 366156, 159826 ^ 159826);
+  const _0x3g_0xe24 = new THREE['\u0045\u0078\u0074\u0072\u0075\u0064\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xa0287c, {
+    "depth": depth,
+    '\u0062\u0065\u0076\u0065\u006C\u0045\u006E\u0061\u0062\u006C\u0065\u0064': false
+  });
+  _0x3g_0xe24['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](-width / (690338 ^ 690336), -height, -depth / (829998 ^ 829996));
+  var _0x646d = (810794 ^ 810799) + (971510 ^ 971505);
+  const _0x3b590d = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x000000
+  });
+  _0x646d = (642019 ^ 642019) + (270742 ^ 270750);
+  const _0x5898c = new THREE['\u004D\u0065\u0073\u0068'](_0x3g_0xe24, _0x3b590d);
+  _0x5898c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](beamPivotOffset, 994436 ^ 994438, -(872513 ^ 872512));
+  return _0x5898c;
+}
+function updatePivotPosition() {
+  pivotGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](beamPivotOffset, 510956 ^ 510958, 270493 ^ 270493);
+  pivotMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](beamPivotOffset, 848464 ^ 848466, -(987441 ^ 987440));
+  plank['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = -beamPivotOffset;
+  updateObjectPosition();
+}
+function updateObjectPosition() {
+  if (!leftBox) return;
+  var _0x8c2dc = (746443 ^ 746447) + (211724 ^ 211726);
+  const _0x63g = Math['\u006D\u0061\u0078'](leftParams['\u006D\u0061\u0073\u0073'] / (375596 ^ 375598), 0.2);
+  _0x8c2dc = (768295 ^ 768289) + (182860 ^ 182861);
+  leftBox['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074\u0053\u0063\u0061\u006C\u0061\u0072'](_0x63g);
+  var _0xa4c = (274854 ^ 274851) + (598662 ^ 598662);
+  const _0xeee8e = leftParams['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'] - beamPivotOffset;
+  _0xa4c = 832688 ^ 832689;
+  leftBox['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](_0xeee8e, 0.25 + _0x63g, 147508 ^ 147508);
+}
+function connectPreciseSlider(sliderId, valueId, setter) {
+  let _0x4a968d;
+  const _0x8ff = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](sliderId);
+  _0x4a968d = 444896 ^ 444896;
+  const _0xb490dd = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](valueId);
+  _0x8ff['\u0073\u0074\u0065\u0070'] = "\u0030\u002E\u0030\u0030\u0030\u0031";
+  const _0x6gb19d = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("div");
+  _0x6gb19d['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "fineAdjust";
+  const _0x512egd = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("button");
+  _0x512egd['\u0074\u0079\u0070\u0065'] = "button";
+  _0x512egd['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u2212";
+  _0x512egd['\u0074\u0069\u0074\u006C\u0065'] = "\u0044\u0065\u0063\u0072\u0065\u0061\u0073\u0065\u0020\u0030\u002E\u0030\u0031\u003B\u0020\u0053\u0068\u0069\u0066\u0074\u0020\u002B\u0020\u0063\u006C\u0069\u0063\u006B\u003A\u0020\u0030\u002E\u0030\u0030\u0030\u0031";
+  var _0xeaa9fa = (404796 ^ 404795) + (539436 ^ 539428);
+  const _0xc1691b = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("input");
+  _0xeaa9fa = '\u006F\u0070\u0067\u0070\u006A\u0062';
+  _0xc1691b['\u0074\u0079\u0070\u0065'] = "number";
+  _0xc1691b['\u006D\u0069\u006E'] = _0x8ff['\u006D\u0069\u006E'];
+  _0xc1691b['\u006D\u0061\u0078'] = _0x8ff['\u006D\u0061\u0078'];
+  _0xc1691b['\u0073\u0074\u0065\u0070'] = "\u0030\u002E\u0030\u0030\u0030\u0031";
+  var _0x51a = (412922 ^ 412921) + (983796 ^ 983805);
+  const _0x4_0x1e1 = document['\u0063\u0072\u0065\u0061\u0074\u0065\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("\u0062\u0075\u0074\u0074\u006F\u006E");
+  _0x51a = '\u0062\u0071\u006B\u0061\u0070\u0065';
+  _0x4_0x1e1['\u0074\u0079\u0070\u0065'] = "\u0062\u0075\u0074\u0074\u006F\u006E";
+  _0x4_0x1e1['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u002B";
+  _0x4_0x1e1['\u0074\u0069\u0074\u006C\u0065'] = "Increase 0.01; Shift + click: 0.0001";
+  _0x6gb19d['\u0061\u0070\u0070\u0065\u006E\u0064'](_0x512egd, _0xc1691b, _0x4_0x1e1);
+  _0x8ff['\u0069\u006E\u0073\u0065\u0072\u0074\u0041\u0064\u006A\u0061\u0063\u0065\u006E\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074']("afterend", _0x6gb19d);
+  const _0xcge = Number(_0x8ff['\u006D\u0069\u006E']);
+  const _0x9ea66g = Number(_0x8ff['\u006D\u0061\u0078']);
+  function _0x01325d(raw) {
+    if (!Number['\u0069\u0073\u0046\u0069\u006E\u0069\u0074\u0065'](raw)) return;
+    let _0xbbedd;
+    const _0x8439c = Math['\u006D\u0061\u0078'](_0xcge, Math['\u006D\u0069\u006E'](_0x9ea66g, raw));
+    _0xbbedd = (668797 ^ 668798) + (374919 ^ 374912);
+    let _0x655a;
+    const _0x1bf7e = Math['\u0072\u006F\u0075\u006E\u0064'](_0x8439c * (119750 ^ 128214)) / (452436 ^ 442436);
+    _0x655a = '\u0066\u006E\u0062\u006B\u006F\u0066';
+    _0x8ff['\u0076\u0061\u006C\u0075\u0065'] = _0x1bf7e['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](615206 ^ 615202);
+    _0xc1691b['\u0076\u0061\u006C\u0075\u0065'] = _0x1bf7e['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](596088 ^ 596092);
+    _0xb490dd['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = _0x1bf7e['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](605298 ^ 605302);
+    _0x512egd['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = _0x1bf7e <= _0xcge;
+    _0x4_0x1e1['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = _0x1bf7e >= _0x9ea66g;
+    setter(_0x1bf7e);
+    displayBeamTorqueInfo();
+  }
+  _0x8ff['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074", () => {
+    _0x01325d(Number(_0x8ff['\u0076\u0061\u006C\u0075\u0065']));
+  });
+  _0x512egd['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", event => {
+    let _0x9148g;
+    const step = event['\u0073\u0068\u0069\u0066\u0074\u004B\u0065\u0079'] ? 0.0001 : 0.01;
+    _0x9148g = 498829 ^ 498821;
+    _0x01325d(Number(_0x8ff['\u0076\u0061\u006C\u0075\u0065']) - step);
+  });
+  _0x4_0x1e1['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", event => {
+    var _0x35631a = (698630 ^ 698630) + (697945 ^ 697936);
+    const step = event['\u0073\u0068\u0069\u0066\u0074\u004B\u0065\u0079'] ? 0.0001 : 0.01;
+    _0x35631a = (771816 ^ 771819) + (961418 ^ 961418);
+    _0x01325d(Number(_0x8ff['\u0076\u0061\u006C\u0075\u0065']) + step);
+  });
+  _0xc1691b['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("change", () => {
+    if (_0xc1691b['\u0076\u0061\u006C\u0075\u0065']['\u0074\u0072\u0069\u006D']() === "") {
+      _0x01325d(Number(_0x8ff['\u0076\u0061\u006C\u0075\u0065']));
+    } else {
+      _0x01325d(Number(_0xc1691b['\u0076\u0061\u006C\u0075\u0065']));
+    }
+  });
+  _0xc1691b['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("keydown", event => {
+    if (event['\u006B\u0065\u0079'] === "\u0045\u006E\u0074\u0065\u0072") {
+      _0xc1691b['\u0062\u006C\u0075\u0072']();
+    }
+  });
+  _0x01325d(Number(_0x8ff['\u0076\u0061\u006C\u0075\u0065']));
+}
+function setupUI() {
+  connectPreciseSlider("\u006C\u0065\u0066\u0074\u0050\u006F\u0073\u0053\u006C\u0069\u0064\u0065\u0072", "leftPosValue", value => {
+    leftParams['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'] = value;
+    updateObjectPosition();
+  });
+  connectPreciseSlider("\u006C\u0065\u0066\u0074\u004D\u0061\u0073\u0073\u0053\u006C\u0069\u0064\u0065\u0072", "\u006C\u0065\u0066\u0074\u004D\u0061\u0073\u0073\u0056\u0061\u006C\u0075\u0065", value => {
+    leftParams['\u006D\u0061\u0073\u0073'] = value;
+    updateObjectPosition();
+  });
+  connectPreciseSlider("\u0070\u0069\u0076\u006F\u0074\u0053\u006C\u0069\u0064\u0065\u0072", "\u0070\u0069\u0076\u006F\u0074\u0056\u0061\u006C\u0075\u0065", value => {
+    beamPivotOffset = value;
+    updatePivotPosition();
+  });
+}
+function resetSimulation() {
+  leftParams['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'] = -(971011 ^ 971017);
+  leftParams['\u006D\u0061\u0073\u0073'] = 756542 ^ 756540;
+  beamPivotOffset = -(276147 ^ 276151);
+  angle = 336815 ^ 336815;
+  angularVelocity = 353613 ^ 353613;
+  pivotGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = 511856 ^ 511856;
+  const _0x4bdd = [["\u006C\u0065\u0066\u0074\u0050\u006F\u0073\u0053\u006C\u0069\u0064\u0065\u0072", -(605630 ^ 605620)], ["leftMassSlider", 687826 ^ 687824], ["\u0070\u0069\u0076\u006F\u0074\u0053\u006C\u0069\u0064\u0065\u0072", -(189924 ^ 189920)]];
+  for (const [id, value] of _0x4bdd) {
+    var _0x41d9g = (335326 ^ 335325) + (215423 ^ 215423);
+    const _0xa8a4bb = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);
+    _0x41d9g = (357493 ^ 357495) + (771117 ^ 771116);
+    _0xa8a4bb['\u0076\u0061\u006C\u0075\u0065'] = value;
+    _0xa8a4bb['\u0064\u0069\u0073\u0070\u0061\u0074\u0063\u0068\u0045\u0076\u0065\u006E\u0074'](new Event("\u0069\u006E\u0070\u0075\u0074", {
+      '\u0062\u0075\u0062\u0062\u006C\u0065\u0073': !![]
+    }));
+  }
+  updatePivotPosition();
+  updateObjectPosition();
+  displayBeamTorqueInfo();
+}
+function computeTorques() {
+  const _0x83c = leftParams['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E'] - beamPivotOffset;
+  var _0x46df5d = (422447 ^ 422440) + (395627 ^ 395624);
+  const _0x354f9c = -beamPivotOffset;
+  _0x46df5d = (568391 ^ 568388) + (216784 ^ 216785);
+  const _0x79ddd = -_0x83c * leftParams['\u006D\u0061\u0073\u0073'] * g;
+  var _0x79f = (139814 ^ 139808) + (491806 ^ 491804);
+  const _0xf79b = -_0x354f9c * beamMass * g;
+  _0x79f = '\u0065\u0067\u006C\u006D\u0065\u0064';
+  var _0x75e1c = (786379 ^ 786383) + (778927 ^ 778919);
+  const _0x0ae2 = _0x79ddd + _0xf79b;
+  _0x75e1c = "dfmjcn";
+  return {
+    '\u0072\u004C\u0065\u0066\u0074': _0x83c,
+    "rBeam": _0x354f9c,
+    '\u0074\u006F\u0072\u0071\u0075\u0065\u004C\u0065\u0066\u0074': _0x79ddd,
+    '\u0074\u006F\u0072\u0071\u0075\u0065\u0042\u0065\u0061\u006D': _0xf79b,
+    "netTorque": _0x0ae2
+  };
+}
+function updatePhysics(dt) {
+  const {
+    '\u006E\u0065\u0074\u0054\u006F\u0072\u0071\u0075\u0065': netTorque
+  } = computeTorques();
+  var _0x0e82e = (137754 ^ 137754) + (503853 ^ 503853);
+  const _0x5c8a6a = 428154 ^ 438122;
+  _0x0e82e = (237512 ^ 237504) + (268997 ^ 268993);
+  var _0x792f2f = (615014 ^ 615014) + (106248 ^ 106240);
+  const _0xd97d8a = 0.995;
+  _0x792f2f = '\u0068\u0065\u006B\u0063\u0070\u0070';
+  const _0x32d72f = dt * (759196 ^ 759200);
+  const _0xcba29c = netTorque / _0x5c8a6a;
+  angularVelocity += _0xcba29c * _0x32d72f;
+  angularVelocity *= Math['\u0070\u006F\u0077'](_0xd97d8a, _0x32d72f);
+  angle += angularVelocity * _0x32d72f;
+  const _0x56d = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0064\u0065\u0067\u0054\u006F\u0052\u0061\u0064'](585090 ^ 585110);
+  if (angle > _0x56d) {
+    angle = _0x56d;
+    angularVelocity = -Math['\u0061\u0062\u0073'](angularVelocity) * 0.5;
+  }
+  if (angle < -_0x56d) {
+    angle = -_0x56d;
+    angularVelocity = Math['\u0061\u0062\u0073'](angularVelocity) * 0.5;
+  }
+  if (Math['\u0061\u0062\u0073'](netTorque) < 0.005) {
+    angularVelocity *= Math['\u0065\u0078\u0070'](-(497455 ^ 497447) * dt);
+    angle *= Math['\u0065\u0078\u0070'](-(688507 ^ 688504) * dt);
+    if (Math['\u0061\u0062\u0073'](angle) < 0.0005 && Math['\u0061\u0062\u0073'](angularVelocity) < 0.0005) {
+      angle = 449465 ^ 449465;
+      angularVelocity = 856587 ^ 856587;
+    }
+  }
+  pivotGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = angle;
+}
+function drawWeightForces() {
+  clearArrows();
+  const _0x5c18e = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](602927 ^ 602927, -(703020 ^ 703021), 895636 ^ 895636);
+  var _0xa795bf = (320527 ^ 320518) + (804650 ^ 804643);
+  const _0x43da = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']();
+  _0xa795bf = (992112 ^ 992120) + (534840 ^ 534832);
+  leftBox['\u0067\u0065\u0074\u0057\u006F\u0072\u006C\u0064\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E'](_0x43da);
+  const _0x9ga52g = leftParams['\u006D\u0061\u0073\u0073'] * g;
+  createVector(_0x43da, _0x5c18e, _0x9ga52g * 0.5, 0xff0000);
+  var _0xac4ec = (650277 ^ 650274) + (179372 ^ 179373);
+  const _0x4e5dc = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']();
+  _0xac4ec = (439243 ^ 439235) + (520770 ^ 520768);
+  plank['\u0067\u0065\u0074\u0057\u006F\u0072\u006C\u0064\u0050\u006F\u0073\u0069\u0074\u0069\u006F\u006E'](_0x4e5dc);
+  const _0x4ebad = beamMass * g;
+  createVector(_0x4e5dc, _0x5c18e, _0x4ebad * 0.5, 951033 ^ 950790);
+}
+function createVector(position, direction, length, color = 0xffff00, thickness = 0.2) {
+  var _0x56e5a = (998065 ^ 998068) + (773632 ^ 773638);
+  const _0xaf21e = Math['\u006D\u0061\u0078'](length, 827062 ^ 827063);
+  _0x56e5a = (617246 ^ 617244) + (647530 ^ 647533);
+  var _0x412e = (816546 ^ 816554) + (236144 ^ 236152);
+  const _0xc2ef3a = Math['\u006D\u0069\u006E'](2.5, _0xaf21e * 0.35);
+  _0x412e = '\u0070\u006B\u0069\u006F\u0067\u006D';
+  let _0x27e;
+  const _0xe085d = _0xaf21e - _0xc2ef3a;
+  _0x27e = 225043 ^ 225045;
+  const _0xa_0x91a = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  const _0x88989f = direction['\u0063\u006C\u006F\u006E\u0065']()['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();
+  const _0xa964eb = new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](thickness, thickness, _0xe085d, 983263 ^ 983247);
+  var _0xa27d8c = (929764 ^ 929766) + (511254 ^ 511249);
+  const _0x7_0xc6b = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color
+  });
+  _0xa27d8c = 879632 ^ 879635;
+  let _0x37f6e;
+  const _0x7794fe = new THREE['\u004D\u0065\u0073\u0068'](_0xa964eb, _0x7_0xc6b);
+  _0x37f6e = (560173 ^ 560168) + (799009 ^ 799013);
+  _0x7794fe['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x88989f['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](_0xe085d / (862438 ^ 862436)));
+  _0x7794fe['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](262480 ^ 262480, 879525 ^ 879524, 282477 ^ 282477), _0x88989f);
+  let _0xf2b96c;
+  const _0xg4d62c = new THREE['\u0043\u006F\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.5, _0xc2ef3a, 725204 ^ 725188);
+  _0xf2b96c = 246158 ^ 246154;
+  let _0x54aaa;
+  const _0x19874d = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": color
+  });
+  _0x54aaa = '\u006E\u006E\u0066\u0069\u0065\u006A';
+  const _0xc21ad = new THREE['\u004D\u0065\u0073\u0068'](_0xg4d62c, _0x19874d);
+  _0xc21ad['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x88989f['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](_0xe085d + _0xc2ef3a / (766825 ^ 766827)));
+  _0xc21ad['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](267242 ^ 267242, 765769 ^ 765768, 765213 ^ 765213), _0x88989f);
+  _0xa_0x91a['\u0061\u0064\u0064'](_0x7794fe);
+  _0xa_0x91a['\u0061\u0064\u0064'](_0xc21ad);
+  _0xa_0x91a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](position);
+  scene['\u0061\u0064\u0064'](_0xa_0x91a);
+  arrowArray['\u0070\u0075\u0073\u0068'](_0xa_0x91a);
+}
+function clearArrows() {
+  for (const _0x301f6g of arrowArray) {
+    scene['\u0072\u0065\u006D\u006F\u0076\u0065'](_0x301f6g);
+    _0x301f6g['\u0074\u0072\u0061\u0076\u0065\u0072\u0073\u0065'](child => {
+      if (child['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']) {
+        child['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+      }
+      if (child['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']) {
+        child['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();
+      }
+    });
+  }
+  arrowArray['\u006C\u0065\u006E\u0067\u0074\u0068'] = 997406 ^ 997406;
+}
+function displayBeamTorqueInfo() {
+  const {
+    "rLeft": rLeft,
+    '\u0072\u0042\u0065\u0061\u006D': rBeam,
+    '\u0074\u006F\u0072\u0071\u0075\u0065\u004C\u0065\u0066\u0074': torqueLeft,
+    "torqueBeam": torqueBeam,
+    "netTorque": netTorque
+  } = computeTorques();
+  function _0x154bb(id, value) {
+    var _0x4598aa = (497320 ^ 497312) + (119995 ^ 119994);
+    const _0x1f0c = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);
+    _0x4598aa = (208248 ^ 208254) + (789880 ^ 789881);
+    if (_0x1f0c) {
+      _0x1f0c['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = value;
+    }
+  }
+  _0x154bb("\u006F\u0062\u006A\u0065\u0063\u0074\u0041\u0072\u006D", rLeft['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](403361 ^ 403365) + "\u0020\u006D");
+  _0x154bb("\u0062\u0065\u0061\u006D\u0041\u0072\u006D", rBeam['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](774292 ^ 774288) + "\u0020\u006D");
+  _0x154bb("\u006F\u0062\u006A\u0065\u0063\u0074\u0054\u006F\u0072\u0071\u0075\u0065", torqueLeft['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](667122 ^ 667120) + "\u0020\u004E\u00B7\u006D");
+  _0x154bb("beamTorque", "\u0055\u006E\u006B\u006E\u006F\u0077\u006E");
+  var _0xdd20f = (451357 ^ 451356) + (355161 ^ 355167);
+  const _0x21bc2d = Math['\u0061\u0062\u0073'](netTorque) < 0.005;
+  _0xdd20f = '\u0071\u0063\u006D\u006D\u006A\u0064';
+  _0x154bb("\u006E\u0065\u0074\u0054\u006F\u0072\u0071\u0075\u0065", (_0x21bc2d ? 924086 ^ 924086 : netTorque)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](107993 ^ 107997) + " N·m");
+  _0x154bb("angleValue", THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0072\u0061\u0064\u0054\u006F\u0044\u0065\u0067'](angle)['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](535132 ^ 535134) + "\u00B0");
+  const _0x5gf = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("balanceStatus");
+  if (_0x21bc2d) {
+    _0x5gf['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "Balanced";
+    _0x5gf['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0073\u0074\u0061\u0074\u0075\u0073\u0042\u0061\u006C\u0061\u006E\u0063\u0065\u0064";
+  } else if (netTorque > (672977 ^ 672977)) {
+    _0x5gf['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0043\u0043\u0057\u0020\u2014\u0020\u004C\u0065\u0066\u0074\u0020\u0073\u0069\u0064\u0065\u0020\u0067\u006F\u0065\u0073\u0020\u0064\u006F\u0077\u006E";
+    _0x5gf['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0073\u0074\u0061\u0074\u0075\u0073\u0043\u0043\u0057";
+  } else {
+    _0x5gf['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0043\u0057\u0020\u2014\u0020\u0052\u0069\u0067\u0068\u0074\u0020\u0073\u0069\u0064\u0065\u0020\u0067\u006F\u0065\u0073\u0020\u0064\u006F\u0077\u006E";
+    _0x5gf['\u0063\u006C\u0061\u0073\u0073\u004E\u0061\u006D\u0065'] = "\u0073\u0074\u0061\u0074\u0075\u0073\u0043\u0057";
+  }
+  let _0x538dad;
+  const _0x0c5bg = Math['\u006D\u0061\u0078'](Math['\u0061\u0062\u0073'](torqueLeft), Math['\u0061\u0062\u0073'](torqueBeam), Math['\u0061\u0062\u0073'](netTorque), 753084 ^ 753085);
+  _0x538dad = (243815 ^ 243813) + (688100 ^ 688098);
+  function _0x_0xda1(id, torque) {
+    let _0x5e7b;
+    const _0x55e6ec = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);
+    _0x5e7b = (983960 ^ 983960) + (685054 ^ 685046);
+    if (!_0x55e6ec) return;
+    _0x55e6ec['\u0073\u0074\u0079\u006C\u0065']['\u0068\u0065\u0069\u0067\u0068\u0074'] = (622894 ^ 622922) * Math['\u0061\u0062\u0073'](torque) / _0x0c5bg + "\u0025";
+  }
+  _0x_0xda1("\u006F\u0062\u006A\u0065\u0063\u0074\u0042\u0061\u0072", torqueLeft);
+  _0x_0xda1("beamBar", torqueBeam);
+  _0x_0xda1("netBar", netTorque);
+}
+function animate() {
+  requestAnimationFrame(animate);
+  const _0xd41bc = performance['\u006E\u006F\u0077']();
+  let _0xe285d;
+  const _0xb_0xc2e = Math['\u006D\u0069\u006E']((_0xd41bc - lastTime) / (161476 ^ 161068), 0.035);
+  _0xe285d = '\u0071\u0066\u006B\u0071\u0063\u0068';
+  lastTime = _0xd41bc;
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  updatePhysics(_0xb_0xc2e);
+  scene['\u0075\u0070\u0064\u0061\u0074\u0065\u004D\u0061\u0074\u0072\u0069\u0078\u0057\u006F\u0072\u006C\u0064'](!![]);
+  drawWeightForces();
+  displayBeamTorqueInfo();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+function onWindowResize() {
+  const _0x7d18d = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u006F\u006E\u0074\u0061\u0069\u006E\u0065\u0072");
+  let _0x2cb3d;
+  const _0x1ba = _0x7d18d['\u0063\u006C\u0069\u0065\u006E\u0074\u0057\u0069\u0064\u0074\u0068'];
+  _0x2cb3d = (507562 ^ 507567) + (449217 ^ 449225);
+  var _0xf4141f = (350728 ^ 350720) + (734275 ^ 734276);
+  const _0xa1ge6c = _0x7d18d['\u0063\u006C\u0069\u0065\u006E\u0074\u0048\u0065\u0069\u0067\u0068\u0074'];
+  _0xf4141f = (832978 ^ 832979) + (401287 ^ 401285);
+  if (_0x1ba <= (681157 ^ 681157) || _0xa1ge6c <= (243878 ^ 243878)) return;
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = _0x1ba / _0xa1ge6c;
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](_0x1ba, _0xa1ge6c);
+}
+</script>
+
+</body>
+</html>

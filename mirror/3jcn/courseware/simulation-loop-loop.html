@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<!-- Google tag (gtag.js) -->
+
+
+
+<!-- End Google Tag Manager -->	
+ 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- SEO Title -->
+<title>乐启享 · 物理实验</title>
+
+<!-- SEO Description -->
+<meta name="description"
+content="Explore Loop the Loop with a free interactive 3D physics simulation. Compare sliding and rolling balls, rotational kinetic energy, conservation of energy, centripetal force, and minimum release height.">
+
+<!-- SEO Keywords -->
+<meta name="keywords"
+content="physics simulation, loop the loop, loop the loop physics simulation, loop the loop experiment, loop the loop animation, interactive physics simulation, 3D physics simulation, rolling ball simulation, sliding ball simulation, rotational kinetic energy, translational kinetic energy, conservation of energy, mechanical energy, gravitational potential energy, centripetal force, centripetal acceleration, circular motion, normal force, rolling without slipping, minimum height for loop the loop, roller coaster physics simulation, Newton's laws of motion, classical mechanics, physics education,
+virtual physics lab, online physics experiment, 乐启享物理仿真">
+
+<!-- Search Engine Indexing -->
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="googlebot" content="index, follow">
+
+<!-- Author and License -->
+<meta name="author" content="乐启享课件库（改编自 Thomas Nguyen 的开源物理仿真）">
+<meta name="license" content="CC BY 4.0">
+
+<!-- Social Media / Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="乐启享课件库">
+<meta property="og:title"
+content="Loop the Loop - Interactive 3D Physics Simulation">
+<meta property="og:description"
+content="Investigate sliding and rolling balls in a loop-the-loop experiment. Explore forces, energy conservation, rotational motion, and circular motion with interactive 3D visualization.">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title"
+content="Loop the Loop Physics Simulation  | 乐启享课件库">
+<meta name="twitter:description"
+content="Free interactive 3D loop-the-loop simulation comparing sliding and rolling balls, kinetic energy, normal force, and conservation of mechanical energy.">
+
+<!-- Favicon -->
+<link rel="icon" href="/brand/favicon.ico">
+
+<!-- Bootstrap -->
+<link rel="stylesheet"
+href="/api/program-assets/3jcn-simulation-loop-loop/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<!-- Three.js -->
+<script src="/api/program-assets/3jcn-simulation-loop-loop/_ext/vendor/js/three.js"></script>
+<script src="/api/program-assets/3jcn-simulation-loop-loop/_ext/vendor/js/OrbitControls.js"></script>
+ 
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#edf5ef;color:#222;overflow:hidden}
+#container{position:absolute;inset:0}
+#title{position:absolute;top:17px;width:100%;text-align:center;font-size:35px;z-index:5;pointer-events:none}
+.panel{position:absolute;top:125px;width:345px;min-height:335px;background:rgba(255,255,255,.96);border:1px solid #adb9b5;border-radius:9px;padding:13px;box-shadow:0 2px 12px #0002;z-index:10;font-size:13px}
+#controlPanel{left:14px}#physicsPanel{right:14px}
+.panel h3{margin:0 0 13px;font-size:17px}
+.controlRow{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:13px 0}
+#runStatus{margin-top:16px;color:#444;line-height:1.5}
+#physicsPanel label{font-size:12px;white-space:nowrap;font-weight:normal}
+#physicsPanel input{vertical-align:middle}
+#forceReadout,#energyReadout{font-size:12px;line-height:1.55;margin-top:7px}
+#energyGraph{width:100%;height:160px;display:block;margin-top:4px;background:#fff}
+.legend{display:flex;gap:4px 10px;flex-wrap:wrap;margin-top:5px;font-size:11px}
+.legend span{white-space:nowrap}
+.note{font-size:11px;color:#555;margin-top:6px;line-height:1.35}
+#shoot,#pauseButton,#resetButton{color:#fff!important;font-size:13px;font-weight:600;border-radius:5px;padding:7px 11px;border:1px solid transparent;text-shadow:none}
+#shoot{background:#28a745!important}
+#pauseButton{background:#cc8500!important}
+#resetButton{background:#dc3545!important}
+#shoot:disabled,#pauseButton:disabled,#resetButton:disabled{opacity:.55!important;cursor:not-allowed}
+#modeRow label{font-weight:normal;margin:0 7px 0 0;cursor:pointer}
+#modeRow input{margin:0 3px 0 0;vertical-align:middle}
+@media(max-width:760px){
+.panel{top:auto;bottom:8px;width:calc(50% - 13px);min-height:0;height:330px;padding:9px;overflow:auto}
+#controlPanel{left:8px}#physicsPanel{right:8px}
+#energyGraph{height:125px}#title{font-size:27px}
+}
+</style>
+ 
+</head>
+<body>
+<div id="title">LOOP-THE-LOOP</div>
+<div id="container"></div>
+
+<div id="controlPanel" class="panel">
+ <h3>Simulation Controls</h3>
+ <div class="controlRow"><button class="btn btn-info" id="infoButton">Information</button></div>
+ <div class="controlRow" id="modeRow">
+  <strong>Ball motion:</strong>
+  <label><input type="radio" name="ballMode" value="sliding" checked>Sliding ball</label>
+  <label><input type="radio" name="ballMode" value="rolling">Rolling ball</label>
+ </div>
+ <div class="controlRow">
+  <label for="setY">Initial height level:</label>
+  <select id="setY">
+   <option value="1">Level 1: h = 2R</option>
+   <option value="2">Level 2: h = 2.5R</option>
+   <option value="3">Level 3: h = 2.7R</option>
+  </select>
+ </div>
+ <div class="controlRow">
+  <button class="btn" id="shoot">Run Simulation</button>
+  <button class="btn" id="pauseButton" disabled>Pause</button>
+  <button class="btn" id="resetButton" disabled>Reset</button>
+ </div>
+ <p id="runStatus">Choose a model and height, then click Run.</p>
+</div>
+
+<div id="physicsPanel" class="panel">
+ <div style="display:flex;justify-content:space-between;gap:5px">
+  <strong>Forces &amp; Energy</strong>
+  <span>
+   <label><input id="showForces" type="checkbox" checked> Forces</label>
+   <label><input id="showEnergy" type="checkbox" checked> Graph</label>
+  </span>
+ </div>
+ <div id="forceReadout">Press Run Simulation to begin.</div>
+ <div id="energySection">
+  <div id="energyReadout"></div>
+  <div class="legend">
+   <span style="color:#cf5725">● Translational KE</span>
+   <span style="color:#8e44ad">● Rotational KE</span>
+   <span style="color:#2273bc">● PE</span>
+   <span style="color:#22834b">● Total</span>
+  </div>
+  <canvas id="energyGraph" width="690" height="350"></canvas>
+ </div>
+ <div class="note">Sliding: ideal frictionless point-mass model. Rolling: uniform solid sphere rolling without slipping while on track. Impacts are approximate and dissipate energy.</div>
+</div>
+
+<script>
+'use strict';
+
+// Ball-center path radius is Rpath, referred to as R in the release-height labels.
+var R = 1.2, centerX = 1.0, bottomY = -0.6, centerY = bottomY + R;
+var ballRadius = 0.20, trackThickness = 0.06, trackWidth = 2.4;
+var offset = ballRadius + trackThickness / 2, pathR = R - offset;
+var startAngle = -0.70, endAngle = 2*Math.PI - 1.75, rampLength = 7.5;
+var g = 9.81, mass = 1.0, beta = 2/5; // I/(m r^2) for solid sphere
+
+var renderer, scene, camera, controls, loader, table, ball, marker;
+var gravityArrow, normalArrow, frictionArrow;
+var clock = new THREE.Clock();
+var running = false, paused = false, state = null;
+var energyHistory = [], elapsed = 0, sampleClock = 0, graphMaxE = 1;
+var energyCanvas, energyCtx, showForcesBox, showEnergyBox;
+
+function $(id) {
+  return document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064'](id);
+}
+function clamp(x, a, b) {
+  return Math['\u006D\u0061\u0078'](a, Math['\u006D\u0069\u006E'](b, x));
+}
+function entry() {
+  return {
+    '\u0078': centerX + pathR * Math['\u0073\u0069\u006E'](startAngle),
+    '\u0079': centerY - pathR * Math['\u0063\u006F\u0073'](startAngle)
+  };
+}
+function floorReference() {
+  return table['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] + 0.175 + ballRadius;
+}
+function createLoop() {
+  var _0x80ag1b = new THREE['\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](),
+    _0xadg4db = 562694 ^ 562894,
+    w = trackWidth / (196636 ^ 196638),
+    t = trackThickness / (780671 ^ 780669),
+    _0xf7ggd = null;
+  function _0xcd9e(x, y, z) {
+    _0x80ag1b['\u0076\u0065\u0072\u0074\u0069\u0063\u0065\u0073']['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x, y, z));
+    return _0x80ag1b['\u0076\u0065\u0072\u0074\u0069\u0063\u0065\u0073']['\u006C\u0065\u006E\u0067\u0074\u0068'] - (993937 ^ 993936);
+  }
+  function _0x7ged(a, b, c, d) {
+    _0x80ag1b['\u0066\u0061\u0063\u0065\u0073']['\u0070\u0075\u0073\u0068'](new THREE['\u0046\u0061\u0063\u0065\u0033'](a, b, c), new THREE['\u0046\u0061\u0063\u0065\u0033'](a, c, d));
+  }
+  for (var i = 266290 ^ 266290; i <= _0xadg4db; i++) {
+    var _0xd5cg9c = (830558 ^ 830557) + (444539 ^ 444542);
+    var a = startAngle + (endAngle - startAngle) * i / _0xadg4db;
+    _0xd5cg9c = 950525 ^ 950527;
+    var _0xe46d5d = -Math['\u0073\u0069\u006E'](a),
+      _0x06d = Math['\u0063\u006F\u0073'](a),
+      x = centerX + R * Math['\u0073\u0069\u006E'](a),
+      y = centerY - R * Math['\u0063\u006F\u0073'](a);
+    let _0xag_0xd0c;
+    var _0x5505fd = [_0xcd9e(x + t * _0xe46d5d, y + t * _0x06d, -w), _0xcd9e(x + t * _0xe46d5d, y + t * _0x06d, w), _0xcd9e(x - t * _0xe46d5d, y - t * _0x06d, -w), _0xcd9e(x - t * _0xe46d5d, y - t * _0x06d, w)];
+    _0xag_0xd0c = 515731 ^ 515732;
+    if (_0xf7ggd) {
+      _0x7ged(_0xf7ggd[800939 ^ 800939], _0xf7ggd[429444 ^ 429445], _0x5505fd[671114 ^ 671115], _0x5505fd[998712 ^ 998712]);
+      _0x7ged(_0xf7ggd[145126 ^ 145124], _0x5505fd[436529 ^ 436531], _0x5505fd[125729 ^ 125730], _0xf7ggd[968306 ^ 968305]);
+      _0x7ged(_0xf7ggd[424343 ^ 424343], _0x5505fd[809392 ^ 809392], _0x5505fd[980715 ^ 980713], _0xf7ggd[598204 ^ 598206]);
+      _0x7ged(_0xf7ggd[950992 ^ 950993], _0xf7ggd[106303 ^ 106300], _0x5505fd[304421 ^ 304422], _0x5505fd[652370 ^ 652371]);
+    } else _0x7ged(_0x5505fd[799766 ^ 799766], _0x5505fd[255633 ^ 255635], _0x5505fd[919279 ^ 919276], _0x5505fd[859204 ^ 859205]);
+    _0xf7ggd = _0x5505fd;
+  }
+  _0x7ged(_0xf7ggd[441698 ^ 441698], _0xf7ggd[802846 ^ 802847], _0xf7ggd[224589 ^ 224590], _0xf7ggd[400434 ^ 400432]);
+  _0x80ag1b['\u0063\u006F\u006D\u0070\u0075\u0074\u0065\u0046\u0061\u0063\u0065\u004E\u006F\u0072\u006D\u0061\u006C\u0073']();
+  _0x80ag1b['\u0063\u006F\u006D\u0070\u0075\u0074\u0065\u0056\u0065\u0072\u0074\u0065\u0078\u004E\u006F\u0072\u006D\u0061\u006C\u0073']();
+  scene['\u0061\u0064\u0064'](new THREE['\u004D\u0065\u0073\u0068'](_0x80ag1b, new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xb4d6c5,
+    "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+  })));
+}
+function createRamp() {
+  var a = startAngle,
+    _0xb30eed = Math['\u0063\u006F\u0073'](a),
+    _0xbf0c2c = Math['\u0073\u0069\u006E'](a),
+    _0xa88c = -Math['\u0073\u0069\u006E'](a),
+    _0xc4628c = Math['\u0063\u006F\u0073'](a),
+    p = entry();
+  var x = p['\u0078'] - offset * _0xa88c,
+    y = p['\u0079'] - offset * _0xc4628c;
+  var _0xa550gd = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](rampLength, trackThickness, trackWidth), new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u006D\u0061\u0070': loader['\u006C\u006F\u0061\u0064']("\u002E\u002E\u002F\u0070\u0069\u0063\u0074\u0075\u0072\u0065\u0073\u002F\u0067\u006C\u0061\u0073\u0073\u002E\u006A\u0070\u0067")
+  }));
+  _0xa550gd['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x - rampLength * _0xb30eed / (110050 ^ 110048), y - rampLength * _0xbf0c2c / (544261 ^ 544263), 832385 ^ 832385);
+  _0xa550gd['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = a;
+  scene['\u0061\u0064\u0064'](_0xa550gd);
+}
+function createTable() {
+  table = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](599090 ^ 599096, .35, 466104 ^ 466109), new THREE['\u004D\u0065\u0073\u0068\u004C\u0061\u006D\u0062\u0065\u0072\u0074\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u006D\u0061\u0070': loader['\u006C\u006F\u0061\u0064']('../pictures/wood_material.jpg')
+  }));
+  table['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(770073 ^ 770072), bottomY - .25, 692591 ^ 692591);
+  scene['\u0061\u0064\u0064'](table);
+}
+function makeBall() {
+  ball = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](ballRadius, 634315 ^ 634347, 688258 ^ 688282), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xe53935,
+    "shininess": 90
+  }));
+  marker = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](.028, 939979 ^ 939975, 560619 ^ 560609), new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x202020
+  }));
+  marker['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](821295 ^ 821295, ballRadius * .96, ballRadius * .18);
+  ball['\u0061\u0064\u0064'](marker);
+  scene['\u0061\u0064\u0064'](ball);
+  ball['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+}
+function makeArrows() {
+  gravityArrow = new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](407594 ^ 407594, -(830065 ^ 830064), 913494 ^ 913494), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](), .8, 0x1479d5, .17, .1);
+  normalArrow = new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](597848 ^ 597848, 400426 ^ 400427, 141944 ^ 141944), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](), .8, 0x18a04b, .17, .1);
+  frictionArrow = new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](424624 ^ 424625, 352683 ^ 352683, 601886 ^ 601886), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](), .5, 0xa65a00, .14, .085);
+  [gravityArrow, normalArrow, frictionArrow]['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](function (a) {
+    scene['\u0061\u0064\u0064'](a);
+    a['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+  });
+}
+function onTrack(s) {
+  var p = entry(),
+    _0x17e12c = Math['\u0063\u006F\u0073'](startAngle),
+    _0x2a5cg = Math['\u0073\u0069\u006E'](startAngle),
+    f = state['\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065'] === 'rolling' ? (584541 ^ 584540) + beta : 386574 ^ 386575;
+  if (s <= state['\u0072\u0061\u006D\u0070\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065']) {
+    var _0xee7g = (369700 ^ 369699) + (333638 ^ 333634);
+    var _0xb4gc3c = state['\u0072\u0061\u006D\u0070\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065'] - s;
+    _0xee7g = 826272 ^ 826275;
+    return {
+      '\u0078': p['\u0078'] - _0xb4gc3c * _0x17e12c,
+      '\u0079': p['\u0079'] - _0xb4gc3c * _0x2a5cg,
+      '\u0061\u006E\u0067\u006C\u0065': startAngle,
+      '\u0061\u0063\u0063': -g * Math['\u0073\u0069\u006E'](startAngle) / f,
+      '\u006F\u006E\u004C\u006F\u006F\u0070': false
+    };
+  }
+  let _0xb2e63f;
+  var a = startAngle + (s - state['\u0072\u0061\u006D\u0070\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065']) / pathR;
+  _0xb2e63f = (688726 ^ 688734) + (804279 ^ 804287);
+  return {
+    '\u0078': centerX + pathR * Math['\u0073\u0069\u006E'](a),
+    '\u0079': centerY - pathR * Math['\u0063\u006F\u0073'](a),
+    '\u0061\u006E\u0067\u006C\u0065': a,
+    '\u0061\u0063\u0063': -g * Math['\u0073\u0069\u006E'](a) / f,
+    '\u006F\u006E\u004C\u006F\u006F\u0070': !![]
+  };
+}
+function resetSimulation() {
+  running = false;
+  paused = false;
+  state = null;
+  elapsed = 998697 ^ 998697;
+  sampleClock = 764511 ^ 764511;
+  energyHistory = [];
+  graphMaxE = 584169 ^ 584168;
+  ball['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+  ball['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](914434 ^ 914434, 722829 ^ 722829, 945251 ^ 945251);
+  [gravityArrow, normalArrow, frictionArrow]['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](function (a) {
+    a['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+  });
+  $('shoot')['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+  $("\u0070\u0061\u0075\u0073\u0065\u0042\u0075\u0074\u0074\u006F\u006E")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  $("\u0070\u0061\u0075\u0073\u0065\u0042\u0075\u0074\u0074\u006F\u006E")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Pause';
+  $("\u0072\u0065\u0073\u0065\u0074\u0042\u0075\u0074\u0074\u006F\u006E")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+  $("\u0072\u0075\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0043\u0068\u006F\u006F\u0073\u0065\u0020\u0061\u0020\u006D\u006F\u0064\u0065\u006C\u0020\u0061\u006E\u0064\u0020\u0068\u0065\u0069\u0067\u0068\u0074\u002C\u0020\u0074\u0068\u0065\u006E\u0020\u0063\u006C\u0069\u0063\u006B\u0020\u0052\u0075\u006E\u002E";
+  $("\u0066\u006F\u0072\u0063\u0065\u0052\u0065\u0061\u0064\u006F\u0075\u0074")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = 'Press Run Simulation to begin.';
+  $('energyReadout')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = '';
+  drawEnergyGraph();
+  clock['\u0067\u0065\u0074\u0044\u0065\u006C\u0074\u0061']();
+}
+function startRun() {
+  var _0x14af9g = Number($("\u0073\u0065\u0074\u0059")['\u0076\u0061\u006C\u0075\u0065']),
+    _0x2afc9c = [617063 ^ 617063, 603720 ^ 603722, 2.5, 2.7][_0x14af9g];
+  var _0xg4aag = document['\u0071\u0075\u0065\u0072\u0079\u0053\u0065\u006C\u0065\u0063\u0074\u006F\u0072']("\u0069\u006E\u0070\u0075\u0074\u005B\u006E\u0061\u006D\u0065\u003D\u0022\u0062\u0061\u006C\u006C\u004D\u006F\u0064\u0065\u0022\u005D\u003A\u0063\u0068\u0065\u0063\u006B\u0065\u0064")['\u0076\u0061\u006C\u0075\u0065'];
+  var _0xgf9cb = centerY - pathR + _0x2afc9c * pathR,
+    p = entry();
+  var _0xb5fd = (984054 ^ 984062) + (498567 ^ 498575);
+  var _0x55c5f = (_0xgf9cb - p['\u0079']) / -Math['\u0073\u0069\u006E'](startAngle);
+  _0xb5fd = '\u0067\u0067\u0070\u0061\u0064\u0061';
+  if (_0x55c5f < (989034 ^ 989034) || _0x55c5f > rampLength - offset) {
+    alert("\u0052\u0065\u006C\u0065\u0061\u0073\u0065\u0020\u0068\u0065\u0069\u0067\u0068\u0074\u0020\u0069\u0073\u0020\u006F\u0075\u0074\u0073\u0069\u0064\u0065\u0020\u0074\u0068\u0065\u0020\u0072\u0061\u006D\u0070\u002E");
+    return;
+  }
+  state = {
+    '\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065': _0xg4aag,
+    '\u0072\u0061\u006D\u0070\u0044\u0069\u0073\u0074\u0061\u006E\u0063\u0065': _0x55c5f,
+    '\u0073': 0,
+    '\u0076': 0,
+    '\u006D\u006F\u0064\u0065': "\u0074\u0072\u0061\u0063\u006B",
+    "vx": 0,
+    "vy": 0,
+    '\u0078': 0,
+    '\u0079': _0xgf9cb,
+    '\u0073\u0070\u0069\u006E': 0,
+    '\u006F\u006D\u0065\u0067\u0061': 0,
+    "resting": false
+  };
+  var _0xe7df = (367601 ^ 367606) + (857624 ^ 857628);
+  var _0x1df2f = onTrack(293992 ^ 293992);
+  _0xe7df = (527432 ^ 527439) + (333503 ^ 333497);
+  state['\u0078'] = _0x1df2f['\u0078'];
+  state['\u0079'] = _0x1df2f['\u0079'];
+  ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](_0x1df2f['\u0078'], _0x1df2f['\u0079'], 683593 ^ 683593);
+  ball['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](217314 ^ 217314, 731116 ^ 731116, 976259 ^ 976259);
+  ball['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = !![];
+  running = !![];
+  paused = false;
+  $("\u0070\u0061\u0075\u0073\u0065\u0042\u0075\u0074\u0074\u006F\u006E")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+  $("\u0070\u0061\u0075\u0073\u0065\u0042\u0075\u0074\u0074\u006F\u006E")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+  $("\u0072\u0065\u0073\u0065\u0074\u0042\u0075\u0074\u0074\u006F\u006E")['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = false;
+  $('runStatus')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = (_0xg4aag === 'rolling' ? 'Rolling' : "\u0053\u006C\u0069\u0064\u0069\u006E\u0067") + "\u0020\u0062\u0061\u006C\u006C\u0020\u2014\u0020\u004C\u0065\u0076\u0065\u006C\u0020" + _0x14af9g;
+  energyHistory = [];
+  elapsed = 613838 ^ 613838;
+  sampleClock = 634827 ^ 634827;
+  var _0x8b2c = (506672 ^ 506672) + (420779 ^ 420780);
+  var e = measure();
+  _0x8b2c = 896183 ^ 896176;
+  graphMaxE = Math['\u006D\u0061\u0078'](934817 ^ 934816, e['\u0074\u006F\u0074\u0061\u006C']);
+  record(e);
+  drawEnergyGraph();
+  clock['\u0067\u0065\u0074\u0044\u0065\u006C\u0074\u0061']();
+}
+function record(e) {
+  energyHistory['\u0070\u0075\u0073\u0068']({
+    '\u0074': elapsed,
+    "kt": e['\u006B\u0074'],
+    '\u006B\u0072': e['\u006B\u0072'],
+    "pe": e['\u0070\u0065'],
+    '\u0074\u006F\u0074\u0061\u006C': e['\u0074\u006F\u0074\u0061\u006C']
+  });
+}
+function loopHit(x0, y0, x1, y1) {
+  var _0xa92de = x1 - x0,
+    _0x3b96a = y1 - y0,
+    _0xag01be = x0 - centerX,
+    _0xe6g1a = y0 - centerY;
+  var A = _0xa92de * _0xa92de + _0x3b96a * _0x3b96a,
+    B = (341707 ^ 341705) * (_0xag01be * _0xa92de + _0xe6g1a * _0x3b96a),
+    C = _0xag01be * _0xag01be + _0xe6g1a * _0xe6g1a - pathR * pathR;
+  if (A < 1e-14 || C > 1e-5) return null;
+  var _0xaad2g = B * B - (475935 ^ 475931) * A * C;
+  if (_0xaad2g < (124229 ^ 124229)) return null;
+  var _0x02f2a = (298331 ^ 298334) + (236981 ^ 236980);
+  var t = (-B + Math['\u0073\u0071\u0072\u0074'](_0xaad2g)) / ((211326 ^ 211324) * A);
+  _0x02f2a = '\u0062\u0063\u0067\u0064\u0065\u006C';
+  if (t < (444867 ^ 444867) || t > (549734 ^ 549735)) return null;
+  var x = x0 + t * _0xa92de,
+    y = y0 + t * _0x3b96a,
+    a = Math['\u0061\u0074\u0061\u006E\u0032'](x - centerX, centerY - y);
+  if (a < startAngle) a += (159848 ^ 159850) * Math['\u0050\u0049'];
+  if (a < startAngle || a > endAngle) return null;
+  return {
+    '\u0074': t,
+    '\u0078': x,
+    '\u0079': y,
+    '\u006E\u0078': (x - centerX) / pathR,
+    '\u006E\u0079': (y - centerY) / pathR,
+    '\u0074\u0079\u0070\u0065': "\u006C\u006F\u006F\u0070",
+    "angle": a
+  };
+}
+function rampHit(x0, y0, x1, y1) {
+  var a = startAngle,
+    _0xc6eb = Math['\u0063\u006F\u0073'](a),
+    _0x2b9d = Math['\u0073\u0069\u006E'](a),
+    _0x2f51d = -Math['\u0073\u0069\u006E'](a),
+    _0x2c999b = Math['\u0063\u006F\u0073'](a),
+    p = entry();
+  var _0xabe8e = (x0 - p['\u0078']) * _0x2f51d + (y0 - p['\u0079']) * _0x2c999b,
+    _0x4c3b0d = (x1 - p['\u0078']) * _0x2f51d + (y1 - p['\u0079']) * _0x2c999b;
+  if (_0xabe8e < -1e-6 || _0x4c3b0d > (325128 ^ 325128) || Math['\u0061\u0062\u0073'](_0xabe8e - _0x4c3b0d) < 1e-12) return null;
+  let _0x_0x107;
+  var t = _0xabe8e / (_0xabe8e - _0x4c3b0d);
+  _0x_0x107 = '\u0063\u0070\u0068\u006E\u0069\u0065';
+  if (t < (920279 ^ 920279) || t > (726216 ^ 726217)) return null;
+  var x = x0 + t * (x1 - x0),
+    y = y0 + t * (y1 - y0),
+    _0x6c_0x48d = (x - p['\u0078']) * _0xc6eb + (y - p['\u0079']) * _0x2b9d;
+  if (_0x6c_0x48d < -rampLength || _0x6c_0x48d > (441366 ^ 441366)) return null;
+  return {
+    '\u0074': t,
+    '\u0078': x,
+    '\u0079': y,
+    "nx": _0x2f51d,
+    '\u006E\u0079': _0x2c999b,
+    '\u0074\u0079\u0070\u0065': "\u0072\u0061\u006D\u0070",
+    '\u0061\u006E\u0067\u006C\u0065': a
+  };
+}
+function advance(dt) {
+  if (!running || paused || !state) return;
+  var _0xf3c78b = Math['\u006D\u0061\u0078'](126569 ^ 126568, Math['\u0063\u0065\u0069\u006C'](dt / ((949198 ^ 949199) / (548417 ^ 548529))));
+  let _0x2_0x3d8;
+  var h = dt / _0xf3c78b;
+  _0x2_0x3d8 = "cgceel";
+  for (var k = 880471 ^ 880471; k < _0xf3c78b; k++) {
+    if (!running) break;
+    if (state['\u006D\u006F\u0064\u0065'] === 'track') {
+      var _0xb39e = onTrack(state['\u0073']);
+      let _0x7f38bf;
+      var _0x45c88g = Math['\u006D\u0061\u0078'](225297 ^ 225297, state['\u0076'] + 0.5 * _0xb39e['\u0061\u0063\u0063'] * h);
+      _0x7f38bf = (596572 ^ 596572) + (993390 ^ 993386);
+      var _0x5_0x7dc = _0x45c88g * h;
+      state['\u0073'] += _0x5_0x7dc;
+      let _0xbg4bc;
+      var p = onTrack(state['\u0073']);
+      _0xbg4bc = (193734 ^ 193732) + (286158 ^ 286154);
+      state['\u0076'] = Math['\u006D\u0061\u0078'](642629 ^ 642629, _0x45c88g + 0.5 * p['\u0061\u0063\u0063'] * h);
+      state['\u0078'] = p['\u0078'];
+      state['\u0079'] = p['\u0079'];
+      if (state['\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065'] === 'rolling') {
+        state['\u0073\u0070\u0069\u006E'] -= _0x5_0x7dc / ballRadius;
+        state['\u006F\u006D\u0065\u0067\u0061'] = -state['\u0076'] / ballRadius;
+      } else {
+        state['\u006F\u006D\u0065\u0067\u0061'] = 832797 ^ 832797;
+      }
+      if (p['\u006F\u006E\u004C\u006F\u006F\u0070']) {
+        var _0xf28be = (807515 ^ 807507) + (619966 ^ 619967);
+        var _0xaa7dfd = state['\u0076'] * state['\u0076'] / pathR + g * Math['\u0063\u006F\u0073'](p['\u0061\u006E\u0067\u006C\u0065']);
+        _0xf28be = "lnmqgo";
+        if (_0xaa7dfd < (290824 ^ 290824) || p['\u0061\u006E\u0067\u006C\u0065'] >= endAngle) {
+          state['\u006D\u006F\u0064\u0065'] = "\u0066\u006C\u0069\u0067\u0068\u0074";
+          state['\u0076\u0078'] = state['\u0076'] * Math['\u0063\u006F\u0073'](p['\u0061\u006E\u0067\u006C\u0065']);
+          state['\u0076\u0079'] = state['\u0076'] * Math['\u0073\u0069\u006E'](p['\u0061\u006E\u0067\u006C\u0065']);
+        }
+      }
+    } else if (state['\u006D\u006F\u0064\u0065'] === "\u0066\u006C\u0069\u0067\u0068\u0074") {
+      let _0x3_0xd54;
+      var _0x88f0ab = state['\u0078'];
+      _0x3_0xd54 = (134000 ^ 134001) + (176388 ^ 176385);
+      var _0xd9c3d = state['\u0079'];
+      var _0xgb99e = (271771 ^ 271762) + (238657 ^ 238657);
+      var _0xdb479e = _0x88f0ab + state['\u0076\u0078'] * h;
+      _0xgb99e = 956627 ^ 956629;
+      var _0x90abfb = _0xd9c3d + state['\u0076\u0079'] * h - 0.5 * g * h * h;
+      var _0xfeeccd = state['\u0076\u0079'] - g * h;
+      var _0x51d9eb = (704059 ^ 704050) + (308025 ^ 308028);
+      var _0x21693f = loopHit(_0x88f0ab, _0xd9c3d, _0xdb479e, _0x90abfb);
+      _0x51d9eb = (226742 ^ 226737) + (676018 ^ 676018);
+      var _0x77178f = rampHit(_0x88f0ab, _0xd9c3d, _0xdb479e, _0x90abfb);
+      let _0x8b2b2d;
+      var _0xg4ba = _0x21693f && _0x77178f ? _0x21693f['\u0074'] < _0x77178f['\u0074'] ? _0x21693f : _0x77178f : _0x21693f || _0x77178f;
+      _0x8b2b2d = (601943 ^ 601942) + (172726 ^ 172727);
+      if (_0xg4ba) {
+        var _0xbe8f7b = state['\u0076\u0079'] - g * h * _0xg4ba['\u0074'];
+        let _0xe21fa;
+        var _0x82fdc = state['\u0076\u0078'] * _0xg4ba['\u006E\u0078'] + _0xbe8f7b * _0xg4ba['\u006E\u0079'];
+        _0xe21fa = (304604 ^ 304607) + (239203 ^ 239210);
+        var _0xe51be = _0xg4ba['\u0074\u0079\u0070\u0065'] === 'loop' ? _0x82fdc > (759862 ^ 759862) : _0x82fdc < (519389 ^ 519389);
+        if (_0xe51be) {
+          var _0x6fac = 0.45;
+          let _0x6f9eg;
+          var _0xd236d = _0xg4ba['\u0074\u0079\u0070\u0065'] === 'loop' ? -(482470 ^ 482471) : 105845 ^ 105844;
+          _0x6f9eg = "bqjhff";
+          state['\u0076\u0078'] -= ((356556 ^ 356557) + _0x6fac) * _0x82fdc * _0xg4ba['\u006E\u0078'];
+          state['\u0076\u0079'] = _0xbe8f7b - ((703200 ^ 703201) + _0x6fac) * _0x82fdc * _0xg4ba['\u006E\u0079'];
+          state['\u0078'] = _0xg4ba['\u0078'] + _0xd236d * 0.01 * _0xg4ba['\u006E\u0078'];
+          state['\u0079'] = _0xg4ba['\u0079'] + _0xd236d * 0.01 * _0xg4ba['\u006E\u0079'];
+          var _0x8311f = h * ((391519 ^ 391518) - _0xg4ba['\u0074']);
+          state['\u0078'] += state['\u0076\u0078'] * _0x8311f;
+          state['\u0079'] += state['\u0076\u0079'] * _0x8311f - 0.5 * g * _0x8311f * _0x8311f;
+          state['\u0076\u0079'] -= g * _0x8311f;
+        } else {
+          state['\u0078'] = _0xdb479e;
+          state['\u0079'] = _0x90abfb;
+          state['\u0076\u0079'] = _0xfeeccd;
+        }
+      } else {
+        state['\u0078'] = _0xdb479e;
+        state['\u0079'] = _0x90abfb;
+        state['\u0076\u0079'] = _0xfeeccd;
+      }
+      if (state['\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065'] === "\u0072\u006F\u006C\u006C\u0069\u006E\u0067") {
+        state['\u0073\u0070\u0069\u006E'] += state['\u006F\u006D\u0065\u0067\u0061'] * h;
+      }
+      var _0x031ad = (587982 ^ 587975) + (131664 ^ 131670);
+      var _0xa84b = floorReference();
+      _0x031ad = (973737 ^ 973729) + (936958 ^ 936955);
+      if (state['\u0079'] <= _0xa84b) {
+        state['\u0079'] = _0xa84b;
+        state['\u0076\u0078'] = 712498 ^ 712498;
+        state['\u0076\u0079'] = 268403 ^ 268403;
+        state['\u0076'] = 237086 ^ 237086;
+        state['\u006F\u006D\u0065\u0067\u0061'] = 142573 ^ 142573;
+        state['\u0072\u0065\u0073\u0074\u0069\u006E\u0067'] = !![];
+        running = false;
+        paused = false;
+        $('pauseButton')['\u0064\u0069\u0073\u0061\u0062\u006C\u0065\u0064'] = !![];
+        $('pauseButton')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+        $('runStatus')['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0053\u0069\u006D\u0075\u006C\u0061\u0074\u0069\u006F\u006E\u0020\u0063\u006F\u006D\u0070\u006C\u0065\u0074\u0065\u002E";
+      }
+    }
+  }
+  ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](state['\u0078'], state['\u0079'], 474247 ^ 474247);
+  ball['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = state['\u0073\u0070\u0069\u006E'];
+}
+function measure() {
+  if (!state || !ball['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']) return null;
+  var _0x858e0d = 897561 ^ 897561,
+    _0x1b3e = 491612 ^ 491612,
+    N = 184545 ^ 184545,
+    _0xc5443g = 980286 ^ 980286,
+    _0xdb57d = 847929 ^ 847928,
+    _0xbcb = 824217 ^ 824217,
+    _0xc_0x8d8 = 612225 ^ 612224,
+    _0xc9f = 741687 ^ 741687;
+  if (state['\u0072\u0065\u0073\u0074\u0069\u006E\u0067']) {
+    N = mass * g;
+  } else if (state['\u006D\u006F\u0064\u0065'] === "\u0074\u0072\u0061\u0063\u006B") {
+    var p = onTrack(state['\u0073']);
+    _0x858e0d = state['\u0076'] * Math['\u0063\u006F\u0073'](p['\u0061\u006E\u0067\u006C\u0065']);
+    _0x1b3e = state['\u0076'] * Math['\u0073\u0069\u006E'](p['\u0061\u006E\u0067\u006C\u0065']);
+    _0xc_0x8d8 = Math['\u0063\u006F\u0073'](p['\u0061\u006E\u0067\u006C\u0065']);
+    _0xc9f = Math['\u0073\u0069\u006E'](p['\u0061\u006E\u0067\u006C\u0065']);
+    _0xc5443g = -Math['\u0073\u0069\u006E'](p['\u0061\u006E\u0067\u006C\u0065']);
+    _0xdb57d = Math['\u0063\u006F\u0073'](p['\u0061\u006E\u0067\u006C\u0065']);
+    N = p['\u006F\u006E\u004C\u006F\u006F\u0070'] ? Math['\u006D\u0061\u0078'](677213 ^ 677213, mass * (state['\u0076'] * state['\u0076'] / pathR + g * Math['\u0063\u006F\u0073'](p['\u0061\u006E\u0067\u006C\u0065']))) : mass * g * Math['\u0063\u006F\u0073'](startAngle);
+    if (state['\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065'] === 'rolling') _0xbcb = mass * g * Math['\u0073\u0069\u006E'](p['\u0061\u006E\u0067\u006C\u0065']) * beta / ((633065 ^ 633064) + beta);
+  } else {
+    _0x858e0d = state['\u0076\u0078'];
+    _0x1b3e = state['\u0076\u0079'];
+  }
+  var _0x46453d = (194310 ^ 194311) + (658776 ^ 658778);
+  var _0x3206e = .5 * mass * (_0x858e0d * _0x858e0d + _0x1b3e * _0x1b3e);
+  _0x46453d = (315051 ^ 315048) + (399997 ^ 399996);
+  var _0x4_0xc74 = (817460 ^ 817457) + (973254 ^ 973253);
+  var _0x79c7c = state['\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065'] === 'rolling' ? .5 * beta * mass * ballRadius * ballRadius * state['\u006F\u006D\u0065\u0067\u0061'] * state['\u006F\u006D\u0065\u0067\u0061'] : 565391 ^ 565391;
+  _0x4_0xc74 = (637326 ^ 637323) + (199810 ^ 199810);
+  var _0xef_0x14f = mass * g * (state['\u0079'] - floorReference());
+  return {
+    "kt": _0x3206e,
+    '\u006B\u0072': _0x79c7c,
+    '\u0070\u0065': _0xef_0x14f,
+    "total": _0x3206e + _0x79c7c + _0xef_0x14f,
+    "speed": Math['\u0068\u0079\u0070\u006F\u0074'](_0x858e0d, _0x1b3e),
+    '\u004E': N,
+    '\u006E\u0078': _0xc5443g,
+    '\u006E\u0079': _0xdb57d,
+    '\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E': _0xbcb,
+    "tx": _0xc_0x8d8,
+    '\u0074\u0079': _0xc9f,
+    '\u0077\u0065\u0069\u0067\u0068\u0074': mass * g
+  };
+}
+function updateArrows(e) {
+  var _0xcc3e = !!e && showForcesBox['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'];
+  gravityArrow['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = _0xcc3e;
+  normalArrow['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = _0xcc3e && e['\u004E'] > .03;
+  frictionArrow['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = _0xcc3e && state['\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065'] === 'rolling' && state['\u006D\u006F\u0064\u0065'] === "\u0074\u0072\u0061\u0063\u006B" && Math['\u0061\u0062\u0073'](e['\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E']) > .03;
+  if (!_0xcc3e) return;
+  let _0xfe_0x78c;
+  var _0x6f36fe = ball['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']();
+  _0xfe_0x78c = (759055 ^ 759052) + (947269 ^ 947268);
+  _0x6f36fe['\u007A'] += .18;
+  gravityArrow['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x6f36fe);
+  gravityArrow['\u0073\u0065\u0074\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](745346 ^ 745346, -(771814 ^ 771815), 539184 ^ 539184));
+  gravityArrow['\u0073\u0065\u0074\u004C\u0065\u006E\u0067\u0074\u0068'](.8, .17, .1);
+  if (normalArrow['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']) {
+    normalArrow['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x6f36fe);
+    normalArrow['\u0073\u0065\u0074\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](e['\u006E\u0078'], e['\u006E\u0079'], 596277 ^ 596277)['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());
+    normalArrow['\u0073\u0065\u0074\u004C\u0065\u006E\u0067\u0074\u0068'](clamp(.8 * e['\u004E'] / (mass * g), .08, 1.5), .16, .09);
+  }
+  if (frictionArrow['\u0076\u0069\u0073\u0069\u0062\u006C\u0065']) {
+    frictionArrow['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x6f36fe);
+    let _0xa04c;
+    var _0x9c84gf = Math['\u0073\u0069\u0067\u006E'](e['\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E']);
+    _0xa04c = 528777 ^ 528768;
+    frictionArrow['\u0073\u0065\u0074\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](_0x9c84gf * e['\u0074\u0078'], _0x9c84gf * e['\u0074\u0079'], 527301 ^ 527301));
+    frictionArrow['\u0073\u0065\u0074\u004C\u0065\u006E\u0067\u0074\u0068'](clamp(.8 * Math['\u0061\u0062\u0073'](e['\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E']) / (mass * g), .10, .9), .13, .08);
+  }
+}
+function drawEnergyGraph() {
+  if (!energyCtx) return;
+  var _0x6f_0xe0d = energyCtx,
+    W = energyCanvas['\u0077\u0069\u0064\u0074\u0068'],
+    H = energyCanvas['\u0068\u0065\u0069\u0067\u0068\u0074'],
+    L = 377705 ^ 377640,
+    _0xbf_0xb58 = 641519 ^ 641533,
+    _0xbfb1a = 638017 ^ 638032,
+    _0x86c = 401840 ^ 401816;
+  var _0x76f6d = W - L - _0xbf_0xb58,
+    _0x10fc = H - _0xbfb1a - _0x86c,
+    _0x9211b = Math['\u006D\u0061\u0078'](864006 ^ 864003, elapsed * 1.05),
+    _0x64gc = Math['\u006D\u0061\u0078'](693521 ^ 693520, graphMaxE * 1.12);
+  var _0x56a = Math['\u006D\u0069\u006E'](947137 ^ 947137, energyHistory['\u0072\u0065\u0064\u0075\u0063\u0065'](function (v, p) {
+    return Math['\u006D\u0069\u006E'](v, p['\u0070\u0065']);
+  }, 632534 ^ 632534));
+  _0x56a = Math['\u006D\u0069\u006E'](543527 ^ 543527, _0x56a * 1.1);
+  function _0xg61a7g(E) {
+    return _0xbfb1a + (_0x64gc - E) / (_0x64gc - _0x56a) * _0x10fc;
+  }
+  _0x6f_0xe0d['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](302057 ^ 302057, 482260 ^ 482260, W, H);
+  _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0066\u0066\u0066";
+  _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0052\u0065\u0063\u0074'](657425 ^ 657425, 994594 ^ 994594, W, H);
+  _0x6f_0xe0d['\u0066\u006F\u006E\u0074'] = "\u0032\u0030\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+  _0x6f_0xe0d['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 262006 ^ 262007;
+  for (var j = 860921 ^ 860921; j <= (778588 ^ 778584); j++) {
+    var E = _0x56a + (_0x64gc - _0x56a) * j / (599930 ^ 599934),
+      yy = _0xg61a7g(E);
+    _0x6f_0xe0d['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = '#e1e5e6';
+    _0x6f_0xe0d['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    _0x6f_0xe0d['\u006D\u006F\u0076\u0065\u0054\u006F'](L, yy);
+    _0x6f_0xe0d['\u006C\u0069\u006E\u0065\u0054\u006F'](W - _0xbf_0xb58, yy);
+    _0x6f_0xe0d['\u0073\u0074\u0072\u006F\u006B\u0065']();
+    _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = '#525b60';
+    _0x6f_0xe0d['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = 'right';
+    _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](E['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](475219 ^ 475218), L - (955193 ^ 955185), yy + (311919 ^ 311913));
+  }
+  _0x6f_0xe0d['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = '#555';
+  _0x6f_0xe0d['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  _0x6f_0xe0d['\u006D\u006F\u0076\u0065\u0054\u006F'](L, _0xbfb1a);
+  _0x6f_0xe0d['\u006C\u0069\u006E\u0065\u0054\u006F'](L, H - _0x86c);
+  _0x6f_0xe0d['\u006C\u0069\u006E\u0065\u0054\u006F'](W - _0xbf_0xb58, H - _0x86c);
+  _0x6f_0xe0d['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = '#444';
+  _0x6f_0xe0d['\u0074\u0065\u0078\u0074\u0041\u006C\u0069\u0067\u006E'] = "\u0063\u0065\u006E\u0074\u0065\u0072";
+  for (var k = 560365 ^ 560365; k <= (682767 ^ 682763); k++) {
+    var x = L + _0x76f6d * k / (655867 ^ 655871);
+    _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']((_0x9211b * k / (556265 ^ 556269))['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](878975 ^ 878974), x, H - (111751 ^ 111754));
+  }
+  _0x6f_0xe0d['\u0073\u0061\u0076\u0065']();
+  _0x6f_0xe0d['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](981967 ^ 981979, _0xbfb1a + _0x10fc / (542763 ^ 542761));
+  _0x6f_0xe0d['\u0072\u006F\u0074\u0061\u0074\u0065'](-Math['\u0050\u0049'] / (465183 ^ 465181));
+  _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']('Energy (J)', 140405 ^ 140405, 278842 ^ 278842);
+  _0x6f_0xe0d['\u0072\u0065\u0073\u0074\u006F\u0072\u0065']();
+  _0x6f_0xe0d['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']('Time (s)', L + _0x76f6d / (119782 ^ 119780), H - (793063 ^ 793062));
+  [['kt', "\u0023\u0063\u0066\u0035\u0037\u0032\u0035"], ["\u006B\u0072", "\u0023\u0038\u0065\u0034\u0034\u0061\u0064"], ["\u0070\u0065", "\u0023\u0032\u0032\u0037\u0033\u0062\u0063"], ['total', "\u0023\u0032\u0032\u0038\u0033\u0034\u0062"]]['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](function (series) {
+    if (!energyHistory['\u006C\u0065\u006E\u0067\u0074\u0068']) return;
+    _0x6f_0xe0d['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = series[982732 ^ 982733];
+    _0x6f_0xe0d['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 252295 ^ 252292;
+    _0x6f_0xe0d['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+    energyHistory['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](function (p, i) {
+      var x = L + _0x76f6d * p['\u0074'] / _0x9211b,
+        _0x87b6gf = _0xg61a7g(p[series[687255 ^ 687255]]);
+      if (i === (904284 ^ 904284)) _0x6f_0xe0d['\u006D\u006F\u0076\u0065\u0054\u006F'](x, _0x87b6gf);else _0x6f_0xe0d['\u006C\u0069\u006E\u0065\u0054\u006F'](x, _0x87b6gf);
+    });
+    _0x6f_0xe0d['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  });
+}
+function updateDisplay(dt) {
+  var e = measure();
+  updateArrows(e);
+  if (!e) return;
+  $("\u0066\u006F\u0072\u0063\u0065\u0052\u0065\u0061\u0064\u006F\u0075\u0074")['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = "\u003C\u0073\u0070\u0061\u006E\u0020\u0073\u0074\u0079\u006C\u0065\u003D\u0022\u0063\u006F\u006C\u006F\u0072\u003A\u0023\u0031\u0034\u0037\u0039\u0064\u0035\u0022\u003E\u2193\u0020\u0057\u0065\u0069\u0067\u0068\u0074\u003A\u0020" + e['\u0077\u0065\u0069\u0067\u0068\u0074']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](980277 ^ 980279) + ' N</span> &nbsp;' + "\u003C\u0073\u0070\u0061\u006E\u0020\u0073\u0074\u0079\u006C\u0065\u003D\u0022\u0063\u006F\u006C\u006F\u0072\u003A\u0023\u0031\u0038\u0061\u0030\u0034\u0062\u0022\u003E\u004E\u006F\u0072\u006D\u0061\u006C\u003A\u0020" + e['\u004E']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](688723 ^ 688721) + ' N</span><br>' + "\u0053\u0070\u0065\u0065\u0064\u003A\u0020" + e['\u0073\u0070\u0065\u0065\u0064']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](855440 ^ 855442) + "\u0020\u006D\u002F\u0073" + (state['\u006D\u006F\u0064\u0065\u0054\u0079\u0070\u0065'] === 'rolling' ? ' &nbsp; Friction: ' + Math['\u0061\u0062\u0073'](e['\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](897947 ^ 897945) + "\u0020\u004E" : '');
+  $('energyReadout')['\u0069\u006E\u006E\u0065\u0072\u0048\u0054\u004D\u004C'] = "\u0054\u0072\u0061\u006E\u0073\u0020\u004B\u0045\u003A\u0020" + e['\u006B\u0074']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](898266 ^ 898264) + "\u0020\u004A\u0020\u0026\u006E\u0062\u0073\u0070\u003B\u0020\u0052\u006F\u0074\u0020\u004B\u0045\u003A\u0020" + e['\u006B\u0072']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](986145 ^ 986147) + "\u0020\u004A\u003C\u0062\u0072\u003E" + "\u0050\u0045\u003A\u0020" + e['\u0070\u0065']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](126798 ^ 126796) + ' J &nbsp; Total: ' + e['\u0074\u006F\u0074\u0061\u006C']['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](104072 ^ 104074) + ' J';
+  if (running && !paused) {
+    elapsed += dt;
+    sampleClock += dt;
+    if (sampleClock >= (961708 ^ 961709) / (596351 ^ 596321)) {
+      record(e);
+      sampleClock = 514087 ^ 514087;
+    }
+  }
+  if (showEnergyBox['\u0063\u0068\u0065\u0063\u006B\u0065\u0064']) drawEnergyGraph();
+}
+function render() {
+  requestAnimationFrame(render);
+  var _0x9fg20f = (360335 ^ 360326) + (486179 ^ 486178);
+  var _0x074gd = Math['\u006D\u0069\u006E'](clock['\u0067\u0065\u0074\u0044\u0065\u006C\u0074\u0061'](), .04);
+  _0x9fg20f = (964345 ^ 964346) + (878087 ^ 878080);
+  advance(_0x074gd);
+  updateDisplay(running && !paused ? _0x074gd : 287430 ^ 287430);
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+function resize() {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+}
+function resizeRenderer() {
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+}
+function init() {
+  renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+    "antialias": !![]
+  });
+  renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'] || 523695 ^ 523694);
+  resizeRenderer();
+  $("\u0063\u006F\u006E\u0074\u0061\u0069\u006E\u0065\u0072")['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  loader = new THREE['\u0054\u0065\u0078\u0074\u0075\u0072\u0065\u004C\u006F\u0061\u0064\u0065\u0072']();
+  scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0xedf5ef);
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](487667 ^ 487661, window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'], .1, 735236 ^ 736236);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](878347 ^ 878347, 719232 ^ 719237, 675726 ^ 675739);
+  camera['\u006C\u006F\u006F\u006B\u0041\u0074'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-1.5, 234980 ^ 234981, 593485 ^ 593485));
+  controls = new THREE['\u004F\u0072\u0062\u0069\u0074\u0043\u006F\u006E\u0074\u0072\u006F\u006C\u0073'](camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u005A\u006F\u006F\u006D'] = !![];
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0050\u0061\u006E'] = false;
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  scene['\u0061\u0064\u0064'](new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, .55));
+  var _0x4acbf = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, .85);
+  _0x4acbf['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(684526 ^ 684523), 839306 ^ 839296, 496560 ^ 496568);
+  scene['\u0061\u0064\u0064'](_0x4acbf);
+  createLoop();
+  createRamp();
+  createTable();
+  makeBall();
+  makeArrows();
+  showForcesBox = $("\u0073\u0068\u006F\u0077\u0046\u006F\u0072\u0063\u0065\u0073");
+  showEnergyBox = $('showEnergy');
+  energyCanvas = $("\u0065\u006E\u0065\u0072\u0067\u0079\u0047\u0072\u0061\u0070\u0068");
+  energyCtx = energyCanvas['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']('2d');
+  showEnergyBox['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u0068\u0061\u006E\u0067\u0065", function () {
+    $('energySection')['\u0073\u0074\u0079\u006C\u0065']['\u0064\u0069\u0073\u0070\u006C\u0061\u0079'] = this['\u0063\u0068\u0065\u0063\u006B\u0065\u0064'] ? 'block' : "\u006E\u006F\u006E\u0065";
+    if (this['\u0063\u0068\u0065\u0063\u006B\u0065\u0064']) drawEnergyGraph();
+  });
+  $('shoot')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", startRun);
+  $('resetButton')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", resetSimulation);
+  $("\u0070\u0061\u0075\u0073\u0065\u0042\u0075\u0074\u0074\u006F\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('click', function () {
+    if (!running) return;
+    paused = !paused;
+    this['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = paused ? "\u0052\u0065\u0073\u0075\u006D\u0065" : 'Pause';
+    $("\u0072\u0075\u006E\u0053\u0074\u0061\u0074\u0075\u0073")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = paused ? "\u0050\u0061\u0075\u0073\u0065\u0064" : "\u0052\u0075\u006E\u006E\u0069\u006E\u0067";
+    clock['\u0067\u0065\u0074\u0044\u0065\u006C\u0074\u0061']();
+  });
+  document['\u0071\u0075\u0065\u0072\u0079\u0053\u0065\u006C\u0065\u0063\u0074\u006F\u0072\u0041\u006C\u006C']("\u0069\u006E\u0070\u0075\u0074\u005B\u006E\u0061\u006D\u0065\u003D\u0022\u0062\u0061\u006C\u006C\u004D\u006F\u0064\u0065\u0022\u005D")['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](function (r) {
+    r['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']('change', resetSimulation);
+  });
+  $('infoButton')['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", function () {
+    alert("\u004C\u004F\u004F\u0050\u002D\u0054\u0048\u0045\u002D\u004C\u004F\u004F\u0050\u0020\u2014\u0020\u0053\u004C\u0049\u0044\u0049\u004E\u0047\u0020\u0056\u0053\u0020\u0052\u004F\u004C\u004C\u0049\u004E\u0047\u000A\u000A" + 'SLIDING: translation only, KE = (1/2)mv².\n' + 'Ideal minimum height = 2.5R.\n\n' + "\u0052\u004F\u004C\u004C\u0049\u004E\u0047\u003A\u0020\u0075\u006E\u0069\u0066\u006F\u0072\u006D\u0020\u0073\u006F\u006C\u0069\u0064\u0020\u0073\u0070\u0068\u0065\u0072\u0065\u002C\u0020\u0049\u0020\u003D\u0020\u0028\u0032\u002F\u0035\u0029\u006D\u0072\u00B2\u002C\u0020\u03C9\u0020\u003D\u0020\u0076\u002F\u0072\u0020\u0077\u0068\u0069\u006C\u0065\u0020\u006F\u006E\u0020\u0074\u0068\u0065\u0020\u0074\u0072\u0061\u0063\u006B\u002E\u000A" + "\u004B\u0045\u0020\u003D\u0020\u0028\u0031\u002F\u0032\u0029\u006D\u0076\u00B2\u0020\u002B\u0020\u0028\u0031\u002F\u0032\u0029\u0049\u03C9\u00B2\u0020\u003D\u0020\u0028\u0037\u002F\u0031\u0030\u0029\u006D\u0076\u00B2\u002E\u000A" + 'Ideal minimum height = 2.7R.\n\n' + "\u0042\u006F\u0074\u0068\u0020\u0074\u0068\u0072\u0065\u0073\u0068\u006F\u006C\u0064\u0073\u0020\u0075\u0073\u0065\u0020\u0074\u0068\u0065\u0020\u0072\u0061\u0064\u0069\u0075\u0073\u0020\u006F\u0066\u0020\u0074\u0068\u0065\u0020\u0042\u0041\u004C\u004C\u002D\u0043\u0045\u004E\u0054\u0045\u0052\u0020\u0070\u0061\u0074\u0068\u0020\u0061\u006E\u0064\u0020\u0068\u0020\u006D\u0065\u0061\u0073\u0075\u0072\u0065\u0064\u0020\u0066\u0072\u006F\u006D\u0020\u0069\u0074\u0073\u0020\u0062\u006F\u0074\u0074\u006F\u006D\u002E\u000A" + "\u0041\u0074\u0020\u0074\u006F\u0070\u003A\u0020\u004E\u0020\u002B\u0020\u006D\u0067\u0020\u003D\u0020\u006D\u0076\u00B2\u002F\u0052\u002E\u0020\u0043\u006F\u006E\u0074\u0061\u0063\u0074\u0020\u0072\u0065\u0071\u0075\u0069\u0072\u0065\u0073\u0020\u0076\u00B2\u0020\u2265\u0020\u0067\u0052\u002E\u000A\u000A" + 'Blue arrow: weight; green: normal; brown: static friction (rolling).\n' + "\u0053\u0074\u0061\u0074\u0069\u0063\u0020\u0066\u0072\u0069\u0063\u0074\u0069\u006F\u006E\u0020\u0064\u006F\u0065\u0073\u0020\u006E\u006F\u0020\u0077\u006F\u0072\u006B\u0020\u0066\u006F\u0072\u0020\u0069\u0064\u0065\u0061\u006C\u0020\u0072\u006F\u006C\u006C\u0069\u006E\u0067\u002E\u000A" + "\u0041\u0066\u0074\u0065\u0072\u0020\u0064\u0065\u0074\u0061\u0063\u0068\u006D\u0065\u006E\u0074\u002C\u0020\u0074\u0068\u0065\u0020\u0062\u0061\u006C\u006C\u0020\u0066\u006F\u006C\u006C\u006F\u0077\u0073\u0020\u0070\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006C\u0065\u0020\u006D\u006F\u0074\u0069\u006F\u006E\u0020\u0061\u006E\u0064\u0020\u0069\u0074\u0073\u0020\u0073\u0070\u0069\u006E\u0020\u0072\u0065\u006D\u0061\u0069\u006E\u0073\u0020\u0063\u006F\u006E\u0073\u0074\u0061\u006E\u0074\u002E\u000A" + 'Collisions use a simplified inelastic model and may dissipate energy.');
+  });
+  window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065", resize);
+  drawEnergyGraph();
+  render();
+}
+
+window.addEventListener('load',init);
+</script>
+</body>
+</html>

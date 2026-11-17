@@ -1,7 +1,7 @@
 // Keep an approved device lesson away from the main-site origin and credentials.
 export function mountMicrophoneViewer(course,launch,onClose){
  const validate=entry=>{const url=new URL(entry);
- const deviceOrigin={'https://testdeploy.aifunengjiaoyu.com':'https://testplay.aifunengjiaoyu.com','https://aifunengjiaoyu.com':'https://play.aifunengjiaoyu.com'}[location.origin];
+ const deviceOrigin={'https://testdeploy.localhost':'https://testplay.localhost','/':'https://play.localhost'}[location.origin];
  if(!deviceOrigin||url.origin!==deviceOrigin||url.pathname!=='/premium-microphone/start'||url.username||url.password||url.search)throw Error('麦克风运行入口无效');return url;};
  validate(launch.microphoneEntry);
  const viewer=document.createElement('div');viewer.id='program-viewer';viewer.className='viewer-overlay show';

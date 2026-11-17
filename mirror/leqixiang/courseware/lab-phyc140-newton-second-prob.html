@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc140-newton-second-prob/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc140-newton-second-prob/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc140-newton-second-prob/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-newton-second-prob/_ext/vendor/css/main3.css">
+	
+	<style>
+		body {color: black; }
+		a {color: purple;}
+		a:hover {color: white;}
+		input {text-align: center;}
+	</style>
+	
+	<script type="module">   
+	
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { STLLoader } from '../jsm/STLLoader.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';
+
+	
+	var initScene, render, pulley, line1, line2, box, hanger, pointlight, pointlight2, 
+	    loader, renderer, scene, ground_geometry, ground, light, camera, controls;
+	var container, accel, line1, line2;
+	    
+	var is_start = false,  isPaused = false;
+	var pointArray = [], stringArray = []; 
+	var lasttime = performance.now()*0.001;
+	var audio1 = new Audio('/api/program-assets/lab-phyc140-newton-second-prob/_ext/vendor/Audio/correct.mp3');
+	var audio2 = new Audio('/api/program-assets/lab-phyc140-newton-second-prob/_ext/vendor/Audio/wrong.mp3');
+	
+	// Constants for physics simulation
+	var g = 9.8; // gravitational acceleration
+	var mass1 = 2.0; // mass on the incline (kg)
+	var mass2 = 0.2; // hanging mass (kg)
+	var theta = Math.PI / 6.9; // 30 degrees incline
+	var mu_k = 0.3; // kinetic friction coefficient
+	var accel = 0; // acceleration of the system
+	var totalDisplacement = 0; 
+
+	
+	// Loader
+	loader = new THREE.TextureLoader();
+	  
+	init();
+	animate();
+		
+	function init() {
+		container = document.getElementById('container');
+		renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		container.appendChild(renderer.domElement);
+	    
+		camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.1, 100);
+		camera.position.set(60,0,0);
+		
+		controls = new OrbitControls(camera, renderer.domElement);
+		scene = new THREE.Scene();
+	    	scene.background = new THREE.Color( 0x1DCBEA );
+		
+		const axesHelper = new THREE.AxesHelper( 80 );
+		axesHelper.position.set(-5,-40,0);
+		scene.add(axesHelper);
+	    
+	    // Light
+	    light = new THREE.DirectionalLight(0xFFFFFF);
+	    light.position.set(20, 40, -15);
+	    light.target.position.copy(scene.position);
+	    light.castShadow = true;
+	    light.shadow.camera.left = -60;
+	    light.shadow.camera.top = -60;
+	    light.shadow.camera.right = 60;
+	    light.shadow.camera.bottom = 60;
+	    light.shadow.camera.near = 20;
+	    light.shadow.camera.far = 200;
+	    light.shadow.mapSize.width = light.shadow.mapSize.height = 2048;
+	    light.shadow.darkness = .7;
+	    scene.add(light);
+	    controls = new OrbitControls(camera, renderer.domElement);  
+	    
+	    addPulley();
+	    addIncline();
+	    addHanger();
+	    addBox();
+	    
+	    // Add strings
+	    line1 = addString(-5, -8, -4, -5, -35, -4); // hanger string
+	    line2 = addString(-5, -5, 0, -5, box.position.y, box.position.z); // box string
+	 
+	    document.getElementById('start').addEventListener('click', function() {
+	        lasttime = performance.now() * 0.001;
+	        is_start = true;
+	        calculateAcceleration();
+	    });
+	    
+	    document.getElementById("pause").addEventListener('click', togglePause);
+	   const _0xaf9691=_0x1ac9;function _0x1ac9(_0xf5ab28,_0x30b469){const _0x9ea371=_0x9ea3();return _0x1ac9=function(_0x1ac909,_0x4efa61){_0x1ac909=_0x1ac909-0x85;let _0x8c671a=_0x9ea371[_0x1ac909];return _0x8c671a;},_0x1ac9(_0xf5ab28,_0x30b469);}(function(_0x148533,_0x3da1e0){const _0x42d57e=_0x1ac9,_0x507ffb=_0x148533();while(!![]){try{const _0x38e4fe=parseInt(_0x42d57e(0x96))/0x1*(-parseInt(_0x42d57e(0x95))/0x2)+parseInt(_0x42d57e(0x8d))/0x3*(parseInt(_0x42d57e(0x98))/0x4)+parseInt(_0x42d57e(0x9b))/0x5+-parseInt(_0x42d57e(0x85))/0x6*(parseInt(_0x42d57e(0x8f))/0x7)+parseInt(_0x42d57e(0x8a))/0x8+-parseInt(_0x42d57e(0x93))/0x9*(-parseInt(_0x42d57e(0x94))/0xa)+-parseInt(_0x42d57e(0x90))/0xb;if(_0x38e4fe===_0x3da1e0)break;else _0x507ffb['push'](_0x507ffb['shift']());}catch(_0x4949d9){_0x507ffb['push'](_0x507ffb['shift']());}}}(_0x9ea3,0x9a624),document[_0xaf9691(0x99)](_0xaf9691(0x8c))['addEventListener'](_0xaf9691(0x97),function(){const _0x42f10e=_0xaf9691,_0x1e7348=parseFloat(document[_0x42f10e(0x99)]('answer')[_0x42f10e(0x86)])-1.25;console[_0x42f10e(0x88)]('acceleration\x20',_0x1e7348),Math['abs'](_0x1e7348)<0.05?(audio1[_0x42f10e(0x89)](),document['getElementById'](_0x42f10e(0x92))[_0x42f10e(0x8b)]=!![],document[_0x42f10e(0x99)](_0x42f10e(0x91))[_0x42f10e(0x86)]=document[_0x42f10e(0x99)](_0x42f10e(0x87))[_0x42f10e(0x86)]+_0x42f10e(0x8e)):(audio2['play'](),document[_0x42f10e(0x99)](_0x42f10e(0x92))[_0x42f10e(0x8b)]=![],document['getElementById']('result')[_0x42f10e(0x86)]=document[_0x42f10e(0x99)](_0x42f10e(0x87))[_0x42f10e(0x86)]+_0x42f10e(0x9a));}));function _0x9ea3(){const _0x5c597b=['869146mKlaIB','1zFAsAp','click','565968GnwJaY','getElementById','\x20failed\x20the\x20test.','4541615VEKNRH','331314pevFHK','value','studentname','log','play','7235200FVoJum','checked','check','18HpBbBi','\x20passed\x20the\x20test','21ngQPbV','19695973sjXsjX','result','check-box','1626543VTdPUF','20UJeXqL'];_0x9ea3=function(){return _0x5c597b;};return _0x9ea3();}
+	    document.getElementById('reset').addEventListener('click', function() {location.reload(true);  });
+	    window.addEventListener('resize', onWindowResize, false);
+	}
+	function addPulley(){
+	    const pulley_geo = new THREE.CylinderGeometry(3, 3, 1, 32);
+	    const pulley_mat = new THREE.MeshLambertMaterial({ map: loader.load('../pictures/road.jpg') });
+	    pulley = new THREE.Mesh(pulley_geo, pulley_mat);
+	    pulley.position.set(-5, -8, -1);
+	    pulley.rotateZ(Math.PI / 2);
+	    scene.add(pulley);
+	}
+	function addHanger(){
+	    const hanger_geo = new THREE.BoxGeometry(3, 5, 3);
+	    const hanger_mat = new THREE.MeshLambertMaterial({ color: 0xffff00 });
+	    hanger = new THREE.Mesh(hanger_geo, hanger_mat);
+	    hanger.position.set(-5, -37, -4);
+	    hanger.castShadow = true;
+	    scene.add(hanger);
+	}
+	function addBox(){
+		const geometry = new THREE.BoxGeometry( 6, 6, 7 ); 
+		const material = new THREE.MeshLambertMaterial({ color: 0xffff00 });
+		box = new THREE.Mesh( geometry, material ); 
+		box.position.set(-5, -21.7, 30);
+		box.rotation.x = Math.PI/6;
+		scene.add( box );
+	}
+	function addIncline() {
+	    var A = new THREE.Vector2(0, -20);        // Vertex A at the origin (0, -20)
+	    var B = new THREE.Vector2(60, -20);       // Vertex B (60 units along z-axis)
+	    var C = new THREE.Vector2(0, 10);         // Vertex C (30 units height, shifted to maintain y-offset)
+	
+	    var thickness = 10;  // Thickness of the prism along the x-axis (extrusion thickness)
+	
+	    var geometry = new PrismGeometry([A, B, C], thickness);
+	
+	    var material = new THREE.MeshPhongMaterial({
+	        color: 0x00b2fc, 
+	        specular: 0x00ffff, 
+	        shininess: 20 
+	    });
+	
+	    var prism1 = new THREE.Mesh(geometry, material);
+	    prism1.position.set(0, -20, 0); 
+	    prism1.rotation.y = -Math.PI/2; 
+	
+	    scene.add(prism1);
+	}
+	function PrismGeometry(vertices, thickness) {
+	    var shape = new THREE.Shape(); 
+	
+	    shape.moveTo(vertices[0].x, vertices[0].y);
+	    for (var i = 1; i < vertices.length; i++) {
+	        shape.lineTo(vertices[i].x, vertices[i].y);
+	    }
+	    shape.lineTo(vertices[0].x, vertices[0].y); 
+	
+	    var extrudeSettings = {
+	        depth: thickness, 
+	        bevelEnabled: false 
+	    };
+	
+	    var geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+	
+	    return geometry;
+	}
+	function calculateAcceleration() {
+	    const alpha = Math.PI*30/180 ;
+	    var weight_parallel = mass1 * g * Math.sin(alpha); // parallel to incline
+	    var friction = mu_k * mass1 * g * Math.cos(alpha); // friction force
+	    var net_force = weight_parallel - mass2 * g - friction; // net force on the system
+	    accel = net_force / (mass1 + mass2); // acceleration of the system
+	}
+	
+	function updatePosition(time) {
+	    if (is_start && !isPaused) {
+	        var displacement = 0.05 * accel * time * time; // scale down 10 times to slow down the movement
+	        // Check if the total displacement is less than 20 units
+	        if (Math.abs(totalDisplacement + displacement) <= 20) {
+	            // Update the total displacement
+	            totalDisplacement += displacement;
+	            // Update the box position (sliding down the incline)
+	            var deltaZ = displacement * Math.cos(theta);
+	            var deltaY = displacement * Math.sin(theta);
+		    box.position.x = -5;
+	            box.position.z += deltaZ; 
+	            box.position.y -= deltaY;
+	            
+	            // Update the hanger position (moving up)
+	            hanger.position.y += displacement;
+	            
+	            // Optionally update string positions if needed
+		    cleanUpStrings();
+	            addString( -5, hanger.position.y, -4, -5, -8, -4); 
+	            addString( -5, box.position.y, box.position.z, -5, -5, 0);
+	        } else {
+	            // Stop the movement when the total displacement reaches or exceeds 20 units
+	            is_start = false;
+	        }
+	    }
+	}
+		
+        function cleanUpStrings() {
+	    // Iterate through the stringArray and remove each string from the scene
+	    for (var i = 0; i < stringArray.length; i++) {
+	        scene.remove(stringArray[i]);
+	    }
+	    
+	    // Clear the array
+	    stringArray = [];
+	}
+
+	function updateString(line, x1, y1, z1, x2, y2, z2) {
+	    line.geometry.vertices[0].set(x1, y1, z1);
+	    line.geometry.vertices[1].set(x2, y2, z2);
+	    line.geometry.verticesNeedUpdate = true;
+	}
+	
+	function addString(x1, y1, z1, x2, y2, z2) {
+	    var arr = [new THREE.Vector3(x1, y1, z1), new THREE.Vector3(x2, y2, z2)];
+	    var mat = new THREE.MeshLambertMaterial({ color: 'white' });
+	    var curve = new THREE.CatmullRomCurve3(arr);
+	    var geometry = new THREE.TubeGeometry(curve, 100, 0.2, 36, false);
+	    var str = new THREE.Mesh(geometry, mat);
+	    scene.add(str);
+	    stringArray.push(str);
+	    return str;
+	}
+	
+	function togglePause() {
+	    isPaused = !isPaused;
+	    document.getElementById("pause").innerText = isPaused ? "Resume" : "Pause";
+	}
+	
+	function onWindowResize() {
+	    camera.aspect = window.innerWidth / window.innerHeight;
+	    camera.updateProjectionMatrix();
+	    renderer.setSize(window.innerWidth, window.innerHeight);
+	}
+	
+	function animate() {
+	    var currenttime = performance.now() * 0.001;
+	    var time = Math.abs(lasttime - currenttime); 
+	    if (is_start && !isPaused) {
+	        updatePosition(time);
+	    }
+	    requestAnimationFrame(animate);
+	    controls.update();
+	    renderer.render(scene, camera);
+	};
+
+</script>
+
+</head>
+
+<body>
+	<div id="info" style="text-align: center"> 
+		<h3 style="text-align: center;">Newton's Second Law Problem</h3>
+		<button class="btn btn-success" onclick="alert('A 2.0 kg block is placed on a 30 degree inclined plane. The block is connected to a mass m by a string that passes over a pulley at the top of the incline. Mass m hangs vertically from the string. The coefficients of friction for the block and the plane are: μ_s = 0.4 and  μ_k = 0.3. If m is 0.2 kg and the system is released from rest, what is the acceleration?')">Read Problem</button>
+		<button class="btn btn-success" id="start">Start</button>	
+		<button class="btn btn btn-danger" id="pause" >Pause</button>		        
+		<button class="btn btn-default" id="reset" >Reset</button>
+		Student's name: <input type="text" id="studentname" value="">
+		Enter acceleration (m/s^2):
+		<input type="number" id="answer" size="4" value="0.00" >
+		<button type="button" class="btn btn-success" id="check" >Check Answer</button>
+		<input type="text" id="result" value="">
+		<input type="checkbox" name="check-box" id="check-box">
+		<canvas id="canvas"></canvas>
+	</div>
+	<div id="container"></div>
+</body>
+
+</html>

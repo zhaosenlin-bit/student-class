@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-charge-string-efield/_ext/vendor/css/main3.css">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-charge-string-efield/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc240-charge-string-efield/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/3jcn-phyc240-charge-string-efield/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/api/program-assets/3jcn-phyc240-charge-string-efield/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+	<style>
+    		body {color: black;}
+    		h1 {color: white;}	
+    		p {color: white; text-align: center;}	
+		.control-panel {
+		  margin: 10px auto 10px 10px; /* top, right, bottom, left */
+		  background-color: #eee;
+		  border: 2px solid #333;
+		  border-radius: 8px;
+		  padding: 15px;
+		  width: 220px;
+		  font-family: Arial, sans-serif;
+		  text-align: center;
+		}
+		.control-panel-right {
+		  position: absolute;
+		  top: 90px;
+		  right: 50px;
+		  background-color: #eee;
+		  border: 2px solid #333;
+		  border-radius: 8px;
+		  padding: 15px;
+		  width: 220px;
+		  text-align: center;
+		}
+		
+		.control-group {
+		  margin-bottom: 15px;
+		}
+		
+		.slider-row {
+		  display: flex;
+		  justify-content: space-between;
+		  align-items: center;
+		}
+		
+		input[type="range"] {
+		  width: 65%;
+		  accent-color: blue;
+		}
+		
+		input[type="text"] {
+		  width: 80px;
+		  font-weight: bold;
+		  text-align: center;
+		  color: blue;
+		}
+		
+		.minmax {
+		  display: flex;
+		  justify-content: space-between;
+		  font-size: 12px;
+		  margin-top: 5px;
+		}
+	</style> 
+</head>
+<body>
+  <div id="container"></div>
+  <div id="info">
+    <h1>Charge on a String in an Electric Field</h1>	
+	  <p>Add charge to the sphere</p>
+
+    <div class="control-panel">
+	
+	<div class="control-group">
+		
+	  Charge:
+	  <div class="slider-row" style="display: flex; align-items: center;">
+	    <input type="range" id="chargeSlider" min="-10" max="10" step="0.5" value="0" style="flex: 1; margin-right: 8px;">
+	    <input type="text" id="chargeValue" value="0 µC" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+	  </div>
+	  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+	    <span>-10</span>
+	    <span>10</span>
+	  </div>
+	</div>
+	
+	  <div class="control-group">
+	    Mass:
+	    <div class="slider-row">
+	      <input type="range" id="massSlider" min="10" max="40" step="1" value="35">
+	      <input type="text" id="massValue" value="35 µg" readonly>
+	    </div>
+	    <div class="minmax">
+	      <span>10</span>
+	      <span>40</span>
+	    </div>
+	  </div>
+	    
+	<div class="control-group">
+	    Electric Field:
+	    <div class="slider-row">
+	      <input type="range" id="fieldSlider" min="10" max="50" step="1" value="20">
+	      <input type="text" id="fieldValue" value="20 N/C" readonly>
+	    </div>
+	    <div class="minmax">
+	      <span>10</span>
+	      <span>50</span>
+	    </div>
+	  </div>
+
+	    <div class="control-group">
+		  Angle:
+		  <div class="slider-row" style="justify-content: center;">
+		    <input type="text" id="angle" value="0" readonly style="width: 100px; font-weight: bold; text-align: center; color: blue;">
+		  </div>
+		</div>
+	    
+	 <button type="button" class="btn btn-danger" id="reset">Reset</button><br>    
+	 
+</div>
+	
+</div>
+
+<script type="module">   
+    import * as THREE from '../jsm/three.module.js';  
+    import { OrbitControls } from '../jsm/OrbitControls.js';  
+    import { FontLoader } from '../jsm/FontLoader.js';
+    import { TextGeometry } from '../jsm/TextGeometry.js';
+
+    var container, camera, scene, light, renderer, controls;
+    var charge, curve, arrows = [];	
+    var randomArray = [];
+    var rotationSlider, numArrow = 5, dist = 20, plate_length = 30, plate_width = 20;
+    var fontloader = new FontLoader();
+    var textureloader = new THREE.TextureLoader();
+    let string; let angleArc;
+    const g = 9.8;      // m/s²
+    const L = 22; 
+    let forceVectors = {
+	    gravity: null,
+	    electric: null,
+	    tension: null
+     };
+     let rainbowSpeed = 0.1; 
+
+	const rainbowLights = []; // store all lights
+	const rainbowColors = [
+	    new THREE.Color(1, 0, 0),     // Red
+	    new THREE.Color(1, 0.5, 0),   // Orange
+	    new THREE.Color(1, 1, 0),     // Yellow
+	    new THREE.Color(0, 1, 0),     // Green
+	    new THREE.Color(0, 0, 1),     // Blue
+	    new THREE.Color(0.29, 0, 0.51), // Indigo
+	    new THREE.Color(0.56, 0, 1)   // Violet
+	];
+	
+	textureloader.load(
+	    'textures/glow-texture.png',
+	    function(spriteTexture) { 
+	        const numColumns = 5;        // how many vertical columns
+	        const columnSpacing = 20;    // distance between columns
+	
+	        for (let col = 0; col < numColumns; col++) {
+	            const xPos = -40 + col * columnSpacing; // starting x = -40, spacing 20 units apart
+	
+	            rainbowColors.forEach((color, index) => {
+	                const yPos = index * 5 - 17; // vertical spread, like before
+	                const light = createRainbowLight(xPos, yPos, 0, color, spriteTexture);
+	                rainbowLights.push(light);
+	            });
+	        }
+	    },
+	    undefined,
+	    function(err) {
+	        console.error('Error loading sprite texture.', err);
+	    }
+	);
+
+    init();
+    animate();
+
+    function init(_0x5689ad,_0x628ae){container=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u006F\u006E\u0074\u0061\u0069\u006E\u0065\u0072");renderer=new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({"antialias":!![]});renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F']);renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);container['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);scene=new THREE['\u0053\u0063\u0065\u006E\u0065']();scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064']=new THREE['\u0043\u006F\u006C\u006F\u0072'](0x990033);camera=new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](768463^768504,window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'],578354^578355,809031^792167);camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](607816^607816,474075^474075,582140^582040);light=new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff,0.8);scene['\u0061\u0064\u0064'](light);var _0xf8aa2b=(843449^843440)+(495809^495811);var _0xg351ce=new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0x404040);_0xf8aa2b=(624758^624767)+(218996^218997);scene['\u0061\u0064\u0064'](_0xg351ce);var _0x7254fc=(637798^637793)+(386022^386022);var _0x7dd5ba=new THREE['\u0050\u006F\u0069\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xfaef28,953985^953984,892517^892417);_0x7254fc=934106^934110;_0x7dd5ba['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](874527^874517,265903^265910,523875^523901);scene['\u0061\u0064\u0064'](_0x7dd5ba);controls=new OrbitControls(camera,renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);var _0x7fffac=new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](312836^312838,796889^796871,175873^175893);var _0x28d=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xff0000,'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']});_0x5689ad='\u006F\u006B\u006C\u0063\u0069\u0069';var _0xa1d52g=(423798^423798)+(598259^598263);const _0x1e61b=new THREE['\u004D\u0065\u0073\u0068'](_0x7fffac,_0x28d);_0xa1d52g=172866^172871;_0x1e61b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(184556^184528),-(700243^700241),524318^524318);scene['\u0061\u0064\u0064'](_0x1e61b);addText(-(988628^988649),428342^428345,484835^484835,"\u002B","\u0072\u0065\u0064");var _0xf7g4cc=(619752^619753)+(429593^429594);var _0xf80b7c=new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](490811^490809,879197^879171,210146^210166);_0xf7g4cc='\u006F\u0065\u0062\u0067\u006F\u006E';var _0x5_0xbc4=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x0000ff,'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']});const _0x40e=new THREE['\u004D\u0065\u0073\u0068'](_0xf80b7c,_0x5_0xbc4);_0x628ae="mpfnfj".split("").reverse().join("");_0x40e['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](363292^363357,-(773963^773961),986184^986184);scene['\u0061\u0064\u0064'](_0x40e);addText(781783^781718,577600^577615,580719^580719,"\u002D","\u0062\u006C\u0075\u0065");var _0xe84ac=new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](524834^524854,445492^445493,959502^959514);var _0x00dd=(281511^281519)+(238434^238437);var _0x7750a=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0x00ff00,'\u0073\u0069\u0064\u0065':THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']});_0x00dd='\u0071\u0071\u0066\u006A\u0064\u0071';var _0x_0x539=(938354^938362)+(567670^567664);const _0xbg466b=new THREE['\u004D\u0065\u0073\u0068'](_0xe84ac,_0x7750a);_0x_0x539=234634^234637;_0xbg466b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](220728^220728,934323^934309,959676^959676);scene['\u0061\u0064\u0064'](_0xbg466b);addText(-(148539^148503),247566^247566,208827^208827,"\u0045\u006F","etihw".split("").reverse().join(""));addLine(508246^508246,746804^746786,359217^359217,495260^495260,-(859380^859360),769705^769705,0.1);createElectricFlux();addCharge();updateChargePosition();document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redilSegrahc".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",()=>{document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0068\u0061\u0072\u0067\u0065\u0056\u0061\u006C\u0075\u0065")['\u0076\u0061\u006C\u0075\u0065']=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0068\u0061\u0072\u0067\u0065\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']+"\u0020\u00B5\u0043";updateChargePosition();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006D\u0061\u0073\u0073\u0053\u006C\u0069\u0064\u0065\u0072")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0069\u006E\u0070\u0075\u0074",()=>{document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("eulaVssam".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redilSssam".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']+"\u0020\u00B5\u0067";updateChargePosition();});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redilSdleif".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("tupni".split("").reverse().join(""),()=>{document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("eulaVdleif".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("redilSdleif".split("").reverse().join(""))['\u0076\u0061\u006C\u0075\u0065']+"C/N ".split("").reverse().join("");updateChargePosition();rainbowSpeed=document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0066\u0069\u0065\u006C\u0064\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']/(981234^981050);});document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("teser".split("").reverse().join(""))['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B",function(){location['\u0072\u0065\u006C\u006F\u0061\u0064']();});window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0072\u0065\u0073\u0069\u007A\u0065",onWindowResize,false);}function addCharge(){const _0x3f9dff=new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](376364^376366,316439^316471,413337^413369);const _0x1c7c6g=new THREE['\u004D\u0065\u0073\u0068\u0053\u0074\u0061\u006E\u0064\u0061\u0072\u0064\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':0xffffff,"metalness":1.0,'\u0072\u006F\u0075\u0067\u0068\u006E\u0065\u0073\u0073':0.1});charge=new THREE['\u004D\u0065\u0073\u0068'](_0x3f9dff,_0x1c7c6g);charge['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](137215^137215,-(960729^960733),140967^140967);scene['\u0061\u0064\u0064'](charge);}function updateChargePosition(_0xd26c,_0x50471c,_0x796d,_0x2_0x5e5,_0xd1b){const q=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0063\u0068\u0061\u0072\u0067\u0065\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065'])*1e-6;_0xd26c="niacdn".split("").reverse().join("");var _0x8195bc=(515438^515432)+(241358^241359);const m=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006D\u0061\u0073\u0073\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065'])*1e-6;_0x8195bc="fbgqkm".split("").reverse().join("");const E=parseFloat(document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0066\u0069\u0065\u006C\u0064\u0053\u006C\u0069\u0064\u0065\u0072")['\u0076\u0061\u006C\u0075\u0065']);_0x50471c="gnjmcg".split("").reverse().join("");const _0xgege8d=THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u006D\u0061\u0070\u004C\u0069\u006E\u0065\u0061\u0072'](m,10e-6,50e-6,0.6,700054^700052);_0x796d="hgknfn".split("").reverse().join("");charge['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](_0xgege8d,_0xgege8d,_0xgege8d);const _0x49af=Math['\u0061\u0074\u0061\u006E'](q*E/(m*g));const x=L*Math['\u0073\u0069\u006E'](_0x49af);var _0xe9663f=(255177^255169)+(800301^800296);const y=(543345^543335)-L*Math['\u0063\u006F\u0073'](_0x49af);_0xe9663f='\u0064\u006F\u0063\u006D\u006C\u006B';charge['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,396484^396484);const _0xf3b5a=(_0x49af*(353629^353769)/Math['\u0050\u0049'])['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](917804^917806);document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0061\u006E\u0067\u006C\u0065")['\u0076\u0061\u006C\u0075\u0065']=`${_0xf3b5a}°`;if(angleArc){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](angleArc);angleArc['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();angleArc['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();angleArc=null;}angleArc=drawCurve(new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](182802^182802,679393^679415,715063^715063),858543^858537,_0x49af,0xffffff);if(string){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](string);string['\u0067\u0065\u006F\u006D\u0065\u0074\u0072\u0079']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();string['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0064\u0069\u0073\u0070\u006F\u0073\u0065']();string=null;}string=addLine(144182^144182,775304^775326,226352^226352,x,y,297257^297257,0.3);for(let _0xcg8b in forceVectors){if(forceVectors[_0xcg8b]){scene['\u0072\u0065\u006D\u006F\u0076\u0065'](forceVectors[_0xcg8b]['\u0073\u0068\u0061\u0066\u0074']);scene['\u0072\u0065\u006D\u006F\u0076\u0065'](forceVectors[_0xcg8b]['\u0061\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072']);forceVectors[_0xcg8b]=null;}}var _0x7b346a=(885998^885991)+(842179^842180);const _0x9927gf=m*g*(554378^571098);_0x7b346a=397547^397545;const _0xdfgee=Math['\u0061\u0062\u0073'](q*E)*(656856^706184);const _0x5fda2b=_0x49af;_0x2_0x5e5=(356284^356281)+(254014^254015);const _0x3fc=Math['\u0073\u0071\u0072\u0074'](_0x9927gf**(197931^197929)+_0xdfgee**(436016^436018));const _0xc38fea=charge['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006C\u006F\u006E\u0065']();const _0x256b=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](551272^551272,-(282275^282274),619203^619203);_0xd1b=(784908^784908)+(932774^932769);const _0x3989bf=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](q>(186246^186246)?695723^695722:-(651665^651664),720120^720120,861704^861704);var _0x3_0x941=(385664^385665)+(312522^312525);const _0x786c2d=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-Math['\u0073\u0069\u006E'](_0x5fda2b),Math['\u0063\u006F\u0073'](_0x5fda2b),169574^169574)['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();_0x3_0x941='\u006E\u006D\u0062\u0062\u0069\u0071';forceVectors['\u0067\u0072\u0061\u0076\u0069\u0074\u0079']=createVector(_0xc38fea,_0x256b,_0x9927gf,957757^942653);forceVectors['\u0065\u006C\u0065\u0063\u0074\u0072\u0069\u0063']=createVector(_0xc38fea,_0x3989bf,_0xdfgee,122651^122852);forceVectors['\u0074\u0065\u006E\u0073\u0069\u006F\u006E']=createVector(_0xc38fea,_0x786c2d,_0x3fc,0xffffff);}function createRainbowLight(centerX,y,z,color,spriteTexture,_0x4a_0x2be){const _0x4a2=new THREE['\u0050\u006F\u0069\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](color,3.5,834020^834032,260783^260781);_0x4a_0x2be=(779825^779829)+(614553^614555);_0x4a2['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](centerX,y,z);var _0xd075ce=(166912^166912)+(188148^188147);const _0xeg19ae=new THREE['\u0053\u0070\u0072\u0069\u0074\u0065\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u006D\u0061\u0070':spriteTexture,"color":color['\u0063\u006C\u006F\u006E\u0065'](),'\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074':!![],'\u0062\u006C\u0065\u006E\u0064\u0069\u006E\u0067':THREE['\u0041\u0064\u0064\u0069\u0074\u0069\u0076\u0065\u0042\u006C\u0065\u006E\u0064\u0069\u006E\u0067'],'\u0064\u0065\u0070\u0074\u0068\u0057\u0072\u0069\u0074\u0065':false});_0xd075ce=(166795^166797)+(884608^884613);var _0x7ead=(735241^735246)+(476306^476305);const _0xe9ce3d=new THREE['\u0053\u0070\u0072\u0069\u0074\u0065'](_0xeg19ae);_0x7ead=358724^358732;_0xe9ce3d['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074'](563979^563982,984197^984192,625821^625816);_0x4a2['\u0061\u0064\u0064'](_0xe9ce3d);scene['\u0061\u0064\u0064'](_0x4a2);return _0x4a2;}function createElectricFlux(){randomArray=RandomPointInBox(-(760317^760277),numArrow,plate_length,plate_width);for(let i=722081^722081;i<randomArray['\u006C\u0065\u006E\u0067\u0074\u0068'];i++){var _0xa9826b=randomArray[i]['\u0078'];var _0x1802d=(334752^334760)+(385819^385811);var _0x93217c=randomArray[i]['\u0079'];_0x1802d=(255739^255731)+(674347^674349);let _0x9c649f;var _0xa_0x72f=randomArray[i]['\u007A'];_0x9c649f=(471122^471124)+(422635^422627);addVectorField(_0xa9826b,_0x93217c,_0xa_0x72f);}}function RandomPointInBox(x,num,width,length,_0xg2g9a){var _0x2a_0xbcf=(705155^705155)+(595275^595277);let _0xab24c=[];_0x2a_0xbcf="nkkqek".split("").reverse().join("");var _0x0584ec=width/num;_0xg2g9a=371619^371617;var _0x4c2f=(323862^323859)+(300668^300667);var _0x3f_0x992=length/num;_0x4c2f=(690450^690452)+(294628^294624);for(let i=240595^240594;i<num+(947404^947405);i++){var _0xbe096d=(294141^294141)+(531266^531271);var y=_0x0584ec*i-(575995^575983);_0xbe096d=640102^640100;for(let j=629961^629961;j<num;j++){var z=_0x3f_0x992*j;let _0x6af=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x-(575855^575869),y,z-(999992^999984));_0xab24c['\u0070\u0075\u0073\u0068'](_0x6af);}}return _0xab24c;}function addVectorField(x,y,z,_0x5c6b2a,_0xf2f,_0x3b_0x6d7,_0x1117eb){var _0xdbb1ae=(533226^533231)+(886517^886518);var _0x03264e=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](723200^723201,850346^850346,197885^197885);_0xdbb1ae=(972296^972301)+(699405^699397);_0x03264e['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']();var _0x819caa=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,y,z);_0x5c6b2a=362498^362618;var _0xf3ba3c=(827130^827122)+(194827^194831);_0xf2f=337801^337802;_0xf3ba3c=616645^616646;_0x1117eb=1.5;_0x3b_0x6d7=(592412^592412)+(316486^316483);var _0xc66bg=(927142^927141)+(184366^184360);var _0x21464b=0xffffff;_0xc66bg=(268186^268185)+(386064^386066);var _0x9_0x550=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](_0x03264e,_0x819caa,_0x5c6b2a,_0x21464b,_0xf2f,_0x1117eb);scene['\u0061\u0064\u0064'](_0x9_0x550);}function addText(x,y,z,t,color){fontloader['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0064\u0072\u006F\u0069\u0064\u002F\u0064\u0072\u006F\u0069\u0064\u005F\u0073\u0065\u0072\u0069\u0066\u005F\u0062\u006F\u006C\u0064\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E",function(tex,_0xf1b1g,_0x275bac){var _0x9de54d=new TextGeometry(t,{'\u0073\u0069\u007A\u0065':3,"height":0.2,'\u0063\u0075\u0072\u0076\u0065\u0053\u0065\u0067\u006D\u0065\u006E\u0074\u0073':6,'\u0066\u006F\u006E\u0074':tex});_0xf1b1g='\u006E\u0069\u006F\u006F\u006D\u0069';var _0xdc2f4d=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':color});_0x275bac='\u0062\u0061\u006D\u0064\u006B\u006D';var _0x39feda=(717194^717196)+(783154^783152);var _0x59f93a=new THREE['\u004D\u0065\u0073\u0068'](_0x9de54d,_0xdc2f4d);_0x39feda=(462156^462156)+(161889^161894);_0x59f93a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](x,y,z);scene['\u0061\u0064\u0064'](_0x59f93a);});}function addLine(x1,y1,z1,x2,y2,z2,s,_0xedecda){var _0xee8c9c=[new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x1,y1,z1),new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x2,y2,z2)];_0xedecda=(680398^680399)+(180909^180911);var _0xb1c6a=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':"\u0062\u006C\u0061\u0063\u006B"});var _0xd_0xc9b=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0xee8c9c);var _0x56a=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xd_0xc9b,313469^313369,s,742517^742481,false);var _0xe9ae0a=new THREE['\u004D\u0065\u0073\u0068'](_0x56a,_0xb1c6a);scene['\u0061\u0064\u0064'](_0xe9ae0a);return _0xe9ae0a;}function drawCurve(center,radius,thetaRad,color,_0x52ac5a,_0xec_0x851,_0x4c_0x377){var _0xd433df=(855765^855763)+(646175^646170);const _0xe85e1d=[];_0xd433df=(860849^860850)+(505231^505223);var _0xbcb38e=(838420^838418)+(803508^803517);_0x52ac5a=649045^649035;_0xbcb38e=(202727^202734)+(565534^565526);const _0x8g97ac=-Math['\u0050\u0049']/(530434^530432);_0xec_0x851=943884^943887;const _0x289baa=_0x8g97ac+thetaRad;for(let i=740214^740214;i<=_0x52ac5a;i++){const _0xd36c=_0x8g97ac+i/_0x52ac5a*thetaRad;const x=center['\u0078']+radius*Math['\u0063\u006F\u0073'](_0xd36c);const y=center['\u0079']+radius*Math['\u0073\u0069\u006E'](_0xd36c);_0xe85e1d['\u0070\u0075\u0073\u0068'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](x,y,center['\u007A']));}const _0x7d_0x331=new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](_0xe85e1d);const _0x5dgb4d=new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0x7d_0x331,_0x52ac5a,0.2,830848^830851,false);_0x4c_0x377=(530529^530535)+(657104^657104);const _0xdc3eb=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({'\u0063\u006F\u006C\u006F\u0072':color});const _0x3c2fe=new THREE['\u004D\u0065\u0073\u0068'](_0x5dgb4d,_0xdc3eb);scene['\u0061\u0064\u0064'](_0x3c2fe);return _0x3c2fe;}function createVector(position,direction,length,color=0xffff00,thickness=0.3,_0xb4g9a,_0x85c,_0xfaa12d,_0xg733ad,_0x17b,_0xff82c){const _0xgea1e=length;_0x85c=504774^504773;_0xb4g9a=427200^427203;_0xfaa12d=1.5;const _0x11_0xb69=new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](thickness,thickness,_0xgea1e-_0x85c,209987^210019);const _0xc_0xc47=new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({"color":color});_0xg733ad='\u0065\u006E\u0071\u0065\u006E\u0062';const _0x87e02b=new THREE['\u004D\u0065\u0073\u0068'](_0x11_0xb69,_0xc_0xc47);_0x17b=(335169^335174)+(867123^867126);_0x87e02b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](position);var _0x89a6b=new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](direction,position,_0xgea1e,color,_0x85c,_0xfaa12d);_0xff82c=(282108^282107)+(566846^566839);var _0x72c06a=(386545^386548)+(153794^153792);const _0x61c4dd=new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033']()['\u0061\u0064\u0064\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](position,direction['\u0063\u006C\u006F\u006E\u0065']()['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072']((_0xgea1e-_0x85c)/(567218^567216)));_0x72c06a="gbjjgg".split("").reverse().join("");_0x87e02b['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x61c4dd);_0x87e02b['\u0071\u0075\u0061\u0074\u0065\u0072\u006E\u0069\u006F\u006E']['\u0073\u0065\u0074\u0046\u0072\u006F\u006D\u0055\u006E\u0069\u0074\u0056\u0065\u0063\u0074\u006F\u0072\u0073'](new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](963958^963958,780206^780207,856589^856589),direction['\u006E\u006F\u0072\u006D\u0061\u006C\u0069\u007A\u0065']());scene['\u0061\u0064\u0064'](_0x87e02b);scene['\u0061\u0064\u0064'](_0x89a6b);return{"shaft":_0x87e02b,"arrowHelper":_0x89a6b};}function onWindowResize(){camera['\u0061\u0073\u0070\u0065\u0063\u0074']=window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068']/window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'],window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);}function animate(){rainbowLights['\u0066\u006F\u0072\u0045\u0061\u0063\u0068'](light=>{light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']+=rainbowSpeed;if(light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']>(332763^332777)){light['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078']=-(479218^479168);}});requestAnimationFrame(animate);controls['\u0075\u0070\u0064\u0061\u0074\u0065']();renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene,camera);}
+	  
+</script>
+
+</body>
+</html>

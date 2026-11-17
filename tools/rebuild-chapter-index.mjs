@@ -39,6 +39,20 @@ const STYLE = [
   '#note{padding:6px 14px;font-size:13px;color:#9aa4b0;background:#161a20}',
 ].join('\n');
 
+/*
+ * A course with a single chapter has nothing to switch between, so it opens
+ * straight into the lesson.  The bar is hidden but not removed: the host
+ * side of the runtime reads the chapter list out of it and answers the
+ * frame that asks to be let in.
+ */
+const SOLO_STYLE = [
+  'html,body{margin:0;height:100%;background:#101418;color:#f2e9d8;font:15px/1.6 system-ui,sans-serif;overflow:hidden}',
+  '#bar{display:none}',
+  '#stage{height:100%}',
+  '#stage iframe{width:100%;height:100%;border:0;display:block}',
+  '#note{display:none}',
+].join('\n');
+
 const SCRIPT = [
   "const select=document.getElementById('chapter');",
   "const frame=document.getElementById('frame');",
@@ -132,6 +146,7 @@ for (const id of Object.keys(manifest)) {
     .join('');
   const hasAdapter = fs.existsSync(adapter);
   const host = HOST.replaceAll('%%PROGRAM%%', id).replaceAll('%%RUNTIME%%', `${ASSET(id)}_course_runtime/`);
+  const solo = entries.length === 1;
   const shell = [
     '<!DOCTYPE html>',
     '<html lang="zh-CN">',
@@ -139,7 +154,7 @@ for (const id of Object.keys(manifest)) {
     '<meta charset="UTF-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
     `<title>${title}</title>`,
-    `<style>${STYLE}</style>`,
+    `<style>${solo ? SOLO_STYLE : STYLE}</style>`,
     '</head>',
     '<body>',
     '<div id="bar">',
@@ -155,7 +170,7 @@ for (const id of Object.keys(manifest)) {
   ].join('\n');
   fs.writeFileSync(path.join(CW, `${id}.html`), shell);
   console.log(
-    `${id}: ${entries.length} 章${hasAdapter ? '（含运行时宿主）' : ''} -> ${entries.map((e) => e.title).join(' / ')}`
+    `${id}: ${entries.length} 章${solo ? '（全屏）' : ''}${hasAdapter ? '（含运行时宿主）' : ''} -> ${entries.map((e) => e.title).join(' / ')}`
   );
 }
 

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>乐启享 · 物理实验</title>
+    <script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc240-heatresistance.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Organization",
+		    "name": "Example Organization"
+		  }
+		}
+		</script>
+  		<link rel="icon" href="/brand/favicon.ico">
+		<link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-heatresistance/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<meta name="twitter:card" content="summary_large_image">
+		<meta name="twitter:title" content="Best Physics Simulations for Education">
+		<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+		<meta name="twitter:image" content="/api/program-assets/3jcn-phyc240-heatresistance/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:title" content="Best Physics Simulations for Education">
+		<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+		<meta property="og:image" content="/api/program-assets/3jcn-phyc240-heatresistance/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:url" content="/courseware/phyc240-heatresistance">
+		<meta name="robots" content="index, follow">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" href="/api/program-assets/3jcn-phyc240-heatresistance/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="/api/program-assets/3jcn-phyc240-heatresistance/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="/api/program-assets/3jcn-phyc240-heatresistance/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/api/program-assets/3jcn-phyc240-heatresistance/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+    <link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc240-heatresistance/_ext/vendor/css/main3.css">
+
+    <script type="module">
+        import * as THREE from "/jsm/three.module.js";
+	
+        import { VolumetricFire } from "/Phyc140/VolumetricFire.js";  
+        import { OrbitControls } from '../jsm/OrbitControls.js';
+        import { FontLoader } from '../jsm/FontLoader.js';
+        import { TextGeometry } from '../jsm/TextGeometry.js';
+        import { LineGeometry } from '../jsm/LineGeometry.js';
+        import { Line2 } from '../jsm/Line2.js';
+        import { LineMaterial } from '../jsm/LineMaterial.js';
+	import { Lensflare, LensflareElement } from '/jsm/Lensflare.js';
+
+        /**  author: Thomas Nguyen   "3jcn.com"
+         **  26 Sept 2020
+         **  All rights reserved **/
+
+        var initScene, controls, renderer, pointLight, scene, light, flight, flight2, camera, halo;
+        var angle, ball, particleGroup, emitter, hotplate;
+        var is_start = false, is_stop = false, is_fired = true;
+        var material, fire, springMesh; const NTWISTS = 6;
+        var dragArray = [], tempArray = [], tempArray2 = [];
+        var fireWidth = 8;
+        const fireHeight = fireWidth * 2.5;
+        const fireDepth = fireWidth - 4;
+        const sliceSpacing = .5;
+        var intensity = 20, halo, composer, renderPass, bloomPass, gu, rt, rtCanvas, rtCamera ;
+
+        var clock = new THREE.Clock();
+        var textureloader = new THREE.TextureLoader();
+        var fontloader = new FontLoader();
+
+        initScene = function() {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('viewport').appendChild(renderer.domElement);
+            scene = new THREE.Scene;
+            scene.background = new THREE.Color('black');
+	    // Add fog to the scene
+    	    // scene.fog = new THREE.FogExp2('beige', 0.011);
+		
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 5, 1000);
+	    // Adjust camera position
+	    camera.position.set(23, 77, 55);
+	    // Ensure the camera is looking at the correct target
+	    camera.lookAt(new THREE.Vector3(0, 0, 0));  
+	    scene.add(camera);
+            controls = new OrbitControls(camera, renderer.domElement);
+
+            light = new THREE.DirectionalLight(0xFFFFFF, 0.15);
+            light.position.set(10, 40, 20);
+            light.target.position.copy(scene.position);
+            light.castShadow = true;
+            scene.add(light);
+            var spotlight = new THREE.SpotLight(0xffffff);
+            spotlight.position.set(10, 40, 30);
+            spotlight.shadowMapVisible = true;
+            spotlight.lookAt(-30, 10, 0);
+            scene.add(spotlight);
+
+            // create Breadboard:
+            const geometry1 = new THREE.BoxGeometry(46, 1, 60);
+            const base = new THREE.Mesh(geometry1, new THREE.MeshPhongMaterial({ color: 'springgreen' }));
+            base.position.set(0, -7, 0);
+            scene.add(base);
+
+            // add fire:
+            VolumetricFire.texturePath = '/Phyc140/texture/';
+            fire = new VolumetricFire(fireWidth, fireHeight, fireDepth, sliceSpacing, camera);
+            fire.mesh.position.set(0, 4, 0);
+            scene.add(fire.mesh);
+
+            // add stuff:
+            addBlue(4.8, -6, -24, 4.8, -6, -20);
+            addBlue(4.8, -6, -20, 18, -6, -20);
+            addBlue(18, -6, -20, 18, -6, 0);
+            addBlue(18, -6, 0, 18, 8.5, 0);
+            addBlue(18, 8.5, 0, 11.3, 8.5, 0);
+
+            addBlue(-7.5, 8.5, 0, -18, 8.5, 0);
+            addBlue(-18, 8.5, 0, -18, -6, 0);
+            addBlue(-18, -6, 0, -18, -6, 25);
+            addBlue(-18, -6, 25, 4, -6, 25);
+            addBlue(4, -6, 25, 4, -6, -24);
+
+            createSpring(30, 3, 0);
+            createLightBulb();
+            addLensFlare2();
+            addTitle(-17, 14, -18, "HEAT RESISTANCE", 3.5);
+            addSmallText(-14, -2, 0, 'Burner');
+            addSmallText(-6, 2, -23, 'DC supply');
+            addHotPlate();
+            addSphere(-7.5, 8.5, 0);
+            addSphere(11.3, 8.5, -0.3);
+            addRing(1.8, 2, 4, 32, 0, -1, 0);
+            addPowerSupply(0, -2.6, -25, 0);
+		
+		
+console.log('Camera Position:', camera.position);
+		
+            document.getElementById('fire').addEventListener('click', setOnOff);
+            document.getElementById('reset').addEventListener('click', function() {
+                location.reload(true);
+            });
+            window.addEventListener('resize', onWindowResize, false);
+            requestAnimationFrame(render);
+
+        }
+        function setOnOff() {
+            is_fired = !is_fired;
+            if (is_fired) {
+                addFire();
+		addLensFlare2();
+		if(flight){
+			scene.remove(flight);
+		}
+            } else {
+		if(flight2){
+			scene.remove(flight2);
+		}
+		addLensFlare();
+                scene.remove(fire.mesh); 
+            }
+        }
+        function addFire() {
+          
+            fire = new VolumetricFire(
+                fireWidth,
+                fireWidth * 2.5,
+                fireDepth,
+                0.5,
+                camera
+            );
+
+            // Validate the fire mesh geometry
+            if (fire.mesh.geometry.attributes.position.array.some(v => isNaN(v))) {
+                console.error('NaN detected in fire mesh geometry:', fire.mesh.geometry.attributes.position.array);
+            }
+
+            fire.mesh.position.set(0, 4, 0);
+            scene.add(fire.mesh);
+        }
+        function createSpring(posX, posY, posZ) {
+            var TWO_PI = Math.PI * 2.0;
+            var ANGLE_INCR = Math.PI / 12;
+
+            var height = (-45 - posX);  // -65
+            var cylX = (-50 - height * 0.5);  // spring's top  -70
+
+            var y, z;
+            var x = height / 2;
+            var radius = 2.6;
+            var n = 0;
+            var xIncr = height / (TWO_PI / ANGLE_INCR * NTWISTS);
+            var helix = [];
+            var springMaterial = new THREE.MeshLambertMaterial({ color: "brown" });
+
+            for (var phi = 0; phi <= TWO_PI * NTWISTS; phi += ANGLE_INCR) {
+                y = posY + Math.cos(phi) * radius;
+                x -= xIncr / 4;
+                z = posZ + Math.sin(phi) * radius;
+                helix.push(new THREE.Vector3(x, y, z));
+                n++;
+            }
+
+            var curve = new THREE.CatmullRomCurve3(helix);
+            var geometry = new THREE.TubeGeometry(curve, n, 0.5, 36, false);
+            springMesh = new THREE.Mesh(geometry, springMaterial);
+            springMesh.position.set(posX, posY, posZ);
+
+            scene.add(springMesh);
+        }
+        function addHotPlate() {
+            var ballGeom = new THREE.BoxGeometry(6, 2.5, 6);
+            hotplate = new THREE.Mesh(ballGeom, new THREE.MeshPhongMaterial({ color: "black" }));
+            hotplate.position.set(0, -6, 0);
+            scene.add(hotplate);
+        }
+        function addSphere(x, y, z) {
+            var ballGeom = new THREE.SphereGeometry(0.7, 32, 24);
+            ball = new THREE.Mesh(ballGeom, new THREE.MeshPhongMaterial({ color: "white" }));
+            ball.position.set(x, y, z);
+            scene.add(ball);
+        }
+        function addBlue(x1, y1, z1, x2, y2, z2) {
+            var arr = [new THREE.Vector3(x1, y1, z1),
+            new THREE.Vector3(x2, y2, z2)];
+            var mat = new THREE.MeshLambertMaterial({ color: "gray" });
+            var curve = new THREE.CatmullRomCurve3(arr);
+            var geometry = new THREE.TubeGeometry(curve, 100, 0.2, 36, false);
+            var str = new THREE.Mesh(geometry, mat);
+            scene.add(str);
+            return str;
+        }
+	function addLensFlare() {
+	    const textureFlare0 = textureloader.load(
+	        '/api/program-assets/3jcn-phyc240-heatresistance/_ext/threejs.org/examples/textures/lensflare/lensflare0.png',
+	        undefined,
+	        undefined,
+	        (err) => console.error('Error loading textureFlare0', err)
+	    );
+	 
+	    const lensflare = new Lensflare();
+	    lensflare.addElement(new LensflareElement(textureFlare0, 700, 0)); // Adjust size
+		
+	    const g = new THREE.SphereBufferGeometry(0.35, 16, 16);
+	    const m = new THREE.MeshBasicMaterial({ color: 0xc0ff00 });
+	    flight = new THREE.PointLight(0xffffff, 15, 20); // Adjust intensity and distance
+	    flight.add(new THREE.Mesh(g, m));
+	    flight.add(lensflare);
+	    flight.position.set(0, 0, 25); // Verify position
+	    scene.add(flight);
+	}
+	
+	function addLensFlare2() {
+	    const textureFlare3 = textureloader.load(
+	        '/api/program-assets/3jcn-phyc240-heatresistance/_ext/threejs.org/examples/textures/lensflare/lensflare3.png',
+	        undefined,
+	        undefined,
+	        (err) => console.error('Error loading textureFlare3', err)
+	    );
+	
+	    const lensflare = new Lensflare();
+	    lensflare.addElement(new LensflareElement(textureFlare3, 700, 0)); // Adjust size
+	
+	    const g = new THREE.SphereBufferGeometry(0.35, 16, 16);
+	    const m = new THREE.MeshBasicMaterial({ color: 0xc0ff00 });
+	    flight2 = new THREE.PointLight(0xffffff, 5, 10); // Adjust intensity and distance
+	    flight2.add(new THREE.Mesh(g, m));
+	    flight2.add(lensflare);
+	    flight2.position.set(0, 0, 25); // Verify position
+	    scene.add(flight2);
+	}
+        function createLightBulb() {
+            // Create the sphere geometry
+            const radius = 4; // Radius of the sphere
+            const widthSegments = 32; // Number of horizontal segments
+            const heightSegments = 32; // Number of vertical segments
+            const sphereGeometry = new THREE.SphereGeometry(radius, widthSegments, heightSegments);
+
+            // Scale the geometry to create an American football shape
+            sphereGeometry.scale(1, 1, 1.4);
+
+            // Create the material
+            const textureLoader = new THREE.TextureLoader();
+            var clearMaterial = new THREE.MeshPhongMaterial({
+                color: 'red',
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.2
+            });
+
+            // Create the mesh
+            const bulb = new THREE.Mesh(sphereGeometry, clearMaterial);
+
+            // Create laces
+            const laceGeometry = new THREE.BoxGeometry(0.1, 0.02, 1.2);
+            const laceMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+
+            const lace1 = new THREE.Mesh(laceGeometry, laceMaterial);
+            lace1.position.set(0, 0.5, 0);
+            bulb.add(lace1);
+
+            const lace2 = new THREE.Mesh(laceGeometry, laceMaterial);
+            lace2.position.set(0, -0.5, 0);
+            bulb.add(lace2);
+
+            const laceSegmentGeometry = new THREE.BoxGeometry(0.02, 0.02, 0.2);
+            const laceSegmentMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+
+            for (let i = -0.5; i <= 0.5; i += 0.2) {
+                const laceSegment = new THREE.Mesh(laceSegmentGeometry, laceSegmentMaterial);
+                laceSegment.position.set(0, i, 0.6);
+                bulb.add(laceSegment);
+            }
+            // add the lamp base
+            const basegeo = new THREE.CylinderGeometry(3, 3, 2, 32);
+            const base = new THREE.Mesh(basegeo, new THREE.MeshPhongMaterial({ color: "purple" }));
+            base.position.set(0, -5.5, 25);
+            scene.add(base);
+
+            // Add the lamp to the scene
+            bulb.rotation.x = Math.PI / 2;
+            bulb.position.set(0, 0, 25);
+            scene.add(bulb);
+
+        }
+        function addSmallText(x, y, z, t) {
+            fontloader.load("/api/program-assets/3jcn-phyc240-heatresistance/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json", function(tex) {
+                var textGeo = new TextGeometry(t, {
+                    size: 2,
+                    height: 0.3,
+                    curveSegments: 6,
+                    font: tex,
+                });
+                var textMaterial = new THREE.MeshLambertMaterial({ color: "orange" });
+                var textMesh = new THREE.Mesh(textGeo, textMaterial);
+                textMesh.position.set(x, y, z);
+                scene.add(textMesh);
+            });
+        }
+        function addTitle(x, y, z, t, s) {
+            fontloader.load("/api/program-assets/3jcn-phyc240-heatresistance/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json", function(tex) {
+                var textGeo = new TextGeometry(t, {
+                    size: s,
+                    height: s / 7,
+                    curveSegments: 6,
+                    font: tex,
+                });
+                var textMaterial = new THREE.MeshLambertMaterial({ color: "white" });
+                var textMesh = new THREE.Mesh(textGeo, textMaterial);
+                textMesh.position.set(x, y, z);
+                //textMesh.rotateY(Math.PI/2);
+                scene.add(textMesh);
+            });
+        }
+        function addRing(innerRadius, outerRadius, heigth, Segments, x, y, z) {
+            var extrudeSettings = {
+                amount: heigth,
+                bevelEnabled: false,
+                curveSegments: Segments
+            };
+            var arcShape = new THREE.Shape();
+            arcShape.moveTo(outerRadius, 0);
+            arcShape.absarc(0, 0, outerRadius, 0, Math.PI * 2, false);
+
+            var holePath = new THREE.Path();
+            holePath.moveTo(innerRadius, 0);
+            holePath.absarc(0, 0, innerRadius, 0, Math.PI * 2, true);
+            arcShape.holes.push(holePath);
+
+            var geometry = new THREE.ExtrudeGeometry(arcShape, extrudeSettings);
+
+            var material = new THREE.MeshPhongMaterial({
+                color: 'black'
+            });
+
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.rotation.x = Math.PI / 2;
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+        }
+        function addPowerSupply(x, y, z, alpha) {
+            const geometry = new THREE.BoxGeometry(12, 8, 6);
+            var texture = textureloader.load('/Phyc240/textures/power-supply.png');
+            const material = new THREE.MeshBasicMaterial({ color: 'white' });
+            const box = new THREE.Mesh(geometry, material);
+            var volt_geometry = new THREE.BoxGeometry(11.8, 7.8, 0.2);
+            var volt_material = new THREE.MeshPhongMaterial({
+                map: texture
+            });
+            var screen = new THREE.Mesh(volt_geometry, volt_material);
+            box.add(screen);
+            screen.position.set(0, 0, 3.3);
+            box.position.set(x, y, z);
+            box.rotation.y = alpha;
+            scene.add(box);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        function render() {
+           const elapsedTime = clock.getElapsedTime();
+            fire.update(elapsedTime);
+           if (rtCanvas && rtCanvas.material && rtCanvas.material.uniforms && rtCanvas.material.uniforms.time) {
+                rtCanvas.material.uniforms.time.value = elapsedTime;
+            }
+            controls.update();
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+        }
+        window.onload = initScene;
+    </script>
+</head>
+<body>
+    <div id="info" style="text-align: left"> 
+        Turn on/off the fire burner and watch what happens to the lamp when the flame is heating the wire:<br>
+        <button id= 'fire' class="btn btn-primary">Fire Off/On</button>
+        <button id='reset' class="btn btn-danger">Refresh</button>
+    </div>
+    <div id="viewport"></div>
+</body>
+</html>

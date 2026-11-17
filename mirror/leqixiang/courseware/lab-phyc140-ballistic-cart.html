@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>乐启享 · 物理实验</title> 
+	  	<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc140-ballistic-cart.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Education",
+		    "name": "3JCN"
+		  }
+		}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-ballistic-cart/_ext/vendor/css/main3.css">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations for Education">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-phyc140-ballistic-cart/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations for Education">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-phyc140-ballistic-cart/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/phyc140-ballistic-cart">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="/api/program-assets/lab-phyc140-ballistic-cart/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<script src="/api/program-assets/lab-phyc140-ballistic-cart/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+		<script src="/api/program-assets/lab-phyc140-ballistic-cart/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+		<style>
+			input{
+			    color: black;
+			} 
+			body {color: black;}
+			h1 {color: black;}
+		</style>
+	</head>
+
+<body>
+    <div id="info">
+        <h1>BALLISTIC CART</h1>
+        <button class="btn btn-warning" onclick="alert('A ballistic cart is a classic physics demonstration where a ball is shot vertically upward from a moving cart, and the ball falls back into the cart again. This experiment illustrates the independence of horizontal and vertical motions. While the ball travels upward and downward due to gravity (vertical motion), the cart continues moving at a constant velocity horizontally. As a result, the ball and the cart meet again at the same horizontal position when the ball falls back into the cart.')">
+	    What is a ballistic cart?
+	</button>
+
+        <button class="btn btn-primary" id="startButton">Start Simulation</button>
+        <button class="btn btn-danger" id="pause">Pause</button>
+        <button class="btn btn-danger" id="reset">Reset</button>
+        
+    </div>
+    <div id="container"></div>
+
+    <script type="module">
+        import * as THREE from '../jsm/three.module.js';	
+        import { OrbitControls } from '../jsm/OrbitControls.js';	
+        import { GLTFLoader } from '../jsm/GLTFLoaderB.js';
+        import { DRACOLoader } from '../jsm/DRACOLoader.js';
+        import { RGBELoader } from '../jsm/RGBELoader.js';
+
+        let container, camera, scene, renderer, controls;
+        let isPaused = false, ballOnCar = true; 
+        let is_start = false, is_stop = false;
+        const textureloader = new THREE.TextureLoader();
+        var lasttime = performance.now() * 0.001;
+        var audio1 = new Audio('/api/program-assets/lab-phyc140-ballistic-cart/_ext/vendor/Audio/correct.mp3');
+        var audio2 = new Audio('/api/program-assets/lab-phyc140-ballistic-cart/_ext/vendor/Audio/wrong.mp3');
+
+        let grid, carModel, ball, ballInitialY;
+        const wheels = [];
+	var carRunTime = 1; // Time (in seconds) for the car to run before launching the ball
+        var is_running = false; 
+	let  v0 = 15;
+	const g = 9.8; // Gravity in m/s²
+	let ballInitialX;
+	let lastTime = 0;         // Tracks the previous time for calculating deltaTime
+	let startTime = 0;        // Time when the car starts running
+	let launchTime = null;    // Time when the ball is launched
+	let ballLaunched = false; // Flag to track if the ball is in the air
+
+        init();
+        animate();
+
+        function init() {
+            container = document.getElementById('container');
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+             
+            camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 10, 20); 
+
+            controls = new OrbitControls(camera, renderer.domElement);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xbfd1e5);
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(100, 100, 100); 
+            scene.add(directionalLight);
+            
+            addGrid();
+            addRoad();
+            
+            const bodyMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xff0000, metalness: 1.0, roughness: 0.5, clearcoat: 1.0, clearcoatRoughness: 0.03
+            });
+            const detailsMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff, metalness: 1.0, roughness: 0.5
+            });
+            const glassMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff, metalness: 0.25, roughness: 0, transmission: 1.0
+            });
+            
+            const dracoLoader = new DRACOLoader();
+            dracoLoader.setDecoderPath('/api/program-assets/lab-phyc140-ballistic-cart/_ext/threejs.org/examples/jsm/libs/draco/gltf/');
+
+            const loader = new GLTFLoader();
+            loader.setDRACOLoader(dracoLoader);
+
+            loader.load('/api/program-assets/lab-phyc140-ballistic-cart/_ext/threejs.org/examples/models/gltf/ferrari.glb', function (gltf) {
+                carModel = gltf.scene.children[0];
+                carModel.getObjectByName('body').material = bodyMaterial;
+
+                carModel.getObjectByName('rim_fl').material = detailsMaterial;
+                carModel.getObjectByName('rim_fr').material = detailsMaterial;
+                carModel.getObjectByName('rim_rr').material = detailsMaterial;
+                carModel.getObjectByName('rim_rl').material = detailsMaterial;
+                carModel.getObjectByName('glass').material = glassMaterial;
+
+                wheels.push(
+                    carModel.getObjectByName('wheel_fl'),
+                    carModel.getObjectByName('wheel_fr'),
+                    carModel.getObjectByName('wheel_rl'),
+                    carModel.getObjectByName('wheel_rr')
+                );
+
+                carModel.rotation.y = Math.PI / 2;
+                carModel.position.set(54, -30, -1.5);
+                scene.add(carModel);
+
+                // Add the ball to the car
+                const ballGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+                const ballMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+                ball = new THREE.Mesh(ballGeometry, ballMaterial);
+                ball.position.set(54, -28.5, -1.5); // Initially positioned on top of the car
+                scene.add(ball);
+                ballInitialY = ball.position.y; // Store initial Y position for reference
+            });
+            
+            document.getElementById("reset").addEventListener('click', function () { location.reload(); });
+            document.getElementById("pause").addEventListener('click', togglePause);
+            document.getElementById("startButton").addEventListener("click", function() {
+		    startTime = performance.now() * 0.001; // Record the time when the start button is clicked
+		    is_start = true;
+		    is_running = true; // Start the car first
+	    });
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function togglePause() {
+            if (isPaused) {
+                isPaused = false;
+                document.getElementById("pause").innerText = "Pause";
+            } else {
+                isPaused = true;
+                document.getElementById("pause").innerText = "Resume";
+            }
+        }
+
+        function addGrid() {
+            grid = new THREE.GridHelper(120, 60, 0xffffff, 0xffffff);
+            grid.material.opacity = 0.2;
+            grid.material.depthWrite = false;
+            grid.material.transparent = true;
+            grid.position.y = -30;
+            scene.add(grid);
+        }
+
+        function addRoad() {
+            const geometry = new THREE.PlaneGeometry(120, 10);
+            const texture = new THREE.TextureLoader().load('texture/road.png');
+            const material = new THREE.MeshBasicMaterial({ map: texture });
+            const plane = new THREE.Mesh(geometry, material);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.set(0, 0, 0);
+            grid.add(plane);
+        }
+
+        function startFunction() {
+            lasttime = performance.now() * 0.001;
+            is_start = true;
+            ballLaunched = true;
+		startTime=lasttime;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+	    
+	function  animate() {
+	    const currentTime = performance.now() * 0.001; // Get current time in seconds
+	    const deltaTime = currentTime - lastTime;      // Calculate time difference between frames
+	    lastTime = currentTime;                        // Update lastTime for the next frame
+	
+	    if (!isPaused) {
+	        if (!is_stop) {
+	            // Rotate the car's wheels
+	            for (let i = 0; i < wheels.length; i++) {
+	                wheels[i].rotation.x -= deltaTime * Math.PI * 2;
+	            }
+	
+	            if (is_start) {
+	                const elapsedTime = currentTime - startTime; // Time since the car started running
+	
+	                // Move the car continuously
+	                carModel.position.x -= 15 * deltaTime;
+	
+	                // Ball stays on the car for the first 2 seconds
+	                if (elapsedTime <= carRunTime) {
+	                    ball.position.x = carModel.position.x;
+	                    ball.position.y = ballInitialY; // Keep ball on the car
+	                } 
+	                // After 2 seconds, launch the ball if not already launched
+	                else if (!ballLaunched) {
+	                    ballLaunched = true;
+	                    launchTime = currentTime; // Set launch time once when ball launches
+	                    ballInitialX = ball.position.x; // Record initial X position of the ball
+	                }
+	
+	                // Simulate the ball's parabolic motion when launched
+	                if (ballLaunched && launchTime !== null ) {
+				var temp = performance.now() * 0.001;
+	                    const t = Math.abs(temp - launchTime); // Time since the ball was launched
+	
+	                    // Ball's vertical position (parabolic motion)
+	                    ball.position.y = ballInitialY + v0 * t - 0.5 * g * t * t;
+	                    // Ball's horizontal position continues moving with the car
+	                    ball.position.x = ballInitialX - 15 * t; // Ball follows car's horizontal movement
+	
+	                    // Check if the ball has landed on the car (when y <= ballInitialY)
+	                    if (ball.position.y <= ballInitialY) {
+	                        ball.position.y = ballInitialY; // Ball lands on the car
+	                        ballLaunched = false; // Reset ball motion for next cycle
+	                        launchTime = null; // Reset launchTime for next cycle
+	                        ball.position.x = carModel.position.x; // Ball moves back onto the car
+	                    }
+	                }
+	
+	                // Repeat the process if the car's position is less than -60
+	                if (carModel.position.x <= -60) {
+	                    carModel.position.set(54, -30, -1.5); // Reset car's position
+	                    ball.position.set(54, ballInitialY, -1.5); // Reset ball's position with the car
+	                    startTime = currentTime; // Reset the start time for a new cycle
+	                    ballLaunched = false; // Reset ball launch status
+	                    launchTime = null; // Reset launch time for the next cycle
+	                }
+	            }
+	        }
+	    }
+	
+	    requestAnimationFrame(animate);
+	    controls.update();
+	    renderer.render(scene, camera);
+	}
+
+	</script>
+
+	</body>
+</html>

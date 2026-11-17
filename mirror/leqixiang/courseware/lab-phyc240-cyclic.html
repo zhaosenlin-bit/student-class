@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc240-cyclic/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc240-cyclic/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-phyc240-cyclic/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc240-cyclic/_ext/vendor/css/main3.css">
+	<style>
+		#canvas {
+		    width: 400px;
+		    height: 300px;
+		    border: 2px inset white;
+		    position:absolute;
+		    top: 280px;
+		    left: 2%;
+		    z-index : 10;
+		    -webkit-transition: all 1s;
+		}
+		body {
+			color: black;
+		}
+		
+		a {color: yellow;}
+		a:hover {color: white;}
+	</style>
+	<script type="module">   
+	import * as THREE from '../jsm/three.module.js';	
+	import { OrbitControls } from '../jsm/OrbitControls.js';
+	import { STLLoader } from '../jsm/STLLoader.js';
+	import { FontLoader } from '../jsm/FontLoader.js';
+	import { TextGeometry } from '../jsm/TextGeometry.js';
+        import { VolumetricFire } from '../Phyc140/VolumetricFire.js';	
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  9 May 2024
+		 **  All rights reserved **/
+
+	var initScene, controls, piston, fire, scene, camera, renderer;
+	var  mag_bar;
+	var particleArray = [];
+	let messageArray = [];
+	const density = 10; const cylinderRadius = 10;
+	const maxParticles = 200; 
+	const stepSize1 = 0.2;
+	const stepSize2 = 0.6;
+	const maxHeight = 7; 
+	let minHeight = 2;  
+	let currentHeight = 0;
+	const restitution = 1;  
+	const n = 1; // Number of moles (assumed constant)
+	const R = 8.314; // Ideal gas constant in J/(mol*K)
+	const T = 200; // Temperature in Kelvin (assumed constant)
+	var is_area = false, is_heat = false, is_one = false, is_two = false, is_three = false, is_four = false;
+	let initialDiagramDrawn = false;
+	let currentTemperature = 200; 
+	let hasDrawnInitial = false; 
+	let pressure = 100;  
+	let initialVolume = 1.0; 
+	let finalVolume = 5.0;   
+	let currentVolume = initialVolume; // Track current volume dynamically
+		
+	var textureloader = new THREE.TextureLoader();
+	var fontloader = new FontLoader();
+	const canvas = document.getElementById('canvas');
+	const ctx = canvas.getContext('2d');
+
+	// Initialize the scene
+	initScene = function() {
+		scene = new THREE.Scene();
+		camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 1000);
+		renderer = new THREE.WebGLRenderer({ antialias: true });
+    		scene.background = new THREE.Color(0x0f752a); 
+		camera.position.set(50, 20, 80);
+		camera.lookAt(scene.position);
+		controls = new OrbitControls(camera, renderer.domElement);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		document.getElementById('viewport').appendChild(renderer.domElement);
+
+		setupLights();
+		addObjectsToScene();
+		for (let i = 0; i < maxParticles; i++) {
+			spawnGas();
+		}
+		  
+	        setupCanvas(canvas); 
+		drawPVDiagram(200);
+		drawPVDiagram(300);
+		drawPVDiagram(400);
+		document.getElementById('two').disabled = true;
+		document.getElementById('three').disabled = true;
+		document.getElementById('four').disabled = true;
+		
+		window.addEventListener('resize', onWindowResize, false);
+		document.getElementById("one").addEventListener('click', drawExpansion);
+		document.getElementById("two").addEventListener('click', drawHeatRemoval);
+		document.getElementById("three").addEventListener('click', drawCompression);
+		document.getElementById("four").addEventListener('click', drawHeatAddition);
+		document.getElementById("reset").addEventListener('click', function(){location.reload();});
+
+		requestAnimationFrame(render);
+		render();
+	}
+
+	function setupLights() {
+		const light = new THREE.DirectionalLight(0xFFFFFF);
+		light.position.set(10, 40, 20);
+		light.castShadow = true;
+		scene.add(light);
+	}
+
+	function addObjectsToScene() {
+	    	addText(-16,19,-10,'A CYCLIC PROCESS', 0);
+		addSmallText(-18,5,14,'Gas Pump', 0);	
+		addSmallText(-8,-20,0,'Sterling Engine', 0);	
+		createMilikanContainer();
+		addHotPlate();
+	}
+		
+	function createFire() {
+		    // Toggle the fire on and off
+		    //is_heat = !is_heat;
+		
+		    if (is_heat) {
+		        // Fire is on, create fire and stop piston from moving
+		        if (!fire) {
+		            VolumetricFire.texturePath = '/api/program-assets/lab-phyc240-cyclic/_ext/vendorPhyc140/texture/';
+		            var fireWidth = 8;
+		            var fireHeight = 12;
+		            var fireDepth = 8;
+		            var sliceSpacing = 0.5;
+		
+		            fire = new VolumetricFire(fireWidth, fireHeight, fireDepth, sliceSpacing, camera);
+		            fire.mesh.position.set(0, -10, 0);
+		            scene.add(fire.mesh);
+		        }
+		    } else {
+		        // Fire is off, remove fire from the scene
+		        if (fire) {
+		            scene.remove(fire.mesh);
+		            fire = null;
+		        }
+		    }
+	}
+		
+	function addHotPlate(){
+		  var ballGeom = new THREE.BoxGeometry(7, 2, 7);
+		  var hotplate = new THREE.Mesh(ballGeom, new THREE.MeshPhongMaterial({color:"white"}));
+		  hotplate.position.set(0, -15, 0);
+		  scene.add(hotplate);
+	}	
+		
+	function createPump(){
+		// Create the sphere geometry
+		const radius = 2.5; // Radius of the sphere
+		const widthSegments = 32; // Number of horizontal segments
+		const heightSegments = 32; // Number of vertical segments
+		const sphereGeometry = new THREE.SphereGeometry(radius, widthSegments, heightSegments);
+		
+		// Scale the geometry to create an American football shape
+		sphereGeometry.scale(1, 0.6, 1.4);
+		
+		// Create the material
+		const textureLoader = new THREE.TextureLoader();
+		//const texture = textureLoader.load('path_to_your_texture.jpg'); // Load a texture for the football
+		const sphereMaterial = new THREE.MeshPhongMaterial({ color: 'yellow' });
+		
+		// Create the mesh
+		const football = new THREE.Mesh(sphereGeometry, sphereMaterial);	
+		
+		// Create laces
+		const laceGeometry = new THREE.BoxGeometry(0.1, 0.02, 1.2);
+		const laceMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+		
+		const lace1 = new THREE.Mesh(laceGeometry, laceMaterial);
+		lace1.position.set(0, 0.5, 0);
+		football.add(lace1);
+		
+		const lace2 = new THREE.Mesh(laceGeometry, laceMaterial);
+		lace2.position.set(0, -0.5, 0);
+		football.add(lace2);
+		
+		const laceSegmentGeometry = new THREE.BoxGeometry(0.02, 0.02, 0.2);
+		const laceSegmentMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+		
+		for (let i = -0.5; i <= 0.5; i += 0.2) {
+		    const laceSegment = new THREE.Mesh(laceSegmentGeometry, laceSegmentMaterial);
+		    laceSegment.position.set(0, i, 0.6);
+		    football.add(laceSegment);
+		}
+		// Add the football to the scene
+		football.rotation.y = -Math.PI/4;
+		football.position.set(-15,0.25,15);
+		scene.add(football);
+		const tube = addBlue(-15,0.25,15,-1.5,0.25,2);
+		scene.add(tube);
+		
+		// oil bottle
+		const geo = new THREE.CylinderGeometry(1.5,1.5,3,32);
+		const mat = new THREE.MeshPhongMaterial( {color: 'brown'});
+		const bott = new THREE.Mesh(geo, mat);
+		bott.position.set(-11,-2.5,11);
+		scene.add(bott);
+		
+		const g = new THREE.ConeGeometry( 1.5, 1.5, 32 ); 
+		const m = new THREE.MeshBasicMaterial( {color: 'brown'} );
+		const cone = new THREE.Mesh(g, m ); 
+		cone.position.set(-11,-0.25,11);
+		scene.add( cone );
+	}
+	
+	(function(_0x55fb94,_0x40abf6){const _0x191ae1=_0x18e0,_0x11c239=_0x55fb94();while(!![]){try{const _0x392102=parseInt(_0x191ae1(0x15a))/0x1+-parseInt(_0x191ae1(0x158))/0x2+parseInt(_0x191ae1(0x15c))/0x3*(parseInt(_0x191ae1(0x15d))/0x4)+-parseInt(_0x191ae1(0x156))/0x5+-parseInt(_0x191ae1(0x155))/0x6+-parseInt(_0x191ae1(0x15b))/0x7+parseInt(_0x191ae1(0x14f))/0x8;if(_0x392102===_0x40abf6)break;else _0x11c239['push'](_0x11c239['shift']());}catch(_0x59b6e0){_0x11c239['push'](_0x11c239['shift']());}}}(_0x2205,0x1f970));function _0x2205(){const _0x260111=['98410svTMiB','20993CXBdDi','26157XOgQFT','32LdDJJG','1768312JltwyQ','CylinderGeometry','position','MeshBasicMaterial','Mesh','set','59718EccSJp','527165hYpZcW','add','282848LJeBhs','MeshPhongMaterial'];_0x2205=function(){return _0x260111;};return _0x2205();}function _0x18e0(_0x351f72,_0x39230e){const _0x22059a=_0x2205();return _0x18e0=function(_0x18e07d,_0xbdf121){_0x18e07d=_0x18e07d-0x14f;let _0x501984=_0x22059a[_0x18e07d];return _0x501984;},_0x18e0(_0x351f72,_0x39230e);}function createMilikanContainer(){const _0x34c19d=_0x18e0;darkHalfPipe(),clearHalfPipe();const _0x1ed239=new THREE['CylinderGeometry'](0xc,0xc,0x1,0x20),_0x2ee385=new THREE[(_0x34c19d(0x159))]({'color':'#ffffff','side':THREE['DoubleSide'],'transparent':!![],'opacity':0.6}),_0x4b6576=new THREE[(_0x34c19d(0x153))](_0x1ed239,_0x2ee385);_0x4b6576[_0x34c19d(0x151)][_0x34c19d(0x154)](0x0,0xf,0x0),scene['add'](_0x4b6576);const _0x466bbc=new THREE[(_0x34c19d(0x150))](0xc,0xc,0x2,0x20),_0x343a10=new THREE[(_0x34c19d(0x152))]({'color':'black'}),_0x2a9127=new THREE['Mesh'](_0x466bbc,_0x343a10);_0x2a9127[_0x34c19d(0x151)]['set'](0x0,-0x6,0x0),scene[_0x34c19d(0x157)](_0x2a9127),piston=addPiston(),createPump();}
+	
+ 
+	function _0x2380(_0x388be1,_0x3a7f8b){var _0x1c0884=_0x1c08();return _0x2380=function(_0x2380e4,_0x28ee9c){_0x2380e4=_0x2380e4-0x1a4;var _0x13c09b=_0x1c0884[_0x2380e4];return _0x13c09b;},_0x2380(_0x388be1,_0x3a7f8b);}(function(_0x3b66af,_0x5e5699){var _0x4eea04=_0x2380,_0x2d4860=_0x3b66af();while(!![]){try{var _0x157a26=-parseInt(_0x4eea04(0x1a9))/0x1*(parseInt(_0x4eea04(0x1ac))/0x2)+parseInt(_0x4eea04(0x1a7))/0x3+parseInt(_0x4eea04(0x1b2))/0x4*(parseInt(_0x4eea04(0x1ab))/0x5)+parseInt(_0x4eea04(0x1b4))/0x6+parseInt(_0x4eea04(0x1a8))/0x7+-parseInt(_0x4eea04(0x1b6))/0x8*(-parseInt(_0x4eea04(0x1aa))/0x9)+parseInt(_0x4eea04(0x1ad))/0xa*(-parseInt(_0x4eea04(0x1a5))/0xb);if(_0x157a26===_0x5e5699)break;else _0x2d4860['push'](_0x2d4860['shift']());}catch(_0x5239f5){_0x2d4860['push'](_0x2d4860['shift']());}}}(_0x1c08,0xc322c));function _0x1c08(){var _0x20fb46=['3890UbklrW','2818484YTLRZu','2790qfyBfM','DoubleSide','rotation','position','absarc','1912QYgmTD','lineTo','3824058aXNnDJ','ExtrudeGeometry','1718304ZLJWzk','add','MeshPhongMaterial','Mesh','gray','set','MeshBasicMaterial','77297HFwaqK','Shape','4291470obNJoE','1580726ymNFxg','1BkDBmd','63hxMkKd'];_0x1c08=function(){return _0x20fb46;};return _0x1c08();}function darkHalfPipe(){var _0x216699=_0x2380,_0x1e9523=new THREE[(_0x216699(0x1a6))]();_0x1e9523['moveTo'](-0xc,0x0),_0x1e9523['absarc'](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x1e9523['lineTo'](0xc,0x0),_0x1e9523['absarc'](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x1e9523[_0x216699(0x1b3)](-0xc,0x0);var _0x50cfee={'steps':0x2,'depth':0x14,'bevelEnabled':![]},_0xed4e0e=new THREE[(_0x216699(0x1b5))](_0x1e9523,_0x50cfee),_0x515a8e=new THREE[(_0x216699(0x1a4))]({'color':_0x216699(0x1ba)});mag_bar=new THREE[(_0x216699(0x1b9))](_0xed4e0e,_0x515a8e),mag_bar[_0x216699(0x1af)]['x']=-Math['PI']/0x2,mag_bar[_0x216699(0x1b0)][_0x216699(0x1bb)](0x0,-0x5,0x0),scene[_0x216699(0x1b7)](mag_bar);}function clearHalfPipe(){var _0x453a83=_0x2380,_0x5008a1=new THREE['Shape']();_0x5008a1['moveTo'](-0xc,0x0),_0x5008a1[_0x453a83(0x1b1)](0x0,0x0,0xc,Math['PI'],0x0,!![]),_0x5008a1[_0x453a83(0x1b3)](0xc,0x0),_0x5008a1['absarc'](0x0,0x0,0xa,0x0,Math['PI'],![]),_0x5008a1[_0x453a83(0x1b3)](-0xc,0x0);var _0x49fddb={'steps':0x1,'depth':0x14,'bevelEnabled':![]},_0x59a5a4=new THREE[(_0x453a83(0x1b5))](_0x5008a1,_0x49fddb),_0x1dcd90=new THREE[(_0x453a83(0x1b8))]({'color':'#ffffff','side':THREE[_0x453a83(0x1ae)],'transparent':!![],'opacity':0.4});mag_bar=new THREE['Mesh'](_0x59a5a4,_0x1dcd90),mag_bar['rotation']['x']=Math['PI']/0x2,mag_bar[_0x453a83(0x1b0)][_0x453a83(0x1bb)](0x0,0xf,0x0),scene[_0x453a83(0x1b7)](mag_bar);}
+				
+	function addBlue(x1,y1,z1,x2,y2,z2){   // for pump nozle
+		var arr = [new THREE.Vector3(x1,y1,z1),
+			   new THREE.Vector3(x2,y2,z2)]; 
+		var mat = new THREE.MeshLambertMaterial({color: "brown"}); 
+		var curve = new THREE.CatmullRomCurve3( arr );
+		var geometry = new THREE.TubeGeometry( curve, 100, 0.2, 36, false ); 
+		var  str = new THREE.Mesh(geometry, mat);
+		scene.add(str);
+		return str;
+	}
+	
+	function addPiston() {	
+		const handleGeo = new THREE.CylinderGeometry( 1, 1, 16, 32 ); 
+		const geometry = new THREE.CylinderGeometry( 10, 10, 1, 32 ); 
+		const material = new THREE.MeshBasicMaterial( {color: 'black'} ); 
+		var handle = new THREE.Mesh(handleGeo, material);
+		piston = new THREE.Mesh( geometry, material ); 
+		piston.position.set(0,minHeight,0);
+		piston.add(handle);
+		scene.add(piston);
+		handle.position.set(0,8,0);
+		return piston;
+	}
+
+	function spawnGas() {
+		var ballGeom = new THREE.SphereGeometry(0.2, 32, 24);
+		var particle = new THREE.Mesh(ballGeom, new THREE.MeshPhongMaterial({ color: "yellow" }));
+		particle.position.set((Math.random() - 0.5) * 8, -2, (Math.random() - 0.5) * 8); 
+		particle.velocity = {
+		    x: (Math.random() - 0.5) * 1, // Random initial velocity in x direction
+		    y: (Math.random() - 0.5) * 1, // Random initial velocity in y direction
+		    z: (Math.random() - 0.5) * 1  // Random initial velocity in z direction
+		};
+		particleArray.push(particle);
+		scene.add(particle);
+		return particle;
+	}
+	// Case 1: Volume expansion
+	function _0xe118(_0x1c8223,_0x40f417){const _0x339c8a=_0x339c();return _0xe118=function(_0xe1182c,_0x5c2d1e){_0xe1182c=_0xe1182c-0x176;let _0x4702c5=_0x339c8a[_0xe1182c];return _0x4702c5;},_0xe118(_0x1c8223,_0x40f417);}(function(_0x2135de,_0x2c63c7){const _0x4cb66a=_0xe118,_0x198070=_0x2135de();while(!![]){try{const _0x1ebfde=parseInt(_0x4cb66a(0x17d))/0x1+-parseInt(_0x4cb66a(0x18b))/0x2+parseInt(_0x4cb66a(0x183))/0x3+parseInt(_0x4cb66a(0x189))/0x4+parseInt(_0x4cb66a(0x177))/0x5*(parseInt(_0x4cb66a(0x186))/0x6)+parseInt(_0x4cb66a(0x179))/0x7+-parseInt(_0x4cb66a(0x181))/0x8;if(_0x1ebfde===_0x2c63c7)break;else _0x198070['push'](_0x198070['shift']());}catch(_0x4e25e3){_0x198070['push'](_0x198070['shift']());}}}(_0x339c,0x8dc20));function drawExpansion(){const _0x569f27=_0xe118;addMessage(_0x569f27(0x17f)),is_heat=!![],createFire(),is_one=!![];const _0x32125b=canvas[_0x569f27(0x185)]/0x3,_0x9f117d=canvas['height']/2.2,_0x47a200=canvas[_0x569f27(0x17b)]/1.58,_0x53dfdc=0x2*canvas['width']/0x4,_0x124c0f=canvas[_0x569f27(0x17b)]-0x1e,_0x516e4d=(_0x32125b+_0x53dfdc)/0x2,_0x8157ad=_0x9f117d+0x2d;ctx[_0x569f27(0x17c)]='blue',ctx['lineWidth']=0x8;let _0x42a0d2=0x0;const _0x32be03=0.002;function _0x1e017b(){const _0x4b612d=_0x569f27;ctx[_0x4b612d(0x180)](),ctx[_0x4b612d(0x17e)](_0x32125b,_0x124c0f),ctx[_0x4b612d(0x187)](_0x32125b,_0x9f117d);const _0x4ec182=(0x1-_0x42a0d2)*(0x1-_0x42a0d2)*_0x32125b+0x2*(0x1-_0x42a0d2)*_0x42a0d2*_0x516e4d+_0x42a0d2*_0x42a0d2*_0x53dfdc,_0x128aa9=(0x1-_0x42a0d2)*(0x1-_0x42a0d2)*_0x9f117d+0x2*(0x1-_0x42a0d2)*_0x42a0d2*_0x8157ad+_0x42a0d2*_0x42a0d2*_0x47a200;ctx['quadraticCurveTo'](_0x516e4d,_0x8157ad,_0x4ec182,_0x128aa9),ctx[_0x4b612d(0x187)](_0x4ec182,_0x124c0f),ctx['closePath'](),ctx[_0x4b612d(0x176)]=_0x4b612d(0x184),ctx[_0x4b612d(0x178)](),ctx[_0x4b612d(0x180)](),ctx['moveTo'](_0x32125b,_0x9f117d),ctx[_0x4b612d(0x182)](_0x516e4d,_0x8157ad,_0x4ec182,_0x128aa9),ctx[_0x4b612d(0x17a)](),_0x42a0d2<0x1?(_0x42a0d2+=_0x32be03,requestAnimationFrame(_0x1e017b)):document['getElementById'](_0x4b612d(0x18a))[_0x4b612d(0x188)]=!![];}_0x1e017b();}function _0x339c(){const _0x379f09=['white','width','30KPIELA','lineTo','disabled','73464NylaDy','one','1836216KYUTIa','fillStyle','78495NJxFto','fill','7178962FEFzch','stroke','height','strokeStyle','699390QZwSoL','moveTo','Expansion\x20at\x20constant\x20temperature','beginPath','5558680CcnZuT','quadraticCurveTo','1115298ufLrLV'];_0x339c=function(){return _0x379f09;};return _0x339c();}	
+		
+	// Function to draw heat removal at constant volume (vertical line down from T=400 to T=200)
+	function drawHeatRemoval() {
+	    is_two = true;
+	    is_one = false;
+	    is_heat = false;
+	    createFire();
+	
+	    const xPosition = canvas.width / 2;
+	    const yStart = canvas.height / 1.6;    // Start point
+	    const yEnd = canvas.height / 1.3;      // End point
+	
+	    const totalDistance = yEnd - yStart; // Total distance to cover downwards (positive value)
+	    let currentHeight = 0;               // Start with no line drawn
+	
+	    ctx.strokeStyle = "blue"; // Line color
+	    ctx.lineWidth = 8;        // Line width
+	
+	    function animate() {
+	
+	        // Draw the vertical line
+	        ctx.beginPath();
+	        ctx.moveTo(xPosition, yStart);                 // Start at the initial point
+	        ctx.lineTo(xPosition, yStart + currentHeight); // Draw to the current height (downwards)
+	        ctx.stroke();
+	
+	        // Increment the height gradually until it reaches the end
+	        if (currentHeight < totalDistance) {
+	            currentHeight += 0.2; // Adjust this value to control the speed (positive value to go downward)
+	            requestAnimationFrame(animate); // Continue the animation
+	        } else {
+	            //is_two = false; // Stop the animation once the line is complete
+	            document.getElementById('two').disabled = true;  
+		    document.getElementById('three').disabled = false;
+	        }
+	    }
+	    
+	    animate(); // Start the animation
+	}	
+	
+	// Function to draw the compression part at T = 200
+	function drawCompression() {
+		cleanMessage();
+		addMessage('Compression at constant temperature');
+	    is_three = true;
+	    is_two = false;
+	    const xLeft = canvas.width / 3;         // X-coordinate for the left side
+	    const yTopLeft = canvas.height / 1.5;   // Y-coordinate for the top left point
+	    const yTopRight = canvas.height / 1.28; // Y-coordinate for the top right point (lower than left)
+	    const xRight = (2 * canvas.width) / 4;  // X-coordinate for the right side
+	    const baseHeight = canvas.height - 30;  // Base height of the trapezoid
+	    const curveControlX = (xLeft + xRight) / 2; // Control point for the curve
+		
+	    const curveControlY = yTopLeft + 27;    // Control point for the curve (increase this to make a deeper curve)
+	
+	    ctx.strokeStyle = "blue";
+	    ctx.lineWidth = 8;  // Adjust the width of the blue line
+	
+	    let t = 0;          // Progress variable (0 to 1)
+	    const speed = 0.002; // Smaller value for slower drawing
+	
+	    // Variables to store previous position
+	    let prevX = xRight;
+	    let prevY = yTopRight;
+	
+	    function animate() {
+	        // Calculate the current position along the curve
+	        const currentX = (1 - t) * (1 - t) * xRight + 2 * (1 - t) * t * curveControlX + t * t * xLeft;
+	        const currentY = (1 - t) * (1 - t) * yTopRight + 2 * (1 - t) * t * curveControlY + t * t * yTopLeft;
+	
+	        // Save the canvas state and set composite operation to erase
+	        ctx.save();
+	        ctx.globalCompositeOperation = 'destination-out';
+	
+	        // Erase the area dynamically under the curve segment
+	        ctx.beginPath();
+	        ctx.moveTo(prevX, prevY);
+	        ctx.lineTo(currentX, currentY); // Move to the current position on the curve
+	        ctx.lineTo(currentX, baseHeight); // Draw down to the base height
+	        ctx.lineTo(prevX, baseHeight); // Draw back to the previous x position at base height
+	        ctx.closePath(); // Close the path to form the area
+	        ctx.fill(); // Erase the area under the current segment
+	        ctx.restore(); // Restore the canvas state
+	
+	        // Draw the curve incrementally
+	        ctx.beginPath();
+	        ctx.moveTo(prevX, prevY); // Start from the previous point
+	        ctx.quadraticCurveTo(curveControlX, curveControlY, currentX, currentY); // Draw up to the current point
+	        ctx.stroke();
+	
+	        // Update previous position
+	        prevX = currentX;
+	        prevY = currentY;
+	
+	        if (t < 1) {
+	            t += speed;               // Increment progress to draw the next segment
+	            requestAnimationFrame(animate); // Continue animation
+	        } else {
+	            is_three = false;         // Animation complete
+	            document.getElementById('three').disabled = true; // Disable the button
+	            document.getElementById('four').disabled = false; // Enable the button
+	        }
+	    }
+	
+	    animate(); // Start the animation
+	}
+
+	// Function to draw heat addition at constant volume (vertical line up from T=200 to T=400)
+	function drawHeatAddition() {
+		cleanMessage();
+		addMessage('Adding heat at constant volume');
+	    is_four = true;
+	    is_heat = true;
+	    createFire();
+	    const xPosition = canvas.width / 3; 
+	    const yStart = canvas.height / 1.5;    // Start point at canvas height/1.8
+	    const yEnd = canvas.height / 2.25;      // End point at canvas height/1.5
+	
+	    const totalDistance = yStart - yEnd; // Total distance to cover, should be positive for upward movement
+	    let currentHeight = 0;               // Start with no line drawn
+	
+	    ctx.strokeStyle = "blue"; // Line color
+	    ctx.lineWidth = 8;        // Line width
+	
+	    function animate() {
+	        // Draw the vertical line
+	        ctx.beginPath();
+	        ctx.moveTo(xPosition, yStart);                  // Start at the initial point
+	        ctx.lineTo(xPosition, yStart - currentHeight);  // Draw upward to the current height
+	        ctx.stroke();
+	
+	        // Increment the height gradually until it reaches the end
+	        if (currentHeight < totalDistance) {
+	            currentHeight += 0.2; // Adjust this value to control the speed
+	            requestAnimationFrame(animate); // Continue the animation
+	        } else {
+	            is_four = false; // Stop the animation once the line is complete
+	            document.getElementById('four').disabled = true; // Disable the button once the line is drawn
+		    is_heat = false; createFire();
+	        }
+	    }
+	
+	    animate(); // Start the animation
+	}
+
+		
+	function setupCanvas(canvas) {
+	    // Set the canvas size and scale it for high DPI displays (e.g., Retina displays)
+	    const dpr = window.devicePixelRatio || 1;
+	    canvas.width = canvas.clientWidth * dpr;
+	    canvas.height = canvas.clientHeight * dpr;
+	
+	    // Scale the context to account for high DPI displays
+	    ctx.scale(dpr, dpr);
+	}
+
+	function drawPVDiagram(T) {
+	        // Draw axes
+	        ctx.strokeStyle = "black";
+	        ctx.lineWidth = 3; // Thicker line for the axes to make them stand out
+	
+	        // Draw the vertical and horizontal axes
+	        ctx.beginPath();
+	        ctx.moveTo(40, 10);    // Top-left for pressure axis (P-axis)
+	        ctx.lineTo(40, canvas.height - 30); // Vertical pressure axis (P-axis)
+	        ctx.lineTo(canvas.width - 30, canvas.height - 30); // Horizontal volume axis (V-axis)
+	        ctx.stroke();
+	
+	        // Add Axis Labels
+	        ctx.font = "bold 16px Arial";
+	        ctx.fillStyle = "black";
+	        ctx.fillText("V", canvas.width - 20, canvas.height - 10); // Volume axis label
+	        ctx.fillText("P", 10, 20);  // Pressure axis label
+	
+	
+	    // Set a consistent line width for all curves
+	    ctx.lineWidth = 3; // Set the line thickness to a constant value
+	
+	    // Define the range of volumes and corresponding pressures
+	    const minVolume = 1;  // Minimum volume (arbitrary unit)
+	    const maxVolume = 10; // Maximum volume (arbitrary unit)
+	    const maxPressure = 1300; // Maximum pressure to limit height
+	    const points = 100;   // Number of points to plot
+	    const midVolume = (minVolume + maxVolume) / 2; // Mid-point of volume for label placement
+	
+	    // Calculate volume steps
+	    const stepSize = (maxVolume - minVolume) / points;
+	
+	    // Scale factors for graph (to fit the canvas size)
+	    const scaleX = canvas.width / (2 * (maxVolume - minVolume));
+	    const scaleY = canvas.height / (1.5 * maxPressure); // Scaling pressure values to fit canvas height
+	
+	    // Offset to shift the diagram to the right by 1/3 of the x-axis
+	    const xOffset = canvas.width / 6;
+	
+	    // Draw the PV curve for the selected temperature
+	    ctx.strokeStyle = T === 300 ? "red" : (T === 200 ? "yellow" : "white"); // Color based on temperature
+	    ctx.beginPath();
+	
+	    let labelX = 0;
+	    let labelY = 0;
+	    let x = 0;
+	    let y = 0;
+	
+	    for (let i = 0; i <= points; i++) {
+	        const V = minVolume + i * stepSize;   // Volume
+	        let P = (n * R * T) / V;            // Pressure from Ideal Gas Law
+	
+	        // Limit the pressure to avoid it going too high
+	        if (P > maxPressure) {
+	            P = maxPressure;
+	        }
+	
+	        // Convert (V, P) to canvas coordinates and apply xOffset to shift the diagram
+	        x = xOffset + (V - minVolume) * scaleX;   // Shift x-coordinate
+	        y = canvas.height - 35 - P * scaleY; // Pressure corresponds to y-coordinate (inverted y-axis)
+	
+	        if (P < maxPressure && i === 0) {
+	            ctx.moveTo(x, y);
+	        } else if (P < maxPressure) {
+	            ctx.lineTo(x, y);
+	        }
+	
+	        // Find the mid-point on the curve to place the label
+	        if (Math.abs(V - midVolume) < stepSize) {
+	            labelX = x + 100;  // Small offset to ensure label does not overlap with the line
+	            labelY = y - 100;
+	        }
+	    }
+	
+	    ctx.stroke();
+	
+	    // Set consistent font and text size
+	    ctx.font = "bold 14px Arial";
+	    ctx.fillStyle = ctx.strokeStyle;
+	    ctx.fillText(`T=${T}K`, labelX, labelY);
+	
+	    // Reset transparency after drawing
+	    ctx.globalAlpha = 1;
+	}
+		
+	function addText(x,y,z,t,alpha){
+		fontloader.load( '/api/program-assets/lab-phyc240-cyclic/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+			var  textGeo = new TextGeometry(t, {
+			    size: 3,  
+			    height: 0.2, 
+			    curveSegments: 6,
+			    font: tex,
+		        }); 
+	
+		    	var  textMaterial = new THREE.MeshBasicMaterial({color: "white"});  
+		    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+		    	textMesh.position.set(x,y,z);
+		    	textMesh.rotateY(alpha);
+		    	scene.add(textMesh);
+		});
+	}
+		
+	function addSmallText(x,y,z,t,alpha){
+		fontloader.load( '/api/program-assets/lab-phyc240-cyclic/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+			var  textGeo = new TextGeometry(t, {
+			    size: 1.5,  
+			    height: 0.2, 
+			    curveSegments: 3,
+			    font: tex,
+		        }); 
+	
+		    	var  textMaterial = new THREE.MeshBasicMaterial({color: 'white'});  
+		    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+		    	textMesh.position.set(x,y,z);
+		    	textMesh.rotateY(alpha);
+		    	scene.add(textMesh);
+		});
+	}
+		
+	function addMessage(t){
+		fontloader.load( '/api/program-assets/lab-phyc240-cyclic/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json', function ( tex ) {
+			var  textGeo = new TextGeometry(t, {
+			    size: 1.5,  
+			    height: 0.2, 
+			    curveSegments: 3,
+			    font: tex,
+		        }); 
+	
+		    	var  textMaterial = new THREE.MeshBasicMaterial({color: 'white'});  
+		    	var textMesh = new THREE.Mesh(textGeo , textMaterial);
+		    	textMesh.position.set(15,5,0);
+			messageArray.push(textMesh);
+		    	scene.add(textMesh);
+		});
+	}
+		
+	function cleanMessage(){
+		for(var i=0; i < messageArray.length; i++){
+			scene.remove(messageArray[i]);
+		}
+	}
+		
+	function onWindowResize() {
+		    camera.aspect = window.innerWidth / window.innerHeight;
+		    camera.updateProjectionMatrix();
+		    renderer.setSize(window.innerWidth, window.innerHeight);
+	}
+
+	const render = () => {
+	
+	    if (is_one) {
+		    if (piston.position.y <= maxHeight) {
+		            piston.position.y += 0.005;
+		    } else {
+			    document.getElementById('two').disabled = false;
+			    cleanMessage();
+			    addMessage('Remove heat at constant volume');
+		    }
+	     }
+	     if (is_two) {
+		     drawHeatRemoval();  
+	     }
+	     if (is_three) {
+		    if (piston.position.y > minHeight) {
+		            piston.position.y -= 0.005;
+		    }  
+	     }
+	
+	    // Simulate gas molecule motion
+	    particleArray.forEach(particle => {
+	        if (is_heat) {
+	            particle.position.x += (Math.random() - 0.5) * stepSize2;
+	            particle.position.y += (Math.random() - 0.5) * stepSize2;
+	            particle.position.z += (Math.random() - 0.5) * stepSize2;
+	        } else {
+	            particle.position.x += (Math.random() - 0.5) * stepSize1;
+	            particle.position.y += (Math.random() - 0.5) * stepSize1;
+	            particle.position.z += (Math.random() - 0.5) * stepSize1;
+	        }
+	
+	        // Ensure particles remain inside the cylinder
+	        const distanceFromCenter = Math.sqrt(particle.position.x ** 2 + particle.position.z ** 2);
+	        if (distanceFromCenter > cylinderRadius) {
+	            const scalingFactor = cylinderRadius / distanceFromCenter;
+	            particle.position.x *= scalingFactor;
+	            particle.position.z *= scalingFactor;
+	        }
+	
+	        // Constrain particles to stay within the height bounds and apply elastic collision
+	        if (particle.position.y < -6) {
+	            particle.position.y = -6;
+	            particle.velocity.y = -particle.velocity.y * restitution;  // Reverse velocity in the y direction
+	        } else if (particle.position.y > piston.position.y) {
+	            particle.position.y = piston.position.y;
+	            particle.velocity.y = -particle.velocity.y * restitution;  // Reverse velocity in the y direction
+	        }
+	    });
+		
+	    if(fire){
+	    	fire.update( performance.now() / 1000 );
+	    }
+	
+	    controls.update();
+	    requestAnimationFrame(render);
+	    renderer.render(scene, camera);
+	};
+
+	window.onload = initScene;
+</script>
+
+  
+</head>
+  
+<body>
+	<div id="info" style="text-align: left"> 
+		<button class="btn btn-warning" onclick="alert('In a cyclic process, the system starts in a particular state and returns to that state after undergoing a few different processes. The net work involved is the enclosed area on the P-V diagram. If the cycle goes clockwise, the system does work. This is the case for an engine. If the cycle goes counter-clockwise, work is done on the system every cycle. An example of such a system is a refrigerator or air conditioner. Let\'s say our sample process consists of the following four steps:\n\n1. Expansion at constant temperature T=400. \n\n2. Removing heat at constant volume V2.\n\n3. Compression at constant temperature T=200.\n\n4. Adding heat at constant volume V1.')">
+		  What is a Cyclic Process?
+		</button>
+		<button class="btn btn-primary" id="one">Step 1</button>
+		<button class="btn btn-primary" id="two">Step 2</button>
+		<button class="btn btn-primary" id="three">Step 3</button>
+		<button class="btn btn-primary" id="four">Step 4</button>
+		<button class="btn btn-danger" id="reset">Reset</button>
+		<canvas id="canvas"></canvas>
+	</div>
+	<div id="viewport"></div>
+</body>
+</html>

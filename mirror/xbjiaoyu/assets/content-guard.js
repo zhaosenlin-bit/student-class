@@ -1,5 +1,5 @@
 /*
- * Xiaobai Education content guard. Local, best-effort interface protection.
+ * Courseware content guard. Local, best-effort interface protection.
  * Embedded-tool state checks reference disable-devtool's DebugLib detector:
  * https://github.com/theajack/disable-devtool/blob/master/src/detector/sub-detector/debug-lib.ts
  * Viewport size, zoom, browser sidebars and keyboard changes are not inspected.
@@ -24,7 +24,7 @@
 (function () {
   'use strict';
   var MARK = '__xiaobaiContentGuardV1__';
-  var MESSAGE = 'xiaobai:content-guard';
+  var MESSAGE = 'leqixiang:content-guard';
   var POLL_MS = 2500;
 
   function install(win) {

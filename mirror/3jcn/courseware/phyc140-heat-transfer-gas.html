@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>乐启享 · 物理实验</title>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/brand/favicon.ico">
+	<link rel="stylesheet" href="/api/program-assets/3jcn-phyc140-heat-transfer-gas/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/3jcn-phyc140-heat-transfer-gas/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/3jcn-phyc140-heat-transfer-gas/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-phyc140-heat-transfer-gas/_ext/vendor/css/final.css">	
+	<style>
+		input[type=text] {
+		  background-color: #ffffff;
+		  color: black;
+		  text-align: center;
+		}
+		body {
+			color: black;
+		}
+	.control-panel {
+	  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  font-family: Arial, sans-serif;
+	  text-align: center;
+	}
+	.control-panel-right {
+	  position: absolute;
+	  top: 90px;
+	  right: 50px;
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  text-align: center;
+	}
+	
+	.control-group {
+	  margin-bottom: 15px;
+	}
+	
+	.slider-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+	
+	input[type="range"] {
+	  width: 65%;
+	  accent-color: blue;
+	}
+	
+	input[type="text"] {
+	  width: 80px;
+	  font-weight: bold;
+	  text-align: center;
+	  color: blue;
+	}
+	
+	.minmax {
+	  display: flex;
+	  justify-content: space-between;
+	  font-size: 12px;
+	  margin-top: 5px;
+	}
+
+	</style> 
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 12 June 2025       -->
+	
+<script type="module">   
+	
+    import * as THREE from '../jsm/three.module.js';
+    import { OrbitControls } from '../jsm/OrbitControls.js';
+    import { FontLoader } from '../jsm/FontLoader.js';
+    import { TextGeometry } from '../jsm/TextGeometry.js';	
+    import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  25 May 2025
+		 **  All rights reserved **/
+		
+	var scene, camera, renderer, controls, light;
+	const scaleFactor = 1;  // Adjust this for visual clarity
+	let leftMass = 4, rightMass = 4;
+	const breadboardTopY = -9;
+	let KE_initial = null, KE_final = null, KE_lost = null;
+		
+	
+	let leftVelocity = 0.2, rightVelocity = -0.2;
+	let elasticity = 1; // 1 = elastic, 0 = perfectly inelastic
+	let isRunning = false;
+	let box, wall;
+        const radius = 0.3;      // Corner radius
+        const smoothness = 4;  // Smoothness of rounded corners
+
+	const N_A = 6.022e23;
+	const scalingFactor = 10e22; 	
+	let leftGroup, rightGroup;
+	let heatArrow;
+	const velocityScaling = 0.02; 
+	let heatArrow1, heatArrow2, heatArrow3;
+	
+	// Add thermal conductivity of barrier
+	const barrier = {
+	  material: 'Brass',
+	  k: 109, // W/m·K (thermal conductivity of brass)
+	  depth: 132 / 100,  // convert cm to meters
+	  height: 89 / 100,  // convert cm to meters
+	  thickness: 15.3 / 1000  // convert mm to meters
+	};
+	
+	// Gas molecular weights for info only (not directly used in heat transfer formula here)
+	const gases = {
+	  Neon: 20.18,
+	  Argon: 39.95,
+	  Krypton: 83.80,
+	  Xenon: 131.29,
+	  Radon: 222,
+	  Helium: 4.0026
+	};	
+
+	const _0x284837=_0xaae6;(function(_0x10ecfe,_0x1e4293){const _0x3b2d6b=_0xaae6,_0x56986b=_0x10ecfe();while(!![]){try{const _0x43b6de=parseInt(_0x3b2d6b(0x1ab))/0x1*(-parseInt(_0x3b2d6b(0x19d))/0x2)+parseInt(_0x3b2d6b(0x1ad))/0x3+-parseInt(_0x3b2d6b(0x196))/0x4*(-parseInt(_0x3b2d6b(0x1aa))/0x5)+parseInt(_0x3b2d6b(0x195))/0x6*(parseInt(_0x3b2d6b(0x18d))/0x7)+-parseInt(_0x3b2d6b(0x18b))/0x8+parseInt(_0x3b2d6b(0x181))/0x9+-parseInt(_0x3b2d6b(0x1a9))/0xa;if(_0x43b6de===_0x1e4293)break;else _0x56986b['push'](_0x56986b['shift']());}catch(_0x1fe49b){_0x56986b['push'](_0x56986b['shift']());}}}(_0x1f8d,0x42488));const gasSelectorRight=document['getElementById'](_0x284837(0x1a7)),moleSliderRight=document['getElementById']('moleSliderRight'),tempSliderRight=document[_0x284837(0x169)](_0x284837(0x178)),gasSelectorLeft=document['getElementById']('gasSelectorLeft'),moleSliderLeft=document[_0x284837(0x169)](_0x284837(0x1b3)),tempSliderLeft=document[_0x284837(0x169)](_0x284837(0x182)),textureloader=new THREE['TextureLoader'](),fontloader=new FontLoader();init(),animate();function init(){const _0xd3a2a5=_0x284837;renderer=new THREE[(_0xd3a2a5(0x1c0))]({'antialias':!![]}),renderer[_0xd3a2a5(0x177)](window['innerWidth'],window[_0xd3a2a5(0x189)]),document[_0xd3a2a5(0x169)](_0xd3a2a5(0x1a2))[_0xd3a2a5(0x191)](renderer[_0xd3a2a5(0x187)]),scene=new THREE[(_0xd3a2a5(0x1ba))](),scene[_0xd3a2a5(0x184)]=new THREE[(_0xd3a2a5(0x174))](0x95edf0),camera=new THREE[(_0xd3a2a5(0x19e))](0x23,window[_0xd3a2a5(0x170)]/window['innerHeight'],0x1,0x3e8),camera[_0xd3a2a5(0x1b5)][_0xd3a2a5(0x1af)](0x0,0x1b,0x5f),camera[_0xd3a2a5(0x173)](scene[_0xd3a2a5(0x1b5)]),scene[_0xd3a2a5(0x17d)](camera),controls=new OrbitControls(camera,renderer[_0xd3a2a5(0x187)]),setupLights();var _0x499366=new THREE[(_0xd3a2a5(0x1a5))](0x8c,0x2,0x24);const _0x2a42c8=new THREE[(_0xd3a2a5(0x179))](_0x499366,new THREE[(_0xd3a2a5(0x168))]({'color':0x800020}));_0x2a42c8[_0xd3a2a5(0x1b5)][_0xd3a2a5(0x1af)](0x0,-0xa,0x0),scene[_0xd3a2a5(0x17d)](_0x2a42c8);const _0x2d7e29=new RoundedBoxGeometry(0x32,0x16,0x23,smoothness,radius),_0x1e72cf=new THREE['BoxGeometry'](0x2,0x16,0x23),_0x39bb77=new THREE[(_0xd3a2a5(0x16c))]({'color':0xff,'metalness':0x1,'roughness':0.1,'transparent':!![],'opacity':0.3}),_0x49dcca=new THREE[(_0xd3a2a5(0x1a0))]({'color':_0xd3a2a5(0x19a)});box=new THREE[(_0xd3a2a5(0x179))](_0x2d7e29,_0x39bb77),wall=new THREE[(_0xd3a2a5(0x179))](_0x1e72cf,_0x49dcca),box[_0xd3a2a5(0x1b5)][_0xd3a2a5(0x1af)](0x0,0x2,0x0),wall[_0xd3a2a5(0x1b5)][_0xd3a2a5(0x1af)](0x0,0x2,0x0),scene[_0xd3a2a5(0x17d)](box,wall),leftGroup=new THREE[(_0xd3a2a5(0x175))](),rightGroup=new THREE[(_0xd3a2a5(0x175))](),scene[_0xd3a2a5(0x17d)](leftGroup),scene[_0xd3a2a5(0x17d)](rightGroup);const _0x14cc4b=0x8,_0x2a2cdf=0xff,_0x1231a5=new THREE['Vector3'](0x0,0xa,0x0),_0x1e2dd3=new THREE['Vector3'](0x1,0x0,0x0);heatArrow1=new THREE[(_0xd3a2a5(0x199))](_0x1e2dd3,_0x1231a5,_0x14cc4b,_0x2a2cdf,0x2,0x1),scene[_0xd3a2a5(0x17d)](heatArrow1);const _0x4b32b7=new THREE[(_0xd3a2a5(0x1a6))](0x0,0x2,0x0);heatArrow2=new THREE[(_0xd3a2a5(0x199))](_0x1e2dd3,_0x4b32b7,_0x14cc4b,_0x2a2cdf,0x2,0x1),scene['add'](heatArrow2);const _0x13590b=new THREE[(_0xd3a2a5(0x1a6))](0x0,-0x6,0x0);heatArrow3=new THREE[(_0xd3a2a5(0x199))](_0x1e2dd3,_0x13590b,_0x14cc4b,_0x2a2cdf,0x2,0x1),scene[_0xd3a2a5(0x17d)](heatArrow3),gasSelectorLeft[_0xd3a2a5(0x198)](_0xd3a2a5(0x1ae),()=>{generateLeftGas(),updateHeatTransfer();}),moleSliderLeft[_0xd3a2a5(0x198)](_0xd3a2a5(0x192),()=>{const _0x3d1ddb=_0xd3a2a5;document[_0x3d1ddb(0x169)](_0x3d1ddb(0x1be))[_0x3d1ddb(0x1b9)]=moleSliderLeft[_0x3d1ddb(0x1b9)],generateLeftGas(),updateHeatTransfer();}),tempSliderLeft[_0xd3a2a5(0x198)](_0xd3a2a5(0x192),()=>{const _0x3ba5cc=_0xd3a2a5;document[_0x3ba5cc(0x169)](_0x3ba5cc(0x1bc))[_0x3ba5cc(0x1b9)]=tempSliderLeft[_0x3ba5cc(0x1b9)],updateHeatTransfer();}),gasSelectorRight[_0xd3a2a5(0x198)]('change',()=>{generateRightGas(),updateHeatTransfer();}),moleSliderRight[_0xd3a2a5(0x198)](_0xd3a2a5(0x192),()=>{const _0x3c23bb=_0xd3a2a5;document[_0x3c23bb(0x169)](_0x3c23bb(0x17a))[_0x3c23bb(0x1b9)]=moleSliderRight[_0x3c23bb(0x1b9)],generateRightGas(),updateHeatTransfer();}),tempSliderRight[_0xd3a2a5(0x198)](_0xd3a2a5(0x192),()=>{const _0x1a007c=_0xd3a2a5;document[_0x1a007c(0x169)](_0x1a007c(0x18a))[_0x1a007c(0x1b9)]=tempSliderRight['value'],updateHeatTransfer();}),generateLeftGas(),generateRightGas(),updateHeatTransfer(),document[_0xd3a2a5(0x169)](_0xd3a2a5(0x1b4))[_0xd3a2a5(0x198)](_0xd3a2a5(0x17f),()=>{const _0x12dbe8=_0xd3a2a5;alert(_0x12dbe8(0x176)+_0x12dbe8(0x190)+_0x12dbe8(0x1c2)+'-\x20Energy\x20is\x20transferred\x20as\x20faster-moving\x20molecules\x20collide\x20with\x20slower\x20ones\x20through\x20the\x20barrier.\x0a\x0a'+_0x12dbe8(0x16b)+'\x20\x20\x20\x20Q\x20=\x20(k\x20×\x20A\x20×\x20ΔT)\x20/\x20d\x0a\x0a'+'where:\x0a'+_0x12dbe8(0x1b0)+_0x12dbe8(0x19b)+_0x12dbe8(0x16d)+_0x12dbe8(0x183)+_0x12dbe8(0x18e)+'This\x20formula\x20applies\x20to\x20both\x20identical\x20and\x20different\x20gases.');}),window['addEventListener'](_0xd3a2a5(0x167),onWindowResize,![]);}function clearParticles(_0x2cd258){const _0x3eba27=_0x284837;while(_0x2cd258['children'][_0x3eba27(0x166)]>0x0){const _0x22183c=_0x2cd258['children'][0x0];_0x2cd258[_0x3eba27(0x172)](_0x22183c),_0x22183c[_0x3eba27(0x1a1)]['dispose'](),_0x22183c['material'][_0x3eba27(0x1c1)]();}}function generateLeftGas(){const _0x2c182e=_0x284837,_0x18d8ce=document[_0x2c182e(0x169)]('gasSelectorLeft')[_0x2c182e(0x18f)][document[_0x2c182e(0x169)](_0x2c182e(0x19f))[_0x2c182e(0x1a4)]][_0x2c182e(0x180)],_0x2ed810=parseFloat(document[_0x2c182e(0x169)](_0x2c182e(0x1b3))[_0x2c182e(0x1b9)]),_0x272002=parseFloat(document[_0x2c182e(0x169)](_0x2c182e(0x182))[_0x2c182e(0x1b9)]),_0x5285cf=Math['floor'](_0x2ed810*N_A/scalingFactor);console['log']('Left\x20chamber:',_0x5285cf,_0x18d8ce),clearParticles(leftGroup);const _0x1bfe02=velocityScaling*Math[_0x2c182e(0x17e)](_0x272002);for(let _0x5ef0d5=0x0;_0x5ef0d5<_0x5285cf;_0x5ef0d5++){const _0x16f964=new THREE[(_0x2c182e(0x186))](0.3,0xc,0xc),_0x7c3eea=new THREE[(_0x2c182e(0x16c))]({'color':getGasColor(_0x18d8ce)}),_0x1e145c=new THREE['Mesh'](_0x16f964,_0x7c3eea),_0x2b23ff=Math[_0x2c182e(0x17b)]()*0x17-0x17,_0x3ba867=Math[_0x2c182e(0x17b)]()*0x13-0x7,_0x180010=Math['random']()*0x1e-0xd;_0x1e145c[_0x2c182e(0x1b5)][_0x2c182e(0x1af)](_0x2b23ff,_0x3ba867,_0x180010),_0x1e145c['userData'][_0x2c182e(0x1b1)]=new THREE[(_0x2c182e(0x1a6))]((Math[_0x2c182e(0x17b)]()-0.5)*_0x1bfe02,(Math['random']()-0.5)*_0x1bfe02,(Math[_0x2c182e(0x17b)]()-0.5)*_0x1bfe02),leftGroup['add'](_0x1e145c);}}function _0xaae6(_0x59641e,_0x584351){const _0x1f8d27=_0x1f8d();return _0xaae6=function(_0xaae693,_0x2e8277){_0xaae693=_0xaae693-0x165;let _0x24c843=_0x1f8d27[_0xaae693];return _0x24c843;},_0xaae6(_0x59641e,_0x584351);}function _0x1f8d(){const _0x3ded2d=['\x20kJ/s','value','Scene','update','tempValueLeft','render','moleValueLeft','DirectionalLight','WebGLRenderer','dispose','-\x20Heat\x20flows\x20from\x20the\x20hotter\x20gas\x20to\x20the\x20cooler\x20gas\x20across\x20the\x20barrier\x20by\x20conduction.\x0a','Neon','length','resize','MeshPhongMaterial','getElementById','heatValue','The\x20rate\x20of\x20heat\x20transfer\x20is\x20calculated\x20using:\x0a\x0a','MeshStandardMaterial','\x20\x20A\x20\x20=\x20surface\x20area\x20of\x20the\x20barrier\x0a','Helium','toFixed','innerWidth','Radon','remove','lookAt','Color','Group','Heat\x20transfer\x20in\x20gases\x20occurs\x20mainly\x20through\x20conduction,\x20convection,\x20and\x20radiation.\x0a\x0a','setSize','tempSliderRight','Mesh','moleValueRight','random','Xenon','add','sqrt','click','text','2125170LKqTkL','tempSliderLeft','\x20\x20ΔT\x20=\x20temperature\x20difference\x20between\x20two\x20chambers\x0a','background','log','SphereGeometry','domElement','floor','innerHeight','tempValueRight','1681008LWoaOC','camera\x20y\x20','14IJJPOv','\x20\x20d\x20\x20=\x20barrier\x20thickness\x0a\x0a','options','-\x20In\x20this\x20simulation,\x20two\x20chambers\x20contain\x20different\x20gases\x20at\x20different\x20temperatures.\x0a','appendChild','input','thickness','updateProjectionMatrix','883914QQGHiI','10216iCnXvH','SpotLight','addEventListener','ArrowHelper','gold','\x20\x20k\x20\x20=\x20thermal\x20conductivity\x20of\x20the\x20barrier\x0a','castShadow','113350CSWczi','PerspectiveCamera','gasSelectorLeft','MeshBasicMaterial','geometry','viewport','depth','selectedIndex','BoxGeometry','Vector3','gasSelectorRight','setDirection','7830080ebhZlE','1025AnFsjI','1ABXFPL','children','800901ByuoiN','change','set','\x20\x20Q\x20\x20=\x20heat\x20transfer\x20rate\x20(W)\x0a','velocity','forEach','moleSliderLeft','infor','position','innerHTML','userData'];_0x1f8d=function(){return _0x3ded2d;};return _0x1f8d();}function generateRightGas(){const _0x58614d=_0x284837,_0x1fa0be=document[_0x58614d(0x169)](_0x58614d(0x1a7))['options'][document[_0x58614d(0x169)](_0x58614d(0x1a7))[_0x58614d(0x1a4)]][_0x58614d(0x180)],_0x41c763=parseFloat(document[_0x58614d(0x169)]('moleSliderRight')['value']),_0x43983d=parseFloat(document[_0x58614d(0x169)]('tempSliderRight')[_0x58614d(0x1b9)]),_0x1ead25=Math[_0x58614d(0x188)](_0x41c763*N_A/scalingFactor);console['log']('Right\x20chamber:',_0x1ead25,_0x1fa0be),clearParticles(rightGroup);const _0x3616b9=velocityScaling*Math['sqrt'](_0x43983d);for(let _0x452081=0x0;_0x452081<_0x1ead25;_0x452081++){const _0xcc2697=new THREE['SphereGeometry'](0.3,0xc,0xc),_0x468656=new THREE[(_0x58614d(0x16c))]({'color':getGasColor(_0x1fa0be)}),_0x2005f1=new THREE[(_0x58614d(0x179))](_0xcc2697,_0x468656),_0x3bdc89=Math[_0x58614d(0x17b)]()*0x17,_0x1f84f1=Math['random']()*0x13-0x7,_0x5676f1=Math['random']()*0x1e-0xd;_0x2005f1[_0x58614d(0x1b5)][_0x58614d(0x1af)](_0x3bdc89,_0x1f84f1,_0x5676f1),_0x2005f1['userData']['velocity']=new THREE['Vector3']((Math[_0x58614d(0x17b)]()-0.5)*_0x3616b9,(Math[_0x58614d(0x17b)]()-0.5)*_0x3616b9,(Math[_0x58614d(0x17b)]()-0.5)*_0x3616b9),rightGroup[_0x58614d(0x17d)](_0x2005f1);}}function getGasColor(_0x3f213f){const _0x3453ca=_0x284837;switch(_0x3f213f){case _0x3453ca(0x165):return 0xffcccc;case'Argon':return 0xff9900;case'Krypton':return 0x9999ff;case _0x3453ca(0x17c):return 0xcc66ff;case _0x3453ca(0x171):return 0x660000;case _0x3453ca(0x16e):return 0xffff99;default:return 0xffffff;}}function updateHeatTransfer(){const _0x1c6f8f=_0x284837,_0x27b0aa=document[_0x1c6f8f(0x169)](_0x1c6f8f(0x19f))[_0x1c6f8f(0x1b9)],_0x5147f7=parseFloat(document[_0x1c6f8f(0x169)]('moleSliderLeft')[_0x1c6f8f(0x1b9)]),_0x4985bf=parseFloat(document[_0x1c6f8f(0x169)]('tempSliderLeft')[_0x1c6f8f(0x1b9)]),_0x49570a=document[_0x1c6f8f(0x169)]('gasSelectorRight')[_0x1c6f8f(0x1b9)],_0x28cbd5=parseFloat(document['getElementById']('moleSliderRight')[_0x1c6f8f(0x1b9)]),_0x3ac1e6=parseFloat(document[_0x1c6f8f(0x169)](_0x1c6f8f(0x178))[_0x1c6f8f(0x1b9)]),_0x553767=barrier[_0x1c6f8f(0x1a3)]*barrier['height'],_0x29921e=_0x4985bf-_0x3ac1e6,_0x1b2c90=barrier['k']*_0x553767*_0x29921e/barrier[_0x1c6f8f(0x193)],_0x1f8fad=_0x1b2c90/0x3e8;if(_0x29921e>0x0)heatArrow1[_0x1c6f8f(0x1a8)](new THREE[(_0x1c6f8f(0x1a6))](0x1,0x0,0x0)),heatArrow2[_0x1c6f8f(0x1a8)](new THREE['Vector3'](0x1,0x0,0x0)),heatArrow3[_0x1c6f8f(0x1a8)](new THREE[(_0x1c6f8f(0x1a6))](0x1,0x0,0x0));else _0x29921e<0x0?(heatArrow1[_0x1c6f8f(0x1a8)](new THREE[(_0x1c6f8f(0x1a6))](-0x1,0x0,0x0)),heatArrow2[_0x1c6f8f(0x1a8)](new THREE[(_0x1c6f8f(0x1a6))](-0x1,0x0,0x0)),heatArrow3[_0x1c6f8f(0x1a8)](new THREE[(_0x1c6f8f(0x1a6))](-0x1,0x0,0x0))):(heatArrow1[_0x1c6f8f(0x1a8)](new THREE[(_0x1c6f8f(0x1a6))](0x0,0x0,0x0)),heatArrow2[_0x1c6f8f(0x1a8)](new THREE[(_0x1c6f8f(0x1a6))](0x0,0x0,0x0)),heatArrow3[_0x1c6f8f(0x1a8)](new THREE['Vector3'](0x0,0x0,0x0)));document['getElementById'](_0x1c6f8f(0x16a))[_0x1c6f8f(0x1b9)]=_0x1f8fad[_0x1c6f8f(0x16f)](0x1)+_0x1c6f8f(0x1b8);}function setupLights(){const _0x49e4f8=_0x284837,_0x5c253f=new THREE[(_0x49e4f8(0x1bf))](0xffffff);_0x5c253f[_0x49e4f8(0x1b5)][_0x49e4f8(0x1af)](0xa,0x28,0x14),_0x5c253f['castShadow']=!![],scene[_0x49e4f8(0x17d)](_0x5c253f);const _0x3789d6=new THREE[(_0x49e4f8(0x197))](0xffffff);_0x3789d6['position'][_0x49e4f8(0x1af)](0xa,0x28,0x1e),_0x3789d6[_0x49e4f8(0x19c)]=!![],_0x3789d6[_0x49e4f8(0x173)](-0x1e,0xa,0x0),scene['add'](_0x3789d6);}function displayInformation(){const _0xdd7cf9=_0x284837;let _0x3c1be8=document[_0xdd7cf9(0x169)]('infoPanel');_0x3c1be8[_0xdd7cf9(0x1b6)]=html;}function onWindowResize(){const _0x4a3adc=_0x284837;camera['aspect']=window[_0x4a3adc(0x170)]/window[_0x4a3adc(0x189)],camera[_0x4a3adc(0x194)](),renderer[_0x4a3adc(0x177)](window[_0x4a3adc(0x170)],window[_0x4a3adc(0x189)]);}function animate(){const _0x339c7f=_0x284837;console[_0x339c7f(0x185)](_0x339c7f(0x18c),camera['position']['y']),requestAnimationFrame(animate),controls[_0x339c7f(0x1bb)](),leftGroup[_0x339c7f(0x1ac)]['forEach'](_0x29b732=>{const _0x18c25a=_0x339c7f;_0x29b732[_0x18c25a(0x1b5)][_0x18c25a(0x17d)](_0x29b732[_0x18c25a(0x1b7)]['velocity']),_0x29b732['userData'][_0x18c25a(0x1b1)]['x']+=(Math[_0x18c25a(0x17b)]()-0.5)*0.02,_0x29b732[_0x18c25a(0x1b7)]['velocity']['y']+=(Math['random']()-0.5)*0.02,_0x29b732['userData']['velocity']['z']+=(Math[_0x18c25a(0x17b)]()-0.5)*0.02;if(_0x29b732[_0x18c25a(0x1b5)]['x']<=-0x17||_0x29b732[_0x18c25a(0x1b5)]['x']>=0x0)_0x29b732[_0x18c25a(0x1b7)][_0x18c25a(0x1b1)]['x']*=-0x1;if(_0x29b732['position']['y']<=-0x9||_0x29b732[_0x18c25a(0x1b5)]['y']>=0x9)_0x29b732[_0x18c25a(0x1b7)][_0x18c25a(0x1b1)]['y']*=-0x1;if(_0x29b732[_0x18c25a(0x1b5)]['z']<=-0xe||_0x29b732[_0x18c25a(0x1b5)]['z']>=0xe)_0x29b732[_0x18c25a(0x1b7)][_0x18c25a(0x1b1)]['z']*=-0x1;}),rightGroup[_0x339c7f(0x1ac)][_0x339c7f(0x1b2)](_0x5df4ec=>{const _0x32bde3=_0x339c7f;_0x5df4ec[_0x32bde3(0x1b5)][_0x32bde3(0x17d)](_0x5df4ec[_0x32bde3(0x1b7)][_0x32bde3(0x1b1)]),_0x5df4ec['userData']['velocity']['x']+=(Math['random']()-0.5)*0.02,_0x5df4ec[_0x32bde3(0x1b7)]['velocity']['y']+=(Math['random']()-0.5)*0.02,_0x5df4ec[_0x32bde3(0x1b7)]['velocity']['z']+=(Math[_0x32bde3(0x17b)]()-0.5)*0.02;if(_0x5df4ec[_0x32bde3(0x1b5)]['x']<=0x0||_0x5df4ec[_0x32bde3(0x1b5)]['x']>=0x17)_0x5df4ec[_0x32bde3(0x1b7)][_0x32bde3(0x1b1)]['x']*=-0x1;if(_0x5df4ec[_0x32bde3(0x1b5)]['y']<=-0x9||_0x5df4ec[_0x32bde3(0x1b5)]['y']>=0x9)_0x5df4ec['userData']['velocity']['y']*=-0x1;if(_0x5df4ec[_0x32bde3(0x1b5)]['z']<=-0xe||_0x5df4ec[_0x32bde3(0x1b5)]['z']>=0xe)_0x5df4ec[_0x32bde3(0x1b7)][_0x32bde3(0x1b1)]['z']*=-0x1;}),renderer[_0x339c7f(0x1bd)](scene,camera);}
+
+	
+</script>  
+</head>
+  
+<body>
+<div id="info" style="text-align: left"> 
+	 <h1 style="text-align: center">Heat Transfer in Gases</h1>
+	<p style="text-align: center">Barrier: Copper, thickness: 15.3 mm, height: 89 cm, width: 132.5 cm</p>
+	  <!-- Left Panel -->  
+	    <div class="control-panel">
+		
+		<div class="control-group">
+		  Gas:
+		  <div class="slider-row">
+		    <select id="gasSelectorLeft">
+		      <option value="1.62">Neon</option>
+		      <option value="3.7">Argon</option>
+		      <option value="9.81" selected>Krypton</option>
+		      <option value="24.79">Xenon</option>
+		      <option value="10.44">Radon</option>
+		      <option value="3.69">Helium</option>
+		    </select>
+		  </div>
+		</div>		
+		    
+		<div class="control-group">
+		  Moles:
+		  <div class="slider-row" style="display: flex; align-items: center;">
+		    <input type="range" id="moleSliderLeft" min="60" max="300" step="1" value="100" style="flex: 1; margin-right: 8px;">
+		    <input type="text" id="moleValueLeft" value="100" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+		  </div>
+		  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+		    <span>60</span>
+		    <span>300</span>
+		  </div>
+		</div>
+		    
+		  <div class="control-group">
+		    Temperature (K):
+		    <div class="slider-row">
+		      <input type="range" id="tempSliderLeft" min="250" max="340" step="10" value="270">
+		      <input type="text" id="tempValueLeft" value="270" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>250</span>
+		      <span>340</span>
+		    </div>
+		  </div>
+         	  <button type="button" class="btn btn-warning" id="infor" style="background-color:orange;">Information</button>
+	
+	</div>
+		
+	<!-- Right Panel -->
+	<div class="control-panel-right">
+		
+		<div class="control-group">
+		  Gas:
+		  <div class="slider-row">
+		    <select id="gasSelectorRight">
+		      <option value="1.62">Radon</option>
+		      <option value="3.7">Helium</option>
+		      <option value="9.81" selected>Neon</option>
+		      <option value="24.79">Argon</option>
+		      <option value="10.44">Krypton</option>
+		      <option value="3.69">Xenon</option>
+		    </select>
+		  </div>
+		</div>
+	  			
+		  <div class="control-group">
+		    Moles:
+		    <div class="slider-row">
+		      <input type="range" id="moleSliderRight" min="60" max="300" step="1" value="60">
+		      <input type="text" id="moleValueRight" value="60" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>60</span><span>300</span>
+		    </div>
+		  </div>
+	
+		  <div class="control-group">
+		    Temperature (K):
+		    <div class="slider-row">
+		      <input type="range" id="tempSliderRight" min="250" max="340" step="10" value="250">
+		      <input type="text" id="tempValueRight" value="250" readonly>
+		    </div>
+		    <div class="minmax">
+		      <span>250</span><span>340</span>
+		    </div>
+		  </div>
+	
+		  <div class="control-group">
+		    Rate of Heat Transfer:
+		  <input type="text" id="heatValue" value="0.0 kJ/s" readonly style="width: 120px; font-weight: bold; color: red;">
+
+		  </div>
+	    </div>			
+</div>	
+<div id="viewport"></div>
+	
+</body>
+</html>

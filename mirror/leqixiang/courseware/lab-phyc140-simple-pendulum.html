@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>乐启享 · 物理实验</title>
+<link rel="icon" href="/brand/favicon.ico">
+<meta http-equiv='cache-control' content='no-cache'> 
+<meta http-equiv='expires' content='0'> 
+<meta http-equiv='pragma' content='no-cache'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/brand/favicon.ico">
+<link rel="stylesheet" href="/api/program-assets/lab-phyc140-simple-pendulum/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<script src="/api/program-assets/lab-phyc140-simple-pendulum/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="/api/program-assets/lab-phyc140-simple-pendulum/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-simple-pendulum/_ext/vendor/css/final.css">
+<style>
+body {
+	color: black;
+}
+.control-panel {
+  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+  background-color: #eee;
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 15px;
+  width: 220px;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+.control-panel-right {
+  position: absolute;
+  top: 90px;
+  right: 50px;
+  background-color: #eee;
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 15px;
+  width: 220px;
+  text-align: center;
+}
+
+.control-group {
+  margin-bottom: 15px;
+}
+
+.slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+input[type="range"] {
+  width: 65%;
+  accent-color: blue;
+}
+
+input[type="text"] {
+  width: 80px;
+  font-weight: bold;
+  text-align: center;
+  color: blue;
+}
+
+.minmax {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 4 May 2025       -->
+	
+<script type="module">   
+
+import * as THREE from '../jsm/three.module.js';
+import { OrbitControls } from '../jsm/OrbitControls.js';
+import { DragControls } from '../jsm/DragControls.js';	
+import { FontLoader } from '../jsm/FontLoader.js';
+import { TextGeometry } from '../jsm/TextGeometry.js';	
+import { LineGeometry } from '../jsm/LineGeometry.js';
+import { Line2 } from '../jsm/Line2.js';
+import { LineMaterial } from '../jsm/LineMaterial.js';
+import { RoundedBoxGeometry } from '../jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  13 May 2024
+		 **  All rights reserved **/
+
+let initScene, renderer, scene, camera, controls, dragcontrols;
+let sphere, stringLine, friction =0;
+let lengthOfString = 15;  // in meters 25
+let mass = 1.00, radius = 1.2;
+let angle = 0;
+let angularVelocity = 0;
+let gravity = 9.81;
+let isSwinging = false;
+let lastTime = 0;   
+let stopwatchTime = 0;
+let stopwatchRunning = false;
+let lastStopwatchUpdate = null;
+
+var dragObjs = [];	  
+const radians = (degrees) => {
+  	return degrees * Math.PI / 180;
+}
+const distance = (x1, y1, x2, y2) => {
+  	return Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
+}
+
+const _0x42e1c8=_0x1f85;(function(_0x3f1f52,_0x235e03){const _0x59c0e5=_0x1f85,_0x4d7c63=_0x3f1f52();while(!![]){try{const _0x1827e3=parseInt(_0x59c0e5(0x90))/0x1*(parseInt(_0x59c0e5(0x97))/0x2)+-parseInt(_0x59c0e5(0x87))/0x3+parseInt(_0x59c0e5(0x8a))/0x4+parseInt(_0x59c0e5(0x80))/0x5*(parseInt(_0x59c0e5(0x7e))/0x6)+parseInt(_0x59c0e5(0x81))/0x7*(-parseInt(_0x59c0e5(0xb9))/0x8)+-parseInt(_0x59c0e5(0xb1))/0x9+parseInt(_0x59c0e5(0x92))/0xa;if(_0x1827e3===_0x235e03)break;else _0x4d7c63['push'](_0x4d7c63['shift']());}catch(_0x3c921b){_0x4d7c63['push'](_0x4d7c63['shift']());}}}(_0x195f,0xb0033));function _0x1f85(_0x3a5ec5,_0x54ab94){const _0x195f7f=_0x195f();return _0x1f85=function(_0x1f8552,_0x4e20d6){_0x1f8552=_0x1f8552-0x70;let _0x8a18c5=_0x195f7f[_0x1f8552];return _0x8a18c5;},_0x1f85(_0x3a5ec5,_0x54ab94);}var is_stop=![],isPlay=![],is_start=![],loader=new THREE[(_0x42e1c8(0x93))]();initScene=function(){const _0x364735=_0x42e1c8;renderer=new THREE[(_0x364735(0x7b))]({'antialias':!![]}),renderer[_0x364735(0xa2)](window[_0x364735(0xab)],window[_0x364735(0x95)]),renderer[_0x364735(0x84)][_0x364735(0x9d)]=!![],renderer[_0x364735(0x9e)]=!![],document[_0x364735(0x99)](_0x364735(0x82))[_0x364735(0xa4)](renderer[_0x364735(0xaf)]),scene=new THREE['Scene'](),scene[_0x364735(0x89)]=new THREE[(_0x364735(0x8c))](0x1dcbea),camera=new THREE['PerspectiveCamera'](0x23,window['innerWidth']/window[_0x364735(0x95)],0x1,0x3e8),camera[_0x364735(0x9a)][_0x364735(0x7f)](0x0,0x2,0x3c),camera[_0x364735(0xa5)](scene['position']),scene[_0x364735(0x72)](camera);const _0xea4265=new THREE[(_0x364735(0x9c))](0xffffff,0x1);_0xea4265['position'][_0x364735(0x7f)](0x0,0xa,0xa),scene[_0x364735(0x72)](_0xea4265),addFloor(),addSupport(),addSphere(),addString(),controls=new OrbitControls(camera,renderer[_0x364735(0xaf)]),dragcontrols=new DragControls([sphere],camera,renderer['domElement']),dragcontrols['addEventListener'](_0x364735(0xb0),()=>{const _0x56972f=_0x364735;controls[_0x56972f(0x9d)]=![],document['getElementById'](_0x56972f(0xad))[_0x56972f(0xa1)]=!![];}),dragcontrols[_0x364735(0x71)](_0x364735(0x91),onDragEnd),document[_0x364735(0x99)](_0x364735(0xad))[_0x364735(0x71)](_0x364735(0xa9),onPlanetChange),document[_0x364735(0x99)](_0x364735(0xb3))['addEventListener'](_0x364735(0x8d),onGravityChange),document[_0x364735(0x99)]('frictionSlider')[_0x364735(0x71)]('input',onFrictionChange),document[_0x364735(0x99)](_0x364735(0x94))['addEventListener'](_0x364735(0x8d),onLengthChange),document[_0x364735(0x99)](_0x364735(0xa6))['addEventListener'](_0x364735(0x8d),onMassChange),document['getElementById'](_0x364735(0xa3))[_0x364735(0x71)]('click',()=>isSwinging=![]),document[_0x364735(0x99)](_0x364735(0x70))['addEventListener']('click',()=>{const _0x11774c=_0x364735;angle=0x0,angularVelocity=0x0,isSwinging=![],updateSpherePosition(),updateString(),stopwatchTime=0x0,document[_0x11774c(0x99)](_0x11774c(0xb4))[_0x11774c(0xb6)]=_0x11774c(0x8b),lastTime=0x0;}),document[_0x364735(0x99)](_0x364735(0xa7))[_0x364735(0x71)](_0x364735(0x74),()=>{stopwatchRunning=!![];}),document[_0x364735(0x99)]('pauseTimer')[_0x364735(0x71)](_0x364735(0x74),()=>{stopwatchRunning=![];}),document[_0x364735(0x99)](_0x364735(0xac))[_0x364735(0x71)](_0x364735(0x74),()=>{const _0x21b1d1=_0x364735;stopwatchRunning=![],stopwatchTime=0x0,document['getElementById'](_0x21b1d1(0xb4))[_0x21b1d1(0xb6)]=_0x21b1d1(0x8b);}),animate();};function addSupport(){const _0x1bb1c5=_0x42e1c8,_0x65dd1b=new THREE[(_0x1bb1c5(0x8f))](0x4,0x1,0x4),_0x39e479=new THREE['MeshStandardMaterial']({'color':0x333333}),_0x231e02=new THREE[(_0x1bb1c5(0x7c))](_0x65dd1b,_0x39e479);_0x231e02[_0x1bb1c5(0x9a)]['set'](0x0,10.5,0x0),scene[_0x1bb1c5(0x72)](_0x231e02);}function addSphere(){const _0x44f8c0=_0x42e1c8,_0xae827c=new THREE[(_0x44f8c0(0xb5))](radius,0x20,0x20),_0x6cc8ed=new THREE[(_0x44f8c0(0x9f))]({'color':0xff0000});sphere=new THREE[(_0x44f8c0(0x7c))](_0xae827c,_0x6cc8ed),updateSpherePosition(),scene['add'](sphere),dragObjs[_0x44f8c0(0x7d)](sphere);}function addString(){const _0x1c7ec0=_0x42e1c8,_0x35ef2e=new THREE[(_0x1c7ec0(0xae))]({'color':0x0}),_0x15a7ce=[new THREE['Vector3'](0x0,0xa,0x0),sphere['position']['clone']()],_0x7a9e2e=new THREE[(_0x1c7ec0(0x9b))]()[_0x1c7ec0(0x8e)](_0x15a7ce);stringLine=new THREE[(_0x1c7ec0(0x73))](_0x7a9e2e,_0x35ef2e),scene['add'](stringLine);}function updateString(){const _0x491e37=_0x42e1c8,_0x15e54e=[new THREE[(_0x491e37(0xaa))](0x0,0xa,0x0),sphere[_0x491e37(0x9a)][_0x491e37(0x98)]()];stringLine[_0x491e37(0xa0)]['setFromPoints'](_0x15e54e);}function _0x195f(){const _0x4b879c=['startTimer','\x20kg','change','Vector3','innerWidth','resetTimer','planetSelector','LineBasicMaterial','domElement','dragstart','4781268wBRDqj','\x20m/s²','gravitySlider','stopwatch','SphereGeometry','value','frictionSlider','update','2608808gvXLLU','atan2','reset','addEventListener','add','Line','click','sin','min','updateProjectionMatrix','cos','angleValue','toFixed','WebGLRenderer','Mesh','push','48AxXKxA','set','192445SOmLBf','21UqWHeW','viewport','MeshPhongMaterial','shadowMap','render','springgreen','1163505eLkyYb','now','background','5569260ZDvUjN','0.00\x20s','Color','input','setFromPoints','BoxGeometry','2HQvNWp','dragend','3691060tyDvhR','TextureLoader','lengthSlider','innerHeight','gravityValue','549004ygGXxD','clone','getElementById','position','BufferGeometry','DirectionalLight','enabled','shadowMapSoft','MeshStandardMaterial','geometry','disabled','setSize','stop','appendChild','lookAt','massSlider'];_0x195f=function(){return _0x4b879c;};return _0x195f();}function updateSpherePosition(){const _0x1f31b0=_0x42e1c8,_0x252821=1.5;sphere[_0x1f31b0(0x9a)]['x']=lengthOfString*Math[_0x1f31b0(0x75)](angle),sphere[_0x1f31b0(0x9a)]['y']=_0x252821-lengthOfString*Math[_0x1f31b0(0x78)](angle),sphere['position']['z']=0x0;}function onDragEnd(){const _0x41382f=_0x42e1c8;controls[_0x41382f(0x9d)]=!![];const _0x194daa=sphere[_0x41382f(0x9a)]['x'],_0x3e5de2=1.5-sphere[_0x41382f(0x9a)]['y'];angle=Math[_0x41382f(0xba)](_0x194daa,_0x3e5de2),angularVelocity=0x0,isSwinging=!![],document[_0x41382f(0x99)](_0x41382f(0x79))[_0x41382f(0xb6)]=(angle*0xb4/Math['PI'])['toFixed'](0x1)+'°';}function onLengthChange(){const _0x452ea2=_0x42e1c8;lengthOfString=parseFloat(document[_0x452ea2(0x99)]('lengthSlider')['value']),document[_0x452ea2(0x99)]('lengthValue')[_0x452ea2(0xb6)]=lengthOfString['toFixed'](0x2)+'\x20m',updateSpherePosition(),updateString();}function onMassChange(){const _0x252a36=_0x42e1c8;mass=parseFloat(document[_0x252a36(0x99)]('massSlider')[_0x252a36(0xb6)]),document[_0x252a36(0x99)]('massValue')[_0x252a36(0xb6)]=mass[_0x252a36(0x7a)](0x2)+_0x252a36(0xa8),rebuildSphere();}function onPlanetChange(){const _0x353f84=_0x42e1c8,_0xff16d7=document['getElementById'](_0x353f84(0xad)),_0x3a9d96=parseFloat(_0xff16d7[_0x353f84(0xb6)]);if(_0x3a9d96===0x0)return;gravity=_0x3a9d96,document[_0x353f84(0x99)](_0x353f84(0xb3))['value']=gravity[_0x353f84(0x7a)](0x2),document[_0x353f84(0x99)](_0x353f84(0x96))[_0x353f84(0xb6)]=gravity[_0x353f84(0x7a)](0x2)+_0x353f84(0xb2);}function onGravityChange(){const _0x15d5b4=_0x42e1c8;gravity=parseFloat(document[_0x15d5b4(0x99)]('gravitySlider')[_0x15d5b4(0xb6)]),document[_0x15d5b4(0x99)](_0x15d5b4(0x96))['value']=gravity[_0x15d5b4(0x7a)](0x2)+'\x20m/s²';}function onFrictionChange(){const _0x436ee4=_0x42e1c8;friction=parseFloat(document[_0x436ee4(0x99)](_0x436ee4(0xb7))['value']),document[_0x436ee4(0x99)]('frictionValue')[_0x436ee4(0xb6)]=friction[_0x436ee4(0x7a)](0x3);}function addFloor(){const _0x3186b2=_0x42e1c8;var _0x2b7d64=new THREE[(_0x3186b2(0x8f))](0x3c,0x2,0x28);const _0x2d2f55=new THREE['Mesh'](_0x2b7d64,new THREE[(_0x3186b2(0x83))]({'color':_0x3186b2(0x86)}));_0x2d2f55['position']['set'](0x0,-0x15,0x0),scene[_0x3186b2(0x72)](_0x2d2f55);}function rebuildSphere(){const _0x286363=_0x42e1c8;scene['remove'](sphere),radius=1.2+0.2*mass;const _0x138071=new THREE['SphereGeometry'](radius,0x20,0x20),_0x3b3c79=new THREE[(_0x286363(0x9f))]({'color':0xff0000});sphere=new THREE[(_0x286363(0x7c))](_0x138071,_0x3b3c79),updateSpherePosition(),scene[_0x286363(0x72)](sphere),dragcontrols['dispose'](),dragcontrols=new DragControls([sphere],camera,renderer[_0x286363(0xaf)]),dragcontrols['addEventListener'](_0x286363(0xb0),()=>controls[_0x286363(0x9d)]=![]),dragcontrols['addEventListener'](_0x286363(0x91),onDragEnd);}function onResize(){const _0x553ad8=_0x42e1c8;width=window[_0x553ad8(0xab)],height=window['innerHeight'],camera['aspect']=width/height,camera[_0x553ad8(0x77)](),renderer[_0x553ad8(0xa2)](width,height);}function animate(_0x4e30cc){const _0x3384a6=_0x42e1c8;if(!lastTime)lastTime=_0x4e30cc;let _0x4a7955=(_0x4e30cc-lastTime)/0x3e8;_0x4a7955=Math[_0x3384a6(0x76)](_0x4a7955,0.05),lastTime=_0x4e30cc;if(isSwinging){const _0x743008=lengthOfString/0xa,_0x853a2c=-(gravity/_0x743008)*Math[_0x3384a6(0x75)](angle);angularVelocity+=_0x853a2c*_0x4a7955,angularVelocity*=0x1-friction,angle+=angularVelocity*_0x4a7955,updateSpherePosition(),updateString();}else updateString();if(stopwatchRunning){const _0xc763e8=performance[_0x3384a6(0x88)]();lastStopwatchUpdate&&(stopwatchTime+=(_0xc763e8-lastStopwatchUpdate)/0x3e8),lastStopwatchUpdate=_0xc763e8,document[_0x3384a6(0x99)](_0x3384a6(0xb4))[_0x3384a6(0xb6)]=stopwatchTime[_0x3384a6(0x7a)](0x2)+'\x20s';}else lastStopwatchUpdate=null;controls[_0x3384a6(0xb8)](),renderer[_0x3384a6(0x85)](scene,camera),requestAnimationFrame(animate);}
+  window.onload = initScene;	
+
+</script>
+
+
+</head>
+<body>
+	
+<div id="info">
+    <h1>Simple Pendulum </h1>
+	Select a planet then Drag the sphere and release to begin 
+    <!-- Left Panel -->  
+    <div class="control-panel">
+	
+	<div class="control-group">
+	  Length:
+	  <div class="slider-row" style="display: flex; align-items: center;">
+	    <input type="range" id="lengthSlider" min="15" max="20" step="0.1" value="15" style="flex: 1; margin-right: 8px;">
+	    <input type="text" id="lengthValue" value="15 dm" readonly style="width: 80px; text-align: center; color: blue; font-weight: bold;">
+	  </div>
+	  <div class="minmax" style="display: flex; justify-content: space-between; margin-top: 4px;">
+	    <span>15</span>
+	    <span>20</span>
+	  </div>
+	</div>
+	
+	  <div class="control-group">
+	    Mass:
+	    <div class="slider-row">
+	      <input type="range" id="massSlider" min="0.1" max="1.5" step="0.01" value="1.00">
+	      <input type="text" id="massValue" value="1.00 kg" readonly>
+	    </div>
+	    <div class="minmax">
+	      <span>0.1</span>
+	      <span>1.5</span>
+	    </div>
+	  </div>
+
+         <button type="button" class="btn btn-warning" id="stop" style="background-color:orange;">Stop</button>
+	 <button type="button" class="btn btn-danger" id="reset">Reset</button><br><br>
+	    <div class="control-group">
+		  Stopwatch:
+		  <div class="slider-row" style="justify-content: center;">
+		    <input type="text" id="stopwatch" value="0.00 s" readonly style="width: 100px; font-weight: bold; text-align: center; color: blue;">
+		  </div>
+		  <div style="margin-top: 8px;">
+		    <button id="startTimer">Start</button>
+		    <button id="pauseTimer">Pause</button>
+		    <button id="resetTimer">Reset</button>
+		  </div>
+		</div>
+
+</div>
+	
+<!-- Right Panel -->
+<div class="control-panel-right">
+  			
+	  <div class="control-group">
+	    Gravity:
+	    <div class="slider-row">
+	      <input type="range" id="gravitySlider" min="1.6" max="25" step="0.1" value="9.81">
+	      <input type="text" id="gravityValue" value="9.81 m/s²" readonly>
+	    </div>
+	    <div class="minmax">
+	      <span>Low</span><span>High</span>
+	    </div>
+	  </div>
+	
+	<div class="control-group">
+	  Planet:
+	  <div class="slider-row">
+	    <select id="planetSelector">
+	      <option value="1.62">Moon</option>
+	      <option value="3.7">Mars</option>
+	      <option value="9.81" selected>Earth</option>
+	      <option value="24.79">Jupiter</option>
+	      <option value="10.44">Saturn</option>
+	      <option value="3.69">Mercury</option>
+	      <option value="0">Custom</option>
+	    </select>
+	  </div>
+	</div>
+
+	  <div class="control-group">
+	    Friction:
+	    <div class="slider-row">
+	      <input type="range" id="frictionSlider" min="0" max="0.1" step="0.001" value="0.000">
+	      <input type="text" id="frictionValue" value="0.000" readonly>
+	    </div>
+	    <div class="minmax">
+	      <span>None</span><span>Lots</span>
+	    </div>
+	  </div>
+
+	  <div class="control-group">
+	    Max Angle:
+	    <input type="text" id="angleValue" value="0.0°" readonly style="width: 90px;">
+	  </div>
+    </div>	
+	
+</div>
+<div id="viewport"></div>
+	
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>乐启享 · 物理实验</title>
+	  <link rel="stylesheet" href="/api/program-assets/3jcn-simulation-boat-crossing/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	  <script src="/api/program-assets/3jcn-simulation-boat-crossing/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	  <script src="/api/program-assets/3jcn-simulation-boat-crossing/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <link type="text/css" rel="stylesheet" href="/api/program-assets/3jcn-simulation-boat-crossing/_ext/vendor/css/final.css">
+  <script async src="/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/build/three.module.js",
+    "OrbitControls": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js",
+    "RGBELoader": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/RGBELoader.js",
+    "Water": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/examples/jsm/objects/Water.js",
+    "GLTFLoader": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/GLTFLoader.js",
+    "OBJLoader": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/OBJLoader.js",
+    "FontLoader": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/examples/jsm/loaders/FontLoader.js",
+    "TextGeometry": "/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.158.0/examples/jsm/geometries/TextGeometry.js"
+  }
+}
+</script>
+  <style> 
+    #vwsValue, #vbsValue{
+	  color: brown;             /* Bright green text */
+	  background-color: lightyellow;  /* Dark background */
+	  border: 1px solid #00ff00;  /* Green border */
+	  padding: 4px;
+	  border-radius: 4px;
+   } 
+   body { 
+	   color: black;
+   }
+    #info {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+      color: black;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+   <button class="btn btn-success" id="start">Start</button>
+   <button class="btn btn-danger" id="reset">Reset</button>
+   <button class="btn btn-danger" id="display">Show/Hide Result</button>
+   <br>
+	 <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 40px; flex-wrap: wrap;">
+		  <!-- Left Column -->
+		  <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+		    <label for="v_w_s">Velocity of water relative to shore:</label>
+		    <input type="range" id="v_w_s" min="0" max="4" value="1" step="1" style="flex: 1;">
+		    <input type="text" id="vwsValue" value="1" style="width: 50px;" readonly> m/s
+		  </div> 
+		
+		  <!-- Middle Column -->
+		  <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+		    <label for="aim">Aim direction of boat:</label>
+		    <input type="range" id="aim" min="-70" max="70" value="0" step="1" style="flex: 1;">
+		    <input type="text" id="aimValue" value="0" style="width: 50px;" readonly> degrees
+		  </div>
+		
+		  <!-- Right Column -->
+		  <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+		    <label for="v_b_w">Velocity of boat relative to water:</label>
+		    <input type="range" id="v_b_w" min="1" max="5" value="2" step="1" style="flex: 1;">
+		    <input type="text" id="vbwValue" value="2" style="width: 50px;" readonly> m/s
+		  </div>
+		</div>
+		
+		<div id="resultBox" style="
+		  display: none;
+		  position: fixed;
+		  top: 100px;          /* Fixed pixel position from the top */
+		  right: 100px;         /* Fixed pixel position from the right */
+		  background: rgba(0,0,0,0.85);
+		  color: white;
+		  font-size: 18px;
+		  padding: 15px;
+		  border-radius: 8px;
+		  max-width: 300px;
+		  text-align: left;
+		  z-index: 1000;
+		  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+		">
+		  <!-- Calculation result will appear here -->
+		</div>
+
+
+
+  </div>
+  <script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'OrbitControls';
+  import { RGBELoader } from 'RGBELoader';
+  import { Water } from 'Water';
+  import { GLTFLoader } from 'GLTFLoader';
+  import { OBJLoader } from 'OBJLoader';
+  import { FontLoader } from 'FontLoader';
+  import { TextGeometry } from 'TextGeometry';
+  import { FBXLoader } from '/api/program-assets/3jcn-simulation-boat-crossing/_ext/unpkg.com/three@0.150.0/examples/jsm/loaders/FBXLoader.js';
+
+
+let runnerModel, mixer, runnerAction;
+let isStart = false, isDone = 0;
+let boatVelocity = 0;
+let waterVelocity = 0;
+let waterNormals;
+let velocityVectors = {
+  boatToShore: null,
+  waterToShore: null,
+  boatToWater: null
+};
+
+var textureloader = new THREE.TextureLoader();
+var fontloader = new FontLoader();
+
+let scene, renderer, controls, camera, water, boat;    
+
+	  
+  const loader = new GLTFLoader();
+  const objLoader = new OBJLoader();
+  const clock = new THREE.Clock();
+  var audio = new Audio('/api/program-assets/3jcn-simulation-boat-crossing/_ext/vendor/Audio/cheer.mp3');
+	  
+  init();
+
+  animate();
+
+function init() {
+  const _0x5555a9=_0x1af3;(function(_0x531b47,_0x1142b2){const _0x21bbbd=_0x1af3,_0xf41871=_0x531b47();while(!![]){try{const _0x200ee8=parseInt(_0x21bbbd(0x1d9))/0x1*(parseInt(_0x21bbbd(0x1d6))/0x2)+parseInt(_0x21bbbd(0x1e4))/0x3+-parseInt(_0x21bbbd(0x1d8))/0x4*(parseInt(_0x21bbbd(0x1eb))/0x5)+-parseInt(_0x21bbbd(0x1e1))/0x6*(-parseInt(_0x21bbbd(0x1da))/0x7)+parseInt(_0x21bbbd(0x1ec))/0x8*(-parseInt(_0x21bbbd(0x1e7))/0x9)+parseInt(_0x21bbbd(0x1ef))/0xa+parseInt(_0x21bbbd(0x1f3))/0xb*(-parseInt(_0x21bbbd(0x1d3))/0xc);if(_0x200ee8===_0x1142b2)break;else _0xf41871['push'](_0xf41871['shift']());}catch(_0x3ae767){_0xf41871['push'](_0xf41871['shift']());}}}(_0xf847,0x231be),renderer=new THREE[(_0x5555a9(0x1e6))]({'antialias':!![]}),renderer[_0x5555a9(0x1ce)](window[_0x5555a9(0x1fe)],window[_0x5555a9(0x1dc)]),document[_0x5555a9(0x200)][_0x5555a9(0x1d7)](renderer[_0x5555a9(0x1e8)]),scene=new THREE[(_0x5555a9(0x1c6))](),camera=new THREE['PerspectiveCamera'](0x4b,window[_0x5555a9(0x1fe)]/window[_0x5555a9(0x1dc)],0.1,0x2710),camera['position'][_0x5555a9(0x1f6)](0x0,0xc8,0x0),controls=new OrbitControls(camera,renderer[_0x5555a9(0x1e8)]),controls[_0x5555a9(0x1e0)]=![],controls[_0x5555a9(0x1e2)]=![],new RGBELoader()[_0x5555a9(0x202)](_0x5555a9(0x1e3),_0x5c4452=>{const _0x544811=_0x5555a9;_0x5c4452[_0x544811(0x1f7)]=THREE[_0x544811(0x1ea)],scene[_0x544811(0x1cd)]=_0x5c4452,scene[_0x544811(0x1db)]=_0x5c4452;}),loadBoat());const topSand=new THREE['Mesh'](new THREE[(_0x5555a9(0x1e9))](0x2710,0x190),new THREE['MeshStandardMaterial']({'color':_0x5555a9(0x1cb),'side':THREE['DoubleSide']}));topSand[_0x5555a9(0x1cf)]['x']=-Math['PI']/0x2,topSand[_0x5555a9(0x1ed)]['y']=-0.1,topSand[_0x5555a9(0x1ed)]['z']=0x12c,scene[_0x5555a9(0x1c5)](topSand);const waterGeometry=new THREE['PlaneGeometry'](0x2710,0xc8);function _0x1af3(_0x472ef9,_0x352caf){const _0xf847d6=_0xf847();return _0x1af3=function(_0x1af3d7,_0x561237){_0x1af3d7=_0x1af3d7-0x1c5;let _0x3ccc80=_0xf847d6[_0x1af3d7];return _0x3ccc80;},_0x1af3(_0x472ef9,_0x352caf);}waterNormals=new THREE[(_0x5555a9(0x1e5))]()[_0x5555a9(0x202)](_0x5555a9(0x1fc),_0x417488=>{const _0x3daea1=_0x5555a9;_0x417488[_0x3daea1(0x1ee)]=_0x417488[_0x3daea1(0x1fa)]=THREE[_0x3daea1(0x1d2)];}),water=new Water(waterGeometry,{'textureWidth':0x200,'textureHeight':0x200,'waterNormals':waterNormals,'alpha':0x1,'sunDirection':new THREE[(_0x5555a9(0x1fb))](0x1,0x1,0x1)[_0x5555a9(0x1d1)](),'sunColor':0xffffff,'waterColor':0x1e0f,'distortionScale':3.7,'fog':scene[_0x5555a9(0x1d5)]!==undefined}),water[_0x5555a9(0x1cf)]['x']=-Math['PI']/0x2,water['position']['z']=0x0,scene['add'](water);function _0xf847(){const _0x38a56d=['fog','956mMYzmb','appendChild','28zGmUze','4kTdhUD','42czJIrF','environment','innerHeight','aspect','vbwValue','click','enableZoom','101958WjmHEq','enablePan','/api/program-assets/3jcn-simulation-boat-crossing/_ext/threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr','817908cKnIJF','TextureLoader','WebGLRenderer','585uQKtZM','domElement','PlaneGeometry','EquirectangularReflectionMapping','92855IOAsul','2120GXugAG','position','wrapS','1015470qcyRet','reload','resultBox','block','55CDrXBP','aim','input','set','mapping','DoubleSide','getElementById','wrapT','Vector3','/api/program-assets/3jcn-simulation-boat-crossing/_ext/vendor/pictures/waternormals.jpg','addEventListener','innerWidth','v_b_w','body','value','load','Mesh','add','Scene','v_w_s','display','style','start','#f4d98c','MeshStandardMaterial','background','setSize','rotation','aimValue','normalize','RepeatWrapping','448860zidVSj','updateProjectionMatrix'];_0xf847=function(){return _0x38a56d;};return _0xf847();}const bottomSand=new THREE[(_0x5555a9(0x203))](new THREE[(_0x5555a9(0x1e9))](0x2710,0x190),new THREE[(_0x5555a9(0x1cc))]({'color':_0x5555a9(0x1cb),'side':THREE[_0x5555a9(0x1f8)]}));bottomSand[_0x5555a9(0x1cf)]['x']=-Math['PI']/0x2,bottomSand[_0x5555a9(0x1ed)]['y']=-0.1,bottomSand[_0x5555a9(0x1ed)]['z']=-0x12c,scene[_0x5555a9(0x1c5)](bottomSand),document[_0x5555a9(0x1f9)](_0x5555a9(0x1ca))[_0x5555a9(0x1fd)](_0x5555a9(0x1df),function(){isStart=!![];}),document[_0x5555a9(0x1f9)](_0x5555a9(0x1c7))[_0x5555a9(0x1fd)](_0x5555a9(0x1f5),function(){const _0x3f2061=_0x5555a9;document[_0x3f2061(0x1f9)]('vwsValue')['value']=this[_0x3f2061(0x201)];}),document[_0x5555a9(0x1f9)](_0x5555a9(0x1ff))[_0x5555a9(0x1fd)](_0x5555a9(0x1f5),function(){const _0x1a429c=_0x5555a9;document[_0x1a429c(0x1f9)](_0x1a429c(0x1de))[_0x1a429c(0x201)]=this[_0x1a429c(0x201)];}),document[_0x5555a9(0x1f9)](_0x5555a9(0x1f4))[_0x5555a9(0x1fd)](_0x5555a9(0x1f5),function(){const _0xc2ebc0=_0x5555a9;document[_0xc2ebc0(0x1f9)](_0xc2ebc0(0x1d0))[_0xc2ebc0(0x201)]=this['value'];}),document[_0x5555a9(0x1f9)]('reset')[_0x5555a9(0x1fd)]('click',function(){const _0x2d78c2=_0x5555a9;location[_0x2d78c2(0x1f0)]();}),document[_0x5555a9(0x1f9)](_0x5555a9(0x1c8))[_0x5555a9(0x1fd)](_0x5555a9(0x1df),function(){const _0x1a75b7=_0x5555a9,_0x5ba1a6=document[_0x1a75b7(0x1f9)](_0x1a75b7(0x1f1));_0x5ba1a6[_0x1a75b7(0x1c9)][_0x1a75b7(0x1c8)]==='none'?(_0x5ba1a6[_0x1a75b7(0x1c9)]['display']=_0x1a75b7(0x1f2),displayResult()):_0x5ba1a6[_0x1a75b7(0x1c9)][_0x1a75b7(0x1c8)]='none';}),window[_0x5555a9(0x1fd)]('resize',()=>{const _0x299650=_0x5555a9;camera[_0x299650(0x1dd)]=window['innerWidth']/window[_0x299650(0x1dc)],camera[_0x299650(0x1d4)](),renderer[_0x299650(0x1ce)](window[_0x299650(0x1fe)],window[_0x299650(0x1dc)]);});
+  addTitle(-70, 5, 130,"Boat Crossing a River",10, -Math.PI/2);
+}
+function loadBoat() {
+  const loader = new FBXLoader();
+  loader.load('../models/Boat.fbx', function (fbx) {
+    boat = fbx;
+    boat.scale.set(6, 6, 6);
+    boat.position.set(0, -7, 80);
+
+    boat.traverse(function (child) {
+      if (child.isMesh) {
+        child.material = new THREE.MeshStandardMaterial({
+          color: 0xffffff,      // 0x8B4513,  // SaddleBrown
+          metalness: 0.2,
+          roughness: 0.7
+        });
+      }
+    });
+
+    scene.add(boat);
+  }, undefined, function (error) {
+    console.error('Error loading FBX:', error);
+  });
+}
+function createVector(position, direction, length , color = 0xffff00, thickness = 0.8) {
+    const arrowLength = length;
+    const headLength = length/5;
+    const headWidth = headLength/2;
+
+    // Create a cylinder to represent the shaft of the vector
+    const shaftGeometry = new THREE.CylinderGeometry(thickness, thickness, arrowLength - headLength, 32); 
+    const shaftMaterial = new THREE.MeshBasicMaterial({ color: color });
+    
+    // Create the shaft and rotate it to align with the vector direction
+    const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+    shaft.position.copy(position);
+
+    // ArrowHelper only for the arrowhead
+    var arrowHelper = new THREE.ArrowHelper(direction, position, arrowLength, color, headLength, headWidth);
+
+    // Position the shaft correctly along the vector direction
+    const midpoint = new THREE.Vector3().addVectors(position, direction.clone().multiplyScalar((arrowLength - headLength) / 2));
+    shaft.position.copy(midpoint);
+    
+    // Rotate the shaft to match the direction of the vector
+    shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+
+    // Add both the shaft and arrowhead to the scene
+    scene.add(shaft);
+    scene.add(arrowHelper);
+
+    return { shaft, arrowHelper };
+}
+function displayResult() {
+  function _0x530d(){const _0x1b7d3a=['style','toFixed','MathUtils','block','336006XtPpHu','atan2','innerHTML','radToDeg','2017206zlybEI','°</span><br><br>\x0a\x0a\x20\x20\x20\x20<b>Water\x20relative\x20to\x20Shore\x20(V<sub>w/s</sub>):</b><br>\x0a\x20\x20\x20\x20Magnitude:\x20<span\x20style=\x22color:skyblue;\x22>','v_w_s','value','4900064RuebUA','5314323RWLIOX','add','\x20m/s</span><br>\x0a\x20\x20\x20\x20Direction:\x20Along\x20X\x20(sideways)<br><br>\x0a\x0a\x20\x20\x20\x20<b>Boat\x20relative\x20to\x20Shore\x20(V<sub>b/s</sub>):</b><br>\x0a\x20\x20\x20\x20Magnitude:\x20<span\x20style=\x22color:yellow;\x22>','4468AYvwzt','length','clone','°</span><br>\x0a\x20\x20\x20\x20(0°\x20=\x20directly\x20forward,\x20positive\x20=\x20to\x20right)\x0a\x20\x20','getElementById','\x20m/s</span><br>\x0a\x20\x20\x20\x20Aim\x20angle:\x20<span\x20style=\x22color:orange;\x22>','281393WHIjWA','17874jCAHRC','multiplyScalar','resultBox','\x20m/s</span><br>\x0a\x20\x20\x20\x20Angle\x20relative\x20to\x20Z-axis:\x20<span\x20style=\x22color:orange;\x22>','\x0a\x20\x20\x20\x20<b>Velocity\x20Calculations:</b><br><br>\x0a\x0a\x20\x20\x20\x20<b>Boat\x20relative\x20to\x20Water\x20(V<sub>b/w</sub>):</b><br>\x0a\x20\x20\x20\x20Magnitude:\x20<span\x20style=\x22color:lime;\x22>','v_b_w','display','3210pZdgli','2PYVeav','Vector3','3560XmgHTO'];_0x530d=function(){return _0x1b7d3a;};return _0x530d();}const _0x535a9b=_0x3676;(function(_0x7113c2,_0x47c1bb){const _0xa7a4cc=_0x3676,_0x5b41d7=_0x7113c2();while(!![]){try{const _0x347e42=parseInt(_0xa7a4cc(0x145))/0x1*(-parseInt(_0xa7a4cc(0x14e))/0x2)+parseInt(_0xa7a4cc(0x159))/0x3+parseInt(_0xa7a4cc(0x13f))/0x4*(-parseInt(_0xa7a4cc(0x150))/0x5)+parseInt(_0xa7a4cc(0x155))/0x6+parseInt(_0xa7a4cc(0x13c))/0x7+-parseInt(_0xa7a4cc(0x13b))/0x8+parseInt(_0xa7a4cc(0x146))/0x9*(parseInt(_0xa7a4cc(0x14d))/0xa);if(_0x347e42===_0x47c1bb)break;else _0x5b41d7['push'](_0x5b41d7['shift']());}catch(_0x429154){_0x5b41d7['push'](_0x5b41d7['shift']());}}}(_0x530d,0x6a6b5));function _0x3676(_0x235e74,_0x1286db){const _0x530df0=_0x530d();return _0x3676=function(_0x3676ae,_0x23683f){_0x3676ae=_0x3676ae-0x138;let _0xf6efeb=_0x530df0[_0x3676ae];return _0xf6efeb;},_0x3676(_0x235e74,_0x1286db);}const box=document[_0x535a9b(0x143)](_0x535a9b(0x148));if(!box)return;box[_0x535a9b(0x151)][_0x535a9b(0x14c)]=_0x535a9b(0x154);const vbw=parseFloat(document[_0x535a9b(0x143)](_0x535a9b(0x14b))[_0x535a9b(0x13a)]),vws=parseFloat(document['getElementById'](_0x535a9b(0x139))['value']),aimAngle=parseFloat(document['getElementById']('aim')['value']),aimRad=THREE['MathUtils']['degToRad'](aimAngle),boatDir=new THREE[(_0x535a9b(0x14f))](Math['sin'](aimRad),0x0,-Math['cos'](aimRad)),waterDir=new THREE['Vector3'](0x1,0x0,0x0),boatToShore=boatDir[_0x535a9b(0x141)]()[_0x535a9b(0x147)](vbw)[_0x535a9b(0x13d)](waterDir[_0x535a9b(0x141)]()['multiplyScalar'](vws)),vbs_mag=boatToShore[_0x535a9b(0x140)](),angleRad=Math[_0x535a9b(0x156)](boatToShore['x'],-boatToShore['z']),angleDeg=THREE[_0x535a9b(0x153)][_0x535a9b(0x158)](angleRad)[_0x535a9b(0x152)](0x2);box[_0x535a9b(0x157)]=_0x535a9b(0x14a)+vbw[_0x535a9b(0x152)](0x2)+_0x535a9b(0x144)+aimAngle+_0x535a9b(0x138)+vws[_0x535a9b(0x152)](0x2)+_0x535a9b(0x13e)+vbs_mag['toFixed'](0x2)+_0x535a9b(0x149)+angleDeg+_0x535a9b(0x142);
+}
+function addTitle(x,y,z,t,s,alpha){
+	fontloader.load("/api/program-assets/3jcn-simulation-boat-crossing/_ext/threejs.org/examples/fonts/droid/droid_serif_bold.typeface.json",function(tex){ 
+	    var  textGeo = new TextGeometry(t, {
+		    size: s,  
+		    height: s/7, 
+		    curveSegments: 6,
+		    font: tex,
+	    });
+	    var  textMaterial = new THREE.MeshLambertMaterial({color: "brown"});  
+	    var textMesh = new THREE.Mesh(textGeo , textMaterial);
+	    textMesh.rotation.x = alpha;
+	    textMesh.position.set(x,y,z);
+	    scene.add(textMesh);
+	});
+}
+function updateResult() {
+  const box = document.getElementById("resultBox");
+  if (!box) return;
+
+  const vbw = parseFloat(document.getElementById('v_b_w').value);
+  const vws = parseFloat(document.getElementById('v_w_s').value);
+  const aimAngle = parseFloat(document.getElementById('aim').value);
+
+  const aimRad = THREE.MathUtils.degToRad(aimAngle);
+  const boatDir = new THREE.Vector3(Math.sin(aimRad), 0, -Math.cos(aimRad));
+  const waterDir = new THREE.Vector3(1, 0, 0);
+
+  const boatToShore = boatDir.clone().multiplyScalar(vbw).add(waterDir.clone().multiplyScalar(vws));
+  const vbs_mag = boatToShore.length();
+  const angleRad = Math.atan2(boatToShore.x, -boatToShore.z);
+  const angleDeg = THREE.MathUtils.radToDeg(angleRad).toFixed(2);
+
+  box.innerHTML = `
+    <b>Velocity Calculations:</b><br><br>
+
+    <b>Boat relative to Water (V<sub>b/w</sub>):</b><br>
+    Magnitude: <span style="color:lime;">${vbw.toFixed(2)} m/s</span><br>
+    Aim angle: <span style="color:orange;">${aimAngle}°</span><br><br>
+
+    <b>Water relative to Shore (V<sub>w/s</sub>):</b><br>
+    Magnitude: <span style="color:skyblue;">${vws.toFixed(2)} m/s</span><br>
+    Direction: Along X (sideways)<br><br>
+
+    <b>Boat relative to Shore (V<sub>b/s</sub>):</b><br>
+    Magnitude: <span style="color:yellow;">${vbs_mag.toFixed(2)} m/s</span><br>
+    Angle relative to Z-axis: <span style="color:orange;">${angleDeg}°</span><br>
+    (0° = directly forward, positive = to right)
+  `;
+}
+function animate() {
+	const _0x18a1df=_0xa6b8;(function(_0x23e7a2,_0x35190a){const _0x3229a9=_0xa6b8,_0x188f09=_0x23e7a2();while(!![]){try{const _0x5b9150=-parseInt(_0x3229a9(0xe0))/0x1*(-parseInt(_0x3229a9(0xe6))/0x2)+-parseInt(_0x3229a9(0xf2))/0x3+-parseInt(_0x3229a9(0xf0))/0x4*(-parseInt(_0x3229a9(0xd6))/0x5)+parseInt(_0x3229a9(0xe9))/0x6+-parseInt(_0x3229a9(0xde))/0x7+-parseInt(_0x3229a9(0xe8))/0x8*(parseInt(_0x3229a9(0xd7))/0x9)+parseInt(_0x3229a9(0xe5))/0xa*(parseInt(_0x3229a9(0xdf))/0xb);if(_0x5b9150===_0x35190a)break;else _0x188f09['push'](_0x188f09['shift']());}catch(_0x2e1594){_0x188f09['push'](_0x188f09['shift']());}}}(_0x272f,0x2d034),requestAnimationFrame(animate));const delta=clock['getDelta'](),vbw=parseFloat(document[_0x18a1df(0xd8)](_0x18a1df(0xea))[_0x18a1df(0xd3)]),vws=parseFloat(document[_0x18a1df(0xd8)](_0x18a1df(0xdd))[_0x18a1df(0xd3)]),aimAngle=parseFloat(document[_0x18a1df(0xd8)](_0x18a1df(0xe4))[_0x18a1df(0xd3)]),aimRad=THREE['MathUtils'][_0x18a1df(0xec)](aimAngle),boatDir=new THREE[(_0x18a1df(0xd5))](Math[_0x18a1df(0xe3)](aimRad),0x0,-Math['cos'](aimRad)),waterDir=new THREE[(_0x18a1df(0xd5))](0x1,0x0,0x0),boatToShore=boatDir['clone']()[_0x18a1df(0xe7)](vbw)['add'](waterDir['clone']()[_0x18a1df(0xe7)](vws)),boatToShoreDir=boatToShore[_0x18a1df(0xdc)]()['normalize'](),boatToShoreLength=boatToShore['length']()*0x14;boat&&(boat['rotation']['y']=-aimRad);isStart&&boat[_0x18a1df(0xd9)]['z']>-0x5a&&(boat[_0x18a1df(0xd9)]['add'](boatDir[_0x18a1df(0xdc)]()[_0x18a1df(0xe7)](vbw*delta*0xa)),boat[_0x18a1df(0xd9)]['x']+=vws*delta*0xa);function _0x272f(){const _0x53ef4f=['value','waterToShore','Vector3','5835nkXPEP','9mlaOKv','getElementById','position','render','remove','clone','v_w_s','1745268IEBhPh','323807kiHcBA','73IvrTcK','material','offset','sin','aim','90lfXlsM','2774gDWDxE','multiplyScalar','1173392FVZlJb','1902408wpoEEy','v_b_w','time','degToRad','uniforms','boatToWater','boatToShore','900vguRSE','shaft','1096371nPVlyH','arrowHelper'];_0x272f=function(){return _0x53ef4f;};return _0x272f();}function _0xa6b8(_0x339aa2,_0x1ac8d4){const _0x272f39=_0x272f();return _0xa6b8=function(_0xa6b806,_0x20547b){_0xa6b806=_0xa6b806-0xd2;let _0x47723e=_0x272f39[_0xa6b806];return _0x47723e;},_0xa6b8(_0x339aa2,_0x1ac8d4);}waterNormals&&(waterNormals[_0x18a1df(0xe2)]['x']+=vws*delta*0.05);water[_0x18a1df(0xe1)][_0x18a1df(0xed)][_0x18a1df(0xeb)]&&(water['material'][_0x18a1df(0xed)]['time']['value']+=delta);const origin=new THREE[(_0x18a1df(0xd5))](-0xc8,0x2,0x32);velocityVectors[_0x18a1df(0xef)]&&(scene['remove'](velocityVectors[_0x18a1df(0xef)][_0x18a1df(0xf1)],velocityVectors[_0x18a1df(0xef)][_0x18a1df(0xd2)]),scene['remove'](velocityVectors['waterToShore']['shaft'],velocityVectors[_0x18a1df(0xd4)][_0x18a1df(0xd2)]),scene[_0x18a1df(0xdb)](velocityVectors['boatToWater'][_0x18a1df(0xf1)],velocityVectors[_0x18a1df(0xee)][_0x18a1df(0xd2)]));velocityVectors[_0x18a1df(0xee)]=createVector(origin['clone'](),boatDir[_0x18a1df(0xdc)](),vbw*0x14,0xff00),velocityVectors[_0x18a1df(0xd4)]=createVector(origin[_0x18a1df(0xdc)](),waterDir['clone'](),vws*0x14,0xff),velocityVectors[_0x18a1df(0xef)]=createVector(origin['clone'](),boatToShoreDir,boatToShoreLength,0xff0000),updateResult(),controls['update'](),renderer[_0x18a1df(0xda)](scene,camera);
+}
+</script>
+
+</body>
+</html>

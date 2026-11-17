@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>乐启享 · 物理实验</title>
+
+  <link rel="icon" href="/brand/favicon.ico">
+  <meta name="description" content="Free interactive 3D physics simulation of the Michelson-Morley experiment. Explore interferometer rotation, ether drift hypothesis, optical path difference, fringe shift, and the historic null result that challenged the luminiferous ether.">
+  <meta name="keywords" content="physics simulation, Michelson Morley experiment, ether drift, interferometer, fringe shift, speed of light, relativity, optics simulation, 3D physics simulation">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="author" content="乐启享课件库（改编自 Thomas Nguyen 的开源物理仿真）">
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #555;
+    }
+
+    #container {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    #info {
+      position: absolute;
+      top: 14px;
+      left: 10px;
+      width: 360px;
+      max-height: calc(100vh - 28px);
+      overflow-y: auto;
+      padding: 14px;
+      color: #fff;
+      background: linear-gradient(180deg, rgba(15,17,26,0.96), rgba(28,30,42,0.93));
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+      z-index: 10;
+    }
+
+    #info h1 {
+      margin: 0 0 12px 0;
+      color: #ffe95c;
+      font-size: 30px;
+      line-height: 1.05;
+      font-weight: 700;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    .btn:hover {
+      filter: brightness(1.08);
+    }
+
+    .btn-green  { background: #53b754; }
+    .btn-blue   { background: #3b82d6; }
+    .btn-orange { background: #f0ad4e; }
+    .btn-red    { background: #e35d52; }
+    .btn-cyan   { background: #4aa3df; }
+    .btn-purple { background: #7d63d8; }
+
+    .panelBox {
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      line-height: 1.45;
+      font-size: 16px;
+    }
+
+    .yellow { color: #ffe95c; }
+    .green  { color: #72ff95; }
+    .redtxt { color: #ff8d8d; }
+    .cyan   { color: #8fe7ff; }
+
+    #patternPanel {
+      position: absolute;
+      top: 14px;
+      right: 12px;
+      width: 360px;
+      padding: 12px;
+      color: white;
+      background: linear-gradient(180deg, rgba(15,17,26,0.96), rgba(28,30,42,0.93));
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+      z-index: 10;
+    }
+
+    #patternTitle {
+      font-size: 20px;
+      color: #ffe95c;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    #patternCanvas {
+      width: 100%;
+      height: 220px;
+      background: #000;
+      border-radius: 10px;
+      display: block;
+    }
+
+    #smallNote {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #ddd;
+      line-height: 1.35;
+    }
+
+    a.homeBtn {
+      display: inline-block;
+      text-decoration: none;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+<div id="container"></div>
+
+<div id="patternPanel">
+  <div id="patternTitle">Interference / Fringe Shift:</div>
+  <canvas id="patternCanvas" width="340" height="220"></canvas>
+  <div id="smallNote">
+    White = current intensity pattern. <br>
+    Cyan dashed = reference center. <br>
+    <span class="redtxt">Ether ON:</span> small shift appears during rotation. <br>
+    <span class="green">Ether OFF:</span> no measurable shift.
+  </div>
+</div>
+
+<div id="info">
+  <h1>Michelson-Morley<br>Experiment</h1>
+
+  <div class="btn-row">
+    <button class="btn btn-green" id="startBtn">Start Rotation</button>
+    <button class="btn btn-blue" id="stepBtn">Rotate 15°</button>
+    <button class="btn btn-orange" id="pauseBtn">Pause</button>
+    <button class="btn btn-red" id="resetBtn">Reset</button>
+    <button class="btn btn-cyan" id="etherBtn">Ether: OFF</button>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-purple" id="infoBtn">About Experiment</button>
+    
+  </div>
+
+  <div class="panelBox" id="readout">
+    <b>Mode:</b> <span id="modeText" class="yellow">Null result / no ether</span><br>
+    <b>Angle:</b> <span id="angleText">0.0°</span><br>
+    <b>Expected fringe shift:</b> <span id="shiftText">0.000</span><br>
+    <b>Interpretation:</b> <span id="interpText">No shift as apparatus rotates.</span>
+  </div>
+
+  <div class="panelBox">
+    <b>Key idea:</b><br>
+    A light beam is split into two perpendicular arms.<br>
+    The two beams reflect from mirrors, return to the beam splitter, and recombine to form interference fringes.
+    <br><br>
+    If Earth moved through a stationary ether, the round-trip times in the two arms should change as the apparatus rotates.
+  </div>
+
+  <div class="panelBox">
+    <b>Historical result:</b><br>
+    Michelson and Morley expected a fringe shift if ether wind existed.<br>
+    The observed result was essentially <span class="yellow">zero shift</span>, which helped undermine the ether idea and later supported Einstein’s relativity.
+  </div>
+</div>
+
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+	import * as THREE from 'three';
+	import { OrbitControls } from '/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+	import { RoundedBoxGeometry } from '/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js';
+	import { mergeGeometries } from '/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/unpkg.com/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js';
+	import { FontLoader } from '/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/unpkg.com/three@0.160.0/examples/jsm/loaders/FontLoader.js';
+	import { TextGeometry } from '/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/unpkg.com/three@0.160.0/examples/jsm/geometries/TextGeometry.js';
+
+let scene, camera, renderer, controls;
+let clock = new THREE['\u0043\u006C\u006F\u0063\u006B']();
+let _0x37328f;
+let font;
+_0x37328f = "nmoona";
+let _0x39ac;
+let apparatusGroup;
+_0x39ac = (290118 ^ 290115) + (939781 ^ 939782);
+let beam1, beam2, recombinedBeam;
+let detectorScreen;
+var _0xb5b = (218547 ^ 218551) + (261567 ^ 261558);
+let etherArrow;
+_0xb5b = (806716 ^ 806718) + (293891 ^ 293891);
+var _0x46e = (449244 ^ 449241) + (718026 ^ 718019);
+let running = false;
+_0x46e = (510926 ^ 510923) + (863764 ^ 863760);
+let paused = false;
+let etherOn = false;
+let etherParticles = [];
+const etherBounds = {
+  '\u0078\u004D\u0069\u006E': -(897074 ^ 897080),
+  '\u0078\u004D\u0061\u0078': 95,
+  "zMin": -(843171 ^ 843185),
+  "zMax": 18,
+  '\u0079': 0
+};
+let lightParticles = [];
+let sourceBeamPath, verticalBeamPath, horizontalBeamPath, detectorBeamPath;
+var _0xc328e = (747506 ^ 747510) + (626114 ^ 626113);
+let angleDeg = 816138 ^ 816138;
+_0xc328e = 755714 ^ 755715;
+var _0x9d2e7d = (368047 ^ 368044) + (972169 ^ 972172);
+let targetAngleDeg = 899432 ^ 899432;
+_0x9d2e7d = (734243 ^ 734250) + (978264 ^ 978270);
+let detectorGroup, detectorLens, detectorBody;
+let _0xe_0xc52;
+let floorMesh;
+_0xe_0xc52 = 835650 ^ 835658;
+var _0x6f_0xce3 = (359104 ^ 359106) + (922068 ^ 922068);
+const container = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("container");
+_0x6f_0xce3 = (204278 ^ 204273) + (274459 ^ 274451);
+const angleText = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0061\u006E\u0067\u006C\u0065\u0054\u0065\u0078\u0074");
+const shiftText = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("shiftText");
+var _0xfge = (473305 ^ 473311) + (874466 ^ 874470);
+const modeText = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u006D\u006F\u0064\u0065\u0054\u0065\u0078\u0074");
+_0xfge = (323555 ^ 323558) + (128805 ^ 128806);
+const interpText = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0069\u006E\u0074\u0065\u0072\u0070\u0054\u0065\u0078\u0074");
+const etherBtn = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0065\u0074\u0068\u0065\u0072\u0042\u0074\u006E");
+var _0xaf_0x7a5 = (528389 ^ 528397) + (705323 ^ 705327);
+const patternCanvas = document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("patternCanvas");
+_0xaf_0x7a5 = '\u0070\u0068\u0066\u0069\u0066\u0064';
+const pctx = patternCanvas['\u0067\u0065\u0074\u0043\u006F\u006E\u0074\u0065\u0078\u0074']("2d");
+var _0x72fc = (124392 ^ 124392) + (102567 ^ 102564);
+const ARM_LENGTH = 956749 ^ 956753;
+_0x72fc = '\u006D\u0068\u006B\u006C\u006A\u0067';
+var _0xa71a5e = (530103 ^ 530097) + (352939 ^ 352931);
+const LAMBDA_SCALE = 0.18;
+_0xa71a5e = "odjofh";
+var _0xb136fd = (104907 ^ 104907) + (695134 ^ 695134);
+const MAX_DISPLAY_SHIFT = 523499 ^ 523511;
+_0xb136fd = (537383 ^ 537382) + (801212 ^ 801211);
+init();
+animate();
+function init() {
+  renderer = new THREE['\u0057\u0065\u0062\u0047\u004C\u0052\u0065\u006E\u0064\u0065\u0072\u0065\u0072']({
+    "antialias": !![]
+  });
+  renderer['\u0073\u0065\u0074\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F'](window['\u0064\u0065\u0076\u0069\u0063\u0065\u0050\u0069\u0078\u0065\u006C\u0052\u0061\u0074\u0069\u006F']);
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+  container['\u0061\u0070\u0070\u0065\u006E\u0064\u0043\u0068\u0069\u006C\u0064'](renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  scene = new THREE['\u0053\u0063\u0065\u006E\u0065']();
+  scene['\u0062\u0061\u0063\u006B\u0067\u0072\u006F\u0075\u006E\u0064'] = new THREE['\u0043\u006F\u006C\u006F\u0072'](0x5f5f5f);
+  camera = new THREE['\u0050\u0065\u0072\u0073\u0070\u0065\u0063\u0074\u0069\u0076\u0065\u0043\u0061\u006D\u0065\u0072\u0061'](109239 ^ 109209, window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'], 0.1, 400017 ^ 400705);
+  camera['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](385917 ^ 385903, 935986 ^ 935978, 905310 ^ 905217);
+  controls = new OrbitControls(camera, renderer['\u0064\u006F\u006D\u0045\u006C\u0065\u006D\u0065\u006E\u0074']);
+  controls['\u0074\u0061\u0072\u0067\u0065\u0074']['\u0073\u0065\u0074'](518576 ^ 518562, 153221 ^ 153217, 959242 ^ 959242);
+  controls['\u0065\u006E\u0061\u0062\u006C\u0065\u0044\u0061\u006D\u0070\u0069\u006E\u0067'] = !![];
+  const _0x8256e = new THREE['\u0041\u006D\u0062\u0069\u0065\u006E\u0074\u004C\u0069\u0067\u0068\u0074'](0xffffff, 577921 ^ 577920);
+  scene['\u0061\u0064\u0064'](_0x8256e);
+  let _0xe40b;
+  const _0x54b0ce = new THREE['\u0044\u0069\u0072\u0065\u0063\u0074\u0069\u006F\u006E\u0061\u006C\u004C\u0069\u0067\u0068\u0074'](0xffffff, 0.9);
+  _0xe40b = (538755 ^ 538752) + (648276 ^ 648274);
+  _0x54b0ce['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](441607 ^ 441659, 832852 ^ 832772, 655676 ^ 655630);
+  scene['\u0061\u0064\u0064'](_0x54b0ce);
+  addBackdrop();
+  addInterferometer();
+  addEtherArrow();
+  addLabels();
+  drawPattern();
+  setupUI();
+  updateFloorVisibility();
+  window['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("resize", onWindowResize);
+}
+function addBackdrop() {
+  floorMesh = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0050\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](424426 ^ 424174, 169094 ^ 169010), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0x6d6d6d,
+    "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+  }));
+  floorMesh['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u0078'] = -Math['\u0050\u0049'] / (351257 ^ 351259);
+  floorMesh['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(992505 ^ 992483);
+  scene['\u0061\u0064\u0064'](floorMesh);
+  const _0xe3897a = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0050\u006C\u0061\u006E\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](347156 ^ 347408, 466732 ^ 466772), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x5e5e5e,
+    "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065']
+  }));
+  _0xe3897a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](705408 ^ 705408, 251259 ^ 251219, -(651426 ^ 651402));
+  scene['\u0061\u0064\u0064'](_0xe3897a);
+}
+function updateFloorVisibility() {
+  if (!floorMesh) return;
+  floorMesh['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = !(running || angleDeg !== (957126 ^ 957126));
+}
+function addInterferometer() {
+  apparatusGroup = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  apparatusGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = 731968 ^ 731988;
+  scene['\u0061\u0064\u0064'](apparatusGroup);
+  const _0xcgd = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](669925 ^ 669949, 696438 ^ 696430, 2.5, 804891 ^ 804905), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xc8c8c8
+  }));
+  _0xcgd['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -(661698 ^ 661723);
+  apparatusGroup['\u0061\u0064\u0064'](_0xcgd);
+  let _0x7909fb;
+  const _0x0063fc = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0043\u0079\u006C\u0069\u006E\u0064\u0065\u0072\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](869486 ^ 869503, 493365 ^ 493348, 1.3, 824767 ^ 824717), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xaaaaaa
+  }));
+  _0x7909fb = '\u0066\u006F\u0070\u006F\u006E\u006A';
+  _0x0063fc['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = -23.2;
+  apparatusGroup['\u0061\u0064\u0064'](_0x0063fc);
+  const _0x649a1a = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.35, 448193 ^ 448200, 620656 ^ 620663), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xdce8ff,
+    "transparent": !![],
+    '\u006F\u0070\u0061\u0063\u0069\u0074\u0079': 0.45,
+    '\u0073\u0068\u0069\u006E\u0069\u006E\u0065\u0073\u0073': 120,
+    "side": THREE['\u0044\u006F\u0075\u0062\u006C\u0065\u0053\u0069\u0064\u0065'],
+    "depthWrite": false
+  }));
+  _0x649a1a['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = -Math['\u0050\u0049'] / (339417 ^ 339421);
+  _0x649a1a['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](145439 ^ 145439, 319901 ^ 319901, 206000 ^ 206000);
+  apparatusGroup['\u0061\u0064\u0064'](_0x649a1a);
+  const _0x2a1c = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](362803 ^ 362811, 512567 ^ 512561, 476681 ^ 476687), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': 0xf0d000,
+    "emissive": 0x7a6700
+  }));
+  _0x2a1c['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](-(879953 ^ 879951), 975270 ^ 975270, 163166 ^ 163166);
+  apparatusGroup['\u0061\u0064\u0064'](_0x2a1c);
+  createDetector(apparatusGroup);
+  var _0x23c4ce = (300568 ^ 300570) + (974689 ^ 974697);
+  const _0xf8ab = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xe7e7e7,
+    "emissive": 0x222222
+  });
+  _0x23c4ce = "jhpkgm";
+  var _0xe6aec = (541073 ^ 541079) + (786699 ^ 786699);
+  const _0xd_0x1b5 = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](537571 ^ 537578, 1.2, 698112 ^ 698119), _0xf8ab);
+  _0xe6aec = '\u006F\u006E\u0070\u0069\u006F\u006E';
+  _0xd_0x1b5['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](575002 ^ 575002, ARM_LENGTH, 131462 ^ 131462);
+  apparatusGroup['\u0061\u0064\u0064'](_0xd_0x1b5);
+  const _0xb68g = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](1.2, 664861 ^ 664852, 134926 ^ 134921), _0xf8ab);
+  _0xb68g['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](ARM_LENGTH, 444887 ^ 444887, 653094 ^ 653094);
+  apparatusGroup['\u0061\u0064\u0064'](_0xb68g);
+  const _0x6ac = tubeLine([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(519379 ^ 519369), 523660 ^ 523660, 503506 ^ 503506), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](716352 ^ 716352, 370897 ^ 370897, 616094 ^ 616094)], 0xffdd33, 0.42);
+  apparatusGroup['\u0061\u0064\u0064'](_0x6ac);
+  beam1 = tubeLine([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](925645 ^ 925645, 755450 ^ 755450, 351828 ^ 351828), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](364698 ^ 364698, ARM_LENGTH, 957480 ^ 957480), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](575370 ^ 575370, 846681 ^ 846681, 599625 ^ 599625)], 0xff4b4b, 0.28);
+  apparatusGroup['\u0061\u0064\u0064'](beam1);
+  beam2 = tubeLine([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](157318 ^ 157318, 419812 ^ 419812, 685293 ^ 685293), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](ARM_LENGTH, 449398 ^ 449398, 800644 ^ 800644), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](159260 ^ 159260, 163403 ^ 163403, 880061 ^ 880061)], 0x47b5ff, 0.28);
+  apparatusGroup['\u0061\u0064\u0064'](beam2);
+  recombinedBeam = tubeLine([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](590181 ^ 590181, 509764 ^ 509764, 162465 ^ 162465), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](516858 ^ 516858, -15.15, 264416 ^ 264416)], 0xffffff, 0.30);
+  apparatusGroup['\u0061\u0064\u0064'](recombinedBeam);
+  sourceBeamPath = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033']([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(232236 ^ 232246), 441497 ^ 441497, 644933 ^ 644933), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](301762 ^ 301762, 638595 ^ 638595, 463463 ^ 463463)]);
+  verticalBeamPath = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033']([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](486369 ^ 486369, 710288 ^ 710288, 152746 ^ 152746), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](843376 ^ 843376, ARM_LENGTH, 653312 ^ 653312), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](224143 ^ 224143, 748696 ^ 748696, 771004 ^ 771004)]);
+  horizontalBeamPath = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033']([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](430516 ^ 430516, 772259 ^ 772259, 882697 ^ 882697), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](ARM_LENGTH, 968349 ^ 968349, 787189 ^ 787189), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](432341 ^ 432341, 234988 ^ 234988, 768486 ^ 768486)]);
+  detectorBeamPath = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033']([new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](989264 ^ 989264, 949608 ^ 949608, 316420 ^ 316420), new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](389390 ^ 389390, -15.15, 150727 ^ 150727)]);
+  createLightParticles();
+}
+function createDetector(parentGroup) {
+  detectorGroup = new THREE['\u0047\u0072\u006F\u0075\u0070']();
+  const _0xcgf8fb = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](558777 ^ 558777, -(824333 ^ 824351), 829779 ^ 829779);
+  detectorBody = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](730281 ^ 730282, 864991 ^ 865023, 496350 ^ 496382), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x9d9d9d,
+    "shininess": 90
+  }));
+  detectorGroup['\u0061\u0064\u0064'](detectorBody);
+  detectorLens = new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.95, 319676 ^ 319652, 877193 ^ 877201), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0x050505,
+    '\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065': 0x080808,
+    '\u0073\u0068\u0069\u006E\u0069\u006E\u0065\u0073\u0073': 120
+  }));
+  detectorLens['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](197550 ^ 197550, 2.85, 934207 ^ 934207);
+  detectorGroup['\u0061\u0064\u0064'](detectorLens);
+  detectorGroup['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0xcgf8fb);
+  parentGroup['\u0061\u0064\u0064'](detectorGroup);
+}
+function createLightParticle(color = 0xffff66, radius = 0.45) {
+  return new THREE['\u004D\u0065\u0073\u0068'](new THREE['\u0053\u0070\u0068\u0065\u0072\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](radius, 326549 ^ 326555, 113193 ^ 113191), new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color,
+    '\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065': new THREE['\u0043\u006F\u006C\u006F\u0072'](color)['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](0.9),
+    '\u0073\u0068\u0069\u006E\u0069\u006E\u0065\u0073\u0073': 100,
+    '\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074': !![],
+    '\u006F\u0070\u0061\u0063\u0069\u0074\u0079': 0.95
+  }));
+}
+function createLightParticles() {
+  const _0x91333c = [{
+    '\u0070\u0061\u0074\u0068': sourceBeamPath,
+    '\u0063\u006F\u006C\u006F\u0072': 0xffee55,
+    '\u0073\u0070\u0065\u0065\u0064': 0.55 * (927773 ^ 927775),
+    "count": 4
+  }, {
+    '\u0070\u0061\u0074\u0068': verticalBeamPath,
+    '\u0063\u006F\u006C\u006F\u0072': 0xff4b4b,
+    '\u0073\u0070\u0065\u0065\u0064': 0.28 * (484412 ^ 484414),
+    '\u0063\u006F\u0075\u006E\u0074': 3
+  }, {
+    '\u0070\u0061\u0074\u0068': horizontalBeamPath,
+    '\u0063\u006F\u006C\u006F\u0072': 0x47b5ff,
+    '\u0073\u0070\u0065\u0065\u0064': 0.28 * (403637 ^ 403639),
+    "count": 3
+  }, {
+    "path": detectorBeamPath,
+    "color": 0xffffff,
+    '\u0073\u0070\u0065\u0065\u0064': 0.42 * (913083 ^ 913081),
+    "count": 4
+  }];
+  for (const _0xga60e of _0x91333c) {
+    for (let i = 822108 ^ 822108; i < _0xga60e['\u0063\u006F\u0075\u006E\u0074']; i++) {
+      const _0x7f1d = createLightParticle(_0xga60e['\u0063\u006F\u006C\u006F\u0072'], _0xga60e['\u0070\u0061\u0074\u0068'] === sourceBeamPath ? 0.42 * (310024 ^ 310026) : 0.35 * (506165 ^ 506167));
+      _0x7f1d['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0070\u0061\u0074\u0068'] = _0xga60e['\u0070\u0061\u0074\u0068'];
+      _0x7f1d['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0070\u0065\u0065\u0064'] = _0xga60e['\u0073\u0070\u0065\u0065\u0064'];
+      _0x7f1d['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074'] = i / _0xga60e['\u0063\u006F\u0075\u006E\u0074'];
+      let _0x11141f;
+      const p = _0xga60e['\u0070\u0061\u0074\u0068']['\u0067\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0041\u0074'](_0x7f1d['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074']);
+      _0x11141f = (204387 ^ 204390) + (994412 ^ 994412);
+      _0x7f1d['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](p);
+      apparatusGroup['\u0061\u0064\u0064'](_0x7f1d);
+      lightParticles['\u0070\u0075\u0073\u0068'](_0x7f1d);
+    }
+  }
+}
+function createEtherParticles() {
+  const _0x8c2f = 384398 ^ 384438;
+  let _0x6398e;
+  const _0x199fe = new THREE['\u0042\u006F\u0078\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](0.9, 0.12, 0.12);
+  _0x6398e = (922523 ^ 922522) + (225829 ^ 225824);
+  const _0xa4c2b = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    "color": 0xffffff,
+    '\u0074\u0072\u0061\u006E\u0073\u0070\u0061\u0072\u0065\u006E\u0074': !![],
+    "opacity": 0.9
+  });
+  for (let i = 287308 ^ 287308; i < _0x8c2f; i++) {
+    let _0xc2dce;
+    const p = new THREE['\u004D\u0065\u0073\u0068'](_0x199fe, _0xa4c2b['\u0063\u006C\u006F\u006E\u0065']());
+    _0xc2dce = 520136 ^ 520142;
+    const _0xe3693c = i % (995031 ^ 995029) === (959079 ^ 959079) ? -1.6 : 1.6;
+    p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0073\u0065\u0074'](THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u006C\u0065\u0072\u0070'](etherBounds['\u0078\u004D\u0069\u006E'], etherBounds['\u0078\u004D\u0061\u0078'], Math['\u0072\u0061\u006E\u0064\u006F\u006D']()), etherBounds['\u0079'] + _0xe3693c + (Math['\u0072\u0061\u006E\u0064\u006F\u006D']() - 0.5) * 3.2, THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u006C\u0065\u0072\u0070'](etherBounds['\u007A\u004D\u0069\u006E'], etherBounds['\u007A\u004D\u0061\u0078'], Math['\u0072\u0061\u006E\u0064\u006F\u006D']()));
+    p['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0070\u0065\u0065\u0064'] = (422969 ^ 422955) + Math['\u0072\u0061\u006E\u0064\u006F\u006D']() * (103198 ^ 103192);
+    p['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u006C\u0069\u006E\u006B'] = Math['\u0072\u0061\u006E\u0064\u006F\u006D']() * Math['\u0050\u0049'] * (214860 ^ 214862);
+    p['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0079\u0065\u0072\u004F\u0066\u0066\u0073\u0065\u0074'] = _0xe3693c;
+    scene['\u0061\u0064\u0064'](p);
+    etherParticles['\u0070\u0075\u0073\u0068'](p);
+  }
+}
+function updateEtherParticles(dt) {
+  for (const p of etherParticles) {
+    if (etherOn) {
+      p['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = !![];
+      p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] += p['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0070\u0065\u0065\u0064'] * dt;
+      p['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u006F\u0070\u0061\u0063\u0069\u0074\u0079'] = 0.45 + 0.45 * Math['\u0073\u0069\u006E'](performance['\u006E\u006F\u0077']() * 0.006 + p['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0062\u006C\u0069\u006E\u006B']);
+      if (p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] > etherBounds['\u0078\u004D\u0061\u0078']) {
+        p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0078'] = etherBounds['\u0078\u004D\u0069\u006E'];
+        p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0079'] = etherBounds['\u0079'] + p['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u006C\u0061\u0079\u0065\u0072\u004F\u0066\u0066\u0073\u0065\u0074'] + (Math['\u0072\u0061\u006E\u0064\u006F\u006D']() - 0.5) * 3.2;
+        p['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u007A'] = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u006C\u0065\u0072\u0070'](etherBounds['\u007A\u004D\u0069\u006E'], etherBounds['\u007A\u004D\u0061\u0078'], Math['\u0072\u0061\u006E\u0064\u006F\u006D']());
+      }
+    } else {
+      p['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = false;
+    }
+  }
+}
+function updateLightParticles(dt) {
+  for (const _0x2_0x737 of lightParticles) {
+    _0x2_0x737['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074'] += _0x2_0x737['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0073\u0070\u0065\u0065\u0064'] * dt * 0.25;
+    if (_0x2_0x737['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074'] > (759372 ^ 759373)) {
+      _0x2_0x737['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074'] -= 393704 ^ 393705;
+    }
+    const _0x3_0x162 = _0x2_0x737['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0070\u0061\u0074\u0068']['\u0067\u0065\u0074\u0050\u006F\u0069\u006E\u0074\u0041\u0074'](_0x2_0x737['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074']);
+    _0x2_0x737['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](_0x3_0x162);
+    let _0x9f086g;
+    const s = 0.9 + 0.25 * Math['\u0073\u0069\u006E'](performance['\u006E\u006F\u0077']() * 0.01 + _0x2_0x737['\u0075\u0073\u0065\u0072\u0044\u0061\u0074\u0061']['\u0074'] * (174904 ^ 174892));
+    _0x9f086g = (842596 ^ 842596) + (801957 ^ 801953);
+    _0x2_0x737['\u0073\u0063\u0061\u006C\u0065']['\u0073\u0065\u0074\u0053\u0063\u0061\u006C\u0061\u0072'](s);
+  }
+}
+function addEtherArrow() {
+  const _0x9da9a = new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](105855 ^ 105854, 723123 ^ 723123, 331111 ^ 331111);
+  etherArrow = new THREE['\u0041\u0072\u0072\u006F\u0077\u0048\u0065\u006C\u0070\u0065\u0072'](_0x9da9a, new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](983286 ^ 983244, -(526347 ^ 526343), 511644 ^ 511644), 391345 ^ 391331, 0x38f6e8, 347046 ^ 347042, 256209 ^ 256211);
+  scene['\u0061\u0064\u0064'](etherArrow);
+  const _0xc029ff = new FontLoader();
+  _0xc029ff['\u006C\u006F\u0061\u0064']("\u0068\u0074\u0074\u0070\u0073\u003A\u002F\u002F\u0074\u0068\u0072\u0065\u0065\u006A\u0073\u002E\u006F\u0072\u0067\u002F\u0065\u0078\u0061\u006D\u0070\u006C\u0065\u0073\u002F\u0066\u006F\u006E\u0074\u0073\u002F\u0068\u0065\u006C\u0076\u0065\u0074\u0069\u006B\u0065\u0072\u005F\u0072\u0065\u0067\u0075\u006C\u0061\u0072\u002E\u0074\u0079\u0070\u0065\u0066\u0061\u0063\u0065\u002E\u006A\u0073\u006F\u006E", f => {
+    font = f;
+    addText("Ether wind", new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](827604 ^ 827538, -(607304 ^ 607303), 299440 ^ 299440), 2.2, 0xffffff, scene);
+  });
+  createEtherParticles();
+}
+function addLabels() {
+  const _0x399a7a = new FontLoader();
+  _0x399a7a['\u006C\u006F\u0061\u0064']("/api/program-assets/3jcn-simulation-michelson-morley-exp/_ext/threejs.org/examples/fonts/helvetiker_regular.typeface.json", f => {
+    font = f;
+    addText("\u004C\u0069\u0067\u0068\u0074\u0020\u0073\u006F\u0075\u0072\u0063\u0065", new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(516980 ^ 516974), 268699 ^ 268700, 867750 ^ 867750), 122927 ^ 122925, 0xffffff, apparatusGroup);
+    addText("\u0042\u0065\u0061\u006D\u0020\u0073\u0070\u006C\u0069\u0074\u0074\u0065\u0072", new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(310027 ^ 310019), -(656961 ^ 656967), 160139 ^ 160139), 456213 ^ 456215, 0xffffff, apparatusGroup);
+    addText("\u004D\u0069\u0072\u0072\u006F\u0072", new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](-(540644 ^ 540642), ARM_LENGTH + (470692 ^ 470689), 986823 ^ 986823), 220343 ^ 220341, 0xffffff, apparatusGroup);
+    addText("Mirror", new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](ARM_LENGTH - (751926 ^ 751924), 626601 ^ 626593, 847196 ^ 847196), 234186 ^ 234184, 0xffffff, apparatusGroup);
+    addText("\u0044\u0065\u0074\u0065\u0063\u0074\u006F\u0072", new THREE['\u0056\u0065\u0063\u0074\u006F\u0072\u0033'](364197 ^ 364204, -(652095 ^ 652077), 145378 ^ 145378), 526318 ^ 526316, 0xffffff, apparatusGroup);
+  });
+}
+function addText(text, pos, size, color, parent) {
+  if (!font) return;
+  const _0x24bfa = new TextGeometry(text, {
+    '\u0066\u006F\u006E\u0074': font,
+    "size": size,
+    "height": 0.35,
+    '\u0062\u0065\u0076\u0065\u006C\u0045\u006E\u0061\u0062\u006C\u0065\u0064': false
+  });
+  _0x24bfa['\u0063\u0065\u006E\u0074\u0065\u0072']();
+  var _0x8735aa = (372360 ^ 372361) + (122154 ^ 122157);
+  const _0x3e316b = new THREE['\u004D\u0065\u0073\u0068\u0042\u0061\u0073\u0069\u0063\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color
+  });
+  _0x8735aa = '\u0069\u006F\u0064\u0067\u006E\u0065';
+  const _0x5c55fb = new THREE['\u004D\u0065\u0073\u0068'](_0x24bfa, _0x3e316b);
+  _0x5c55fb['\u0070\u006F\u0073\u0069\u0074\u0069\u006F\u006E']['\u0063\u006F\u0070\u0079'](pos);
+  parent['\u0061\u0064\u0064'](_0x5c55fb);
+}
+function tubeLine(points, color, radius) {
+  var _0x71f7f = (311768 ^ 311773) + (697443 ^ 697450);
+  const _0xc_0xa3g = new THREE['\u0043\u0061\u0074\u006D\u0075\u006C\u006C\u0052\u006F\u006D\u0043\u0075\u0072\u0076\u0065\u0033'](points);
+  _0x71f7f = '\u0067\u0061\u006A\u0071\u006E\u006F';
+  const _0x4_0xae0 = new THREE['\u0054\u0075\u0062\u0065\u0047\u0065\u006F\u006D\u0065\u0074\u0072\u0079'](_0xc_0xa3g, 664464 ^ 664512, radius, 279250 ^ 279262, false);
+  let _0xcb6ba;
+  const _0x28gf = new THREE['\u004D\u0065\u0073\u0068\u0050\u0068\u006F\u006E\u0067\u004D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']({
+    '\u0063\u006F\u006C\u006F\u0072': color,
+    "emissive": new THREE['\u0043\u006F\u006C\u006F\u0072'](color)['\u006D\u0075\u006C\u0074\u0069\u0070\u006C\u0079\u0053\u0063\u0061\u006C\u0061\u0072'](0.45)
+  });
+  _0xcb6ba = (749399 ^ 749399) + (412722 ^ 412725);
+  return new THREE['\u004D\u0065\u0073\u0068'](_0x4_0xae0, _0x28gf);
+}
+function setupUI() {
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("startBtn")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("click", () => {
+    running = !![];
+    paused = false;
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("pauseBtn")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+    updateFloorVisibility();
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("stepBtn")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("click", () => {
+    targetAngleDeg += 336916 ^ 336923;
+    running = false;
+    paused = false;
+    updateApparatusInstant(315602 ^ 315613);
+    updateFloorVisibility();
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+    paused = !paused;
+    document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = paused ? "Resume" : "\u0050\u0061\u0075\u0073\u0065";
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0072\u0065\u0073\u0065\u0074\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", resetSimulation);
+  etherBtn['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+    etherOn = !etherOn;
+    etherBtn['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = etherOn ? "Ether: ON" : "Ether: OFF";
+    modeText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = etherOn ? "\u0048\u0079\u0070\u006F\u0074\u0068\u0065\u0074\u0069\u0063\u0061\u006C\u0020\u0065\u0074\u0068\u0065\u0072\u0020\u0064\u0072\u0069\u0066\u0074" : "Null result / no ether";
+    interpText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = etherOn ? "Small fringe shift predicted as apparatus rotates." : "No shift as apparatus rotates.";
+    for (const p of etherParticles) {
+      p['\u0076\u0069\u0073\u0069\u0062\u006C\u0065'] = etherOn;
+    }
+    drawPattern();
+    updateReadout();
+  });
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0069\u006E\u0066\u006F\u0042\u0074\u006E")['\u0061\u0064\u0064\u0045\u0076\u0065\u006E\u0074\u004C\u0069\u0073\u0074\u0065\u006E\u0065\u0072']("\u0063\u006C\u0069\u0063\u006B", () => {
+    alert(`Michelson-Morley Experiment
+
+1. A beam of light is split into two perpendicular paths.
+2. Each beam reflects from a mirror and returns.
+3. When the beams recombine, they form interference fringes.
+
+Ether hypothesis:
+If light traveled through a stationary ether, Earth moving through it should make one arm effectively slower than the other depending on orientation.`);
+    alert(`Historic conclusion
+
+As the apparatus was rotated, the expected fringe shift was not found.
+This null result was a major reason physicists abandoned the ether idea.
+
+Modern interpretation:
+The speed of light is the same in all inertial frames, consistent with special relativity.`);
+  });
+}
+function updateApparatusInstant(addDeg) {
+  angleDeg += addDeg;
+  apparatusGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0064\u0065\u0067\u0054\u006F\u0052\u0061\u0064'](angleDeg);
+  drawPattern();
+  updateReadout();
+  updateFloorVisibility();
+}
+function resetSimulation() {
+  running = false;
+  paused = false;
+  angleDeg = 643741 ^ 643741;
+  targetAngleDeg = 446598 ^ 446598;
+  apparatusGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = 376379 ^ 376379;
+  document['\u0067\u0065\u0074\u0045\u006C\u0065\u006D\u0065\u006E\u0074\u0042\u0079\u0049\u0064']("\u0070\u0061\u0075\u0073\u0065\u0042\u0074\u006E")['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0050\u0061\u0075\u0073\u0065";
+  drawPattern();
+  updateReadout();
+  updateFloorVisibility();
+}
+function animate() {
+  requestAnimationFrame(animate);
+  const _0x99febg = Math['\u006D\u0069\u006E'](clock['\u0067\u0065\u0074\u0044\u0065\u006C\u0074\u0061'](), 0.03);
+  if (running && !paused) {
+    angleDeg += (965901 ^ 965919) * _0x99febg;
+    if (angleDeg >= (406550 ^ 406910)) angleDeg -= 544648 ^ 544480;
+    apparatusGroup['\u0072\u006F\u0074\u0061\u0074\u0069\u006F\u006E']['\u007A'] = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0064\u0065\u0067\u0054\u006F\u0052\u0061\u0064'](angleDeg);
+    drawPattern();
+    updateReadout();
+  }
+  beamPulseAnimation(performance['\u006E\u006F\u0077']() * 0.001);
+  if (!paused) {
+    updateLightParticles(_0x99febg);
+    updateEtherParticles(_0x99febg);
+  }
+  controls['\u0075\u0070\u0064\u0061\u0074\u0065']();
+  renderer['\u0072\u0065\u006E\u0064\u0065\u0072'](scene, camera);
+}
+function beamPulseAnimation(t) {
+  const _0xb_0x28e = 0.75 + 0.25 * Math['\u0073\u0069\u006E']((225005 ^ 224997) * t);
+  const _0xd3c22d = 0.75 + 0.25 * Math['\u0073\u0069\u006E']((387482 ^ 387474) * t + 1.5);
+  const _0xd7agfc = 0.75 + 0.25 * Math['\u0073\u0069\u006E']((700075 ^ 700067) * t + 0.7);
+  beam1['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079'] = _0xb_0x28e;
+  beam2['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079'] = _0xd3c22d;
+  recombinedBeam['\u006D\u0061\u0074\u0065\u0072\u0069\u0061\u006C']['\u0065\u006D\u0069\u0073\u0073\u0069\u0076\u0065\u0049\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079'] = _0xd7agfc;
+}
+function predictedFringeShift() {
+  if (!etherOn) return 582249 ^ 582249;
+  const _0xgb_0x843 = THREE['\u004D\u0061\u0074\u0068\u0055\u0074\u0069\u006C\u0073']['\u0064\u0065\u0067\u0054\u006F\u0052\u0061\u0064'](angleDeg);
+  return 0.65 * Math['\u0063\u006F\u0073']((280268 ^ 280270) * _0xgb_0x843);
+}
+function drawPattern() {
+  const w = patternCanvas['\u0077\u0069\u0064\u0074\u0068'];
+  const h = patternCanvas['\u0068\u0065\u0069\u0067\u0068\u0074'];
+  pctx['\u0063\u006C\u0065\u0061\u0072\u0052\u0065\u0063\u0074'](898656 ^ 898656, 502720 ^ 502720, w, h);
+  pctx['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "#000";
+  pctx['\u0066\u0069\u006C\u006C\u0052\u0065\u0063\u0074'](942212 ^ 942212, 795591 ^ 795591, w, h);
+  var _0xca26fc = (875315 ^ 875318) + (171196 ^ 171198);
+  const _0x8ccc4f = 139234 ^ 139206;
+  _0xca26fc = 213059 ^ 213061;
+  const _0x5_0x395 = 682428 ^ 682414;
+  var _0x4697a = (151756 ^ 151753) + (704918 ^ 704915);
+  const _0x5d4ceb = w - (936386 ^ 936440);
+  _0x4697a = '\u006F\u0065\u0069\u0065\u0065\u0063';
+  var _0xa3g1d = (482625 ^ 482624) + (125694 ^ 125691);
+  const _0x8a84db = h - (151219 ^ 151193);
+  _0xa3g1d = (869089 ^ 869092) + (800423 ^ 800430);
+  pctx['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "\u0072\u0067\u0062\u0061\u0028\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0032\u0035\u0035\u002C\u0030\u002E\u0039\u0029";
+  pctx['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 1.6;
+  pctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  pctx['\u006D\u006F\u0076\u0065\u0054\u006F'](_0x8ccc4f, _0x5_0x395);
+  pctx['\u006C\u0069\u006E\u0065\u0054\u006F'](_0x8ccc4f, _0x5_0x395 + _0x8a84db);
+  pctx['\u006C\u0069\u006E\u0065\u0054\u006F'](_0x8ccc4f + _0x5d4ceb, _0x5_0x395 + _0x8a84db);
+  pctx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  pctx['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = "#fff";
+  pctx['\u0066\u006F\u006E\u0074'] = "18px Arial";
+  pctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u0062\u0072\u0069\u0067\u0068\u0074\u006E\u0065\u0073\u0073", _0x8ccc4f + (562230 ^ 562238), _0x5_0x395 + (681735 ^ 681747));
+  pctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("position", _0x8ccc4f + _0x5d4ceb * 0.40, _0x5_0x395 + _0x8a84db + (811718 ^ 811730));
+  pctx['\u0073\u0061\u0076\u0065']();
+  pctx['\u0074\u0072\u0061\u006E\u0073\u006C\u0061\u0074\u0065'](_0x8ccc4f - (221729 ^ 221749), _0x5_0x395 + _0x8a84db * 0.65);
+  pctx['\u0072\u006F\u0074\u0061\u0074\u0065'](-Math['\u0050\u0049'] / (859194 ^ 859192));
+  pctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074']("\u0069\u006E\u0074\u0065\u006E\u0073\u0069\u0074\u0079", 558631 ^ 558631, 590707 ^ 590707);
+  pctx['\u0072\u0065\u0073\u0074\u006F\u0072\u0065']();
+  const _0xfb291f = predictedFringeShift();
+  var _0x6febd = (100634 ^ 100638) + (155829 ^ 155828);
+  const _0xd26d8c = _0x8ccc4f + _0x5d4ceb * 0.5;
+  _0x6febd = (527015 ^ 527015) + (142244 ^ 142253);
+  const _0x8587a = _0xfb291f * MAX_DISPLAY_SHIFT * LAMBDA_SCALE;
+  pctx['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "\u0072\u0067\u0062\u0061\u0028\u0039\u0030\u002C\u0032\u0033\u0030\u002C\u0032\u0035\u0035\u002C\u0030\u002E\u0039\u0029";
+  pctx['\u0073\u0065\u0074\u004C\u0069\u006E\u0065\u0044\u0061\u0073\u0068']([321831 ^ 321825, 347606 ^ 347603]);
+  pctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  pctx['\u006D\u006F\u0076\u0065\u0054\u006F'](_0xd26d8c, _0x5_0x395 + (947292 ^ 947290));
+  pctx['\u006C\u0069\u006E\u0065\u0054\u006F'](_0xd26d8c, _0x5_0x395 + _0x8a84db);
+  pctx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  pctx['\u0073\u0065\u0074\u004C\u0069\u006E\u0065\u0044\u0061\u0073\u0068']([]);
+  pctx['\u0062\u0065\u0067\u0069\u006E\u0050\u0061\u0074\u0068']();
+  for (let i = 713167 ^ 713167; i <= (125800 ^ 125596); i++) {
+    const u = i / (434999 ^ 434883);
+    var _0xf_0xa3e = (542078 ^ 542071) + (219554 ^ 219552);
+    const x = _0x8ccc4f + u * _0x5d4ceb;
+    _0xf_0xa3e = '\u006D\u006F\u006D\u006E\u0069\u0062';
+    const _0xed_0x438 = (x - _0xd26d8c - _0x8587a) / (218462 ^ 218444);
+    const _0x89e3c = Math['\u0065\u0078\u0070'](-Math['\u0070\u006F\u0077']((x - _0xd26d8c) / (311746 ^ 311738), 356027 ^ 356025));
+    const _0x356f3e = 0.52 + 0.42 * _0x89e3c * Math['\u0063\u006F\u0073'](_0xed_0x438 * 2.4) * Math['\u0063\u006F\u0073'](_0xed_0x438 * 2.4);
+    let _0xd7c29d;
+    const y = _0x5_0x395 + _0x8a84db - _0x356f3e * (_0x8a84db - (821726 ^ 821714));
+    _0xd7c29d = 417569 ^ 417571;
+    if (i === (209624 ^ 209624)) pctx['\u006D\u006F\u0076\u0065\u0054\u006F'](x, y);else pctx['\u006C\u0069\u006E\u0065\u0054\u006F'](x, y);
+  }
+  pctx['\u0073\u0074\u0072\u006F\u006B\u0065\u0053\u0074\u0079\u006C\u0065'] = "\u0023\u0066\u0066\u0066\u0066\u0066\u0066";
+  pctx['\u006C\u0069\u006E\u0065\u0057\u0069\u0064\u0074\u0068'] = 2.3;
+  pctx['\u0073\u0074\u0072\u006F\u006B\u0065']();
+  pctx['\u0066\u0069\u006C\u006C\u0053\u0074\u0079\u006C\u0065'] = etherOn ? "#ff8d8d" : "\u0023\u0037\u0032\u0066\u0066\u0039\u0035";
+  pctx['\u0066\u006F\u006E\u0074'] = "\u0031\u0036\u0070\u0078\u0020\u0041\u0072\u0069\u0061\u006C";
+  pctx['\u0066\u0069\u006C\u006C\u0054\u0065\u0078\u0074'](etherOn ? "\u0065\u0074\u0068\u0065\u0072\u0020\u0068\u0079\u0070\u006F\u0074\u0068\u0065\u0073\u0069\u0073\u003A\u0020\u0073\u0068\u0069\u0066\u0074\u0065\u0064\u0020\u0066\u0072\u0069\u006E\u0067\u0065\u0073" : "null result: no shift", _0x8ccc4f + (653314 ^ 653322), _0x5_0x395 + (556548 ^ 556690));
+}
+function updateReadout() {
+  const _0x357d = predictedFringeShift();
+  angleText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = `${angleDeg['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](753360 ^ 753361)}°`;
+  shiftText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = _0x357d['\u0074\u006F\u0046\u0069\u0078\u0065\u0064'](826790 ^ 826789);
+  if (!etherOn) {
+    interpText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "No shift as apparatus rotates.";
+  } else {
+    if (Math['\u0061\u0062\u0073'](_0x357d) < 0.05) interpText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "Near zero shift at this angle.";else if (_0x357d > (442067 ^ 442067)) interpText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "\u0046\u0072\u0069\u006E\u0067\u0065\u0073\u0020\u0073\u0068\u0069\u0066\u0074\u0020\u0074\u006F\u0020\u0074\u0068\u0065\u0020\u0072\u0069\u0067\u0068\u0074\u002E";else interpText['\u0074\u0065\u0078\u0074\u0043\u006F\u006E\u0074\u0065\u006E\u0074'] = "Fringes shift to the left.";
+  }
+}
+function onWindowResize() {
+  camera['\u0061\u0073\u0070\u0065\u0063\u0074'] = window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'] / window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074'];
+  camera['\u0075\u0070\u0064\u0061\u0074\u0065\u0050\u0072\u006F\u006A\u0065\u0063\u0074\u0069\u006F\u006E\u004D\u0061\u0074\u0072\u0069\u0078']();
+  renderer['\u0073\u0065\u0074\u0053\u0069\u007A\u0065'](window['\u0069\u006E\u006E\u0065\u0072\u0057\u0069\u0064\u0074\u0068'], window['\u0069\u006E\u006E\u0065\u0072\u0048\u0065\u0069\u0067\u0068\u0074']);
+}
+
+</script>
+</body>
+</html>

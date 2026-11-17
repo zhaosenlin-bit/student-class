@@ -9,10 +9,16 @@
  * The published site hands this job to a hosted module; the local copy
  * keeps the same contract and stores everything in localStorage.
  */
-const LONG_MARCH = 'turing-long-march-save-v1';
-const PK180 = 'turing-pk180-banks-v1';
+/*
+ * These two names are the contract between the work and the page that
+ * hosts it: the work announces "<name>:ready" and waits for an answer
+ * that carries the same name.  Both halves carry the name of this
+ * library, so the work was renamed to match.
+ */
+const LONG_MARCH = 'leqixiang-long-march-save-v1';
+const PK180 = 'leqixiang-pk180-banks-v1';
 const BANK_KEY = 'leqixiang.pk180.banks';
-const SAVE_KEY = 'leqixiang.turing.save';
+const SAVE_KEY = 'leqixiang.course.save';
 
 function readJson(key, fallback) {
   try {

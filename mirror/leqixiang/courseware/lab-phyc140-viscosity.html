@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	
+<title>乐启享 · 物理实验</title>
+<script type="application/ld+json">
+{
+  "@context": "http://schema.org",
+  "@type": "WebSite",
+  "@id":"/courseware/lab-phyc140-viscosity.html",
+  "name": "Best Physics Simulations for Education",
+  "description": "Free interactive tools for students and teachers.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Example Organization"
+  }
+}
+</script>
+<link rel="icon" href="/brand/favicon.ico">
+<link rel="stylesheet" href="/api/program-assets/lab-phyc140-viscosity/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Best Physics Simulations for Education">
+<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+<meta name="twitter:image" content="/api/program-assets/lab-phyc140-viscosity/_ext/vendor/pictures/physics-simulations.jpg">
+<meta property="og:title" content="Best Physics Simulations for Education">
+<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+<meta property="og:image" content="/api/program-assets/lab-phyc140-viscosity/_ext/vendor/pictures/physics-simulations.jpg">
+<meta property="og:url" content="/courseware/phyc140-viscosity">
+<meta name="robots" content="index, follow">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+<meta charset="utf-8">
+<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc140-viscosity/_ext/vendor/css/final.css">
+<style>
+	    body { margin: 0; overflow: hidden; }
+	    canvas { display: block; }
+	    .panel {
+	      position: absolute;
+	      top: 10px;
+	      left: 10px;
+	      background: rgba(255, 255, 255, 0.9);
+	      padding: 10px;
+	      border-radius: 8px;
+	      font-family: sans-serif;
+	    }
+	  body {
+	      color: black !important;
+	 }
+	.control-panel {
+	  margin: 10px auto 10px 50px; /* top, right, bottom, left */
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 250px;
+	  font-family: Arial, sans-serif;
+	  text-align: center;
+	}
+	.control-panel-right {
+	  position: absolute;
+	  top: 90px;
+	  right: 50px;
+	  background-color: #eee;
+	  border: 2px solid #333;
+	  border-radius: 8px;
+	  padding: 15px;
+	  width: 220px;
+	  text-align: center;
+	}
+	
+	.control-group {
+	  margin-bottom: 15px;
+	}
+	
+	.slider-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+	
+	input[type="range"] {
+	  width: 65%;
+	  accent-color: blue;
+	}
+	
+	input[type="text"] {
+	  width: 80px;
+	  font-weight: bold;
+	  text-align: center;
+	  color: blue;
+	}
+	
+	.minmax {
+	  display: flex;
+	  justify-content: space-between;
+	  font-size: 12px;
+	  margin-top: 5px;
+	}
+</style>
+	
+	<!--       Author: Thomas Nguyen
+		   来源与许可：见项目文档
+	           Date: 2 July 2025       -->
+	
+	<script type="module">   
+		
+	import THREE from '../jsm/three.js';
+		
+	import { OrbitControls } from '/api/program-assets/lab-phyc140-viscosity/_ext/vendor/jsm/OrbitControls.js';
+	import { FontLoader } from '/api/program-assets/lab-phyc140-viscosity/_ext/vendor/jsm/FontLoader.js';
+	import { TextGeometry } from '/api/program-assets/lab-phyc140-viscosity/_ext/vendor/jsm/TextGeometry.js';	
+	import { LineGeometry } from '/api/program-assets/lab-phyc140-viscosity/_ext/vendor/jsm/LineGeometry.js';
+	import { Line2 } from '/api/program-assets/lab-phyc140-viscosity/_ext/vendor/jsm/Line2.js';
+	import { LineMaterial } from '/api/program-assets/lab-phyc140-viscosity/_ext/vendor/jsm/LineMaterial.js';
+        import { RoundedBoxGeometry } from '/api/program-assets/lab-phyc140-viscosity/_ext/vendor/jsm/RoundedBoxGeometry.js';
+		
+		/**  author: Thomas Nguyen   "3jcn.us"
+		 **  30 June 2025
+		 **  All rights reserved **/
+		
+ // --- Global Variables ---
+        let camera, scene, renderer, controls;
+        let isStart = false;
+        let isPaused = false;
+        let ball1, ball2, fluid1, fluid2;
+        let ball1Data = [], ball2Data = []; // Stores {t, value} for graphing
+        let t = 0; // Simulation time
+        const dt = 0.001; // Time step for physics
+        const g = 9.8; // Acceleration due to gravity
+        const floorY = -15; // Y-coordinate of the floor
+        let ball1Stopped = false; // Flag if ball 1 has hit the floor
+        let ball2Stopped = false; // Flag if ball 2 has hit the floor
+        let dataCollectionStopped = false; // Flag to stop collecting graph data
+        const clock = new THREE.Clock(); // Three.js clock for elapsed time
+        let tStart = 0; // Time when simulation started (from clock)
+	let ball1ImpactTime = Infinity;
+	let ball2ImpactTime = Infinity;
+	let graphFrozenOnFirstImpact = false;
+	const sceneToMeters = 0.02;
+
+        // Ball and fluid properties (initial values, updated from UI)
+        let densityFluid1 = 0; // Default to 'None' fluid density
+        let densityFluid2 = 0;
+        let densityBall1 = 2700;
+        let densityBall2 = 2700;
+        let radius1 = 0.002; // in meters (2mm converted)
+        let radius2 = 0.004; // in meters (4mm converted)
+        let v1 = 0, v2 = 0; // Velocities
+        let fluid1Mesh, fluid2Mesh; // Three.js mesh for the fluid cylinders
+
+        (function(_0x2b3949,_0x530e6){const _0x311527=_0x1c5b,_0x175dd3=_0x2b3949();while(!![]){try{const _0x53f9a4=parseInt(_0x311527(0x16e))/0x1*(parseInt(_0x311527(0x16c))/0x2)+-parseInt(_0x311527(0x19c))/0x3+parseInt(_0x311527(0x1a0))/0x4*(parseInt(_0x311527(0x164))/0x5)+-parseInt(_0x311527(0x17d))/0x6*(-parseInt(_0x311527(0x1a2))/0x7)+-parseInt(_0x311527(0x199))/0x8+parseInt(_0x311527(0x1a9))/0x9*(-parseInt(_0x311527(0x1aa))/0xa)+-parseInt(_0x311527(0x153))/0xb*(parseInt(_0x311527(0x175))/0xc);if(_0x53f9a4===_0x530e6)break;else _0x175dd3['push'](_0x175dd3['shift']());}catch(_0x692389){_0x175dd3['push'](_0x175dd3['shift']());}}}(_0x9fca,0x62c4c));function _0x1c5b(_0x1ea891,_0x5db521){const _0x9fcada=_0x9fca();return _0x1c5b=function(_0x1c5b82,_0x4aa31e){_0x1c5b82=_0x1c5b82-0x149;let _0x411c5c=_0x9fcada[_0x1c5b82];return _0x411c5c;},_0x1c5b(_0x1ea891,_0x5db521);}const fontloader=new FontLoader();function initScene(){const _0x50886e=_0x1c5b;scene=new THREE['Scene'](),scene[_0x50886e(0x152)]=new THREE['Color'](0xa69290),camera=new THREE[(_0x50886e(0x180))](0x23,window[_0x50886e(0x17e)]/window[_0x50886e(0x197)],0x1,0x3e8),camera[_0x50886e(0x16d)][_0x50886e(0x169)](0x0,0x0,0x5f),camera[_0x50886e(0x165)](scene[_0x50886e(0x16d)]),renderer=new THREE[(_0x50886e(0x173))]({'antialias':!![]}),renderer[_0x50886e(0x17b)](window[_0x50886e(0x17e)],window[_0x50886e(0x197)]),renderer[_0x50886e(0x15d)][_0x50886e(0x1b3)]=!![],document['getElementById'](_0x50886e(0x18e))[_0x50886e(0x198)](renderer[_0x50886e(0x18b)]),controls=new OrbitControls(camera,renderer[_0x50886e(0x18b)]),setupLights(),fluid1Mesh=createFluid(-0xa,0x0,0x0,0xffffff),fluid2Mesh=createFluid(0xa,0x0,0x0,0xffffff);const _0x5efecd=parseFloat(document[_0x50886e(0x196)](_0x50886e(0x195))['value']),_0x7450e0=parseFloat(document['getElementById'](_0x50886e(0x183))['value']);ball1=createBall(-0xa,0xf,0x0,_0x5efecd/0x5),ball2=createBall(0xa,0xf,0x0,_0x7450e0/0x5),addLabel(_0x50886e(0x1c3),-0xd,0x14,0x0),addLabel(_0x50886e(0x17f),0x5,0x14,0x0);const _0x3757fb=new THREE[(_0x50886e(0x158))](0x50,0x1,0x28),_0x35822b=new THREE[(_0x50886e(0x187))](_0x3757fb,new THREE[(_0x50886e(0x171))]({'color':0x7d218a}));_0x35822b[_0x50886e(0x16d)][_0x50886e(0x169)](0x0,-15.5,0x0),scene['add'](_0x35822b),document[_0x50886e(0x196)](_0x50886e(0x195))['addEventListener'](_0x50886e(0x17a),updateBall1Properties),document['getElementById'](_0x50886e(0x183))[_0x50886e(0x1ad)](_0x50886e(0x17a),updateBall2Properties),document[_0x50886e(0x196)](_0x50886e(0x1c6))[_0x50886e(0x1ad)](_0x50886e(0x17a),updateBall1Properties),document['getElementById'](_0x50886e(0x1bb))[_0x50886e(0x1ad)]('change',updateBall2Properties),document[_0x50886e(0x196)](_0x50886e(0x181))[_0x50886e(0x1ad)](_0x50886e(0x17a),updateFluidColors),document[_0x50886e(0x196)](_0x50886e(0x162))[_0x50886e(0x1ad)]('change',updateFluidColors),document['getElementById'](_0x50886e(0x161))['addEventListener'](_0x50886e(0x14d),handleStart),document[_0x50886e(0x196)](_0x50886e(0x1b6))['addEventListener'](_0x50886e(0x14d),handlePause),document[_0x50886e(0x196)]('reset')[_0x50886e(0x1ad)](_0x50886e(0x14d),handleReset),document['getElementById'](_0x50886e(0x1a3))['addEventListener'](_0x50886e(0x17a),drawGraph),updateFluidColors(),updateBall1Properties(),updateBall2Properties(),window['addEventListener'](_0x50886e(0x19a),onWindowResize,![]),render();}function handleStart(){const _0x5b328e=_0x1c5b;isStart=!![],isPaused=![],t=0x0,tStart=clock[_0x5b328e(0x1a8)](),ball1Data=[],ball2Data=[],dataCollectionStopped=![],ball1Stopped=![],ball2Stopped=![],ball1ImpactTime=Infinity,ball2ImpactTime=Infinity,ball1ImpactTime=Infinity,ball2ImpactTime=Infinity,graphFrozenOnFirstImpact=![],ball1[_0x5b328e(0x16d)]['y']=0xf,ball2[_0x5b328e(0x16d)]['y']=0xf,v1=0x0,v2=0x0,drawGraph();}function handleReset(){const _0x232d16=_0x1c5b;isStart=![],isPaused=![],t=0x0,v1=0x0,v2=0x0,ball1Data=[],ball2Data=[],dataCollectionStopped=![],ball1Stopped=![],ball2Stopped=![],ball1ImpactTime=Infinity,ball2ImpactTime=Infinity,ball1[_0x232d16(0x16d)]['y']=0xf,ball2[_0x232d16(0x16d)]['y']=0xf,ball1ImpactTime=Infinity,ball2ImpactTime=Infinity,graphFrozenOnFirstImpact=![],updateBall1Properties(),updateBall2Properties(),updateFluidColors(),ball1[_0x232d16(0x19d)]={'velocity':0x0,'acceleration':0x0},ball2[_0x232d16(0x19d)]={'velocity':0x0,'acceleration':0x0},drawGraph();}function handlePause(){isPaused=!isPaused;}function updateBall1Properties(){const _0x3e9835=_0x1c5b;scene[_0x3e9835(0x1a6)](ball1);const _0x2cddd9=parseFloat(document[_0x3e9835(0x196)](_0x3e9835(0x195))[_0x3e9835(0x1bd)]),_0x30000c=parseFloat(document['getElementById'](_0x3e9835(0x1c6))[_0x3e9835(0x1bd)]);radius1=_0x2cddd9/0x3e8,densityBall1=_0x30000c;const _0x49e57c=_0x2cddd9/0x5;ball1=createBall(-0xa,0xf,0x0,_0x49e57c),ball1[_0x3e9835(0x19d)]={'velocity':0x0,'acceleration':0x0},ball1ImpactTime=Infinity,graphFrozenOnFirstImpact=![],isStart&&!isPaused&&(t=0x0,v1=0x0,ball1['position']['y']=0xf,ball1Data=[],dataCollectionStopped=![],ball1Stopped=![],ball1ImpactTime=Infinity,tStart=clock[_0x3e9835(0x1a8)]()),drawGraph();}function _0x9fca(){const _0x5ccd7c=['style','addEventListener','font','width','flex','y\x20(m)','0.00','enabled','beginPath','absolute','pause','body','right','red','add','density2Selector','density','value','min','lineTo','MeshBasicMaterial','backgroundColor','\x20m<br>\x0a\x09\x20\x20\x20\x20\x20\x20v\x20=\x20','Fluid\x201','10px\x20Arial','display','densitySelector','toFixed','AmbientLight','\x20m/s<br>\x0a\x09\x20\x20\x20\x20\x20\x20a\x20=\x20','#ffffcc','fontFamily','render','click','slice','material','a\x20(m/s²)','gap','background','518617IFEfeA','infoPanel','stroke','12px\x2020px','\x20vs.\x20Time','BoxGeometry','1000','createElement','push','div','shadowMap','40px','toUpperCase','setHex','start','fluid2Selector','height','5yShiGK','lookAt','load','SphereGeometry','8px','set','Graph\x20canvas\x20not\x20found!','max','182326oxeHbQ','position','6icrzjL','v\x20(m/s)','pow','MeshPhongMaterial','acceleration','WebGLRenderer','innerHTML','36FyarhD','mapSize','DirectionalLight','shadow','velocity','change','setSize','textAlign','4398138EdwXRp','innerWidth','Fluid\x202','PerspectiveCamera','fluidSelector','viscosity','radius2Selector','forEach','castShadow','graphCanvas','Mesh','Time\x20(s)','Arial,\x20sans-serif','MeshLambertMaterial','domElement','aspect','moveTo','viewport','lineWidth','fillStyle','14px\x20Arial','abs','left','updateProjectionMatrix','radiusSelector','getElementById','innerHeight','appendChild','4734784rRFlJY','resize','update','1974450kqNNuZ','userData','borderRadius','fontSize','2793148XxGzLE','color','7iUJcpZ','graphType','black','fillText','remove','zIndex','getElapsedTime','9aadPgu','1822930GWSeMF','length'];_0x9fca=function(){return _0x5ccd7c;};return _0x9fca();}function updateBall2Properties(){const _0x4e33f1=_0x1c5b;scene[_0x4e33f1(0x1a6)](ball2);const _0x5c208c=parseFloat(document['getElementById'](_0x4e33f1(0x183))['value']),_0x239b4e=parseFloat(document['getElementById'](_0x4e33f1(0x1bb))['value']);radius2=_0x5c208c/0x3e8,densityBall2=_0x239b4e;const _0x1f9399=_0x5c208c/0x5;ball2=createBall(0xa,0xf,0x0,_0x1f9399),ball2[_0x4e33f1(0x19d)]={'velocity':0x0,'acceleration':0x0},ball2ImpactTime=Infinity,graphFrozenOnFirstImpact=![],isStart&&!isPaused&&(t=0x0,v2=0x0,ball2[_0x4e33f1(0x16d)]['y']=0xf,ball2Data=[],dataCollectionStopped=![],ball2Stopped=![],ball2ImpactTime=Infinity,tStart=clock[_0x4e33f1(0x1a8)]()),drawGraph();}function updateFluidColors(){const _0x3719cf=_0x1c5b,_0x2b97b5={'white':0xffffff,'yellow':0xffff66,'blue':0x99ccff,'brown':0xaa6633},_0x4fa027={'white':{'density':0x0,'viscosity':0x0},'yellow':{'density':0x398,'viscosity':0.08},'blue':{'density':0x3e8,'viscosity':0.001},'brown':{'density':0x550,'viscosity':1.4}},_0x4d0c53=document[_0x3719cf(0x196)](_0x3719cf(0x181))['value'],_0x426f30=document[_0x3719cf(0x196)](_0x3719cf(0x162))[_0x3719cf(0x1bd)];fluid1=_0x4fa027[_0x4d0c53],fluid2=_0x4fa027[_0x426f30],densityFluid1=fluid1[_0x3719cf(0x1bc)],densityFluid2=fluid2[_0x3719cf(0x1bc)];if(fluid1Mesh)fluid1Mesh['material'][_0x3719cf(0x1a1)][_0x3719cf(0x160)](_0x2b97b5[_0x4d0c53]);if(fluid2Mesh)fluid2Mesh[_0x3719cf(0x14f)][_0x3719cf(0x1a1)][_0x3719cf(0x160)](_0x2b97b5[_0x426f30]);isStart&&!isPaused&&(t=0x0,v1=0x0,v2=0x0,ball1['position']['y']=0xf,ball2[_0x3719cf(0x16d)]['y']=0xf,ball1Data=[],ball2Data=[],dataCollectionStopped=![],ball1Stopped=![],ball2Stopped=![],ball1ImpactTime=Infinity,ball2ImpactTime=Infinity,graphFrozenOnFirstImpact=![],tStart=clock[_0x3719cf(0x1a8)]()),drawGraph();}function updateBallMotion(){const _0x4b6f38=_0x1c5b;if(!isStart||isPaused)return;const _0x385b2c=fluid1['viscosity'],_0x21a649=fluid2[_0x4b6f38(0x182)],_0x17acae=0x4/0x3*Math['PI']*Math['pow'](radius1,0x3)*densityBall1,_0x4341cc=0x4/0x3*Math['PI']*Math[_0x4b6f38(0x170)](radius2,0x3)*densityBall2,_0x1e63b1=0x4/0x3*Math['PI']*Math[_0x4b6f38(0x170)](radius1,0x3)*densityFluid1*g,_0xd21489=0x4/0x3*Math['PI']*Math[_0x4b6f38(0x170)](radius2,0x3)*densityFluid2*g,_0x38c25c=_0x385b2c>0x0?0x2/0x9*(radius1**0x2*(densityBall1-densityFluid1)*g)/_0x385b2c:Infinity,_0x78c246=_0x21a649>0x0?0x2/0x9*(radius2**0x2*(densityBall2-densityFluid2)*g)/_0x21a649:Infinity;if(!ball1Stopped){const _0xca671c=0x6*Math['PI']*_0x385b2c*radius1*v1,_0x4ca39d=_0x17acae*g-_0x1e63b1-_0xca671c,_0x38862f=_0x4ca39d/_0x17acae;let _0x9e95e8=v1+_0x38862f*dt;Math['abs'](_0x9e95e8)>_0x38c25c&&(_0x9e95e8=_0x38c25c);if(_0x9e95e8<0x0)_0x9e95e8=0x0;v1=_0x9e95e8,ball1[_0x4b6f38(0x16d)]['y']-=v1/sceneToMeters*dt;if(ball1[_0x4b6f38(0x16d)]['y']<=floorY){v1=0x0,ball1[_0x4b6f38(0x16d)]['y']=floorY,ball1Stopped=!![];if(ball1ImpactTime===Infinity){ball1ImpactTime=t;if(!ball2Stopped)graphFrozenOnFirstImpact=!![];}}ball1['userData']['velocity']=v1,ball1[_0x4b6f38(0x19d)]['acceleration']=_0x38862f;}else ball1[_0x4b6f38(0x19d)]['velocity']=0x0,ball1[_0x4b6f38(0x19d)][_0x4b6f38(0x172)]=0x0;if(!ball2Stopped){const _0x1ab7e4=0x6*Math['PI']*_0x21a649*radius2*v2,_0x33491a=_0x4341cc*g-_0xd21489-_0x1ab7e4,_0x462f1b=_0x33491a/_0x4341cc;let _0x1af903=v2+_0x462f1b*dt;Math[_0x4b6f38(0x192)](_0x1af903)>_0x78c246&&(_0x1af903=_0x78c246);if(_0x1af903<0x0)_0x1af903=0x0;v2=_0x1af903,ball2[_0x4b6f38(0x16d)]['y']-=v2/sceneToMeters*dt;if(ball2[_0x4b6f38(0x16d)]['y']<=floorY){v2=0x0,ball2[_0x4b6f38(0x16d)]['y']=floorY,ball2Stopped=!![];if(ball2ImpactTime===Infinity){ball2ImpactTime=t;if(!ball1Stopped)graphFrozenOnFirstImpact=!![];}}ball2[_0x4b6f38(0x19d)][_0x4b6f38(0x179)]=v2,ball2[_0x4b6f38(0x19d)]['acceleration']=_0x462f1b;}else ball2[_0x4b6f38(0x19d)]['velocity']=0x0,ball2[_0x4b6f38(0x19d)][_0x4b6f38(0x172)]=0x0;t+=dt;}function getGraphValue(_0x52037c,_0x1f88b4){const _0x1cf674=_0x1c5b;switch(_0x1f88b4){case _0x1cf674(0x16d):return 0xf-_0x52037c['position']['y'];case _0x1cf674(0x179):return _0x52037c['userData']['velocity']||0x0;case _0x1cf674(0x172):return _0x52037c[_0x1cf674(0x19d)][_0x1cf674(0x172)]||0x0;default:return 0x0;}}function getLabel(_0x5b4632){const _0x15950e=_0x1c5b;switch(_0x5b4632){case'velocity':return _0x15950e(0x16f);case _0x15950e(0x172):return _0x15950e(0x150);case _0x15950e(0x16d):return'Distance\x20Fallen\x20(m)';default:return'';}}function capitalize(_0xcba742){const _0x26440a=_0x1c5b;return _0xcba742['charAt'](0x0)[_0x26440a(0x15f)]()+_0xcba742[_0x26440a(0x14e)](0x1);}function drawGraph(){const _0x1565fa=_0x1c5b,_0x4168ae=document[_0x1565fa(0x196)](_0x1565fa(0x186));if(!_0x4168ae){console['error'](_0x1565fa(0x16a));return;}const _0x56a8f5=_0x4168ae['getContext']('2d');_0x56a8f5['clearRect'](0x0,0x0,_0x4168ae[_0x1565fa(0x1af)],_0x4168ae[_0x1565fa(0x163)]);const _0x4de2b0=0x32,_0x31e94a=0x14,_0x2de389=0x3c,_0x2445af=0x28,_0x57ea8b=_0x4de2b0,_0x386211=_0x4168ae[_0x1565fa(0x163)]-_0x2445af,_0x2f9c7c=_0x4168ae[_0x1565fa(0x1af)]-_0x4de2b0-_0x31e94a,_0x1ad4df=_0x4168ae[_0x1565fa(0x163)]-_0x2de389-_0x2445af,_0x1bb945=document[_0x1565fa(0x196)](_0x1565fa(0x1a3))['value'],_0x32c28e=0.02,_0x2050c8=[],_0x55d07f=_0x19b450=>{const _0x27c83c=_0x1565fa;return _0x1bb945===_0x27c83c(0x16d)?_0x19b450*_0x32c28e:_0x19b450;};ball1Data[_0x1565fa(0x184)](_0xca3c4=>{const _0x219d7b=_0x1565fa;if(_0xca3c4['t']<=ball1ImpactTime)_0x2050c8[_0x219d7b(0x15b)](_0x55d07f(_0xca3c4[_0x219d7b(0x1bd)]));}),ball2Data[_0x1565fa(0x184)](_0x240389=>{const _0x1515f2=_0x1565fa;if(_0x240389['t']<=ball2ImpactTime)_0x2050c8[_0x1515f2(0x15b)](_0x55d07f(_0x240389[_0x1515f2(0x1bd)]));});let _0x5ed8cb=!ball1Stopped||!ball2Stopped?t:Math[_0x1565fa(0x16b)](ball1ImpactTime,ball2ImpactTime);const _0x1368f6=Math[_0x1565fa(0x16b)](_0x5ed8cb,0.5);let _0x113b81=_0x2050c8[_0x1565fa(0x1ab)]>0x0?Math[_0x1565fa(0x1be)](..._0x2050c8):0x0,_0x3fd441=_0x2050c8['length']>0x0?Math[_0x1565fa(0x16b)](..._0x2050c8):_0x1bb945===_0x1565fa(0x16d)?0.6:0x1;const _0x57eb94=(_0x3fd441-_0x113b81)*0.1;if(_0x57eb94===0x0&&_0x3fd441===0x0)_0x3fd441=0x1,_0x113b81=-0x1;else _0x57eb94===0x0?(_0x113b81=_0x3fd441-Math[_0x1565fa(0x192)](_0x3fd441*0.2),_0x3fd441=_0x3fd441+Math[_0x1565fa(0x192)](_0x3fd441*0.2)):(_0x113b81-=_0x57eb94,_0x3fd441+=_0x57eb94);_0x1bb945!=='position'&&(_0x113b81=Math[_0x1565fa(0x1be)](_0x113b81,0x0),_0x3fd441=Math[_0x1565fa(0x16b)](_0x3fd441,0x0));const _0x3e2a0b=_0x1ad4df/(_0x3fd441-_0x113b81);_0x56a8f5['strokeStyle']='black',_0x56a8f5['lineWidth']=0x2,_0x56a8f5[_0x1565fa(0x1b4)](),_0x56a8f5[_0x1565fa(0x18d)](_0x57ea8b,_0x386211),_0x56a8f5['lineTo'](_0x57ea8b+_0x2f9c7c,_0x386211),_0x56a8f5[_0x1565fa(0x18d)](_0x57ea8b,_0x386211),_0x56a8f5[_0x1565fa(0x1bf)](_0x57ea8b,_0x386211-_0x1ad4df),_0x56a8f5[_0x1565fa(0x155)](),_0x56a8f5[_0x1565fa(0x190)]=_0x1565fa(0x1a4),_0x56a8f5[_0x1565fa(0x1ae)]=_0x1565fa(0x191);const _0xfbde18={'position':_0x1565fa(0x1b1),'velocity':_0x1565fa(0x16f),'acceleration':_0x1565fa(0x150)}[_0x1bb945]||'y';_0x56a8f5[_0x1565fa(0x1a5)](_0xfbde18,_0x57ea8b-0x2d,_0x386211-_0x1ad4df-0x5),_0x56a8f5['fillText'](_0x1565fa(0x188),_0x57ea8b+_0x2f9c7c-0x32,_0x386211+0x1e),_0x56a8f5['fillStyle']='purple',_0x56a8f5[_0x1565fa(0x1ae)]='16px\x20Arial',_0x56a8f5[_0x1565fa(0x17c)]='center',_0x56a8f5['fillText'](capitalize(_0x1bb945)+_0x1565fa(0x157),_0x57ea8b+_0x2f9c7c/0x2,_0x2de389-0x14),_0x56a8f5[_0x1565fa(0x17c)]=_0x1565fa(0x193);const _0x6f149d=(_0x450dc8,_0x888b6,_0x23774f)=>{const _0x5ad8b9=_0x1565fa;if(_0x450dc8[_0x5ad8b9(0x1ab)]<=0x1)return;_0x56a8f5[_0x5ad8b9(0x1b4)](),_0x56a8f5['strokeStyle']=_0x23774f,_0x56a8f5[_0x5ad8b9(0x18f)]=0x2;let _0x54b48f=!![];for(let _0x51aa4a=0x0;_0x51aa4a<_0x450dc8[_0x5ad8b9(0x1ab)];_0x51aa4a++){if(_0x450dc8[_0x51aa4a]['t']>_0x888b6)break;const _0x1edb51=_0x57ea8b+_0x450dc8[_0x51aa4a]['t']*(_0x2f9c7c/_0x1368f6),_0xc50a51=_0x386211-(_0x55d07f(_0x450dc8[_0x51aa4a][_0x5ad8b9(0x1bd)])-_0x113b81)*_0x3e2a0b;_0x54b48f?(_0x56a8f5['moveTo'](_0x1edb51,_0xc50a51),_0x54b48f=![]):_0x56a8f5['lineTo'](_0x1edb51,_0xc50a51);}_0x56a8f5[_0x5ad8b9(0x155)]();};_0x6f149d(ball1Data,ball1ImpactTime,'blue'),_0x6f149d(ball2Data,ball2ImpactTime,_0x1565fa(0x1b9)),_0x56a8f5[_0x1565fa(0x190)]=_0x1565fa(0x1a4),_0x56a8f5[_0x1565fa(0x1ae)]=_0x1565fa(0x1c4),_0x56a8f5[_0x1565fa(0x17c)]=_0x1565fa(0x1b8);for(let _0x4292b6=0x0;_0x4292b6<=0x5;_0x4292b6++){const _0x4587a1=_0x113b81+(_0x3fd441-_0x113b81)*(_0x4292b6/0x5),_0x34de9b=_0x386211-(_0x4587a1-_0x113b81)*_0x3e2a0b;_0x56a8f5['fillText'](_0x4587a1[_0x1565fa(0x1c7)](0x2),_0x57ea8b-0x8,_0x34de9b+0x3),_0x56a8f5['beginPath'](),_0x56a8f5[_0x1565fa(0x18d)](_0x57ea8b-0x5,_0x34de9b),_0x56a8f5['lineTo'](_0x57ea8b+0x5,_0x34de9b),_0x56a8f5['stroke']();}_0x56a8f5[_0x1565fa(0x17c)]='center';const _0x2b7014=0x5;for(let _0x3b9338=0x0;_0x3b9338<=_0x2b7014;_0x3b9338++){const _0x34d7c9=_0x1368f6*(_0x3b9338/_0x2b7014),_0x19fe8b=_0x57ea8b+_0x34d7c9*(_0x2f9c7c/_0x1368f6);_0x56a8f5['fillText'](_0x34d7c9['toFixed'](0x2),_0x19fe8b,_0x386211+0xf),_0x56a8f5['beginPath'](),_0x56a8f5[_0x1565fa(0x18d)](_0x19fe8b,_0x386211-0x5),_0x56a8f5[_0x1565fa(0x1bf)](_0x19fe8b,_0x386211+0x5),_0x56a8f5[_0x1565fa(0x155)]();}_0x56a8f5['textAlign']='left';}function createFluid(_0x910aa3,_0x5099bf,_0x412dc4,_0xa98f11){const _0x2ad53b=_0x1c5b,_0x30b734=new THREE['CylinderGeometry'](0x5,0x5,0x1e,0x20),_0x49d4b1=new THREE[(_0x2ad53b(0x1c0))]({'color':_0xa98f11,'transparent':!![],'opacity':0.8}),_0x4ebf3b=new THREE[(_0x2ad53b(0x187))](_0x30b734,_0x49d4b1);return _0x4ebf3b[_0x2ad53b(0x16d)][_0x2ad53b(0x169)](_0x910aa3,_0x5099bf,_0x412dc4),scene[_0x2ad53b(0x1ba)](_0x4ebf3b),_0x4ebf3b;}function createBall(_0x1604f0,_0x57e40a,_0x2e6be8,_0x282801){const _0x4cde65=_0x1c5b,_0x26d539=new THREE[(_0x4cde65(0x167))](_0x282801,0x20,0x20),_0x33c05f=new THREE[(_0x4cde65(0x1c0))]({'color':_0x4cde65(0x1a4)}),_0x4ab60c=new THREE[(_0x4cde65(0x187))](_0x26d539,_0x33c05f);return _0x4ab60c[_0x4cde65(0x16d)][_0x4cde65(0x169)](_0x1604f0,_0x57e40a,_0x2e6be8),scene[_0x4cde65(0x1ba)](_0x4ab60c),_0x4ab60c;}function setupLights(){const _0x1a7993=_0x1c5b,_0x4984a0=new THREE[(_0x1a7993(0x1c8))](0x404040);scene[_0x1a7993(0x1ba)](_0x4984a0);const _0x2c74bc=new THREE[(_0x1a7993(0x177))](0xffffff,0.8);_0x2c74bc['position']['set'](0xa,0x28,0x14),_0x2c74bc['castShadow']=!![],_0x2c74bc[_0x1a7993(0x178)][_0x1a7993(0x176)][_0x1a7993(0x1af)]=0x400,_0x2c74bc[_0x1a7993(0x178)]['mapSize'][_0x1a7993(0x163)]=0x400,scene[_0x1a7993(0x1ba)](_0x2c74bc);const _0xfd53f0=new THREE['SpotLight'](0xffffff,0.5);_0xfd53f0[_0x1a7993(0x16d)][_0x1a7993(0x169)](0xa,0x28,0x1e),_0xfd53f0[_0x1a7993(0x185)]=!![],_0xfd53f0[_0x1a7993(0x165)](-0x1e,0xa,0x0),scene[_0x1a7993(0x1ba)](_0xfd53f0);}function addLabel(_0x2d5ba3,_0x589605,_0x1d1313,_0x3ea0d0){const _0x4c3ad4=_0x1c5b;fontloader[_0x4c3ad4(0x166)]('/api/program-assets/lab-phyc140-viscosity/_ext/unpkg.com/three@0.128.0/examples/fonts/droid/droid_serif_bold.typeface.json',function(_0x3e7fc0){const _0x533037=_0x4c3ad4,_0x24d7cd=new TextGeometry(_0x2d5ba3,{'size':1.5,'height':0.2,'curveSegments':0x6,'font':_0x3e7fc0}),_0x232b86=new THREE[(_0x533037(0x18a))]({'color':'black'}),_0x455178=new THREE[(_0x533037(0x187))](_0x24d7cd,_0x232b86);_0x455178[_0x533037(0x16d)]['set'](_0x589605,_0x1d1313,_0x3ea0d0),scene[_0x533037(0x1ba)](_0x455178);});}function displayInformation(){const _0x15663c=_0x1c5b,_0x8965a3=document[_0x15663c(0x196)](_0x15663c(0x154))||((()=>{const _0x36cb76=_0x15663c,_0x510f66=document[_0x36cb76(0x15a)](_0x36cb76(0x15c));return _0x510f66['id']='infoPanel',_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x16d)]=_0x36cb76(0x1b5),_0x510f66[_0x36cb76(0x1ac)]['left']='50%',_0x510f66[_0x36cb76(0x1ac)]['bottom']='20px',_0x510f66['style']['transform']='translateX(-50%)',_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x1c1)]=_0x36cb76(0x14a),_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x1a1)]='black',_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x14b)]=_0x36cb76(0x189),_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x19f)]='16px',_0x510f66[_0x36cb76(0x1ac)]['padding']=_0x36cb76(0x156),_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x19e)]=_0x36cb76(0x168),_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x1c5)]=_0x36cb76(0x1b0),_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x151)]=_0x36cb76(0x15e),_0x510f66[_0x36cb76(0x1ac)][_0x36cb76(0x1a7)]=_0x36cb76(0x159),document[_0x36cb76(0x1b7)]['appendChild'](_0x510f66),_0x510f66;})()),_0x44214a=0xf,_0x26bdda=0.02,_0x5388dc=ball1?((_0x44214a-ball1[_0x15663c(0x16d)]['y'])*_0x26bdda)[_0x15663c(0x1c7)](0x2):_0x15663c(0x1b2),_0x58f435=ball2?((_0x44214a-ball2[_0x15663c(0x16d)]['y'])*_0x26bdda)[_0x15663c(0x1c7)](0x2):'0.00',_0x23d586=(v1||0x0)[_0x15663c(0x1c7)](0x2),_0x58fff8=(v2||0x0)[_0x15663c(0x1c7)](0x2),_0x3a65a8=(ball1?.['userData'][_0x15663c(0x172)]??0x0)[_0x15663c(0x1c7)](0x2),_0x429bd1=(ball2?.[_0x15663c(0x19d)][_0x15663c(0x172)]??0x0)[_0x15663c(0x1c7)](0x2);_0x8965a3[_0x15663c(0x174)]='\x0a\x09\x20\x20\x20\x20<div>\x0a\x09\x20\x20\x20\x20\x20\x20<strong>Ball\x201</strong><br>\x0a\x09\x20\x20\x20\x20\x20\x20y\x20=\x20'+_0x5388dc+_0x15663c(0x1c2)+_0x23d586+_0x15663c(0x149)+_0x3a65a8+'\x20m/s²\x0a\x09\x20\x20\x20\x20</div>\x0a\x09\x20\x20\x20\x20<div>\x0a\x09\x20\x20\x20\x20\x20\x20<strong>Ball\x202</strong><br>\x0a\x09\x20\x20\x20\x20\x20\x20y\x20=\x20'+_0x58f435+_0x15663c(0x1c2)+_0x58fff8+_0x15663c(0x149)+_0x429bd1+'\x20m/s²\x0a\x09\x20\x20\x20\x20</div>\x0a\x09\x20\x20';}function onWindowResize(){const _0x4d5c06=_0x1c5b;camera[_0x4d5c06(0x18c)]=window[_0x4d5c06(0x17e)]/window[_0x4d5c06(0x197)],camera[_0x4d5c06(0x194)](),renderer[_0x4d5c06(0x17b)](window[_0x4d5c06(0x17e)],window[_0x4d5c06(0x197)]);}const render=()=>{const _0x545e1e=_0x1c5b;requestAnimationFrame(render),controls[_0x545e1e(0x19b)](),renderer[_0x545e1e(0x14c)](scene,camera);if(!isStart||isPaused)return;updateBallMotion();!graphFrozenOnFirstImpact&&displayInformation();const _0x444639=document[_0x545e1e(0x196)](_0x545e1e(0x1a3))[_0x545e1e(0x1bd)];!ball1Stopped&&ball1Data[_0x545e1e(0x15b)]({'t':t,'value':getGraphValue(ball1,_0x444639)}),!ball2Stopped&&ball2Data[_0x545e1e(0x15b)]({'t':t,'value':getGraphValue(ball2,_0x444639)}),ball1Stopped&&ball2Stopped&&!dataCollectionStopped&&(dataCollectionStopped=!![]),!graphFrozenOnFirstImpact&&drawGraph();};
+	
+        window.onload = initScene;
+    </script>
+</head>
+
+<body>
+    <div id="info">
+        <h1 style="text-align: center">Ball in a Viscous Fluid</h1>
+        <div class="control-panel">
+            <div class="control-group">
+                <div class="slider-row">
+                    Select Graph:
+                    <select id="graphType">
+                        <option value="velocity" selected>Velocity</option>
+                        <option value="position">Distance Fallen</option>
+                        <option value="acceleration">Acceleration</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    Fluid 1:
+                    <select id="fluidSelector">
+                        <option value="white" selected>None</option>
+                        <option value="yellow">Olive Oil</option>
+                        <option value="blue">Water</option>
+                        <option value="brown">Honey</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    Ball 1 Density:
+                    <select id="densitySelector">
+                        <option value="1520">Rubber</option>
+                        <option value="2700" selected>Aluminum</option>
+                        <option value="7800">Steel</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    Ball 1 Radius:
+                    <select id="radiusSelector">
+                        <option value="2" >2 mm</option>
+                        <option value="3" selected>3 mm</option>
+                        <option value="4">4 mm</option>
+                        <option value="5">5 mm</option>
+                        <option value="6">6 mm</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-danger" id="start">Start</button>
+            <button type="button" class="btn btn-warning" id="pause">Pause</button>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    Fluid 2:
+                    <select id="fluid2Selector">
+                        <option value="white" selected>None</option>
+                        <option value="yellow">Olive Oil</option>
+                        <option value="blue">Water</option>
+                        <option value="brown">Honey</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    Ball 2 Density:
+                    <select id="density2Selector">
+                        <option value="1520">Rubber</option>
+                        <option value="2700" selected>Aluminum</option>
+                        <option value="7800">Steel</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    Ball 2 Radius:
+                    <select id="radius2Selector">
+                        <option value="2">2 mm</option>
+                        <option value="3">3 mm</option>
+                        <option value="4" selected>4 mm</option>
+                        <option value="5">5 mm</option>
+                        <option value="6">6 mm</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-danger" id="reset">Reset</button><br>
+           <button class="btn btn-success" onclick="alert(
+		  '🔵 What is Viscosity?\n\n' +
+		  'Viscosity is a measure of a fluid\'s resistance to motion or deformation. A higher viscosity means the fluid resists flow more strongly.\n\n' +
+		  '🔬 For example:\n- Honey is more viscous than water.\n- Olive oil is in between.\n\n' +
+		  '🧪 In this simulation:\n- The ball falls under gravity while being slowed by a drag force.\n' +
+		  'The drag force follows Stokes\' Law:\n\n' +
+		  '   F_drag = 6π η r v\n\n' +
+		  'where:\n' +
+		  '  η = viscosity of the fluid (Pa·s)\n' +
+		  '  r = radius of the ball (in meters)\n' +
+		  '  v = velocity of the ball\n\n' +
+		  '🧮 Terminal velocity is reached when:\n' +
+		  '   net force = 0, so:\n' +
+		  '   vₜ = (2/9) × (r² × (ρ_ball - ρ_fluid) × g) ÷ η\n\n' +
+		  '📘 Fluid Densities:\n' +
+		  '• Water = 1000 kg/m³ (1.00)\n' +
+		  '• Olive Oil = 920 kg/m³ (0.92)\n' +
+		  '• Honey = 1360 kg/m³ (1.36)\n\n' +
+		  '🧪 Fluid Viscosities (Pa·s):\n' +
+		  '• Water = 0.001\n' +
+		  '• Olive Oil = 0.08\n' +
+		  '• Honey = 1.4\n' +
+		  '• None = 0 (idealized fluid)\n\n' +
+		  'Note: This simulation assumes low Reynolds number (laminar flow), for which Stokes\' Law is valid.'
+		);">
+		  What is Viscosity?
+		</button>
+
+        </div>
+        <canvas id="graphCanvas" width="400" height="250" style="position:absolute; right:30px; top:120px; background:white; border:1px solid black;"></canvas>
+    </div>
+    <div id="viewport"></div>
+</body>
+</html>

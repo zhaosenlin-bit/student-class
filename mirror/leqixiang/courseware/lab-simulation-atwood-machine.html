@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<title>乐启享 · 物理实验</title>
+	<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-simulation-atwood-machine.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Education",
+		    "name": "3JCN"
+		  }
+		}
+	</script>
+	<link rel="icon" href="/brand/favicon.ico">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Best Physics Simulations for Education">
+	<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+	<meta name="twitter:image" content="/api/program-assets/lab-simulation-atwood-machine/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:title" content="Best Physics Simulations for Education">
+	<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+	<meta property="og:image" content="/api/program-assets/lab-simulation-atwood-machine/_ext/vendor/pictures/physics-simulations.jpg">
+	<meta property="og:url" content="/courseware/simulation-atwood-machine">
+	<meta name="robots" content="index, follow">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/api/program-assets/lab-simulation-atwood-machine/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-simulation-atwood-machine/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="/api/program-assets/lab-simulation-atwood-machine/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/api/program-assets/lab-simulation-atwood-machine/_ext/vendor/Physijs/three.min.js"></script>
+	<script type="text/javascript" src="/api/program-assets/lab-simulation-atwood-machine/_ext/vendor/Physijs/stats.js"></script>
+	<script type="text/javascript" src="/api/program-assets/lab-simulation-atwood-machine/_ext/vendor/Physijs/physi.js"></script>
+	<script type="text/javascript" src="/api/program-assets/lab-simulation-atwood-machine/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+	<style>
+	#canvas {
+		  /*  background-image:url("/api/program-assets/lab-simulation-atwood-machine/_ext/vendor/images/3jcn-placeholder.svg");  */
+		    width: 400px;
+		    height: 300px;
+		    border: 2px inset white;
+		    position:absolute;
+		    top: 20%;
+		    left: 1%;
+		    z-index : 10;
+		    -webkit-transition: all 1s;
+		}
+	</style>
+	
+	<script type="text/javascript">
+	/** author: Thomas Nguyen 3jcn.com
+	** April 2020 All rigths reserved
+	**/
+		
+	'use strict';
+	Physijs.scripts.worker = '../Physijs/physijs_worker.js';
+	Physijs.scripts.ammo = '../Physijs/ammo.js';
+	
+	var initScene, render, pulley, line, line2, obj1, obj2, pointlight, pointlight2, car_body, car_geometry2,
+		ground_material, car_material, wheel_material, wheel_geometry, startTime,currentTime,
+	        car_material2, wheel_material2, wheel_geometry2, setVelocity, setVelocityE1, setVelocityI,
+		loader, renderer, render_stats, physics_stats, scene, ground_geometry, ground, light, camera,
+		car = {}, car2 = {};
+	var pos_vel;  
+	var x2 = 0, y2 = 6, z2 = 40;
+	var neg_vel; 
+	var obj_mass = 0;
+	var m1=1.2, m2=1.8, M=2;
+	var is_alternate = false;
+	var is_check = false;
+	var is_start = false;
+	var is_stop = false;
+	var pointArray = []; 
+	var audio1 = new Audio('../Audio/correct.mp3');
+	var audio2 = new Audio('../Audio/wrong.mp3');
+	var clock = new THREE.Clock();	
+	var lasttime = performance.now()*0.001;
+		
+	// Loader
+	loader = new THREE.TextureLoader();
+	
+	setVelocity = function(){
+		is_start = true;
+	}
+	 function graph(){
+		    var canvas = document.getElementById("canvas");
+		    var ctx = canvas.getContext("2d");
+		    //put Sun at the origin:
+		    ctx.fillStyle = "red";  
+		    ctx.beginPath();
+		    ctx.arc(250, 236, 0.5, 0, Math.PI*2, true);
+		    ctx.closePath();
+		    ctx.fill();
+		    Chart.defaults.global.defaultFontColor = 'white';
+		    var myChart = new Chart(ctx, {
+			    
+			    type: 'scatter',
+			    data: {datasets: [
+			      //{data: [{x:0,y:0}],backgroundColor:["rgb(255,0,0)"],label: 'Sun Position'},
+			      {data:pointArray,backgroundColor:["rgb(96, 209, 202)"],label:'Distance vs. Time'}]},
+			    options: {
+				      responsive: false,
+				      maintainAspectRatio: false,
+				          
+				      scales: {
+					xAxes: [ {
+					  display: true,
+					  gridLines: {
+						display: true,
+						color: '#fff'
+					  },
+					 
+					  scaleLabel: {
+					    display: true,
+					    labelString: 'Time (s)'
+					  }
+					} ],
+					yAxes: [ {
+					  display: true,
+					  gridLines: {
+						display: true,
+						color: '#fff'
+					  }, 
+					 
+					  scaleLabel: {
+					    display: true,
+					    labelString: 'Distance (m)'
+					  }
+					} ]
+				      }
+			    }
+		     });
+	}
+	
+	initScene = function() {
+		
+		renderer = new THREE.WebGLRenderer({ antialias: true });  
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.shadowMap.enabled = true;
+		renderer.shadowMapSoft = true;
+		document.getElementById( 'viewport' ).appendChild( renderer.domElement );
+		
+		scene = new Physijs.Scene;
+		scene.setGravity(new THREE.Vector3( 0, -0.8, 0 ));
+		scene.addEventListener(
+			'update',
+			function() {
+				scene.simulate( undefined, 2 );
+			}
+		);
+		
+		camera = new THREE.PerspectiveCamera(
+			35,
+			window.innerWidth / window.innerHeight,
+			1,
+			1000
+		);
+		camera.position.set( 60, 70, 100 );
+		var quaternion = new THREE.Quaternion;
+		camera.position.applyQuaternion( quaternion.setFromAxisAngle(
+		      new THREE.Vector3(0,1,0), Math.PI/3
+		    ));
+		
+		camera.lookAt( scene.position );
+		//scene.rotateY(Math.PI/4);
+		scene.add( camera );
+		
+		// Light
+		light = new THREE.DirectionalLight( 0xFFFFFF );
+		light.position.set( 20, 40, -15 );
+		light.target.position.copy( scene.position );
+		light.castShadow = true;
+		light.shadowCameraLeft = -60;
+		light.shadowCameraTop = -60;
+		light.shadowCameraRight = 60;
+		light.shadowCameraBottom = 60;
+		light.shadowCameraNear = 20;
+		light.shadowCameraFar = 200;
+		light.shadowBias = -.0001
+		light.shadowMapWidth = light.shadowMapHeight = 2048;
+		light.shadowDarkness = .7;
+		scene.add( light );
+		
+		var sphere = new THREE.SphereBufferGeometry( 0.35, 16, 8 );
+		pointlight = new THREE.PointLight( 0xc0ff00, 3.5, 100, 0.5 );
+		pointlight.add( new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( { color: 0xc0ff00 } ) ) );
+		scene.add( pointlight );
+		pointlight2 = new THREE.PointLight( 0xc0fff0, 3.5, 100, 1 );
+		pointlight2.add( new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( { color: 0xc0fff0 } ) ) );
+		scene.add( pointlight2 );
+		
+		const bgloader = new THREE.TextureLoader();
+		bgloader.load('../pictures/Chemistry-lab.jpg' , function(texture)
+			    {
+			     scene.background = texture;  
+			    });
+		// Materials
+		ground_material = Physijs.createMaterial(
+			new THREE.MeshLambertMaterial({ map: loader.load( '../pictures/glass.jpg' ) }),
+			.8, // high friction
+			.4 // low restitution
+		);
+		// circle line
+		var Cgeometry = new THREE.CircleGeometry( 10.05, 32 );
+		var Cmaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+		var circle = new THREE.Mesh( Cgeometry, Cmaterial );
+		circle.position.set(0,25,0);
+		circle.rotateY(Math.PI/2);
+		scene.add( circle );
+		
+		// pulley pole
+		var ceiling = new Physijs.BoxMesh(
+			new THREE.BoxGeometry(5, 20, 2, 25),
+			new THREE.MeshLambertMaterial({ map: loader.load( '/api/program-assets/lab-simulation-atwood-machine/_ext/vendor/textures/wood.jpg' ) }),
+			0 // mass
+		);
+		ceiling.receiveShadow = true;
+		ceiling.position.set(0, 35, 0);
+		scene.add(ceiling);
+		
+		// table
+		var table = new Physijs.BoxMesh(
+			new THREE.BoxGeometry(20, 4, 20, 25),
+			new THREE.MeshLambertMaterial({ map: loader.load( '../textures/wood.jpg' ) }),
+			0 // mass
+		);
+		table.receiveShadow = true;
+		table.position.set(0, -34, -10);
+		scene.add(table);
+		
+	
+		// pulley
+		pulley = new Physijs.CylinderMesh(
+			new THREE.CylinderGeometry(10, 10, 2, 32),
+			new THREE.MeshLambertMaterial({ map: loader.load( '../pictures/road.jpg' ) }),
+			0 // mass
+		);
+		pulley.position.set(0,25,0);
+		pulley.rotateZ(Math.PI/2);
+		pulley.receiveShadow = false;
+		scene.add( pulley );
+		
+		// falling obj m1
+		obj1 = new Physijs.CylinderMesh(
+			new THREE.CylinderGeometry(3, 3, 8, 32),
+			new THREE.MeshLambertMaterial({ map: loader.load( '../pictures/glass.jpg' ) }),
+			obj_mass // mass
+		);
+		obj1.position.set(0,-30,10);
+		obj1.receiveShadow = false;
+		scene.add( obj1 );
+		
+		// falling obj m2
+		obj2 = new Physijs.CylinderMesh(
+			new THREE.CylinderGeometry(4.5, 4.5, 8, 32),
+			new THREE.MeshLambertMaterial({ map: loader.load( '../pictures/glass.jpg' ) }),
+			obj_mass // mass
+		);
+		obj2.position.set(0,10, -10);
+		obj2.receiveShadow = false;
+		scene.add( obj2 );
+		
+		const line_mater = new THREE.LineBasicMaterial({color: 0xDF4949});
+		var geometry = new THREE.Geometry();
+		geometry.vertices.push(
+			new THREE.Vector3(0,25,-10),
+			obj2.position
+		);
+		line = new THREE.Line(geometry, line_mater);  
+		scene.add(line);
+		
+		var geometry2 = new THREE.Geometry();
+		geometry2.vertices.push(
+			new THREE.Vector3(0, 25, 10),
+			obj1.position 
+		);
+		line2 = new THREE.Line(geometry2, line_mater); 
+		scene.add(line2);
+		//const toggleBtn = document.querySelector('btn-default');
+   		//toggleBtn.addEventListener('click', setVelocity);
+		
+
+		document.getElementById('start').addEventListener('click',function(){
+			 lasttime = performance.now() * 0.001; // Reset lasttime 
+			is_start = true;
+		});
+		document.getElementById('stop').addEventListener('click',function(){
+			is_stop = true;  
+		});
+		document.getElementById('check').addEventListener('click',function(){
+			var ans = parseFloat(document.getElementById('acceleration').value).toFixed(1);
+			var a = ((m2 - m1)*9.81/(m1+m2+M/2)).toFixed(1);
+			if(ans == a){
+				audio1.play();
+				document.getElementById("check-box").checked = true;
+			}else{
+				audio2.play();
+				document.getElementById("check-box").checked = false;
+			}
+		});
+		document.getElementById('reset').addEventListener('click',function(){
+			location.reload(true);   
+		});
+		requestAnimationFrame( render );
+		scene.simulate();
+	};
+
+	render = function() {
+		
+		var d = 40;
+		var acceleration = m2*0.981/(m1+m2);
+		var currenttime = performance.now()*0.001;
+		var t = Math.abs(lasttime - currenttime);
+
+		pointlight.position.x = Math.sin( t * 0.7 ) * d;
+		pointlight.position.z = Math.cos( t * 0.3 ) * d;
+		pointlight2.position.x = Math.cos( t * 0.3 ) * d;
+		pointlight2.position.z = Math.sin( t * 0.7 ) * d;
+		
+		if(is_start){
+			   if(obj2.position.y > -26){
+				
+				scene.remove(obj1);
+				scene.remove(obj2);
+				obj1.position.y = -30 + 0.5*acceleration*t*t;
+				obj2.position.y = 10 - 0.5*acceleration*t*t;
+				scene.add(obj1);
+				scene.add(obj2);
+				line.geometry.vertices[ 1 ]= obj2.position;
+				line.geometry.verticesNeedUpdate = true;
+				line2.geometry.vertices[1] = obj1.position;
+	    			line2.geometry.verticesNeedUpdate = true;
+				// for graph:   
+				var distance = Math.abs(0.5*acceleration*t*t/100); 
+				var Vx = acceleration*t/100;
+				distance = (distance).toFixed(2);
+				pointArray.push({x:t/10,y:distance});
+				//pointArray.push({x:time,y:Vx});
+				graph();
+				//lasttime = currenttime;
+			   }else{
+				   is_stop = true;
+			   }
+			
+		}	
+		if(is_stop){
+			return;
+		}
+				
+		requestAnimationFrame( render );
+		renderer.render( scene, camera );
+	};
+	
+	window.onload = initScene;
+	
+	</script>
+
+</head>
+
+<body>
+	<div id="info" style="text-align: center"> 
+		<h1 style="text-align: center;">Atwood Machine</h1>
+		
+		<button class="btn btn-default" id="start" style="background-color:lightgreen">Start</button>	
+		<button class="btn btn btn-danger" id="stop" style="background-color:red">Stop</button>	
+		Enter tangential acceleration a = <input type="text" size="4" id="acceleration" value="0.0"><label> m/s^2 </label>
+		<button type="button" class="button" id="check" style="background-color:lightgreen">Check Answer</button>
+	  	<input type="checkbox" name="check-box" id="check-box">
+		<button class="btn btn-default" id="reset" style="background-color:lightgreen">Reset</button>
+		
+	</div>
+	<canvas id="canvas" ></canvas> 
+	<div id="viewport"></div>
+</body>
+
+</html>

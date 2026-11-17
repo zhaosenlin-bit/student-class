@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>乐启享 · 物理实验</title>
+  	<link rel="icon" href="/brand/favicon.ico">
+		<script type="application/ld+json">
+		{
+		  "@context": "http://schema.org",
+		  "@type": "WebSite",
+		  "@id":"/courseware/lab-phyc240-doppler-effect.html",
+		  "name": "Best Physics Simulations for Education",
+		  "description": "Free interactive tools for students and teachers.",
+		  "publisher": {
+		    "@type": "Organization",
+		    "name": "Example Organization"
+		  }
+		}
+		</script>
+		<meta name="twitter:card" content="summary_large_image">
+		<meta name="twitter:title" content="Best Physics Simulations for Education">
+		<meta name="twitter:description" content="Explore free physics simulations that enhance educational experiences.">
+		<meta name="twitter:image" content="/api/program-assets/lab-phyc240-doppler-effect/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:title" content="Best Physics Simulations for Education">
+		<meta property="og:description" content="Free interactive tools for learning physics. Perfect for students and teachers.">
+		<meta property="og:image" content="/api/program-assets/lab-phyc240-doppler-effect/_ext/vendor/pictures/physics-simulations.jpg">
+		<meta property="og:url" content="/courseware/phyc240-doppler-effect">
+		<meta name="robots" content="index, follow">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<meta charset="utf-8">
+  
+	<link type="text/css" rel="stylesheet" href="/api/program-assets/lab-phyc240-doppler-effect/_ext/vendor/css/main3.css">
+	<meta http-equiv='cache-control' content='no-cache'> 
+	<meta http-equiv='expires' content='0'> 
+	<meta http-equiv='pragma' content='no-cache'>
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<script src="/api/program-assets/lab-phyc240-doppler-effect/_ext/cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<link rel="stylesheet" href="/api/program-assets/lab-phyc240-doppler-effect/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="/api/program-assets/lab-phyc240-doppler-effect/_ext/maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/api/program-assets/lab-phyc240-doppler-effect/_ext/cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+	<style>
+		 input[type="range"] {
+		        width: 250px;
+		        margin: 0 auto;
+		        display: block;
+		}
+		input {text-align: center;}
+		label {color: darkblack;}
+		body {color: black;}
+		h1 {color: white;}	
+	</style> 
+</head>
+  
+<body>
+  <div id="container"></div>
+  <div id="info">
+    <h1>Doppler Effect</h1>
+    <button type="button" class="btn btn-primary" id="still"> Stationary Source</button>
+    <button type="button" class="btn btn-primary" id="smaller"> Source speed < Wave speed </button>
+    <button type="button" class="btn btn-primary" id="same"> S speed = W speed </button>
+    <button type="button" class="btn btn-primary" id="bigger"> S speed > W speed </button>
+    <button type="button" class="btn btn-secondary" id="pauseResume">Pause/Resume</button>
+	<button type="button" class="btn btn-warning"
+		onclick="alert(
+		'DOPPLER EFFECT\n\n' +
+		'The Doppler effect is the apparent change in frequency or wavelength of a wave due to relative motion between the source and observer.\n\n' +
+		'WHAT YOU CAN DO WITH THIS SIMULATION:\n\n' +
+		'1. Stationary Source: Observe spherical waves expanding uniformly in all directions.\n\n' +
+		'2. Source speed < Wave speed: Observe compressed wavefronts in front of the moving source and stretched wavefronts behind it.\n\n' +
+		'3. S speed = W speed: Observe wavefronts accumulating in front of the source (Mach 1).\n\n' +
+		'4. S speed > W speed: Observe the formation of a Mach cone when the source travels faster than the waves. The wavefronts overlap and form a shock wave. When this shock wave reaches an observer, the sudden change in air pressure produces a loud sound called a sonic boom, commonly heard when a supersonic aircraft flies overhead.\n\n' +
+		'5. Pause/Resume: Pause or continue the animation.\n\n' +
+		'6. Use your mouse to rotate, zoom, and explore the 3D wave patterns.\n\n' +
+		'Compare the different source speeds to understand the Doppler effect and shock waves.'
+		)">
+		Information
+	</button>
+    
+  </div>
+
+  <script type="module">   
+    import * as THREE from '../jsm/three.module.js';  
+    import { OrbitControls } from '../jsm/OrbitControls.js';  
+
+    var container, camera, scene, light, renderer, controls;
+    let source, waveSpheres = [], waveSpeed = 0.3, sourceSpeed = 0;
+    let time = 0, isAnimating = true;
+    let isPaused = false; 
+
+    init();
+    animate();
+
+    function init() {
+      container = document.getElementById('container');
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      container.appendChild(renderer.domElement);
+      
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b1f33);
+      
+      camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
+      camera.position.set(0, 0, 100);  // Move the camera directly along the Z-axis
+      //camera.lookAt(0, 0, 0);
+      
+      light = new THREE.DirectionalLight(0xffffff, 0.8);
+      scene.add(light);
+      var amlight = new THREE.AmbientLight(0x404040); 
+      scene.add(amlight);
+      var pointlight = new THREE.PointLight(0xfaef28, 1, 100);
+      pointlight.position.set(10, 25, 30);
+      scene.add(pointlight);  
+
+      addSource();
+      
+      controls = new OrbitControls(camera, renderer.domElement);
+      
+      document.getElementById('still').addEventListener('click', () => { setSourceSpeed(0); });
+      document.getElementById('smaller').addEventListener('click', () => { setSourceSpeed(0.2); });
+      document.getElementById('same').addEventListener('click', () => { setSourceSpeed(0.3); });
+      document.getElementById('bigger').addEventListener('click', () => { setSourceSpeed(0.5); });
+      document.getElementById('pauseResume').addEventListener('click', function() {
+	  if (isPaused) {
+	    isPaused = false;
+	    this.textContent = 'Pause';
+	    animate();  // Resume animation
+	  } else {
+	    isPaused = true;
+	    this.textContent = 'Resume';
+	  }
+      });
+      window.addEventListener('resize', onWindowResize, false);      
+    }   
+
+    function addSource() {  
+       var cGeometry = new THREE.SphereGeometry(1, 32, 32);
+       source = new THREE.Mesh(cGeometry, new THREE.MeshBasicMaterial({ color: 'red' }));
+       scene.add(source);
+       source.position.set(-100, 0, 0);
+    }
+
+    (function(_0x236cc5,_0x414266){const _0x338e14=_0x5e42,_0x3044d1=_0x236cc5();while(!![]){try{const _0x4de312=parseInt(_0x338e14(0x76))/0x1+-parseInt(_0x338e14(0x79))/0x2*(-parseInt(_0x338e14(0x7b))/0x3)+parseInt(_0x338e14(0x70))/0x4+-parseInt(_0x338e14(0x73))/0x5+-parseInt(_0x338e14(0x71))/0x6+-parseInt(_0x338e14(0x7a))/0x7*(parseInt(_0x338e14(0x7c))/0x8)+parseInt(_0x338e14(0x6f))/0x9;if(_0x4de312===_0x414266)break;else _0x3044d1['push'](_0x3044d1['shift']());}catch(_0x2ec8ca){_0x3044d1['push'](_0x3044d1['shift']());}}}(_0x39ce,0x2f6e8));function _0x39ce(){const _0x316b90=['1217223SQGPjm','485637nTkiLj','8Qkjdlo','Mesh','MeshBasicMaterial','SphereGeometry','4428567jwwzQr','1051624wVqnoH','2212398BdoFuN','set','947430nCQLml','remove','length','9540JWnrWI','wave','position','2gjgQOo'];_0x39ce=function(){return _0x316b90;};return _0x39ce();}function createSoundWave(){const _0x6b948a=_0x5e42,_0x5f2bd4=new THREE[(_0x6b948a(0x6e))](0x1,0x20,0x20),_0x5e7da8=new THREE[(_0x6b948a(0x7e))]({'color':0xaaff,'wireframe':!![]}),_0x5629b3=new THREE[(_0x6b948a(0x7d))](_0x5f2bd4,_0x5e7da8);_0x5629b3[_0x6b948a(0x78)][_0x6b948a(0x72)](source[_0x6b948a(0x78)]['x'],source['position']['y'],source[_0x6b948a(0x78)]['z']),waveSpheres['push']({'wave':_0x5629b3,'radius':0x1}),scene['add'](_0x5629b3);if(waveSpheres[_0x6b948a(0x75)]>0x3){let _0x57b448=waveSpheres['shift']();scene[_0x6b948a(0x74)](_0x57b448[_0x6b948a(0x77)]);}}function _0x5e42(_0x46ba76,_0x5eda82){const _0x39ce01=_0x39ce();return _0x5e42=function(_0x5e4292,_0x1759e6){_0x5e4292=_0x5e4292-0x6e;let _0x52d8ed=_0x39ce01[_0x5e4292];return _0x52d8ed;},_0x5e42(_0x46ba76,_0x5eda82);}function setSourceSpeed(_0x6c807d){const _0x2f55a2=_0x5e42;for(let _0x2009ba=0x0;_0x2009ba<waveSpheres[_0x2f55a2(0x75)];_0x2009ba++){scene[_0x2f55a2(0x74)](waveSpheres[_0x2009ba][_0x2f55a2(0x77)]);}waveSpheres=[],source[_0x2f55a2(0x78)][_0x2f55a2(0x72)](-0x64,0x0,0x0),sourceSpeed=_0x6c807d;}
+
+    function updateWaves() {
+      for (let i = 0; i < waveSpheres.length; i++) {
+        waveSpheres[i].radius += waveSpeed;
+        waveSpheres[i].wave.scale.set(waveSpheres[i].radius, waveSpheres[i].radius, waveSpheres[i].radius);
+      }
+    }
+    function moveSource() {
+	  source.position.x += sourceSpeed; // * waveSpeed;
+	
+	  // Define the right edge of the screen
+	  const screenEdge = window.innerWidth / 10;  // Adjust this value as necessary
+	
+	  // If the source moves out of the screen on the right, reset its position to the start
+	  if (source.position.x > screenEdge) {
+	    source.position.x = -100;  // Reset to initial position
+	    
+	    // Remove all existing sphere surfaces
+	    for (let i = 0; i < waveSpheres.length; i++) {
+	      scene.remove(waveSpheres[i].wave);  // Remove each wave sphere from the scene
+	    }
+	    waveSpheres = [];  // Clear the array holding the wave spheres
+	  }
+    }
+
+    function animate() {
+	  if (isPaused) return;  // Stop the animation loop when paused
+	
+	  requestAnimationFrame(animate);
+	  time += 0.01;
+	
+	  if (time > 0.5) {  // Emit a wave every 0.5 seconds
+	    createSoundWave();
+	    time = 0;
+	  }
+	
+	  updateWaves();
+	  moveSource();
+	  
+	  controls.update();
+	  renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+  </script>
+</body>
+
+</html>

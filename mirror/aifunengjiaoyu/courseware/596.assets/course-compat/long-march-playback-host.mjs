@@ -15,7 +15,7 @@ export async function prepareLongMarchPlayback(programId) {
   };
   const status=await request('status',{});if(status.enabled===false)return null;if(status.enabled!==true)throw Error('PUBLIC_LEASE');
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([account,bearer,programId])));
-  const key='turing.longMarch.playback.v1:'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+  const key='leqixiang.longMarch.playback.v1:'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
   let saved=null;try{saved=JSON.parse(sessionStorage.getItem(key)||'null');}catch{throw Error('播放记录无法读取，请关闭本页后重新打开。');}
   const restart=()=>sessionStorage.removeItem(key);
   if(!saved){saved={requestId:Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('')};sessionStorage.setItem(key,JSON.stringify(saved));}
