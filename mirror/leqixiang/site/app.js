@@ -17,6 +17,13 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const richText=value=>{const raw=String(value??"");if(!raw)return "";const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;const open=whole=>whole.replace(/&lt;/g,"<").replace(/&gt;/g,">");if(/&lt;[a-z]/i.test(raw))return raw.replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);if(!/<[a-z][a-z0-9]*>/i.test(raw))return esc(raw);return esc(raw).replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);};
 let authSerial=0;
 let catalog=[],info={},user=null,filter='全部',stage='全部',search='',timer=null,toastTimer=null,currentLesson=null,routeSerial=0,frameTimer=null,activePage='works',originFilter='全部',sortBy='default',authorFilter='',subjectsOpen=false;
+/*
+ * The catalogue holds well over a thousand lessons.  Drawing all of them
+ * at once makes the page heavy to open and heavy to scroll, so the grid
+ * is drawn in batches and the reader asks for the next one.
+ */
+const GRID_BATCH=48;
+let gridShown=GRID_BATCH;
 const store={bundle:()=>null,courseBundles:()=>[],bundleSummary:()=>'',purchaseOptions:()=>[],bundlePricing:()=>'',bundlesPage:()=>{history.replaceState(null,'','#catalog');},feedbackAdmin:()=>{}};
 const courseTools=createCourseTools({modal,toast,getProduct:id=>product(id),origin:location.origin});
 const downloadUI=createDownloadUI({api,esc,product:id=>product(id),main:()=>$('#main'),modal,close,toast});
@@ -230,14 +237,14 @@ function chapterCourse(p){
  const visibleModules=modules.length>8?modules.slice(0,6):modules;
  return `<article class="chapter-course" data-product-id="${esc(p.id)}"><header class="chapter-course-heading"><div class="chapter-course-meta"><span>${esc(stageLabel(p))} · ${esc(p.subject)}</span><span class="${p.mode==='paid'?'paid-label':''}">${priceText(p)}</span></div><h3>${esc(p.title)}</h3></header>${operationGuide(p,{heading:'h4',compact:true})}<button class="chapter-course-cover" data-action="detail" data-id="${esc(p.id)}" aria-label="查看${esc(p.title)}的介绍"><img src="${esc(p.cover||'/images/community-cover.svg')}" alt="${esc(coverAlt(p))}" loading="lazy" decoding="async" width="720" height="390"></button><div class="chapter-course-body"><p class="chapter-course-description">${richText(p.description)}</p><div class="chapter-course-actions">${showCatalogUse(p)?`<button class="button" data-action="trial" data-id="${esc(p.id)}">在线使用 ↗</button>`:`<button class="button" ${p.canPurchase?`data-action="detail" data-id="${esc(p.id)}"`:'disabled'}>${p.canPurchase?catalogBuyText(p):'本地已收录'}</button>`}<button class="button secondary" data-action="detail" data-id="${esc(p.id)}">介绍</button></div>${showCatalogUse(p)?pptMarkup(p.id):''}</div>${modules.length?`<section class="chapter-course-content"><h4>包含内容</h4><div class="chapter-course-modules">${visibleModules.map(moduleMarkup).join('')}</div>${modules.length>8?`<details class="chapter-course-more"><summary>其他 ${modules.length-visibleModules.length} 项内容</summary><div class="chapter-course-modules">${modules.slice(visibleModules.length).map(moduleMarkup).join('')}</div></details>`:''}</section>`:''}</article>`;
 }
-function renderGrid(){
- if(!$('#grid'))return;const knowledge=originFilter==='教师课件'?null:selectedKnowledge();
+function renderGrid(fresh=true){
+ if(!$('#grid'))return;if(fresh)gridShown=GRID_BATCH;const knowledge=originFilter==='教师课件'?null:selectedKnowledge();
  const shown=browseCatalog(info.downloadMode&&originFilter!=='教师课件'?catalog.filter(p=>matchesDownloadEdition(p,editionFilter)):catalog,{origin:originFilter,stage,subject:filter,author:authorFilter,query:search,sortBy,courseIds:knowledge?.ids||null});
  // browseCatalog applies the same free-first, integrated-first order to every listing.
  const defaultSort=$('#course-sort option[value="default"]');if(defaultSort)defaultSort.textContent=search.trim()?'相关度':'目录顺序';
  const result=$('#result-count');if(knowledge)result.innerHTML=`<div class="chapter-results-heading"><div class="chapter-results-title"><p class="eyebrow">本章课件</p><h2>${esc(knowledge.title)}</h2></div><span class="chapter-results-count">${shown.length} 份课件</span></div>`;else result.textContent=`${shown.length} 份课件`;
  const reset=$('#catalog-reset');if(reset)reset.hidden=!(knowledge||search||authorFilter||stage!=='全部'||filter!=='全部'||(activePage!=='teachers'&&originFilter!=='全部'));
- $('#grid').classList.toggle('chapter-grid',!!knowledge);$('#grid').innerHTML=shown.length?shown.map(knowledge?chapterCourse:card).join(''):`<div class="empty"><span class="empty-graphic" aria-hidden="true">○</span><h3>${knowledge?.empty?'本章暂无课件':originFilter==='教师课件'&&!catalog.some(isTeacherCourse)?'暂无已上架的教师课件':'没有符合条件的课件'}</h3>${originFilter==='教师课件'&&!catalog.some(isTeacherCourse)?'<p>教师作品审核通过后，会出现在这里。</p><a class="button secondary" href="#creator">发布课件</a>':'<button class="button secondary" data-action="clear-filters">清除筛选</button>'}</div>`;observeReveals();
+ $('#grid').classList.toggle('chapter-grid',!!knowledge);$('#grid').innerHTML=shown.length?shown.slice(0,gridShown).map(knowledge?chapterCourse:card).join('')+(shown.length>gridShown?`<button class="catalog-more" type="button" data-action="catalog-more">继续加载 · 还有 ${shown.length-gridShown} 份课件</button>`:''):`<div class="empty"><span class="empty-graphic" aria-hidden="true">○</span><h3>${knowledge?.empty?'本章暂无课件':originFilter==='教师课件'&&!catalog.some(isTeacherCourse)?'暂无已上架的教师课件':'没有符合条件的课件'}</h3>${originFilter==='教师课件'&&!catalog.some(isTeacherCourse)?'<p>教师作品审核通过后，会出现在这里。</p><a class="button secondary" href="#creator">发布课件</a>':'<button class="button secondary" data-action="clear-filters">清除筛选</button>'}</div>`;observeReveals();
 }
 function works(){
  const home=activePage==='works'&&!info.downloadMode,teacher=originFilter==='教师课件';$('#main').className=home?'home-page':teacher?'catalog-page':'catalog-page catalog-with-directory';
@@ -326,6 +333,7 @@ else if(action==='stage'||action==='filter'){if(action==='stage'){stage=value;fi
 else if(action==='download-edition'){editionFilter=validDownloadEdition(value);chapterFilter='';works();}
 else if(action==='chapter'){chapterFilter=value;renderTree();renderGrid();if(matchMedia('(max-width:900px)').matches)$('#curriculum details').open=false;$('.catalog-products')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'start'});}
 else if(action==='clear-chapter'){chapterFilter='';renderTree();renderGrid();}
+else if(action==='catalog-more'){gridShown+=GRID_BATCH;renderGrid(false);}
 else if(action==='clear-filters'){stage=filter='全部';originFilter=activePage==='teachers'?'教师课件':'全部';search=chapterFilter=authorFilter='';works();}
 else if(action==='course-return'){close();await courseNavigation.returnTo(currentLesson||id,!!currentLesson);}
 else if(action==='takeover'){close();await openLesson(id,++routeSerial,true);}

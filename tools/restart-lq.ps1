@@ -22,8 +22,13 @@ foreach ($port in @(4173, 4174, 4175)) {
 }
 Start-Sleep -Seconds 1
 
+$logDir = Join-Path $root 'recon\scratch'
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+$outLog = Join-Path $logDir 'lq-server.log'
+$errLog = Join-Path $logDir 'lq-server.err'
 $proc = Start-Process -FilePath $node -ArgumentList $server -WorkingDirectory $root `
-  -WindowStyle Hidden -PassThru
+  -WindowStyle Hidden -PassThru `
+  -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 Write-Output "server pid=$($proc.Id)"
 Start-Sleep -Seconds 3
 

@@ -15,6 +15,8 @@ import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import zlib from 'node:zlib';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 
 /*
@@ -61,6 +63,103 @@ const MIME = {
 };
 
 const mimeFor = (p) => MIME[path.extname(p).toLowerCase()] || 'application/octet-stream';
+
+/*
+ * The request that is being answered right now.
+ *
+ * A reply is written from a dozen places, and most of them do not have the
+ * request at hand.  The store carries it, so that every reply can ask the
+ * browser whether it is willing to take a compressed body and answer with a
+ * "not modified" when nothing has changed.
+ */
+const requestContext = new AsyncLocalStorage();
+
+/* The kinds of body that are worth packing: text shrinks by most of itself. */
+const COMPRESSIBLE = /^(?:text\/|application\/(?:json|javascript|xml|xhtml\+xml)|image\/svg\+xml)/i;
+
+function wantsGzip(req) {
+  if (!req) return false;
+  const accept = String(req.headers['accept-encoding'] || '');
+  return /\bgzip\b/i.test(accept);
+}
+
+/*
+ * The address the reader really used.
+ *
+ * On this machine the library answers on http://127.0.0.1:4173.  Put it
+ * behind a proxy and the address the browser knows is the one the proxy
+ * forwards, not the one on the socket.  Two things depend on getting
+ * this right: a lesson checks its own origin against the address it was
+ * opened with, and the download button is only let through when the
+ * request carries an origin of its own.  Both compare against this, so
+ * behind a proxy with https they keep working.
+ */
+function publicOrigin(req, port) {
+  const proto =
+    String(req.headers['x-forwarded-proto'] || '')
+      .split(',')[0]
+      .trim() ||
+    (req.socket && req.socket.encrypted ? 'https' : 'http');
+  const host =
+    String(req.headers['x-forwarded-host'] || '')
+      .split(',')[0]
+      .trim() ||
+    req.headers.host ||
+    `localhost:${port}`;
+  return `${proto}://${host}`;
+}
+
+/* The host of an address, without the scheme and the path. */
+function originHost(value) {
+  try {
+    return new URL(String(value || '')).host.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/*
+ * A small cache of packed bodies.
+ *
+ * A courseware body is read, rewritten and packed on every visit, which is
+ * the most expensive thing the server does.  The files on disk do not
+ * change while the library runs, so the packed form is kept for a while
+ * and thrown away when the cache grows too large.
+ */
+const packedCache = new Map();
+const PACKED_CACHE_BYTES = 96 * 1024 * 1024;
+let packedCacheBytes = 0;
+
+function cachePacked(key, mtimeMs, raw, gz) {
+  const size = raw.length + (gz ? gz.length : 0);
+  packedCache.set(key, { mtimeMs, raw, gz, size });
+  packedCacheBytes += size;
+  while (packedCacheBytes > PACKED_CACHE_BYTES && packedCache.size > 1) {
+    const oldest = packedCache.keys().next().value;
+    const entry = packedCache.get(oldest);
+    packedCache.delete(oldest);
+    packedCacheBytes -= entry.size;
+  }
+}
+
+function cachedPacked(key, mtimeMs) {
+  const entry = packedCache.get(key);
+  if (!entry) return null;
+  if (entry.mtimeMs !== mtimeMs) {
+    packedCache.delete(key);
+    packedCacheBytes -= entry.size;
+    return null;
+  }
+  return entry;
+}
+
+function pack(raw) {
+  try {
+    return zlib.gzipSync(raw, { level: 6 });
+  } catch {
+    return null;
+  }
+}
 
 /* A file name a browser can save without complaining. */
 function safeName(value) {
@@ -127,6 +226,33 @@ const AFE_MIME = {
 };
 
 function send(res, status, body, headers = {}) {
+  /*
+   * A text body is packed on the way out.  The courseware alone is several
+   * hundred megabytes, and packing it once and sending the small form is
+   * the difference between a page that opens at once and one that waits.
+   */
+  const store = requestContext.getStore();
+  const req = store && store.req;
+  const type = String(headers['Content-Type'] || '');
+  if (
+    body &&
+    body.length > 512 &&
+    !headers['Content-Encoding'] &&
+    COMPRESSIBLE.test(type) &&
+    wantsGzip(req)
+  ) {
+    const packed = pack(body);
+    if (packed) {
+      headers['Content-Encoding'] = 'gzip';
+      headers['Content-Length'] = packed.length;
+      if (!/\bAccept-Encoding\b/i.test(headers.Vary || '')) {
+        headers.Vary = headers.Vary
+          ? `${headers.Vary}, Accept-Encoding`
+          : 'Accept-Encoding';
+      }
+      body = packed;
+    }
+  }
   res.writeHead(status, headers);
   res.end(body);
 }
@@ -134,6 +260,44 @@ function send(res, status, body, headers = {}) {
 function sendJson(res, status, obj) {
   const body = Buffer.from(JSON.stringify(obj));
   send(res, status, body, { 'Content-Type': 'application/json; charset=utf-8' });
+}
+
+/*
+ * A lesson that is not on this machine.
+ *
+ * The preview opens the lesson inside a frame, so the answer has to be a
+ * page and not a line of JSON: a reader who lands here should be told
+ * what happened in words they can act on.
+ */
+function sendMissingCourseware(res, id) {
+  const body = Buffer.from(
+    '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">\n' +
+      '<title>本地没有安装这份课件</title>\n' +
+      '<style>' +
+      'html,body{height:100%;margin:0}' +
+      'body{display:grid;place-items:center;background:#f6f7f9;color:#2b3138;' +
+      'font:16px/1.8 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;padding:24px}' +
+      '.box{max-width:520px;text-align:center}' +
+      'h1{font-size:20px;margin:0 0 12px}' +
+      'p{margin:0 0 10px;color:#5a6472}' +
+      'code{font-size:13px;color:#8a94a2;word-break:break-all}' +
+      'a{display:inline-block;margin-top:18px;padding:10px 22px;border-radius:8px;' +
+      'background:#1f6f4a;color:#fff;text-decoration:none;font-weight:600}' +
+      '</style>\n</head>\n<body>\n<div class="box">\n' +
+      '<h1>本机还没有这份课件的文件</h1>\n' +
+      '<p>这一份课件没有收进本地课件库，所以现在打不开。</p>\n' +
+      '<p>请回到课件库挑一份已经收录的课件；本库里的每一份都可以直接预览和下载。</p>\n' +
+      `<code>${String(id || '').replace(/[<&]/g, '')}</code>\n` +
+      '<br><a href="../#catalog" target="_top">返回课件库</a>\n' +
+      '</div>\n</body>\n</html>\n',
+    'utf8'
+  );
+  send(res, 404, body, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': body.length,
+    'Cache-Control': 'no-cache',
+  });
 }
 
 /*
@@ -220,16 +384,119 @@ async function serveFile(
   try {
     const stat = await fsp.stat(file);
     if (!stat.isFile()) return false;
+    const type = contentType || mimeFor(file);
     const headers = {
-      'Content-Type': contentType || mimeFor(file),
-      'Content-Length': stat.size,
+      'Content-Type': type,
       'Cache-Control': cache || 'no-cache',
     };
     if (extra) Object.assign(headers, extra);
+    /*
+     * A picture, a sound or a model is asked for in pieces by the
+     * browser.  Saying that the file may be read in pieces is what lets
+     * a long recording start playing at once and lets a reader look for
+     * a moment inside it.
+     */
+    const ranged = !COMPRESSIBLE.test(type);
+    if (ranged) headers['Accept-Ranges'] = 'bytes';
     if (download) {
       headers['Content-Disposition'] =
         `attachment; filename="${encodeURIComponent(path.basename(file))}"`;
     }
+    /*
+     * A file that has not changed is answered with a number instead of a
+     * body.  The browser then keeps its copy and the library opens at once
+     * on the second visit.
+     */
+    const tag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+    headers.ETag = tag;
+    const store = requestContext.getStore();
+    const req = store && store.req;
+    if (req && String(req.headers['if-none-match'] || '') === tag) {
+      res.writeHead(304, headers);
+      res.end();
+      return true;
+    }
+    if (req && req.method === 'HEAD') {
+      headers['Content-Length'] = stat.size;
+      res.writeHead(200, headers);
+      res.end();
+      return true;
+    }
+    /*
+     * A text file is packed once and kept in that form.  Packing a
+     * megabyte of courseware on every visit is the one thing that made the
+     * library feel slow.
+     */
+    const range = req ? String(req.headers.range || '') : '';
+    if (ranged && /^bytes=/i.test(range)) {
+      const m = /^bytes=(\d*)-(\d*)$/i.exec(range.trim());
+      if (m) {
+        let start;
+        let end;
+        if (m[1] === '') {
+          /* The last few bytes of the file. */
+          const tail = Number(m[2] || 0);
+          start = Math.max(0, stat.size - tail);
+          end = stat.size - 1;
+        } else {
+          start = Number(m[1]);
+          end = m[2] === '' ? stat.size - 1 : Math.min(Number(m[2]), stat.size - 1);
+        }
+        if (
+          !Number.isFinite(start) ||
+          !Number.isFinite(end) ||
+          start > end ||
+          start >= stat.size
+        ) {
+          res.writeHead(416, {
+            'Content-Range': `bytes */${stat.size}`,
+            'Accept-Ranges': 'bytes',
+          });
+          res.end();
+          return true;
+        }
+        headers['Content-Range'] = `bytes ${start}-${end}/${stat.size}`;
+        headers['Content-Length'] = end - start + 1;
+        res.writeHead(206, headers);
+        if (req.method === 'HEAD') {
+          res.end();
+          return true;
+        }
+        fs.createReadStream(file, { start, end }).pipe(res);
+        return true;
+      }
+    }
+    if (COMPRESSIBLE.test(type) && stat.size > 512) {
+      const key = file;
+      let entry = cachedPacked(key, stat.mtimeMs);
+      if (!entry) {
+        const raw = await fsp.readFile(file);
+        const gz = pack(raw);
+        cachePacked(key, stat.mtimeMs, raw, gz);
+        entry = cachedPacked(key, stat.mtimeMs);
+      }
+      if (!entry) {
+        /* The cache gave it back right away; if it did not, read it again. */
+        const raw = await fsp.readFile(file);
+        headers['Content-Length'] = raw.length;
+        res.writeHead(200, headers);
+        res.end(raw);
+        return true;
+      }
+      if (entry.gz && wantsGzip(req)) {
+        headers['Content-Encoding'] = 'gzip';
+        headers['Content-Length'] = entry.gz.length;
+        headers.Vary = 'Accept-Encoding';
+        res.writeHead(200, headers);
+        res.end(entry.gz);
+        return true;
+      }
+      headers['Content-Length'] = entry.raw.length;
+      res.writeHead(200, headers);
+      res.end(entry.raw);
+      return true;
+    }
+    headers['Content-Length'] = stat.size;
     res.writeHead(200, headers);
     fs.createReadStream(file).pipe(res);
     return true;
@@ -302,10 +569,24 @@ function loadXb(profile) {
     };
   }).filter((p) => p.localInstalled);
 
+  /*
+   * A course that was split into smaller ones points at the pieces.  A
+   * piece that is not on this machine cannot be opened, so an entry whose
+   * pieces are all missing is dropped as well: it would only lead to a
+   * page that has nothing on it.
+   */
+  const replacements = {};
+  for (const [id, entry] of Object.entries(catalog.courseReplacements || {})) {
+    const ids = Array.isArray(entry?.productIds) ? entry.productIds : [];
+    if (!ids.some((child) => installed.has(child))) continue;
+    replacements[id] = entry;
+  }
+
   state.catalog = {
     ...catalog,
     serverTime: Date.now(),
     products,
+    courseReplacements: replacements,
     selling: false,
     salesMode: 'local',
     siteMode: 'local',
@@ -1187,6 +1468,47 @@ function buildLqZip(id) {
   return buildZip(entries);
 }
 
+/*
+ * The archive of a lesson is put together once and kept.
+ *
+ * Building it reads every picture and every script of the lesson, which
+ * takes long enough to be noticed.  The files on disk do not move while
+ * the library runs, so the finished archive is kept until the folder
+ * behind it changes.
+ */
+const zipCache = new Map();
+const ZIP_CACHE_BYTES = 192 * 1024 * 1024;
+let zipCacheBytes = 0;
+
+function zipFor(id) {
+  const bodyFile = path.join(LQ_ROOT, 'courseware', `${id}.html`);
+  const assets = path.join(LQ_ROOT, 'courseware', `${id}.assets`);
+  let stamp;
+  try {
+    stamp = fs.statSync(bodyFile).mtimeMs;
+  } catch {
+    return null;
+  }
+  try {
+    stamp += fs.statSync(assets).mtimeMs;
+  } catch {
+    /* A lesson without a folder of its own is fine. */
+  }
+  const key = `${id}|${stamp}`;
+  const hit = zipCache.get(key);
+  if (hit) return hit;
+  const zip = buildLqZip(id);
+  if (!zip) return null;
+  zipCache.set(key, zip);
+  zipCacheBytes += zip.length;
+  while (zipCacheBytes > ZIP_CACHE_BYTES && zipCache.size > 1) {
+    const oldest = zipCache.keys().next().value;
+    zipCacheBytes -= zipCache.get(oldest).length;
+    zipCache.delete(oldest);
+  }
+  return zip;
+}
+
 async function serveLqAssets(res, pathname, search = '') {
   const rest = pathname.slice('/api/program-assets/'.length);
   const slash = rest.indexOf('/');
@@ -1314,7 +1636,16 @@ async function serveRewrittenAsset(res, file, localId) {
   return true;
 }
 
+/*
+ * Every reply written while this request is being handled knows which
+ * request it belongs to, so it can pack its body and answer with a
+ * "not modified" when the file has not changed.
+ */
 async function handleXb(req, res, url, profile) {
+  return requestContext.run({ req }, () => handleXbInner(req, res, url, profile));
+}
+
+async function handleXbInner(req, res, url, profile) {
   const pathname = decodeURIComponent(url.pathname);
   const method = req.method.toUpperCase();
 
@@ -1340,32 +1671,73 @@ async function handleXb(req, res, url, profile) {
     const id = pathname.slice('/courseware/'.length).replace(/\.html$/, '');
     const file = path.join(profile.coursewareDir, `${id}.html`);
     if (!fs.existsSync(file)) {
-      return sendJson(res, 404, { error: '本地没有安装这份课件。' });
+      /*
+       * The preview opens this document inside a frame.  A line of JSON in
+       * that frame reads like a broken page, so the answer is a page of
+       * our own that says what happened.
+       */
+      return sendMissingCourseware(res, id);
     }
     // The published courseware hard-binds its classroom handshake to the
     // platform it came from. Rebind it to this local origin so the parent
     // shell can grant access. Everything else stays untouched.
-    const origin = `http://${req.headers.host || 'localhost:' + profile.port}`;
-    const html = fs.readFileSync(file, 'utf8');
-    let patched = html.replace(
-      /("origin"\s*:\s*)"https:\/\/xbjiaoyu\.com"/g,
-      `$1${JSON.stringify(origin)}`
-    );
-    patched = patched.replace(
-      /("origin"\s*:\s*)"__LQ_ORIGIN__"/g,
-      `$1${JSON.stringify(origin)}`
-    );
-    if (profile.kind === 'leqixiang') {
-      patched = rewriteCoursewareUrls(patched, id);
-      patched = patchLqBody(patched, id);
-      patched = injectLocalCdnShim(patched, id);
+    const origin = publicOrigin(req, profile.port);
+    /*
+     * The rewritten body depends on the address the reader came from and
+     * on nothing else, so it is kept in its finished form.  The second
+     * visit to a lesson is then answered without touching the disk.
+     */
+    const stat = await fsp.stat(file);
+    const key = `${file}|${origin}`;
+    let entry = cachedPacked(key, stat.mtimeMs);
+    let raw = entry ? entry.raw : null;
+    let gz = entry ? entry.gz : null;
+    if (!raw) {
+      const html = fs.readFileSync(file, 'utf8');
+      let patched = html.replace(
+        /("origin"\s*:\s*)"https:\/\/xbjiaoyu\.com"/g,
+        `$1${JSON.stringify(origin)}`
+      );
+      patched = patched.replace(
+        /("origin"\s*:\s*)"__LQ_ORIGIN__"/g,
+        `$1${JSON.stringify(origin)}`
+      );
+      if (profile.kind === 'leqixiang') {
+        patched = rewriteCoursewareUrls(patched, id);
+        patched = patchLqBody(patched, id);
+        patched = injectLocalCdnShim(patched, id);
+      }
+      raw = Buffer.from(patched, 'utf8');
+      gz = pack(raw);
+      cachePacked(key, stat.mtimeMs, raw, gz);
     }
-    const body = Buffer.from(patched, 'utf8');
-    return send(res, 200, body, {
+    const tag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}-${origin
+      .split('')
+      .reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+      .toString(16)}"`;
+    if (String(req.headers['if-none-match'] || '') === tag) {
+      return send(res, 304, Buffer.alloc(0), {
+        ETag: tag,
+        'Cache-Control': 'no-cache',
+      });
+    }
+    const headers = {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Length': body.length,
+      ETag: tag,
       'Cache-Control': 'no-cache',
-    });
+      Vary: 'Accept-Encoding',
+    };
+    if (method === 'HEAD') {
+      headers['Content-Length'] = raw.length;
+      return send(res, 200, Buffer.alloc(0), headers);
+    }
+    if (gz && wantsGzip(req)) {
+      headers['Content-Encoding'] = 'gzip';
+      headers['Content-Length'] = gz.length;
+      return send(res, 200, gz, headers);
+    }
+    headers['Content-Length'] = raw.length;
+    return send(res, 200, raw, headers);
   }
 
   /*
@@ -1483,12 +1855,28 @@ async function handleXb(req, res, url, profile) {
  * front-end: the browser sends a matching Origin, and the front-end adds
  * X-Requested-With: studio.  A POST without both is turned away with 403
  * before the route is even looked at.
+ *
+ * The origin is compared by host and not by the whole address.  A proxy
+ * in front of the library talks https to the browser and http to the
+ * server, so the two addresses differ in their scheme while being the
+ * same site.  The header the front-end adds is what keeps a page on
+ * another site out: a browser sends it only after the server has allowed
+ * it in a preflight, and this server allows no preflight.
  */
 function xbPostAllowed(req, port) {
-  const host = req.headers.host || `localhost:${port}`;
-  const origin = req.headers.origin || '';
   const requested = String(req.headers['x-requested-with'] || '').toLowerCase();
-  return origin === `http://${host}` && requested === 'studio';
+  if (requested !== 'studio') return false;
+  const origin = originHost(req.headers.origin || '');
+  if (!origin) return false;
+  const allowed = new Set([
+    originHost(publicOrigin(req, port)),
+    originHost(req.headers.host ? `http://${req.headers.host}` : ''),
+  ]);
+  /* An address that was written down for this installation. */
+  if (process.env.LQ_PUBLIC_ORIGIN) {
+    allowed.add(originHost(process.env.LQ_PUBLIC_ORIGIN));
+  }
+  return allowed.has(origin);
 }
 
 async function handleXbApi(req, res, pathname, profile) {
@@ -1507,7 +1895,21 @@ async function handleXbApi(req, res, pathname, profile) {
 
   if (pathname === '/api/catalog') {
     if (method !== 'GET') return notFound();
-    return sendJson(res, 200, profile.state.catalog);
+    /*
+     * The catalogue is the one answer every page waits for, so it is given
+     * a number of its own: a browser that has it does not ask again.
+     */
+    const body = Buffer.from(JSON.stringify(profile.state.catalog));
+    const tag = `"${body.length.toString(16)}-${profile.state.catalog.products.length.toString(16)}"`;
+    if (String(req.headers['if-none-match'] || '') === tag) {
+      return send(res, 304, Buffer.alloc(0), { ETag: tag, 'Cache-Control': 'no-cache' });
+    }
+    return send(res, 200, body, {
+      'Content-Type': 'application/json; charset=utf-8',
+      ETag: tag,
+      'Cache-Control': 'no-cache',
+      Vary: 'Accept-Encoding',
+    });
   }
   if (pathname === '/api/session') {
     if (method !== 'GET') return notFound();
@@ -1619,24 +2021,48 @@ async function handleXbApi(req, res, pathname, profile) {
      * would lose the library and stop drawing.
      */
     if (isPackagedCourse(id)) {
-      const zip = buildLqZip(id);
+      const zip = zipFor(id);
       if (!zip) return sendJson(res, 404, { error: '本地没有安装这份课件。' });
       return send(res, 200, zip, {
         'Content-Type': 'application/zip',
         'Content-Length': zip.length,
         'Content-Disposition': contentDisposition(`${safeName(title)}.zip`),
-        'Cache-Control': 'no-cache',
+        ETag: `"${zip.length.toString(16)}"`,
+        'Cache-Control': 'private, max-age=600',
       });
     }
     const file = path.join(profile.coursewareDir, `${id}.html`);
     if (!fs.existsSync(file)) return sendJson(res, 404, { error: '本地没有安装这份课件。' });
-    const html = relaxStandaloneGuard(fs.readFileSync(file, 'utf8'));
-    return send(res, 200, Buffer.from(html, 'utf8'), {
+    /*
+     * The body is made ready for a reader on their own machine, and it is
+     * kept in that form: the same lesson is often taken away more than
+     * once, and the work of preparing it should happen once.
+     */
+    const stat = fs.statSync(file);
+    const key = `${file}|standalone`;
+    let entry = cachedPacked(key, stat.mtimeMs);
+    let raw = entry ? entry.raw : null;
+    let gz = entry ? entry.gz : null;
+    if (!raw) {
+      const html = relaxStandaloneGuard(fs.readFileSync(file, 'utf8'));
+      raw = Buffer.from(html, 'utf8');
+      gz = pack(raw);
+      cachePacked(key, stat.mtimeMs, raw, gz);
+    }
+    const headers = {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Length': Buffer.byteLength(html, 'utf8'),
       'Content-Disposition': contentDisposition(`${safeName(title)}.html`),
-      'Cache-Control': 'no-cache',
-    });
+      ETag: `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`,
+      'Cache-Control': 'private, max-age=600',
+      Vary: 'Accept-Encoding',
+    };
+    if (gz && wantsGzip(req)) {
+      headers['Content-Encoding'] = 'gzip';
+      headers['Content-Length'] = gz.length;
+      return send(res, 200, gz, headers);
+    }
+    headers['Content-Length'] = raw.length;
+    return send(res, 200, raw, headers);
   }
   /*
    * Everything below this line belonged to the shop: the orders, the
@@ -1650,8 +2076,17 @@ async function handleXbApi(req, res, pathname, profile) {
 
 /* ------------------------------------------------------------------ */
 
-const XB_PORT = Number(process.env.XB_PORT || 4173);
-const LQ_PORT = Number(process.env.LQ_PORT || 4173);
+/*
+ * The port the library answers on.  PORT is the name most places that
+ * put a service online use, so it is read as well.
+ */
+const XB_PORT = Number(process.env.XB_PORT || process.env.PORT || 4173);
+/*
+ * The library answers on one address.  The port it is given is the port
+ * it says it is on, so that a lesson which reads the address it was
+ * opened with is told the truth.
+ */
+const LQ_PORT = Number(process.env.LQ_PORT || XB_PORT);
 
 /*
  * The 乐启享 library: the 小白教育 shell carrying both courseware sources,
@@ -1718,8 +2153,25 @@ const xbServer = http.createServer((req, res) => {
   });
 });
 
-xbServer.listen(XB_PORT, '127.0.0.1', () => {
+/*
+ * Where the library listens.
+ *
+ * On this machine it stays on the loopback address, so nothing else on
+ * the network can reach it.  Put it online and the address is given from
+ * the outside instead:
+ *
+ *   LQ_HOST=0.0.0.0 node server/server.mjs
+ *
+ * The courseware reads the address it was opened with, so the library
+ * works the same behind a proxy as it does on the machine.
+ */
+const XB_HOST = process.env.LQ_HOST || '127.0.0.1';
+
+xbServer.listen(XB_PORT, XB_HOST, () => {
   console.log(`乐启享课件库 -> http://localhost:${XB_PORT}/`);
+  if (XB_HOST !== '127.0.0.1') {
+    console.log(`对外地址：${XB_HOST}:${XB_PORT}`);
+  }
 });
 
 /*
