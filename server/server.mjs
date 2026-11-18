@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import crypto from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 
@@ -45,6 +46,13 @@ const MIME = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.jfif': 'image/jpeg',
+  '.bmp': 'image/bmp',
+  '.tif': 'image/tiff',
+  '.tiff': 'image/tiff',
+  '.avif': 'image/avif',
+  '.apng': 'image/apng',
+  '.heic': 'image/heic',
   '.webp': 'image/webp',
   '.gif': 'image/gif',
   '.ico': 'image/x-icon',
@@ -53,6 +61,14 @@ const MIME = {
   '.ttf': 'font/ttf',
   '.glb': 'model/gltf-binary',
   '.gltf': 'model/gltf+json',
+  /* The browser refuses a module that is not marked as one. */
+  '.wasm': 'application/wasm',
+  '.bin': 'application/octet-stream',
+  '.data': 'application/octet-stream',
+  '.pdf': 'application/pdf',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.gz': 'application/gzip',
+  '.mov': 'video/quicktime',
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
   '.mp3': 'audio/mpeg',
@@ -184,7 +200,12 @@ function contentDisposition(filename) {
    file name at all (jsdelivr's "+esm" bundle). They are modules, so they
    need a JavaScript content type. */
 function mimeForAsset(p) {
-  if (/(?:\/|^)\+esm$/.test(p)) return 'text/javascript; charset=utf-8';
+  /*
+   * The folder name of a module package ends in "+esm" and carries no
+   * other extension.  The separator in front of it is a backslash on
+   * Windows and a slash elsewhere, so both are accepted.
+   */
+  if (/(?:[\\/]|^)\+esm$/.test(p)) return 'text/javascript; charset=utf-8';
   /* A few CDN paths carry no file name at all. The Google Fonts stylesheet
      is asked for as "/css2?family=..." and lands on disk as a file called
      "css2"; without a stylesheet content type the browser drops it. */
@@ -360,21 +381,301 @@ function safeJoin(base, rel) {
  * of their own.  A work that asks for one of them by its root-relative
  * name is answered from the mirror of that site.
  */
-const MIRROR_ROOT_HOSTS = ['vendor'];
+/*
+ * A few mirrors keep their files under a folder named after the site
+ * they came from.  A work asks for those files by the root of that
+ * site, so the request is answered from the folder of the same name.
+ *
+ *   prefix : the address the work writes.  When it is given, that
+ *            part is cut off before the file is looked for.
+ *   dir    : the folder inside the shared mirror that holds them.
+ */
+const MIRROR_ROOT_HOSTS = [
+  { dir: 'vendor', prefix: null },
+  { dir: 'fonts.gstatic.com', prefix: 'fonts.gstatic.com' },
+];
 function mirroredRootAsset(rel) {
   if (!rel || rel.includes('..')) return null;
   const base = path.join(LQ_ROOT, '_shared-ext');
   for (const host of MIRROR_ROOT_HOSTS) {
-    const file = safeJoin(path.join(base, host), rel);
-    if (!file) continue;
-    try {
-      if (fs.statSync(file).isFile()) return file;
-    } catch {
-      /* A name the mirror does not hold is simply not answered. */
+    let tail = rel;
+    if (host.prefix) {
+      if (rel === host.prefix) tail = '';
+      else if (rel.startsWith(host.prefix + '/')) {
+        tail = rel.slice(host.prefix.length + 1);
+      } else continue;
+    }
+    const file = safeJoin(path.join(base, host.dir), tail);
+    if (file) {
+      try {
+        if (fs.statSync(file).isFile()) return file;
+      } catch {
+        /* A name the mirror does not hold is simply not answered. */
+      }
+    }
+    /*
+     * The physics works keep their pictures in a folder named after the
+     * family they belong to ("Phyc140/texture/…"), while the work asks
+     * for them by the plain name ("texture/…").  The family folders are
+     * looked through as well.
+     */
+    if (host.dir === 'vendor') {
+      for (const family of vendorFamilies()) {
+        const inside = safeJoin(path.join(base, host.dir, family), tail);
+        if (!inside) continue;
+        try {
+          if (fs.statSync(inside).isFile()) return inside;
+        } catch {
+          /* Not in this family. */
+        }
+      }
+    }
+    /*
+     * The very same picture, spelled a little differently on the disk:
+     * a hyphen where the disk has none, or the extension in another
+     * order.  The folder is looked at as a whole, so nothing is guessed
+     * and nothing outside the folder is ever reached.
+     */
+    const near = nearName(base, host.dir, tail);
+    if (near) return near;
+  }
+  return null;
+}
+
+/*
+ * The name of a file, with the separators and the case left out, so that
+ * "green-field.jpg" and "greenfield.jpg" are recognised as one name.
+ */
+const RELAXED_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'jfif', 'webp',
+  'svg', 'mp3', 'wav', 'ogg', 'mp4', 'woff', 'woff2', 'ttf',
+]);
+function nameKey(name) {
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+  return {
+    stem: stem.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, ''),
+    ext,
+    loose: RELAXED_EXTENSIONS.has(ext),
+  };
+}
+
+/*
+ * The folder a file is looked in, remembered for a while, so that a
+ * busy preview does not read the same folder over and over.
+ */
+const folderCache = new Map();
+function folderEntries(dir) {
+  const hit = folderCache.get(dir);
+  if (hit && hit.until > Date.now()) return hit.names;
+  let names = [];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    names = [];
+  }
+  folderCache.set(dir, { names, until: Date.now() + 60_000 });
+  return names;
+}
+
+function nearName(base, hostDir, tail) {
+  const slash = tail.lastIndexOf('/');
+  const wantDir = slash >= 0 ? tail.slice(0, slash) : '';
+  const wantBase = slash >= 0 ? tail.slice(slash + 1) : tail;
+  const want = nameKey(wantBase);
+  if (!want.stem) return null;
+  const roots = [path.join(base, hostDir)];
+  if (hostDir === 'vendor') {
+    for (const family of vendorFamilies()) {
+      roots.push(path.join(base, hostDir, family));
+    }
+  }
+  for (const root of roots) {
+    const folder = wantDir ? safeJoin(root, wantDir) : root;
+    if (!folder) continue;
+    for (const entry of folderEntries(folder)) {
+      const key = nameKey(entry);
+      if (key.stem !== want.stem) continue;
+      if (key.ext !== want.ext && !(key.loose && want.loose)) continue;
+      const hit = safeJoin(folder, entry);
+      if (!hit) continue;
+      try {
+        if (fs.statSync(hit).isFile()) return hit;
+      } catch {
+        /* Not a file after all. */
+      }
     }
   }
   return null;
 }
+
+let vendorFamilyCache = null;
+function vendorFamilies() {
+  if (vendorFamilyCache) return vendorFamilyCache;
+  const dir = path.join(LQ_ROOT, '_shared-ext', 'vendor');
+  try {
+    vendorFamilyCache = fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+  } catch {
+    vendorFamilyCache = [];
+  }
+  return vendorFamilyCache;
+}
+
+/*
+ * A page that was mirrored from a site of its own sometimes builds the
+ * address of a file while it runs, so the address is nowhere in the text
+ * of the page.  What it asks for is the root of the site it came from:
+ * "/images/style/menu.svg".
+ *
+ * The browser says where such a request comes from, so the file is
+ * looked for in the mirror of that very site.  Nothing is guessed here:
+ * the address has to be there before it is handed out, and the name of
+ * the site in front of the address ("/mathsisfun/images/…") is taken
+ * off when the address is written that way.
+ */
+function extRootAssetFor(rel, referer) {
+  if (!rel || rel.includes('..') || !referer) return null;
+  let refPath;
+  try {
+    refPath = new URL(referer, 'http://localhost').pathname;
+  } catch {
+    return null;
+  }
+  const m = /^\/api\/program-assets\/([A-Za-z0-9_-]+)\/_ext\/([^/]+)\//.exec(refPath);
+  if (!m) return null;
+  const program = m[1];
+  const host = m[2];
+  const localId = lqLocalId(program);
+  const bases = [];
+  if (localId) bases.push(path.join(LQ_ROOT, 'courseware', `${localId}.assets`, '_ext', host));
+  bases.push(path.join(LQ_ROOT, '_shared-ext', host));
+  /*
+   * The name of the site is sometimes put in front of the address by the
+   * script of the site.  That name is one of the parts of the host, so
+   * it can be taken off.
+   */
+  const labels = host.toLowerCase().split('.');
+  const variants = [rel];
+  const parts = rel.replace(/^\/+/, '').split('/');
+  for (let k = parts.length - 1; k >= 1; k--) {
+    const head = parts.slice(0, k).join('.').toLowerCase();
+    if (head === host.toLowerCase()) {
+      variants.push(parts.slice(k).join('/'));
+      break;
+    }
+  }
+  const first = parts[0].toLowerCase();
+  if (first && labels.includes(first)) variants.push(parts.slice(1).join('/'));
+  for (const base of bases) {
+    for (const v of variants) {
+      const file = safeJoin(base, v);
+      if (!file) continue;
+      try {
+        if (fs.statSync(file).isFile()) return file;
+      } catch {
+        /* Not there; the next place is tried. */
+      }
+    }
+  }
+  /*
+   * Sometimes the page that asks is not the page that owns the file: one
+   * site keeps a picture that another site asks for by its own root.  The
+   * other mirrors are looked through as well, but only a file that is
+   * really there is handed out.
+   */
+  const others = [];
+  try {
+    for (const h of fs.readdirSync(path.join(LQ_ROOT, '_shared-ext'))) {
+      if (h !== host) others.push(path.join(LQ_ROOT, '_shared-ext', h));
+    }
+  } catch {
+    /* No shared library yet. */
+  }
+  if (localId) {
+    try {
+      const dir = path.join(LQ_ROOT, 'courseware', `${localId}.assets`, '_ext');
+      for (const h of fs.readdirSync(dir)) {
+        if (h !== host) others.push(path.join(dir, h));
+      }
+    } catch {
+      /* This lesson has no mirrored pages of its own. */
+    }
+  }
+  for (const base of others) {
+    for (const v of variants) {
+      const file = safeJoin(base, v);
+      if (!file) continue;
+      try {
+        if (fs.statSync(file).isFile()) return file;
+      } catch {
+        /* Not there either. */
+      }
+    }
+  }
+  return null;
+}
+
+/*
+ * The names of the sites that are mirrored here.  A page that was
+ * mirrored from one of them may lean on another — a font service, a
+ * picture host — and those are pointed at the copies on this machine.
+ */
+function mirroredHostNames(localId) {
+  /*
+   * The list is asked for on every file that is handed out, and it does
+   * not change from one minute to the next, so it is kept for a little
+   * while instead of being counted again and again.
+   */
+  const now = Date.now();
+  if (hostNamesCache && hostNamesCache.at > now && hostNamesCache.id === localId)
+    return hostNamesCache.names;
+  const names = new Set();
+  try {
+    for (const h of fs.readdirSync(path.join(LQ_ROOT, '_shared-ext'))) {
+      try {
+        if (fs.statSync(path.join(LQ_ROOT, '_shared-ext', h)).isDirectory()) names.add(h);
+      } catch {
+        /* Not a folder. */
+      }
+    }
+  } catch {
+    /* No shared library yet. */
+  }
+  if (localId) {
+    try {
+      const dir = path.join(LQ_ROOT, 'courseware', `${localId}.assets`, '_ext');
+      for (const h of fs.readdirSync(dir)) {
+        try {
+          if (fs.statSync(path.join(dir, h)).isDirectory()) names.add(h);
+        } catch {
+          /* Not a folder. */
+        }
+      }
+    } catch {
+      /* This lesson has no mirrored pages of its own. */
+    }
+  }
+  hostNamesCache = { at: now + 60000, id: localId, names: [...names] };
+  return hostNamesCache.names;
+}
+
+let hostNamesCache = null;
+
+/*
+ * Addresses that are of no use here: a count of visitors, a small form
+ * that is sent to somebody else.  They are pointed at this machine,
+ * which quietly lets them go.
+ */
+const DEAD_EXTERNAL = [
+  'https://mi2f.com/update.php',
+  'http://mi2f.com/update.php',
+  'https://www.mi2f.com/update.php',
+  'http://www.mi2f.com/update.php'
+];
 
 async function serveFile(
   res,
@@ -672,15 +973,60 @@ function rewriteCoursewareUrls(html, localId) {
   }
   /* The 图灵智赋 CDN keeps its URL shape under /prod/uploads/. */
   out = out.split('https://static.aifunengjiaoyu.com/').join('/prod/uploads/');
+  /*
+   * One lesson draws the portraits of its characters from an avatar
+   * service on the internet.  The address is assembled piece by piece
+   * inside the lesson's own script, so it cannot simply be rewritten
+   * in the text — but the picture that comes out of it can be pointed
+   * at the copy that is stored here.
+   */
+  if (out.includes("'ebear'")) {
+    out = out.replace(
+      /<head\b([^>]*)>/i,
+      `<head$1>${DICE_BEAR_LOCAL}`
+    );
+  }
   return out;
 }
+
+/*
+ * The avatars themselves are kept under "_shared-ext/api.dicebear.com".
+ * The lesson builds its address piece by piece inside its own script,
+ * so the address cannot be found in the text and simply swapped there.
+ * This little script watches every way a picture can be put into a
+ * page and turns the address into the local copy, leaving everything
+ * else alone.
+ */
+const DICE_BEAR_LOCAL = [
+  '<script>(function(){',
+  'var R=/https?:\\/\\/(?:api\\.)?dicebear\\.com\\/([\\w.-]+)\\/([\\w.-]+)\\/svg\\?seed=([\\w-]+)&backgroundColor=([\\w-]+)/g;',
+  'var F=function(s){return String(s).replace(R,function(m,a,b,c,d){',
+  "return '/api/avatar/dicebear/'+b+'/'+c+'-'+d+'.svg';});};",
+  /* A picture put in by writing out a piece of text. */
+  'var E=Element.prototype;',
+  'var ih=Object.getOwnPropertyDescriptor(E,"innerHTML");',
+  'if(ih&&ih.set){Object.defineProperty(E,"innerHTML",{get:ih.get,set:function(v){',
+  'return ih.set.call(this,F(v));},configurable:true});}',
+  'var oh=Object.getOwnPropertyDescriptor(E,"outerHTML");',
+  'if(oh&&oh.set){Object.defineProperty(E,"outerHTML",{get:oh.get,set:function(v){',
+  'return oh.set.call(this,F(v));},configurable:true});}',
+  'var ia=E.insertAdjacentHTML;',
+  'E.insertAdjacentHTML=function(p,v){return ia.call(this,p,F(v));};',
+  /* A picture put in by naming its address. */
+  'var sa=E.setAttribute;',
+  'E.setAttribute=function(n,v){return sa.call(this,n,n==="src"?F(v):v);};',
+  'var p=HTMLImageElement.prototype,d=Object.getOwnPropertyDescriptor(p,"src");',
+  'if(d&&d.set){Object.defineProperty(p,"src",{get:d.get,set:function(v){',
+  'return d.set.call(this,F(v));},configurable:true});}',
+  '})();</script>'
+].join('');
 
 /*
  * A few of the 图灵智赋 works reach out to a third party at runtime: the
  * 长征 save client announces itself without the list of keys it is allowed
  * to write. That is rewritten here so a saved session can be restored.
  */
-function patchLqBody(html, localId) {
+function patchLqBody(html, localId, mathjaxUrl = MATHJAX_FONT_URL) {
   let out = html;
   /* Let the host know which progress keys the courseware may write, so a
      saved session can be restored on the next visit. */
@@ -688,6 +1034,16 @@ function patchLqBody(html, localId) {
     /window\.parent\.postMessage\(\{type:config\.protocol\+':ready',programId:config\.programId,revision:config\.revision,entry:config\.entry,nonce\}/g,
     "window.parent.postMessage({type:config.protocol+':ready',programId:config.programId,revision:config.revision,entry:config.entry,nonce,keys:config.keys}"
   );
+  /*
+   * MathJax writes the place where its fonts live as "%%URL%%" and only
+   * fills it in when it is told where the fonts are.  Some of the
+   * lessons never tell it, so the browser asks for a file called
+   * "%%URL%%" and every formula comes out in the fallback font.  The
+   * fonts are on this machine, so the place is written in.
+   */
+  if (out.includes('%%URL%%')) {
+    out = out.split('%%URL%%').join(mathjaxUrl);
+  }
   return out;
 }
 
@@ -697,6 +1053,25 @@ function lqLocalId(programId) {
   if (fs.existsSync(path.join(LQ_ROOT, 'courseware', `${afe}.html`))) return afe;
   return null;
 }
+
+/*
+ * The fonts MathJax draws its formulas with.  They are mirrored once and
+ * shared, and the place they are at is written into the lessons that
+ * ask for them.
+ */
+const MATHJAX_FONT_DIR = path.join(
+  LQ_ROOT,
+  '_shared-ext',
+  'cdn.jsdelivr.net',
+  'npm',
+  'mathjax@3',
+  'es5',
+  'output',
+  'chtml',
+  'fonts',
+  'woff-v2'
+);
+const MATHJAX_FONT_URL = '/mathjax/fonts/woff-v2';
 
 /*
  * Some works are one document; others are a document plus a folder of
@@ -736,6 +1111,68 @@ function injectLocalCdnShim(html, localId) {
     return html.slice(0, at) + script + html.slice(at);
   }
   return script + html;
+}
+
+/*
+ * A few works carry a content-security policy that names its inline
+ * scripts by their fingerprint.  The copy on this disk has its addresses
+ * rewritten and a small helper added, so the fingerprints no longer
+ * match and the browser refuses to run the scripts at all.
+ *
+ * The fingerprints are worked out again from the text that is actually
+ * handed out, and the rules that keep the copy from reaching for the
+ * network are left as they are.
+ */
+function refreshCsp(html) {
+  const meta = /<meta\b[^>]*http-equiv=["']Content-Security-Policy["'][^>]*>/i.exec(html);
+  if (!meta) return html;
+  const tag = meta[0];
+  const quoted = /content=(["'])([\s\S]*?)\1/i.exec(tag);
+  if (!quoted) return html;
+  let policy = quoted[2];
+  if (!/script-src[^;]*'sha256-/i.test(policy)) return html;
+
+  /* The fingerprint of every script that has no address of its own. */
+  const hashes = new Set();
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    if (/\bsrc\s*=/i.test(m[1])) continue;
+    hashes.add(
+      "'sha256-" + crypto.createHash('sha256').update(m[2], 'utf8').digest('base64') + "'"
+    );
+  }
+  if (!hashes.size) return html;
+
+  /*
+   * The fingerprints that were already there are kept: a script that is
+   * unpacked at run time is not in the document yet, and its fingerprint
+   * is the only trace of it.  The ones worked out now are added beside
+   * them.
+   */
+  policy = policy.replace(/(script-src[^;]*)/i, (_all, directive) => {
+    const seen = new Set(directive.match(/'sha256-[A-Za-z0-9+/=]+'/g) || []);
+    for (const h of hashes) seen.add(h);
+    const rest = directive.replace(/'sha256-[A-Za-z0-9+/=]+'/g, '').trimEnd();
+    return rest + ' ' + [...seen].join(' ');
+  });
+  /*
+   * The pictures and the files of the lesson come from this machine, and
+   * the lesson's own rules did not allow for that.  "self" only names
+   * this server, so nothing new can be reached.
+   */
+  policy = policy.replace(
+    /\b(img-src|font-src|media-src|connect-src)\s+([^;]*)/gi,
+    (all, name, rest) => {
+      const value = rest.trim();
+      /* "none" on its own means nothing is allowed; it cannot stand
+         together with another source. */
+      if (/^'none'$/i.test(value)) return name + " 'self'";
+      if (/(^|\s)'self'(\s|$)/.test(value)) return all;
+      return name + " 'self' " + value;
+    }
+  );
+
+  const newTag = tag.replace(/(content=)(["'])([\s\S]*?)\2/i, (_all, head, q) => head + q + policy + q);
+  return html.slice(0, meta.index) + newTag + html.slice(meta.index + tag.length);
 }
 
 /*
@@ -812,6 +1249,47 @@ function relaxStandaloneGuard(html) {
   let out = html;
   for (const [from, to] of variants) out = out.split(from).join(to);
   return out;
+}
+
+/*
+ * A lesson asks the page that holds it whether it may run, and it keeps
+ * its screen dark until the answer arrives.  On the live site the answer
+ * comes from the classroom; here there is no classroom and no ticket to
+ * ask for, so the lesson is let in from the start and the grace never
+ * runs out.
+ *
+ * Only the three places that decide whether the screen may show are
+ * touched.  The lesson itself is left exactly as it is.
+ */
+function releaseLocalClassroom(html) {
+  return html
+    /* Let in from the start instead of waiting for an answer. */
+    .split("change('waiting');")
+    .join("change('active');")
+    /* And no grace to run out: there is no session behind it. */
+    .split(
+      'function expired(){return !deadline||Date.now()>=deadline||clock()>=monotonicDeadline||Date.now()>=hardDeadline||clock()>=hardMonotonicDeadline;}'
+    )
+    .join('function expired(){return false;}')
+    /* A copy opened on its own has no classroom to ask either. */
+    .split("if(win.parent===win){change('blocked');return;}")
+    .join("if(win.parent===win){change('active');return;}")
+    /*
+     * The lesson runs in a frame without "allow-same-origin", so the browser
+     * gives that frame an opaque origin and the answer to it comes back
+     * with an origin of "null".  The address the answer came from is still
+     * checked — it has to be the page that is holding the frame — so the
+     * opaque origin is taken as the one it really is.
+     */
+    .split('event.origin!==settings.origin')
+    .join("(event.origin!==settings.origin&&event.origin!=='null')")
+    /*
+     * A lesson that never gets an answer used to ask again every
+     * millisecond, which kept the browser busy for no reason.  Asking
+     * every three quarters of an hour of a minute is enough.
+     */
+    .split('Math.max(1,Math.min(45000,deadline-Date.now(),monotonicDeadline-clock()))')
+    .join('Math.max(45000,Math.min(45000,deadline-Date.now(),monotonicDeadline-clock()))');
 }
 
 /* -------------------------------------------------------------- zip ---- */
@@ -1060,7 +1538,16 @@ function buildLqZip(id) {
   const numeric = id.startsWith('afe-') ? id.slice(4) : id;
   let html = fs.readFileSync(bodyFile, 'utf8');
   html = rewriteCoursewareUrls(html, id);
-  html = patchLqBody(html, id);
+  /*
+   * The formulas draw their letters from a set of fonts that live in the
+   * archive next to the document, so the place they are at is written in
+   * as a path inside the archive.
+   */
+  html = patchLqBody(
+    html,
+    id,
+    './assets/_ext/cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2'
+  );
   /* Local server paths become paths inside the archive. */
   html = html.replace(
     new RegExp(`/api/program-assets/${numeric}/t/[^"'\`/]+/`, 'g'),
@@ -1104,8 +1591,9 @@ function buildLqZip(id) {
   );
   html = answerVerifyAccessOffline(html);
   html = html.replace(/<base href="\/api\/program-assets\/[^"]*">/g, '<base href="./assets/">');
-  html = relaxStandaloneGuard(html);
+  html = releaseLocalClassroom(html);
   html = injectArchiveCdnShim(html);
+  html = refreshCsp(html);
 
   const entries = [{ name: `${id}.html`, data: Buffer.from(html, 'utf8') }];
   /* A name may only appear once in an archive. The course's own folder and
@@ -1516,6 +2004,8 @@ async function serveLqAssets(res, pathname, search = '') {
   const programId = rest.slice(0, slash);
   let tail = rest.slice(slash + 1);
   const localId = lqLocalId(programId);
+  /* The mirror host this request belongs to, when it is one. */
+  let extHost = '';
 
   /* /t/<lease>/… is the lease prefix, /_ext/<host>/… the mirrored CDNs. */
   if (tail.startsWith('t/')) {
@@ -1524,7 +2014,25 @@ async function serveLqAssets(res, pathname, search = '') {
     tail = cut < 0 ? '' : after.slice(cut + 1);
   } else if (tail.startsWith('_ext/')) {
     tail = tail.slice('_ext/'.length);
+    extHost = tail.split('/')[0];
+    /*
+     * An early mirror wrote the name of the shared folder and the name
+     * of the course folder together, with no slash between them:
+     * "vendorPhyc140".  The slash goes back in, so the file is found in
+     * the folder it really lives in.
+     */
+    if (!extHost.includes('.') && extHost.length > 6 && extHost.startsWith('vendor')) {
+      const rest = tail.slice(extHost.length + 1);
+      tail = 'vendor/' + extHost.slice(6) + (rest ? '/' + rest : '');
+      extHost = 'vendor';
+    }
   }
+  /*
+   * A work that comes as a package puts its base at ".../t/local/package/".
+   * The files inside it sit in the folder of the program, so the folder
+   * names that the platform put in front are taken off again.
+   */
+  tail = tail.replace(/^(?:local\/)?(?:package\/)?/, '');
   if (!tail) return sendJson(res, 404, { error: '未找到' });
   const root = localId ? path.join(LQ_ROOT, 'courseware', `${localId}.assets`) : null;
   /* A request for the Google Fonts stylesheet is answered with the
@@ -1579,6 +2087,35 @@ async function serveLqAssets(res, pathname, search = '') {
       return;
   }
   /*
+   * A page that sits in a sub-folder of its program asks for a file that
+   * lives in the folder of the program itself — the chapter files ask for
+   * the lock file of the program, for one.  The name is looked for one
+   * level up, and then in the folder itself, before the answer is "not
+   * found".
+   */
+  if (root) {
+    const parts = tail.split('/');
+    const names = [];
+    /* The name on its own, without the folders in front of it. */
+    names.push(parts[parts.length - 1]);
+    /* The name in the folder of the program, keeping its own sub-folder. */
+    for (let i = parts.length - 1; i > 0; i--) {
+      names.push(parts.slice(i).join('/'));
+    }
+    for (const name of names) {
+      const candidate = safeJoin(root, name);
+      if (
+        candidate &&
+        (await serveFile(res, candidate, {
+          contentType: mimeForAsset(candidate),
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          cache: 'public, max-age=31536000, immutable',
+        }))
+      )
+        return;
+    }
+  }
+  /*
    * A few works ask for an image under one extension and the platform only
    * keeps it under another — 英雄知识 asks for "nezha.png" while the
    * platform stores "nezha.jpg".  The same picture is served under the
@@ -1606,6 +2143,29 @@ async function serveLqAssets(res, pathname, search = '') {
       }
     }
   }
+  /*
+   * Some pages open a connection to a mirror host before they ask it for
+   * anything — "rel=preconnect" or a plain link to the host itself. The
+   * host is a folder here, not a file, so there is nothing to hand out.
+   * An empty answer is the right one: the page gets on with its work and
+   * no red line appears in the log.
+   */
+  for (const candidate of [
+    root && safeJoin(root, '_ext/' + tail),
+    safeJoin(shared, tail)
+  ]) {
+    if (!candidate) continue;
+    try {
+      if (fs.statSync(candidate).isDirectory()) {
+        return send(res, 204, Buffer.alloc(0), {
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=31536000, immutable'
+        });
+      }
+    } catch {
+      /* Not there; the answer below stands. */
+    }
+  }
   return sendJson(res, 404, { error: '未找到' });
 }
 
@@ -1618,11 +2178,45 @@ async function serveRewrittenAsset(res, file, localId) {
   } catch {
     return false;
   }
-  const rewritten = rewriteCoursewareUrls(body, localId);
+  let rewritten = rewriteCoursewareUrls(body, localId);
+  rewritten = rewriteExtRootUrls(rewritten, localId, file);
+  /*
+   * A page that was mirrored from a site of its own may still try to
+   * reach out to the network: an ad exchange, a statistics service, a
+   * font on somebody else's server.  None of that belongs in a lesson
+   * that is meant to work on this machine alone, and every one of those
+   * requests is a page that stalls while it waits.
+   *
+   * The rule below lets the lesson use everything it has here and
+   * nothing else.  The pages that were saved whole bring their own
+   * stylesheets and scripts with them, so the lesson still looks the
+   * way it was meant to.
+   */
+  const isMirroredPage = /(?:^|[\\/])_(?:shared-)?ext[\\/]/.test(String(file));
+  const headers = {
+    'Access-Control-Allow-Origin': '*'
+  };
+  if (isMirroredPage && /\.html?$/i.test(file)) {
+    headers['Content-Security-Policy'] = [
+      "default-src 'self' data: blob:",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
+      "style-src 'self' 'unsafe-inline' data:",
+      "img-src 'self' data: blob:",
+      "media-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' data: blob:",
+      "frame-src 'self' data: blob:",
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'"
+    ].join('; ');
+  }
   if (rewritten === body) {
     return serveFile(res, file, {
       contentType: mimeForAsset(file),
-      headers: { 'Access-Control-Allow-Origin': '*' },
+      headers,
     });
   }
   const buf = Buffer.from(rewritten, 'utf8');
@@ -1630,10 +2224,185 @@ async function serveRewrittenAsset(res, file, localId) {
     'Content-Type': mimeForAsset(file),
     'Content-Length': buf.length,
     'Cache-Control': 'no-cache',
-    'Access-Control-Allow-Origin': '*',
+    ...headers,
   });
   res.end(buf);
   return true;
+}
+
+/*
+ * A page that was mirrored from a site of its own asks for some of its
+ * files by the root of that site: "/css/pub.css", "/circle.html".
+ * The files sit in the mirror under the name of the host they came from,
+ * so the address is pointed at the local copy of the same place.
+ *
+ * Only the addresses that begin at the root are moved.  The ones written
+ * relative to the page keep working, because the page keeps its place.
+ */
+/*
+ * A namespace is a name, not a place.  The browser is handed these
+ * strings when it is told what kind of element to make — the canvas of
+ * three.js is made with the XHTML namespace — and they have to stay
+ * exactly as they are.  Pointing them at a local folder would leave the
+ * element without its own properties, and the lesson would stop drawing.
+ */
+const XML_NAMESPACES = [
+  'www.w3.org/1999/xhtml',
+  'www.w3.org/2000/svg',
+  'www.w3.org/1998/Math/MathML',
+  'www.w3.org/1999/xlink',
+  'www.w3.org/XML/1998/namespace',
+  'www.w3.org/2000/xmlns/',
+];
+function rewriteExtRootUrls(html, localId, file) {
+  if (!localId) return html;
+  /*
+   * The host the page came from is in the path: "_ext/<host>/…" for the
+   * copy that sits with the lesson, "_shared-ext/<host>/…" for the copy
+   * that is shared by every lesson.  Both need the same treatment, so
+   * both spellings are recognised here.
+   */
+  const m = /(?:^|[\\/])_(?:shared-)?ext[\\/]([^\\/]+)[\\/]/i.exec(String(file));
+  if (!m) return html;
+  const host = m[1];
+  const prefix = `/api/program-assets/${localId}/_ext/${host}`;
+  /*
+   * Where the page sits inside the site it came from.  A mirrored page
+   * lies one folder deeper than it did on the site, so a name written
+   * with a leading "../" no longer points at the root of that site.
+   */
+  const pos = String(file).replace(/\\/g, '/').lastIndexOf(`/${host}/`);
+  const pageRel = pos >= 0 ? String(file).replace(/\\/g, '/').slice(pos + host.length + 2) : 'index.html';
+  /*
+   * A page that was mirrored from a site of its own often still names
+   * that site by its own address — "https://www.mathsisfun.com/x.html",
+   * or the little picture of the site next to the title.  Sometimes the
+   * name is put together while the page runs, in a script, so it is not
+   * in a tag at all.  Either way the file is here as well, under the
+   * name of that site, so the address is pointed at the copy that is on
+   * this machine.
+   */
+  let out = html;
+  /*
+   * A namespace is a name, not a place.  The browser is handed these
+   * strings when it is told what kind of element to make — the canvas
+   * of three.js is made with the XHTML namespace — and they have to
+   * stay exactly as they are.  Pointing them at a local folder would
+   * leave the element without its own properties, and the lesson would
+   * stop drawing.
+   */
+  const held = [];
+  for (const ns of XML_NAMESPACES) {
+    if (!out.includes(ns)) continue;
+    const mark = '__lqns' + held.length + '__';
+    held.push([ns, mark]);
+    out = out.split(ns).join(mark);
+  }
+  const hosts = new Set([host, ...mirroredHostNames(localId)]);
+  for (const h of hosts) {
+    const to = `/api/program-assets/${localId}/_ext/${h}/`;
+    const hEsc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.split(`https://${h}/`).join(to);
+    out = out.split(`http://${h}/`).join(to);
+    out = out.replace(new RegExp(`(^|[^:/])//${hEsc}/`, 'g'), `$1${to}`);
+    /* The site with no path on it at all. */
+    out = out.split(`https://${h}"`).join(`${to}"`).split(`https://${h}'`).join(`${to}'`);
+  }
+  for (const [ns, mark] of held) out = out.split(mark).join(ns);
+  out = out.replace(
+    /*
+     * "//cdn.example.com/a.js" is a whole other site, not a place on this
+     * one.  Rewriting it would point it at a folder that does not exist,
+     * so it is left as it is and the content policy deals with it.
+     */
+    /(\s(?:src|href|poster|data-src|data-bg)\s*=\s*["'])\/([^/"'#?][^"']*)(["'])/gi,
+    (all, head, rest, tail) => {
+      /* An address that already points at this machine is left alone. */
+      if (rest.startsWith('api/') || rest.startsWith('courseware/')) return all;
+      return head + prefix + '/' + rest + tail;
+    }
+  );
+  /*
+   * A style sheet asks for its pictures the same way a page does, but it
+   * writes them inside url() and not inside a tag.  Those addresses are
+   * moved to the same place as well.
+   */
+  out = out.replace(
+    /url\(\s*["']?(\/(?!["']?\/\/)[^"')]*?)["']?\s*\)/gi,
+    (all, rel) => {
+      const clean = rel.split('#')[0].split('?')[0];
+      if (
+        !clean ||
+        clean.startsWith('api/') ||
+        clean.startsWith('courseware/') ||
+        clean.startsWith('/api/') ||
+        clean.startsWith('/courseware/')
+      )
+        return all;
+      return `url(${prefix}${clean})`;
+    }
+  );
+  /*
+   * A script that sends a message to somebody else's address — a count
+   * of visitors, a small form.  There is nobody to receive it here, so
+   * it is pointed at this machine, which quietly lets it go.
+   */
+  for (const dead of DEAD_EXTERNAL) {
+    out = out.split(dead).join('/api/quiet');
+  }
+  /*
+   * A name that is written relative to the page.  It is put back where
+   * it was on the site the page came from: the root of that site, not
+   * the root of this machine.  A page that writes "../style.css" means
+   * the style sheet at the root of its own site.
+   */
+  const base = extBaseOf(out, pageRel);
+  out = out.replace(
+    /(\s(?:src|href|poster|data-src|data-bg)\s*=\s*["'])([^"'#?][^"']*)(["'])/gi,
+    (all, head, ref, tail2) => {
+      if (ref.startsWith('api/') || ref.startsWith('courseware/')) return all;
+      if (ref.startsWith('/api/') || ref.startsWith('/courseware/')) return all;
+      if (ref.startsWith(prefix)) return all;
+      const resolved = resolveHostRel(pageRel, ref, base);
+      if (!resolved) return all;
+      return head + prefix + '/' + resolved + tail2;
+    }
+  );
+  return out;
+}
+
+/*
+ * The base a page sets for itself with <base href="…">.  The names in
+ * such a page are counted from there.
+ */
+function extBaseOf(html, pageRel) {
+  const m = /<base\b[^>]*\bhref\s*=\s*["']([^"']*)["']/i.exec(html);
+  if (!m) return null;
+  const href = m[1].trim();
+  if (!href || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return null;
+  let resolved = href.startsWith('/')
+    ? href
+    : path.posix.join(path.posix.dirname('/' + pageRel), href);
+  resolved = path.posix.normalize(resolved);
+  if (!resolved.endsWith('/')) resolved = path.posix.dirname(resolved);
+  return resolved;
+}
+
+/*
+ * Where a name written in a page belongs inside the site the page came
+ * from.  A name that climbs above the root of that site is left alone.
+ */
+function resolveHostRel(pageRel, ref, base) {
+  const clean = ref.split('#')[0].split('?')[0];
+  if (!clean) return null;
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(clean)) return null;
+  const dir = base || path.posix.dirname('/' + pageRel);
+  const joined = clean.startsWith('/')
+    ? path.posix.normalize(clean)
+    : path.posix.normalize(path.posix.join(dir, clean));
+  const rel = joined.replace(/^\/+/, '');
+  if (!rel || rel.startsWith('..')) return null;
+  return rel;
 }
 
 /*
@@ -1649,9 +2418,47 @@ async function handleXbInner(req, res, url, profile) {
   const pathname = decodeURIComponent(url.pathname);
   const method = req.method.toUpperCase();
 
+  /*
+   * Some of the mirrored lessons report their own crashes to a script
+   * host that has nothing to do with this library.  There is nobody to
+   * report to here, so the report is accepted and dropped instead of
+   * being turned away with a failure the lesson would keep retrying.
+   */
+  if (pathname === '/scripts/errorReporter.py') {
+    await readBody(req);
+    return send(res, 204, Buffer.alloc(0), { 'Cache-Control': 'no-store' });
+  }
+
+  /*
+   * A script that wants to tell somebody else something — how many
+   * visitors there were, a little form.  There is nobody to hear it
+   * here, so it is accepted and dropped, and the page carries on.
+   */
+  if (pathname === '/api/quiet') {
+    await readBody(req);
+    return send(res, 204, Buffer.alloc(0), { 'Cache-Control': 'no-store' });
+  }
+
   /* Courseware assets that live next to the body. */
   if (pathname.startsWith('/api/program-assets/')) {
     return serveLqAssets(res, pathname, url.search);
+  }
+
+  /*
+   * The portraits a lesson draws for its characters are kept here, in
+   * the shared library, under the name of the service they came from.
+   */
+  if (pathname.startsWith('/api/avatar/dicebear/')) {
+    const rel = pathname.slice('/api/avatar/dicebear/'.length);
+    const file = safeJoin(path.join(LQ_ROOT, '_shared-ext', 'api.dicebear.com'), rel);
+    if (file && fs.existsSync(file)) {
+      return serveFile(res, file, {
+        contentType: mimeForAsset(file),
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        cache: 'public, max-age=31536000, immutable',
+      });
+    }
+    return sendJson(res, 404, { error: '未找到' });
   }
 
   if (pathname.startsWith('/api/')) {
@@ -1671,6 +2478,24 @@ async function handleXbInner(req, res, url, profile) {
     const id = pathname.slice('/courseware/'.length).replace(/\.html$/, '');
     const file = path.join(profile.coursewareDir, `${id}.html`);
     if (!fs.existsSync(file)) {
+      /*
+       * A good many of the physics works ask for a picture or a model
+       * with a plain relative name ("textures/ammeter.png").  On the
+       * site those files sat at the root of the server, so the browser
+       * looks for them next to the page it is showing — which here is
+       * under /courseware/.  They are kept in the shared library, so
+       * the same answer is given as for a root-level path.
+       */
+      if (id.includes('/') || /\.[A-Za-z0-9]{1,5}$/.test(id)) {
+        const shared = mirroredRootAsset(id);
+        if (shared) {
+          return serveFile(res, shared, {
+            contentType: mimeForAsset(shared),
+            headers: { 'Access-Control-Allow-Origin': '*' },
+            cache: 'public, max-age=31536000, immutable',
+          });
+        }
+      }
       /*
        * The preview opens this document inside a frame.  A line of JSON in
        * that frame reads like a broken page, so the answer is a page of
@@ -1706,15 +2531,31 @@ async function handleXbInner(req, res, url, profile) {
         patched = rewriteCoursewareUrls(patched, id);
         patched = patchLqBody(patched, id);
         patched = injectLocalCdnShim(patched, id);
+        /*
+         * A lesson asks the page that holds it whether it may run.  In
+         * the classroom that answer comes from the platform; here the
+         * page is the library itself, and there is no ticket to ask for.
+         * So a lesson opened on its own is let in straight away, and one
+         * opened inside the library is let in by the library.
+         */
+        patched = releaseLocalClassroom(patched);
+        patched = refreshCsp(patched);
       }
       raw = Buffer.from(patched, 'utf8');
       gz = pack(raw);
       cachePacked(key, stat.mtimeMs, raw, gz);
     }
-    const tag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}-${origin
-      .split('')
-      .reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
-      .toString(16)}"`;
+    /*
+     * The mark of the reply is worked out from the text that is actually
+     * handed out, not from the file on disk.  The copy on disk is the
+     * source; the copy the reader gets is the source with its addresses
+     * rewritten, and the two are not the same bytes.
+     */
+    const tag = `"${stat.size.toString(16)}-${crypto
+      .createHash('sha1')
+      .update(raw)
+      .digest('hex')
+      .slice(0, 16)}"`;
     if (String(req.headers['if-none-match'] || '') === tag) {
       return send(res, 304, Buffer.alloc(0), {
         ETag: tag,
@@ -1795,6 +2636,22 @@ async function handleXbInner(req, res, url, profile) {
   }
 
   /*
+   * The fonts MathJax draws its formulas with.  They are asked for by
+   * every lesson that has a formula in it, so they are kept in one
+   * place and handed out from there.
+   */
+  if (pathname.startsWith(MATHJAX_FONT_URL + '/')) {
+    const name = pathname.slice(MATHJAX_FONT_URL.length + 1);
+    const file = safeJoin(MATHJAX_FONT_DIR, name);
+    if (file && (await serveFile(res, file, {
+      contentType: mimeForAsset(file),
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      cache: 'public, max-age=31536000, immutable',
+    }))) return;
+    return sendJson(res, 404, { error: '未找到' });
+  }
+
+  /*
    * A work written for a site of its own asks for its files by the root
    * of that site: /jsm/OrbitControls.js, /Phyc140/VolumetricFire.js.
    * Those files were mirrored next to the work, so a request of that
@@ -1808,6 +2665,16 @@ async function handleXbInner(req, res, url, profile) {
     if (mirrored && (await serveFile(res, mirrored, {
       contentType: mimeForAsset(mirrored),
       headers: { 'Access-Control-Allow-Origin': '*' },
+    }))) return;
+    /*
+     * A file that a mirrored page asked for by the root of the site it
+     * came from.  The page that asked for it says where it came from.
+     */
+    const fromPage = extRootAssetFor(rel, req.headers.referer);
+    if (fromPage && (await serveFile(res, fromPage, {
+      contentType: mimeForAsset(fromPage),
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      cache: 'public, max-age=31536000, immutable',
     }))) return;
   }
 
@@ -2044,7 +2911,7 @@ async function handleXbApi(req, res, pathname, profile) {
     let raw = entry ? entry.raw : null;
     let gz = entry ? entry.gz : null;
     if (!raw) {
-      const html = relaxStandaloneGuard(fs.readFileSync(file, 'utf8'));
+      const html = releaseLocalClassroom(fs.readFileSync(file, 'utf8'));
       raw = Buffer.from(html, 'utf8');
       gz = pack(raw);
       cachePacked(key, stat.mtimeMs, raw, gz);

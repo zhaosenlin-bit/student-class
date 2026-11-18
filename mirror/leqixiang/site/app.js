@@ -2,7 +2,24 @@ import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './do
 import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611180327';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
-const classroomReply=async()=>{};const isClassroomRequest=()=>false;
+/*
+ * A lesson asks the shell whether it may run: "leqixiang:classroom-access".
+ * There is no account here and no session to rent, so the answer is always
+ * yes — the local library is there to be opened, and a lesson that asks is
+ * let in.
+ */
+const classroomReply=(event,{frame,courseId,expiresAt=Date.now()+600000,active=true})=>{
+ const target=(frame&&frame.contentWindow)||event.source;
+ if(!target||!event.data)return;
+ const ttlMs=active?Math.max(1000,Math.min(600000,expiresAt-Date.now())):0;
+ target.postMessage({type:'leqixiang:classroom-access',version:1,courseId:event.data.courseId||courseId,deliveryId:event.data.deliveryId,requestId:event.data.requestId,state:active?'active':'blocked',ttlMs},'*');
+};
+const isClassroomRequest=(event,frame,courseId)=>{
+ if(!frame||!courseId||!event.data)return false;
+ if(event.source!==frame.contentWindow)return false;
+ const d=event.data;
+ return d.type==='leqixiang:classroom-access'&&d.version===1&&d.courseId===courseId&&!!d.deliveryId;
+};
 import {showHome} from './home.js?v=mobile-20261019';
 import {createCourseNavigation} from './course-navigation.js?v=mobile-20261019';
 import {prepareSiteEntry} from './site-entry.js?v=download-cdn-20261020.1';
@@ -17,6 +34,13 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const richText=value=>{const raw=String(value??"");if(!raw)return "";const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;const open=whole=>whole.replace(/&lt;/g,"<").replace(/&gt;/g,">");if(/&lt;[a-z]/i.test(raw))return raw.replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);if(!/<[a-z][a-z0-9]*>/i.test(raw))return esc(raw);return esc(raw).replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);};
 let authSerial=0;
 let catalog=[],info={},user=null,filter='全部',stage='全部',search='',timer=null,toastTimer=null,currentLesson=null,routeSerial=0,frameTimer=null,activePage='works',originFilter='全部',sortBy='default',authorFilter='',subjectsOpen=false;
+/*
+ * The frame that is on screen right now. A lesson asks the page whether it
+ * may run, and it may ask before the browser has finished parsing it — so
+ * the answer must go to the frame we are holding, not to whatever the page
+ * happens to be showing at that moment.
+ */
+let currentFrame=null;
 /*
  * The catalogue holds well over a thousand lessons.  Drawing all of them
  * at once makes the page heavy to open and heavy to scroll, so the grid
@@ -46,24 +70,18 @@ document.addEventListener('click',e=>{if(e.defaultPrevented||e.button!==0||e.ctr
 const newTabId=()=>{if(globalThis.crypto?.randomUUID)return crypto.randomUUID();if(globalThis.crypto?.getRandomValues)return [...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);};
 const tabIdentity={id:newTabId(),ready:Promise.resolve(newTabId()),suspend:()=>{},resume:()=>{}};
 let tabId=tabIdentity.id;
-const viewerChecks=new WeakMap();
-const freeViewerDeadline=courseId=>{const end=product(courseId)?.timedFree?.endsAt;return Date.now()+(Number.isSafeInteger(end)?Math.max(0,Math.min(600000,end-promotionNow())):600000);};
 async function replyViewer(event,frame,courseId,kind){
  if(!isClassroomRequest(event,frame,courseId))return;
- let check=viewerChecks.get(frame);if(!check||check.courseId!==courseId){check={courseId,expiresAt:freeViewerDeadline(courseId),checkedAt:0,pending:null,revoked:false};viewerChecks.set(frame,check);}
- check.expiresAt=Math.min(check.expiresAt,freeViewerDeadline(courseId));
- if(Date.now()-check.checkedAt>=30000&&!check.pending){
-  check.checkedAt=Date.now();check.pending=api('/api/classroom/viewer-check',{productId:courseId,kind}).then(result=>{check.expiresAt=result.expiresAt;check.revoked=false;}).catch(error=>{if([401,403,404,409].includes(error.status)){check.revoked=true;check.expiresAt=0;}}).finally(()=>{check.pending=null;});
- }
- // The already authorized response remains usable during short outages. Never
- // await an unbounded network request before acknowledging this existing grace.
- const reply=()=>{if(frame.isConnected&&viewerChecks.get(frame)===check)classroomReply(event,{frame,courseId,expiresAt:check.expiresAt,active:!check.revoked});};
- if(check.pending)check.pending.then(()=>{if(frame.isConnected&&check.revoked)frame.contentWindow.postMessage({type:'leqixiang:classroom-access',version:1,courseId,deliveryId:event.data.deliveryId,requestId:event.data.requestId,state:'blocked',ttlMs:0},'*');});
- reply();
+ /*
+  * The local library has no account and no session to hand out, so the
+  * lesson is let in as soon as it asks.  The grace lasts long enough for
+  * a long lesson, and it is renewed every time the lesson asks again.
+  */
+ classroomReply(event,{frame,courseId,expiresAt:Date.now()+600000,active:true});
 }
 window.addEventListener('message',event=>{
  if(event.data?.type!=='leqixiang:classroom-access')return;
- const frame=$('#lesson-frame iframe'),time=Date.now();
+  const frame=currentFrame,time=Date.now();
  if(isClassroomRequest(event,frame,currentLesson)){
   if(lease)classroomReply(event,{frame,courseId:currentLesson,expiresAt:lease.expiresAt,active:!leaseExpired&&!$('#classroom').hidden,now:time});
   else if(currentLesson&&!$('#classroom').hidden)replyViewer(event,frame,currentLesson,'classroom');return;
@@ -92,10 +110,10 @@ const stageLabel=p=>(p.stages||[]).join(' · ');
 function detail(id){if(!product(id))return;close();return courseNavigation.navigate('course',id);}
 function trial(id){close();return courseNavigation.navigate('play',id);}
 function releaseLease(){clearInterval(heartbeatTimer);clearTimeout(leaseDeadlineTimer);leaseDeadlineTimer=null;heartbeatTimer=null;leaseExpired=false;const previous=lease;lease=null;if(previous)fetch('/api/classroom/release',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'studio'},body:JSON.stringify({tabId,leaseToken:previous.token}),keepalive:true}).catch(()=>{});}
-function stopTrial(){detachCoursewareDelivery();releaseLease();clearTimeout(frameTimer);$('#lesson-frame').replaceChildren();$('#classroom').hidden=true;unlockClassroomScroll();document.body.classList.remove('classroom-active');currentLesson=null;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});document.title='乐启享 · 互动课件';}
+function stopTrial(){detachCoursewareDelivery();releaseLease();clearTimeout(frameTimer);currentFrame=null;$('#lesson-frame').replaceChildren();$('#classroom').hidden=true;unlockClassroomScroll();document.body.classList.remove('classroom-active');currentLesson=null;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});document.title='乐启享 · 互动课件';}
 function classroomOccupied(id,replaced=false){modal(`<div class="dialog-content"><h2>${replaced?'课件已在其他窗口打开':'账号正在使用课件'}</h2><p>${replaced?'当前窗口已停止。需要继续在这里上课时，可将课堂切换回来。':'可以将课堂切换到当前窗口，原窗口将停止使用。'}</p><div class="actions"><button class="button" data-action="takeover" data-id="${esc(id)}">在这里继续</button><button class="button secondary" data-action="close">暂不切换</button></div></div>`);}
 function stopExpiredLesson(){
- if(!lease||!currentLesson||leaseExpired)return;detachCoursewareDelivery();leaseExpired=true;clearTimeout(frameTimer);$('#lesson-frame').replaceChildren();$('#lesson-loading').hidden=false;$('#lesson-loading').classList.add('error-state');$('#lesson-loading').innerHTML='<span>连接已中断，请重新连接后继续。</span><small>重新打开后，实验将回到初始状态。</small><button class="button" data-action="reconnect-classroom">重新连接</button>';
+ if(!lease||!currentLesson||leaseExpired)return;detachCoursewareDelivery();leaseExpired=true;clearTimeout(frameTimer);currentFrame=null;$('#lesson-frame').replaceChildren();$('#lesson-loading').hidden=false;$('#lesson-loading').classList.add('error-state');$('#lesson-loading').innerHTML='<span>连接已中断，请重新连接后继续。</span><small>重新打开后，实验将回到初始状态。</small><button class="button" data-action="reconnect-classroom">重新连接</button>';
 }
 function checkLeaseDeadline(){if(lease&&Date.now()>=Number(lease.expiresAt))stopExpiredLesson();}
 function armLeaseDeadline(){clearTimeout(leaseDeadlineTimer);if(!lease)return;const active=lease;leaseDeadlineTimer=setTimeout(()=>{if(lease!==active)return;if(Date.now()>=Number(active.expiresAt))stopExpiredLesson();else armLeaseDeadline();},Math.max(0,Number(active.expiresAt)-Date.now()));}
@@ -125,14 +143,21 @@ async function openLesson(id,serial,takeover=false){
  if(serial!==routeSerial){if(launch.lease)fetch('/api/classroom/release',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'studio'},body:JSON.stringify({tabId,leaseToken:launch.lease.token}),keepalive:true}).catch(()=>{});return;}
  lease=launch.lease||null;leaseExpired=false;if(lease){armLeaseDeadline();heartbeatTimer=setInterval(renewLease,Math.max(15,Number(lease.heartbeatSeconds)||45)*1000);}
  currentLesson=id;document.title=`${p.title} · 乐启享`;$('#classroom').hidden=false;lockClassroomScroll();document.body.classList.add('classroom-active');const back=courseNavigation.target(id,true);$('#player-back').href=back.href;$('#player-back').textContent='← '+back.label;$('#player-back').dataset.action='course-return';$('#lesson-loading').hidden=false;$('#lesson-loading').classList.remove('error-state');$('#lesson-loading').textContent='正在打开课件…';
+ const plain=/^(afe-|openlab-|phet-|tongjiang-|labsims-|aviary-|lab-|blocklygames-)/.test(id);
  const frame=document.createElement('iframe');frame.title=`${p.title}在线课件`;frame.setAttribute('sandbox','allow-scripts allow-forms allow-pointer-lock allow-downloads'+(launch.allowSameOrigin===true?' allow-same-origin':''));frame.setAttribute('allow','autoplay; fullscreen');frame.allowFullscreen=true;
- const plain=/^(afe-|openlab-|phet-|tongjiang-|labsims-|aviary-|lab-|blocklygames-)/.test(id);attachCoursewareDelivery({frame,courseId:id,seriesId:p.splitFrom||id,launch,plain,stillActive:()=>currentLesson===id&&serial===routeSerial&&!leaseExpired,
+ /*
+  * The frame goes into the page before it is given anything to load. A
+  * lesson may ask the page whether it may run while the browser is still
+  * reading it, and the answer is only given to a frame that is already
+  * on screen.
+  */
+ $('#lesson-frame').append(frame);currentFrame=frame;
+ if(plain)mountSaveHost(frame,id);
+ attachCoursewareDelivery({frame,courseId:id,seriesId:p.splitFrom||id,launch,plain,stillActive:()=>currentLesson===id&&serial===routeSerial&&!leaseExpired,
   requestLaunch:()=>api(`/api/launch/${encodeURIComponent(id)}`,{tabId}),
   onLaunch:next=>{lease=next.lease||null;if(lease)armLeaseDeadline();},
   onStage:stage=>{$('#lesson-loading').textContent=stage==='reconnecting'?'正在重新连接课件…':'正在打开课件…';},
   onReady:()=>{$('#lesson-loading').hidden=true;},onError:showLessonError});
- $('#lesson-frame').append(frame);
- if(plain)mountSaveHost(frame,id);
   let dismissed=false;try{dismissed=sessionStorage.getItem('orientation-hint')==='1';}catch{}$('#orientation-hint').hidden=dismissed||!matchMedia('(max-width:600px) and (orientation:portrait)').matches;
 }
 window.addEventListener('pagehide',()=>{releaseLease();tabIdentity.suspend();});

@@ -88,7 +88,13 @@ for (const id of ids) {
     bodyLen: document.body ? document.body.innerHTML.length : 0,
     text: (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 160),
     imgs: document.querySelectorAll('img').length,
-    badImgs: [...document.querySelectorAll('img')].filter((i) => i.complete && i.naturalWidth === 0).length,
+    /* A picture that was never given a source is not a broken picture:
+       some lessons leave an empty <img> and fill it in when the scene is
+       exported. Only a picture that was asked for something and got
+       nothing counts. */
+    badImgs: [...document.querySelectorAll('img')]
+      .filter((i) => i.complete && i.naturalWidth === 0 && i.getAttribute('src'))
+      .length,
   }))()`);
   const failed = [
     ...new Set(

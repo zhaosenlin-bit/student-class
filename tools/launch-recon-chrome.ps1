@@ -20,6 +20,12 @@ $args = @(
   '--no-default-browser-check',
   '--disable-blink-features=AutomationControlled',
   '--password-store=basic',
+  # A window nobody is looking at stops painting itself. The courseware
+  # draws on a timer, so without these the pages look far slower than they
+  # are on a desk.
+  '--disable-background-timer-throttling',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-renderer-backgrounding',
   $StartUrl
 )
 

@@ -17,6 +17,7 @@ export async function connect(port = 9222) {
   let seq = 0;
   const pending = new Map();
   const events = [];
+  const listeners = new Set();
   const sessions = new Map(); // sessionId -> { targetInfo }
   /* Context ids live in the renderer's own number space, so two sessions can
      hand out the same one. The pair is the real key. */
@@ -50,6 +51,13 @@ export async function connect(port = 9222) {
     }
     if (!m.method) return;
     events.push(m);
+    for (const fn of listeners) {
+      try {
+        fn(m);
+      } catch {
+        /* 一个听的人出错，不该连累别人。 */
+      }
+    }
     if (m.method === 'Target.attachedToTarget') {
       const { sessionId, targetInfo } = m.params;
       sessions.set(sessionId, { targetInfo, parent: m.sessionId });
@@ -210,6 +218,11 @@ export async function connect(port = 9222) {
     shot,
     close,
     events,
+    /* 事件一到就交给听的人，不等别人来取。 */
+    on: (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
     contexts,
     sessions,
     pageSession,
