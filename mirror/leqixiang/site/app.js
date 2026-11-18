@@ -1,5 +1,5 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611172043';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611172043';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611180327';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611180327';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
 const classroomReply=async()=>{};const isClassroomRequest=()=>false;
@@ -303,7 +303,7 @@ const policies={
   privacy:['隐私说明','<p>这是一个本地应用：课件、封面与说明文件都保存在你自己的电脑上，不会上传到任何服务器。</p><p>课件库没有账号、没有手机号，也没有订单，因此不会收集姓名、学校、联系方式或设备信息。</p><p>页面里没有广告追踪，也没有第三方统计。浏览器自己留下的本地存储（例如已下载记录）只保存在本机。</p>'],
   terms:['使用说明','<p>课件仅供课堂教学与个人学习使用，请勿公开传播、转售，或用于对外的商业培训分发。</p><p>课件正文保留原作者的署名与许可协议，说明见「许可与署名」页面。</p><p>本课件库不对课件内容作担保；如发现内容有误，或与许可要求不符，请以原作者的说明为准。</p>']};
 function policyBody(name){return policies[name][1];}function policy(name){const title=policies[name][0],body=policyBody(name);modal(`<div class="dialog-content policy"><h2>${title}</h2>${body}${info.seller?`<p>经营主体：${esc(info.seller)}</p>`:''}${info.support?`<p>联系邮箱：${esc(info.support)}</p>`:''}</div>`);}
-function about(){modal('<div class="dialog-content"><div class="profile"><img src="/brand/brand-logo.png" alt="乐启享机器人 Logo" width="56" height="56"><div><p class="eyebrow">关于我们</p><h2>乐启享机器人</h2></div></div><p>乐启享机器人专注 3-16 岁少儿科技素养教育，以工程实践与项目制学习，让孩子在搭建、调试、协作、展示中真正学会创造。</p><p class="subtle">从乐高启蒙 到 AI 创造</p><p><a class="button secondary small" href="https://codebn.cn/" target="_blank" rel="noreferrer">官网 codebn.cn ↗</a></p></div>');}
+function about(){modal('<div class="dialog-content"><div class="profile"><img src="/brand/brand-mark.png" alt="乐启享机器人 Logo" width="56" height="56"><div><p class="eyebrow">关于我们</p><h2>乐启享机器人</h2></div></div><p>乐启享机器人专注 3-16 岁少儿科技素养教育，以工程实践与项目制学习，让孩子在搭建、调试、协作、展示中真正学会创造。</p><p class="subtle">从乐高启蒙 到 AI 创造</p><p><a class="button secondary small" href="https://codebn.cn/" target="_blank" rel="noreferrer">官网 codebn.cn ↗</a></p></div>');}
 async function refreshCatalog(){info=await api('/api/catalog');syncPromotionClock(info.serverTime);catalog=info.products;downloadBulk.invalidate();legalFooter();}
 async function route(){const serial=++routeSerial;let [page,id]=(location.hash.slice(1)||'works').split('/');if(page==='purchase'&&id){history.replaceState(null,'','#course/'+id);page='course';}else if(page==='purchase'){history.replaceState(null,'','#catalog');page='catalog';id='';}else if(['unlocked','purchases','admin','moderation','creator','owner-login','refunds','refund-admin','feedback-admin','account-safety','bulk-download-admin','teachers'].includes(page)){history.replaceState(null,'','#catalog');page='catalog';id='';}document.body.classList.toggle('download-mode',info.downloadMode===true);
  if(info.downloadMode&&['purchase','bundle','play','classroom','unlocked'].includes(page)&&!(['play','classroom'].includes(page)&&id&&product(id)?.onlineAccessible)){

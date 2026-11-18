@@ -22,6 +22,11 @@ const svg = fs.readFileSync(path.join(BRAND, 'brand-wordmark.svg'), 'utf8');
 const b64 = Buffer.from(svg, 'utf8').toString('base64');
 
 const client = await connect(CDP);
+/* The mark sits on screens of every colour, so it is drawn on paper
+   that is not there. */
+await client.send('Emulation.setDefaultBackgroundColorOverride', {
+  color: { r: 0, g: 0, b: 0, a: 0 },
+});
 await client.send('Emulation.setDeviceMetricsOverride', {
   width: 546,
   height: 216,

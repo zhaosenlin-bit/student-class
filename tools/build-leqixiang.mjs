@@ -184,12 +184,23 @@ for (const file of fs.readdirSync(SITE)) {
     .replace(/<button data-action="business" id="business" hidden>经营信息<\/button>/, '')
     .replace(/<a href="#refunds">退款与售后<\/a>/, '')
     .replace('<span>© 乐启享</span>', `<span>© 2025-2026 ${BRAND.name} · 所有权利保留</span>`)
-    .replace(/<a class="brand footer-brand"[^>]*><img class="site-logo" src="\/brand\/brand-logo.png\?v=8" alt="" width="36" height="36"><span>乐启享<\/span><\/a>/,
-      `<a class="brand footer-brand" href="#catalog"><img class="site-logo" src="/brand/brand-logo.png" alt="" width="36" height="36"><span>${BRAND.short}</span></a>`)
+    .replace(/<a class="brand footer-brand"[^>]*><img class="site-logo" src="\/brand\/brand-logo.png(?:\?v=8)?" alt="" width="36" height="36"><span>乐启享<\/span><\/a>/,
+      `<a class="brand footer-brand" href="#catalog"><img class="site-logo" src="/brand/brand-mark.png" alt="" width="36" height="36"><span class="brand-name">乐<b class="brand-name-mid">启</b>享</span></a>`)
     /* The footer's logo points at the library as well. */
     .replace(/(<a class="brand footer-brand"[^>]*href=")[^"]*(")/, '$1#catalog$2')
     .replace('<p>互动课件库 · 在线使用 · 课件下载</p>',
       `<p>${BRAND.slogan}</p>`);
+  /*
+   * The header carries the mark of the house and the word beside it in
+   * the colours of the logo: 乐 and 享 in indigo, 启 in amber.
+   */
+  html = html.replace(
+    '<a class="brand" href="#catalog" aria-label="乐启享首页"><img class="site-logo" src="/brand/brand-logo.png" alt="乐启享 Logo" width="40" height="40"><span>乐启享</span></a>',
+    '<a class="brand" href="#catalog" aria-label="乐启享首页"><img class="site-logo" src="/brand/brand-mark.png" alt="乐启享 Logo" width="40" height="40"><span class="brand-name">乐<b class="brand-name-mid">启</b>享</span></a>'
+  );
+  if ((html.match(/class="brand-name"/g) || []).length < 2) {
+    throw new Error('index.html patch missed: the brand wordmark');
+  }
   /* The local build keeps one line only: browse → use → download. */
   html = html.replace('<script type="module" src="/app.js',
     '<script src="/lq-mode.js"></script><script type="module" src="/app.js');
@@ -357,7 +368,7 @@ const swapLine = (source, head, replacement) => {
   const p = path.join(SITE, 'app.js');
   let js = read(p);
   const about = `function about(){modal('<div class="dialog-content">`
-    + `<div class="profile"><img src="/brand/brand-logo.png" alt="${BRAND.name} Logo" width="56" height="56">`
+    + `<div class="profile"><img src="/brand/brand-mark.png" alt="${BRAND.name} Logo" width="56" height="56">`
     + `<div><p class="eyebrow">关于我们</p><h2>${BRAND.name}</h2></div></div>`
     + `<p>${BRAND.intro}</p>`
     + `<p class="subtle">${BRAND.slogan}</p>`
@@ -440,6 +451,50 @@ const swapLine = (source, head, replacement) => {
   js = js.replace(
     /\$\{editionFilter\.endsWith\('integrated'\)\?'<p class="download-edition-notice">[^']*<\/p>':''\}/,
     ''
+  );
+  /*
+   * The catalogue holds well over a thousand lessons.  Drawing all of
+   * them at once makes the page heavy to open and heavy to scroll, so
+   * the grid is drawn in batches and the reader asks for the next one.
+   */
+  js = js.replace(
+    /(let catalog=\[\],info=\{\},user=null,[^\n]*)(\r?\n)/,
+    (m, line, nl) =>
+      line +
+      nl +
+      '/*' +
+      nl +
+      ' * The catalogue holds well over a thousand lessons.  Drawing all of them' +
+      nl +
+      ' * at once makes the page heavy to open and heavy to scroll, so the grid' +
+      nl +
+      ' * is drawn in batches and the reader asks for the next one.' +
+      nl +
+      ' */' +
+      nl +
+      'const GRID_BATCH=48;' +
+      nl +
+      'let gridShown=GRID_BATCH;' +
+      nl
+  );
+  js = js.replace(
+    /function renderGrid\(\)\{(\r?\n) if\(!\$\('#grid'\)\)return;/,
+    (m, nl) =>
+      "function renderGrid(fresh=true){" +
+      nl +
+      " if(!$('#grid'))return;if(fresh)gridShown=GRID_BATCH;"
+  );
+  js = js.replace(
+    "$('#grid').classList.toggle('chapter-grid',!!knowledge);$('#grid').innerHTML=shown.length?shown.map(knowledge?chapterCourse:card).join(''):",
+    "$('#grid').classList.toggle('chapter-grid',!!knowledge);$('#grid').innerHTML=shown.length?shown.slice(0,gridShown).map(knowledge?chapterCourse:card).join('')+(shown.length>gridShown?`<button class=\"catalog-more\" type=\"button\" data-action=\"catalog-more\">继续加载 · 还有 ${shown.length-gridShown} 份课件</button>`:''):"
+  );
+  js = js.replace(
+    /(else if\(action==='clear-chapter'\)\{chapterFilter='';renderTree\(\);renderGrid\(\);\})(\r?\n)/,
+    (m, line, nl) =>
+      line +
+      nl +
+      "else if(action==='catalog-more'){gridShown+=GRID_BATCH;renderGrid(false);}" +
+      nl
   );
 
   /* ------------------------------------------------------- local shell --- */
@@ -1185,6 +1240,26 @@ const swapLine = (source, head, replacement) => {
     '<link rel="stylesheet" href="/lq-ui.css?v=' + STAMP + '"></head>'
   );
   if (!html.includes('/lq-ui.css')) throw new Error('index.html patch missed: lq-ui.css');
+  write(index, html);
+}
+
+/*
+ * lq-brand.css: the house colours.
+ *
+ * The shell was painted in the greys of the shop it came from.  The logo
+ * carries the real colours — indigo and amber — so the light theme is
+ * repainted here, and the sheet is linked last so it wins.
+ */
+{
+  const p = path.join(SITE, 'lq-brand.css');
+  write(p, read(path.join(ROOT, 'tools', 'lq-brand.css')));
+  const index = path.join(SITE, 'index.html');
+  let html = read(index);
+  html = html.replace(
+    '</head>',
+    '<link rel="stylesheet" href="/lq-brand.css?v=' + STAMP + '"></head>'
+  );
+  if (!html.includes('/lq-brand.css')) throw new Error('index.html patch missed: lq-brand.css');
   write(index, html);
 }
 

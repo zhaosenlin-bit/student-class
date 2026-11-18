@@ -31,9 +31,34 @@ export function applySplash(html) {
    * screen belongs to 乐启享 from the very first frame.
    */
   let out = html.replace(
-    /<script>window\.PHET_SPLASH_DATA_URI\s*=\s*"[^"]*";?<\/script>/g,
+    /<script[^>]*>\s*window\.PHET_SPLASH_DATA_URI\s*=\s*"[^"]*";?\s*<\/script>/g,
     ''
   );
+  /*
+   * A few simulations put the name of the upstream house inside a
+   * condition of their own, so the whole line cannot be matched as one
+   * script.  The name itself is taken out wherever it is written.
+   */
+  out = out.replace(/window\.PHET_SPLASH_DATA_URI\s*=\s*"[^"]*"\s*;?/g, '');
+  /* the colours of the bar of the loading screen, once and once only */
+  out = out.replace(/<style id="lq-splash-style">[\s\S]*?<\/style>/g, '');
+  /*
+   * A few simulations hold their own picture of the loading screen: the
+   * name and the mark of the upstream house, drawn in the middle of the
+   * window while the simulation starts.  That picture is ours now, and
+   * it is put in the middle again.
+   */
+  out = out.replace(/<img id="splash"([^>]*)>/g, (m, attrs) => {
+    if (!/src="data:image\/svg\+xml;base64,/.test(attrs)) return m;
+    const fixed = attrs
+      .replace(/margin-top:\s*-?[\d.]+px/, 'margin-top:-52px')
+      .replace(/margin-left:\s*-?[\d.]+px/, 'margin-left:-137px')
+      .replace(
+        /src="data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+"/,
+        `src="${uri}"`
+      );
+    return `<img id="splash"${fixed}>`;
+  });
   const head = `<script>window.PHET_SPLASH_DATA_URI=${JSON.stringify(uri)};</script>` + splashStyle;
   if (/<body[^>]*>/i.test(out)) {
     return out.replace(/<body[^>]*>/i, (m) => `${m}\n${head}`);

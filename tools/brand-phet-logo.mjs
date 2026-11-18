@@ -24,12 +24,19 @@ const MARK = path.join(ROOT, 'mirror', 'leqixiang', 'brand', 'brand-wordmark.png
 
 const ours = `data:image/png;base64,${fs.readFileSync(MARK).toString('base64')}`;
 
-/* The picture of the mark is 273 by 108 pixels; nothing else in these
-   documents has that shape. */
+/* The picture of the mark is 273 by 108 pixels, and the one that was put
+   there before was twice that; nothing else in these documents has one
+   of those shapes. */
+const SHAPES = [
+  [273, 108],
+  [546, 216],
+];
 const isMark = (payload) => {
   const buf = Buffer.from(payload, 'base64');
   if (buf.length < 24) return false;
-  return buf.readUInt32BE(16) === 273 && buf.readUInt32BE(20) === 108;
+  return SHAPES.some(
+    ([w, h]) => buf.readUInt32BE(16) === w && buf.readUInt32BE(20) === h
+  );
 };
 
 let changed = 0;
