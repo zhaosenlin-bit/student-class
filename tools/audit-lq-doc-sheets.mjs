@@ -67,12 +67,21 @@ for (const p of catalog.products) {
   const textInputs = (body.match(/<input[^>]*type\s*=\s*["']?text/gi) || []).length;
   const onclicks = (html.match(/onclick\s*=/gi) || []).length;
   const listeners = (html.match(/addEventListener\s*\(/g) || []).length;
+  /* A simulation that is shown in a frame is a course, not a sheet. */
+  const frames = (html.match(/<iframe\b[^>]*src\s*=\s*["'][^"']+["']/gi) || []).length;
 
   /* Document downloads, in links and in scripted jumps. */
   const docLinks = (html.match(new RegExp(DOC.source, 'gi')) || []).length;
 
   const interactive =
-    sliders + canvases + selects + textInputs + Math.min(onclicks, 20) + Math.min(listeners, 20);
+    sliders +
+    canvases +
+    buttons +
+    selects +
+    textInputs +
+    frames +
+    Math.min(onclicks, 20) +
+    Math.min(listeners, 20);
   const verdict =
     docLinks > 0 && interactive === 0 && text.length < 4000
       ? 'doc-sheet'
@@ -93,6 +102,7 @@ for (const p of catalog.products) {
     textInputs,
     onclicks,
     listeners,
+    frames,
     textLen: text.length,
   });
 }
