@@ -417,6 +417,29 @@ const MIRROR_ROOT_HOSTS = [
   { dir: 'vendor', prefix: null },
   { dir: 'fonts.gstatic.com', prefix: 'fonts.gstatic.com' },
 ];
+
+/*
+ * The add-ons of the 3D library are asked for by the layout of the
+ * release they came from — "jsm/geometries/RoundedBoxGeometry.js" — and
+ * the mirror keeps that layout inside the folder of that release.  The
+ * folder is looked in when the flat one does not hold the file.
+ */
+const THREE_RELEASES = ['unpkg.com/three@0.136.0', 'cdn.skypack.dev/three@0.136.0'];
+function threeAddOn(rel) {
+  if (!rel.startsWith('jsm/')) return null;
+  const base = path.join(LQ_ROOT, '_shared-ext');
+  for (const release of THREE_RELEASES) {
+    const file = safeJoin(path.join(base, release, 'examples'), rel);
+    if (!file) continue;
+    try {
+      if (fs.statSync(file).isFile()) return file;
+    } catch {
+      /* Not in this release. */
+    }
+  }
+  return null;
+}
+
 function mirroredRootAsset(rel) {
   if (!rel || rel.includes('..')) return null;
   const base = path.join(LQ_ROOT, '_shared-ext');
@@ -462,6 +485,8 @@ function mirroredRootAsset(rel) {
     const near = nearName(base, host.dir, tail);
     if (near) return near;
   }
+  const addOn = threeAddOn(rel);
+  if (addOn) return addOn;
   return null;
 }
 
@@ -2994,6 +3019,22 @@ function xbPostAllowed(req, port) {
   return allowed.has(origin);
 }
 
+/*
+ * The mark of the build.  It is written into the head of the page when
+ * the page is written, and the server reads it back out of that same
+ * file — so the two can never drift apart and the page can always tell
+ * whether it is looking at the library as it is now.
+ */
+function readBuildMark(profile) {
+  try {
+    const html = fs.readFileSync(path.join(profile.assetsDir, 'index.html'), 'utf8');
+    const m = /<meta\s+name="lq-build"\s+content="([^"]*)"/.exec(html);
+    return m ? m[1] : '';
+  } catch {
+    return '';
+  }
+}
+
 async function handleXbApi(req, res, pathname, profile) {
   loadXb(profile);
   const method = req.method.toUpperCase();
@@ -3007,6 +3048,32 @@ async function handleXbApi(req, res, pathname, profile) {
   const notFound = () => sendJson(res, 404, { error: '未找到' });
   const gone = () =>
     sendJson(res, 410, { error: '此课件请下载后使用；标为免费的课件可在线体验' });
+
+  /*
+   * Which build is this?
+   *
+   * The page carries a mark in its head and the server reads that mark
+   * back from the very same file, so the two can never drift apart.  A
+   * browser that was left open over a rebuild keeps showing the library
+   * it was handed then, which reads as a fault in the library rather than
+   * as an old page — so the page asks this question and reloads itself.
+   */
+  if (pathname === '/api/version') {
+    if (method !== 'GET' && method !== 'HEAD') return notFound();
+    loadXb(profile);
+    const body = Buffer.from(
+      JSON.stringify({
+        build: readBuildMark(profile),
+        courses: profile.state.catalog.products.length,
+      }),
+      'utf8',
+    );
+    return send(res, 200, body, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': body.length,
+      'Cache-Control': 'no-store',
+    });
+  }
 
   if (pathname === '/api/catalog') {
     if (method !== 'GET') return notFound();

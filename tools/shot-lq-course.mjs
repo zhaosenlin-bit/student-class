@@ -11,7 +11,7 @@ const browser = await connect(CDP);
 await browser.goto(`http://localhost:${PORT}/#course/${id}`);
 await sleep(1500);
 const clicked = await browser.evaluate(`(() => {
-  const b = [...document.querySelectorAll('button')].find((e) => /在线使用/.test(e.innerText || ''));
+  const b = [...document.querySelectorAll('button, a')].find((e) => /在线(?:使用|预览)/.test(e.innerText || ''));
   if (!b) return false;
   b.click();
   return true;

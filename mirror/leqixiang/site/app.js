@@ -1,5 +1,5 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611200930';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611200930';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611202015';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611202015';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
 /*
@@ -24,7 +24,7 @@ import {showHome} from './home.js?v=mobile-20261019';
 import {createCourseNavigation} from './course-navigation.js?v=mobile-20261019';
 import {prepareSiteEntry} from './site-entry.js?v=download-cdn-20261020.1';
 import {attachCoursewareDelivery,detachCoursewareDelivery} from './courseware-load.js?v=apple-startup-20261026.1';
-import {mountSaveHost} from './lq-save-host.js?v=lq-20261113';
+import {mountSaveHost} from './lq-save-host.js?v=lq-202611202015';
 import './course-operation-guides.js?v=20261002';
 prepareSiteEntry({location,history});
 // Wait for the catalogue mode before starting the optional home animation.
@@ -391,8 +391,37 @@ window.addEventListener('message',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#dialog').open&&!$('#classroom').hidden&&!document.fullscreenElement){$('#classroom').classList.remove('toolbar-hidden');$('#show-toolbar').hidden=true;}});
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState!=='visible'||!currentLesson)return;renewLease();const id=currentLesson;try{const access=await api(`/api/access/${id}`);if(id===currentLesson&&!access.accessible){stopTrial();toast('使用权限已更新，请重新打开课件');await refreshCatalog();location.hash='#catalog';}}catch{}});
+
+/*
+ * The library is rebuilt from time to time.  A page that was left open
+ * over a rebuild keeps showing the library it was handed then, and that
+ * reads as a fault in the library rather than as an old page — so the
+ * page asks the server which build is current and reloads itself when
+ * the two differ.  A lesson that is open is never thrown away for it.
+ */
+async function watchBuild(){
+  try{
+    const meta=document.querySelector('meta[name="lq-build"]');
+    const mine=meta?meta.content:'';
+    if(!mine)return;
+    const res=await fetch('/api/version',{cache:'no-store'});
+    if(!res.ok)return;
+    const now=await res.json();
+    if(!now.build||now.build===mine)return;
+    if(currentLesson)return;
+    let seen='';
+    try{seen=sessionStorage.getItem('lq-build-seen')||'';}catch{}
+    if(seen===now.build)return;
+    try{sessionStorage.setItem('lq-build-seen',now.build);}catch{}
+    toast('课件库已更新，正在刷新…');
+    setTimeout(()=>location.reload(),900);
+  }catch{}
+}
+
 startPromotionCountdowns({onExpire:async()=>{await refreshCatalog();if(info.downloadMode)await downloadUI.refreshPricing();if(!currentLesson&&!$('#dialog').open)await route();}});
 try{const results=await Promise.all([api('/api/catalog'),api('/api/session')]);info=results[0];syncPromotionClock(info.serverTime);catalog=info.products;user=results[1].user;await phone.refresh();accountLabel();legalFooter();await route();}catch(e){$('#main').innerHTML='<div class="empty"><h3>暂时无法连接课件网站</h3><p>请检查连接后重新加载。</p><button class="button" data-action="reload">重新加载</button></div>';}
+watchBuild();
+setInterval(watchBuild,60000);
 
 /* The disclosures keep their state across the re-render. */
 document.addEventListener('toggle',e=>{const el=e.target;if(!el||!el.classList)return;if(el.classList.contains('download-subject-more'))subjectsOpen=el.open;},true);
