@@ -79,7 +79,10 @@ export function createDownloadUI({ api, esc, product, main, modal, toast }) {
   };
 
   function card(p) {
-    return `<article class="product-card download-resource"><a class="cover" href="#course/${esc(p.id)}"><img src="${esc(p.cover)}" alt="${esc(p.title)}课件画面" loading="lazy" decoding="async" width="720" height="405"><span class="cover-badge">${esc(p.subject)} · ${editionLabel(p)}</span></a><div class="card-body"><div class="card-meta"><span>${esc((p.stages || []).join(' · '))}</span></div><a class="card-title" href="#course/${esc(p.id)}"><h3>${esc(p.title)}</h3></a><p class="card-description">${plain(p.description)}</p><div class="download-card-actions"><button class="button wide" data-lq-preview-start="${esc(p.id)}">▶ 在线预览</button><button class="button secondary wide" data-download-action="download" data-id="${esc(p.id)}">↓ 下载</button></div></div></article>`;
+    const meta = [...(p.stages || []), p.gradeLabel]
+      .filter((v, i, a) => v && a.indexOf(v) === i)
+      .join(' · ');
+    return `<article class="product-card download-resource"><a class="cover" href="#course/${esc(p.id)}"><img src="${esc(p.cover)}" alt="${esc(p.title)}课件画面" loading="lazy" decoding="async" width="720" height="405"><span class="cover-badge">${esc(p.subject)} · ${editionLabel(p)}</span></a><div class="card-body"><div class="card-meta"><span>${esc(meta)}</span></div><a class="card-title" href="#course/${esc(p.id)}"><h3>${esc(p.title)}</h3></a><p class="card-description">${plain(p.description)}</p><div class="download-card-actions"><button class="button wide" data-lq-preview-start="${esc(p.id)}">▶ 在线预览</button><button class="button secondary wide" data-download-action="download" data-id="${esc(p.id)}">↓ 下载</button></div></div></article>`;
   }
 
   /*

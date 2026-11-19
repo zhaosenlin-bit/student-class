@@ -90,7 +90,17 @@ const alive = (p) => {
     nodes += f?.nodes || 0;
     text += f?.textLen || 0;
   }
-  return painted > 0 || nodes > 40 || text > 120;
+  /*
+   * A lesson does not have to draw anything.  A roll-call sheet or a
+   * code sheet is a page of words and fields, and it is a real lesson
+   * all the same.  What tells a dead page apart is the sentence it
+   * says: a page that could not be found says so, and says little
+   * else.
+   */
+  const words = p.head || '';
+  const dead = /未找到|找不到|404|缺少|无法打开|打开失败|加载失败|不存在/.test(words);
+  if (dead) return false;
+  return painted > 0 || nodes > 40 || text > 40;
 };
 
 const results = [];

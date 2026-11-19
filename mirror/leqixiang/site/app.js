@@ -1,5 +1,5 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611180327';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611180327';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611200930';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611200930';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
 /*
@@ -97,7 +97,7 @@ const showCatalogUse=p=>p.accessible===true||p.mode==='free';
 const priceText=p=>'本地可用';
 const catalogBuyText=p=>'本地已收录';
 const size=n=>`${(n/1024/1024).toFixed(1)} MB`;
-async function api(url,body){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined});const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
+async function api(url,body){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined,cache:'no-store'});const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
 function toast(text){clearTimeout(toastTimer);$('#toast').textContent=text;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,4300);}
 function modal(html){clearInterval(timer);timer=null;$('#dialog-body').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
 function close(){authSerial++;phone.cancel();clearInterval(timer);timer=null;$('#dialog').close();}
@@ -105,8 +105,8 @@ function legalFooter(){for(const [id,key]of [['business','seller'],['icp','icp']
 const accountDisplay=()=>/^phone_[a-f0-9]+$/.test(user?.username||'')?(phone.phoneMasked||'我的账号'):user?.username;
 function accountLabel(){const el=$('#account');if(el)el.textContent='乐启享';}
 function coverAlt(p){return `${p.title}课件画面`;}
-const lessonSubject=p=>stage!=='全部'?(p.stageSubjects?.[stage]||p.subject):p.subject;
-const stageLabel=p=>(p.stages||[]).join(' · ');
+const lessonSubject=p=>stage!=='全部'?(p.stageSubjects?.[stage]||p.subjectKey||p.subject):(p.subjectKey||p.subject);
+const stageLabel=p=>[...(p.stages||[]),p.gradeLabel].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' · ');
 function detail(id){if(!product(id))return;close();return courseNavigation.navigate('course',id);}
 function trial(id){close();return courseNavigation.navigate('play',id);}
 function releaseLease(){clearInterval(heartbeatTimer);clearTimeout(leaseDeadlineTimer);leaseDeadlineTimer=null;heartbeatTimer=null;leaseExpired=false;const previous=lease;lease=null;if(previous)fetch('/api/classroom/release',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'studio'},body:JSON.stringify({tabId,leaseToken:previous.token}),keepalive:true}).catch(()=>{});}
@@ -229,19 +229,21 @@ function downloadGalleryFilters(){
   const open=window.lqFiltersOpen===true;
   return `<section class="download-gallery-filters" data-collapsed="${open?'false':'true'}"><div class="download-gallery-toolbar"><label class="download-gallery-search"><span aria-hidden="true">⌕</span><input class="search" id="search" type="search" placeholder="搜索课件或知识点" aria-label="搜索课件或知识点" value="${esc(search)}"></label><button type="button" class="download-gallery-filters-toggle" data-lq-fold-toggle aria-expanded="${open?'true':'false'}"><span>筛选</span><small>${esc(summaryText)}</small></button><label class="download-sort">排序 <select id="course-sort" aria-label="课件排序"><option value="default" ${sortBy==='default'?'selected':''}>${search.trim()?'相关度':'目录顺序'}</option><option value="newest" ${sortBy==='newest'?'selected':''}>最近更新</option></select></label></div><div class="download-gallery-controls"><div class="download-stage-tabs" role="group" aria-label="按学段筛选">${stages.map(s=>`<button type="button" data-action="stage" data-value="${s}" aria-pressed="${stage===s}">${s==='全部'?'全部学段':s}</button>`).join('')}</div><div class="download-subject-options" role="group" aria-label="按学科筛选">${chip('全部')}${common.map(chip).join('')}</div>${extra.length?`<details class="download-subject-more" ${subjectsOpen?'open':''}><summary><span>更多学科</span><small>${extra.length}</small></summary><div class="download-subject-options" role="group" aria-label="更多学科筛选">${extra.map(chip).join('')}</div></details>`:''}</div></section>`;
 }function curriculumChapters(){
- const fixed=(info.downloadMode&&editionFilter!=='standalone'?[]:info.curriculum?.chapters||[]).map(ch=>({...ch,subject:'物理',stage:'初中'}));
+ /* Only the lessons that are really on this machine may be counted. */
+ const live=new Set(catalog.map(p=>p.id));
+ const fixed=(info.downloadMode&&editionFilter!=='standalone'?[]:info.curriculum?.chapters||[]).map(ch=>({...ch,subject:'物理',stage:'初中',topics:(ch.topics||[]).map(t=>({...t,courseIds:(t.courseIds||[]).filter(id=>live.has(id))})).filter(t=>t.courseIds.length)})).filter(ch=>ch.topics.length);
  let chapters=originFilter!=='教师课件'&&(stage==='全部'||stage==='初中')&&(filter==='全部'||filter==='物理')?[...fixed]:[];
  const derived=new Map();
- for(const p of catalog){if(info.downloadMode&&!matchesDownloadEdition(p,editionFilter))continue;if(!matchesOrigin(p,originFilter)||authorFilter&&String(p.creatorId)!==authorFilter)continue;if(stage!=='全部'&&!p.stages?.includes(stage))continue;const subject=stage!=='全部'?(p.stageSubjects?.[stage]||p.subject):p.subject;if(filter!=='全部'&&subject!==filter)continue;
-  const mappings=p.taxonomy?.length?p.taxonomy:[{domain:subject,chapter:p.title,topics:p.features||[p.title]}];
+ for(const p of catalog){if(info.downloadMode&&!matchesDownloadEdition(p,editionFilter))continue;if(!matchesOrigin(p,originFilter)||authorFilter&&String(p.creatorId)!==authorFilter)continue;if(stage!=='全部'&&!p.stages?.includes(stage))continue;const subject=stage!=='全部'?(p.stageSubjects?.[stage]||p.subjectKey||p.subject):(p.subjectKey||p.subject);if(filter!=='全部'&&subject!==filter)continue;
+  const mappings=p.taxonomy?.length?p.taxonomy:[{domain:p.gradeLabel||(p.stages||[])[0]||subject,chapter:p.title,topics:[p.title]}];
   for(const item of mappings){const common=/初高中通用/.test(item.domain||''),senior=!common&&/高中|必修|选择性/.test(item.domain||'');if(stage==='高中'&&!senior&&!common||stage==='初中'&&senior)continue;if(subject==='物理'&&fixed.length&&!senior&&!common&&stage!=='高中')continue;const key=`${subject}|${item.domain}|${item.chapter}`;let chapter=derived.get(key);if(!chapter){chapter={id:'extra-'+key,domain:item.domain||subject,title:item.chapter||p.title,subject,topics:[]};derived.set(key,chapter);}
    for(const title of item.topics||[]){let topic=chapter.topics.find(t=>t.title===title);if(!topic){topic={id:'extra-'+key+'|'+title,title,courseIds:[],status:'available'};chapter.topics.push(topic);}if(!topic.courseIds.includes(p.id))topic.courseIds.push(p.id);}
   }
  }
- return chapters.concat([...derived.values()]);
+ return chapters.concat([...derived.values()].filter(ch=>ch.topics.length));
 }
-function treeMarkup(){const chapters=curriculumChapters(),groups=new Map();for(const c of chapters){const key=`${c.subject} · ${c.domain}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);}
- return `<details class="curriculum-panel" ${matchMedia('(min-width:901px)').matches?'open':''}><summary class="curriculum-mobile-toggle"><span>章节目录</span><span aria-hidden="true">⌄</span></summary><div class="curriculum-body"><div class="curriculum-title"><h2>章节目录</h2><button class="text-button" data-action="clear-chapter">全部课件</button></div>${[...groups.entries()].map(([name,list],index)=>`<details class="curriculum-volume" ${(index===0||list.some(c=>c.id===chapterFilter))?'open':''}><summary>${esc(name)}</summary><div class="curriculum-chapters">${list.map(ch=>{const ids=[...new Set(ch.topics.flatMap(t=>t.courseIds||[]))];return `<button class="curriculum-chapter-button ${ch.id===chapterFilter?'selected':''}" data-action="chapter" data-value="${esc(ch.id)}" aria-pressed="${ch.id===chapterFilter}"><span>${esc(ch.title)}</span><small>${ids.length?ids.length:'暂无'}</small></button>`;}).join('')}</div></details>`).join('')||'<p class="subtle">本学科暂无章节目录。</p>'}</div></details>`;
+function treeMarkup(){const chapters=curriculumChapters(),groups=new Map();for(const c of chapters){const key=`${c.subject} · ${c.domain}`;if(!groups.has(key))groups.set(key,{label:c.domain&&c.domain!==c.subject?key:c.subject,list:[]});groups.get(key).list.push(c);}
+ return `<details class="curriculum-panel" ${matchMedia('(min-width:901px)').matches?'open':''}><summary class="curriculum-mobile-toggle"><span>章节目录</span><span aria-hidden="true">⌄</span></summary><div class="curriculum-body"><div class="curriculum-title"><h2>章节目录</h2><button class="text-button" data-action="clear-chapter">全部课件</button></div>${[...groups.values()].map((group,index)=>`<details class="curriculum-volume" ${(index===0||group.list.some(c=>c.id===chapterFilter))?'open':''}><summary>${esc(group.label)}</summary><div class="curriculum-chapters">${group.list.map(ch=>{const ids=[...new Set(ch.topics.flatMap(t=>t.courseIds||[]))];return `<button class="curriculum-chapter-button ${ch.id===chapterFilter?'selected':''}" data-action="chapter" data-value="${esc(ch.id)}" aria-pressed="${ch.id===chapterFilter}"><span>${esc(ch.title)}</span><small>${ids.length?ids.length:'暂无'}</small></button>`;}).join('')}</div></details>`).join('')||'<p class="subtle">本学科暂无章节目录。</p>'}</div></details>`;
 }
 function renderTree(){
  const host=$('#curriculum');if(!host)return;

@@ -19,6 +19,7 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
+import { scrubShopCopy } from './lq-shop-copy.mjs';
 
 /*
  * The repository root is found from this file's own location, so a fresh
@@ -141,14 +142,21 @@ function originHost(value) {
  * the most expensive thing the server does.  The files on disk do not
  * change while the library runs, so the packed form is kept for a while
  * and thrown away when the cache grows too large.
+ *
+ * Only the packed form is kept.  The bodies on disk add up to several
+ * hundred megabytes; the packed form is a fraction of that, and the
+ * unpacked one is read from the disk whenever a reader asks for it
+ * without asking for a packed answer.
  */
 const packedCache = new Map();
-const PACKED_CACHE_BYTES = 96 * 1024 * 1024;
+const PACKED_CACHE_BYTES = 160 * 1024 * 1024;
+/* A body bigger than this is answered as it streams, not from the cache. */
+const PACKED_CACHE_ENTRY_BYTES = 12 * 1024 * 1024;
 let packedCacheBytes = 0;
 
-function cachePacked(key, mtimeMs, raw, gz) {
-  const size = raw.length + (gz ? gz.length : 0);
-  packedCache.set(key, { mtimeMs, raw, gz, size });
+function cachePacked(key, mtimeMs, gz, etag) {
+  const size = gz.length;
+  packedCache.set(key, { mtimeMs, gz, etag, size });
   packedCacheBytes += size;
   while (packedCacheBytes > PACKED_CACHE_BYTES && packedCache.size > 1) {
     const oldest = packedCache.keys().next().value;
@@ -169,12 +177,26 @@ function cachedPacked(key, mtimeMs) {
   return entry;
 }
 
+/*
+ * Packing is done off the main thread.  The largest bodies here run to
+ * twenty-five megabytes, and packing one of them takes well over a second
+ * of processor time.  Done in the usual way it would hold up every other
+ * request for that second — the reader would see a picture that never
+ * arrives and a lesson that never opens.  Done this way, the request that
+ * asked for it waits and nobody else does.
+ */
 function pack(raw) {
   try {
     return zlib.gzipSync(raw, { level: 6 });
   } catch {
     return null;
   }
+}
+
+function packAsync(raw, level = 6) {
+  return new Promise((resolve) => {
+    zlib.gzip(raw, { level }, (err, out) => resolve(err ? null : out));
+  });
 }
 
 /* A file name a browser can save without complaining. */
@@ -258,6 +280,7 @@ function send(res, status, body, headers = {}) {
   if (
     body &&
     body.length > 512 &&
+    body.length <= 256 * 1024 &&
     !headers['Content-Encoding'] &&
     COMPRESSIBLE.test(type) &&
     wantsGzip(req)
@@ -772,17 +795,11 @@ async function serveFile(
       let entry = cachedPacked(key, stat.mtimeMs);
       if (!entry) {
         const raw = await fsp.readFile(file);
-        const gz = pack(raw);
-        cachePacked(key, stat.mtimeMs, raw, gz);
-        entry = cachedPacked(key, stat.mtimeMs);
-      }
-      if (!entry) {
-        /* The cache gave it back right away; if it did not, read it again. */
-        const raw = await fsp.readFile(file);
-        headers['Content-Length'] = raw.length;
-        res.writeHead(200, headers);
-        res.end(raw);
-        return true;
+        const gz = await packAsync(raw);
+        if (gz && gz.length <= PACKED_CACHE_ENTRY_BYTES) {
+          cachePacked(key, stat.mtimeMs, gz, headers.ETag);
+          entry = cachedPacked(key, stat.mtimeMs);
+        }
       }
       if (entry.gz && wantsGzip(req)) {
         headers['Content-Encoding'] = 'gzip';
@@ -792,9 +809,11 @@ async function serveFile(
         res.end(entry.gz);
         return true;
       }
-      headers['Content-Length'] = entry.raw.length;
+      /* No packed form to hand over: the file on disk is the answer. */
+      const raw = await fsp.readFile(file);
+      headers['Content-Length'] = raw.length;
       res.writeHead(200, headers);
-      res.end(entry.raw);
+      res.end(raw);
       return true;
     }
     headers['Content-Length'] = stat.size;
@@ -830,6 +849,61 @@ const xb = {
   loaded: false,
 };
 
+/*
+ * The 精品课 packs name their own band.  The name is a shelf label, and
+ * the library sorts by subject and grade, so the name is taken apart:
+ * "八年级物理 · 上下册" is a physics lesson for the eighth grade.
+ */
+const LQ_PACKAGE_SUBJECT = {
+  高中数学: { subject: '数学', grade: '高中' },
+  高二数学: { subject: '数学', grade: '高二' },
+  高一数学: { subject: '数学', grade: '高一' },
+  七年级数学: { subject: '数学', grade: '七年级' },
+  八年级数学: { subject: '数学', grade: '八年级' },
+  九年级数学: { subject: '数学', grade: '九年级' },
+  小学数学: { subject: '数学', grade: '小学' },
+  九年级化学: { subject: '化学', grade: '九年级' },
+  高中化学: { subject: '化学', grade: '高中' },
+  高二化学: { subject: '化学', grade: '高二' },
+  高一化学: { subject: '化学', grade: '高一' },
+  八年级物理: { subject: '物理', grade: '八年级' },
+  '八年级物理 · 上下册': { subject: '物理', grade: '八年级' },
+  九年级物理: { subject: '物理', grade: '九年级' },
+  高中物理合集: { subject: '物理', grade: '高中' },
+  高中物理: { subject: '物理', grade: '高中' },
+  高三物理: { subject: '物理', grade: '高三' },
+  高二物理: { subject: '物理', grade: '高二' },
+  高一物理: { subject: '物理', grade: '高一' },
+};
+
+/*
+ * A shelf label is not a subject.  "八年级数学", "高中物理合集" and
+ * "八年级物理 · 上下册" are the names the packs are sold under, and they
+ * turn up again in the per-stage subject map — where the reader would
+ * see them as if they were subjects of their own.  Every label that
+ * reaches the catalogue goes through here first, so that what the
+ * filter row offers is the subject the lesson is actually about.
+ */
+function lqSubjectLabel(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  const pack = LQ_PACKAGE_SUBJECT[text];
+  if (pack) return pack.subject;
+  /* "生物 · 八年级" and friends: the first half is the subject. */
+  const head = text.split(' · ')[0].trim();
+  return head || text;
+}
+
+function lqStageSubjects(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [stage, label] of Object.entries(raw)) {
+    const subject = lqSubjectLabel(label);
+    if (subject) out[stage] = subject;
+  }
+  return out;
+}
+
 function loadXb(profile) {
   const state = profile.state;
   if (state.loaded) return;
@@ -852,10 +926,74 @@ function loadXb(profile) {
    */
   const products = (catalog.products || []).map((p) => {
     const has = installed.has(p.id);
+    /*
+     * Some platforms wrote the grade into the subject ("生物 · 八年级").
+     * That string is a label, not a subject, and it leaks into the
+     * subject filter and the chapter tree as a chapter of its own.  The
+     * subject is the first half; the grade is kept beside it.
+     */
+    const rawSubject = String(p.subject || '');
+    let subjectKey = String(p.subjectKey || rawSubject.split(' · ')[0] || '综合');
+    let gradeLabel = p.gradeLabel || (rawSubject.includes(' · ')
+      ? rawSubject.split(' · ').slice(1).join(' · ')
+      : '');
+    /*
+     * The 精品课 packs carry the whole band in their name ("八年级物理 ·
+     * 上下册").  That is a shelf, not a subject, so it is taken apart into
+     * the subject it belongs to and the grade it was written for.
+     */
+    const pack = LQ_PACKAGE_SUBJECT[rawSubject] || LQ_PACKAGE_SUBJECT[subjectKey];
+    if (pack) {
+      subjectKey = pack.subject;
+      gradeLabel = pack.grade;
+    }
+    /*
+     * Anything still carrying a shelf name — the subject map of a pack
+     * has one for every stage, and those hold the pack names again —
+     * is cut down to the subject it stands for.
+     */
+    subjectKey = lqSubjectLabel(subjectKey) || '综合';
+    if (subjectKey !== rawSubject && !gradeLabel) {
+      const tail = String(rawSubject).split(' · ').slice(1).join(' · ').trim();
+      if (tail) gradeLabel = tail;
+    }
+    /*
+     * Some lessons carry their band in the tree instead of the name:
+     * "八年级上册" is the branch they sit on.  That is the grade the
+     * reader wants to see on the card, so it is taken from there.
+     */
+    if (!gradeLabel && Array.isArray(p.taxonomy) && p.taxonomy.length) {
+      const domain = String(p.taxonomy[0]?.domain || '').trim();
+      if (domain && domain !== subjectKey) gradeLabel = domain;
+    }
+    /*
+     * A price, a discount and a countdown belong to a shop.  This is a
+     * library: every lesson here can be opened and taken away, so those
+     * words are taken out of the answer rather than shown and then ignored.
+     */
+    const {
+      price,
+      originalPrice,
+      promotion,
+      canPurchase,
+      canFeedback,
+      feedbackRequiresPurchase,
+      onlineOnly,
+      downloadReason,
+      localReason,
+      ...rest
+    } = p;
     return {
-      ...p,
+      ...rest,
+      subject: subjectKey,
+      subjectKey,
+      gradeLabel,
+      stageSubjects: lqStageSubjects(p.stageSubjects),
+      /* The note about the price belongs to the shelf it was sold on. */
+      description: scrubShopCopy(p.description),
+      tagline: scrubShopCopy(p.tagline),
       // No commerce locally: every entry is presented as free to use.
-      mode: p.mode || 'free',
+      mode: 'free',
       publicationStatus: p.publicationStatus || 'published',
       owned: p.owned ?? has,
       accessible: p.accessible ?? has,
@@ -863,8 +1001,6 @@ function loadXb(profile) {
       available: p.available ?? has,
       downloadable: p.downloadable ?? has,
       canDownload: p.canDownload ?? has,
-      canPurchase: false,
-      downloadReason: p.downloadReason ?? (has ? '' : 'local-missing'),
       localInstalled: has,
       launchUrl: `/api/launch/${p.id}`,
     };
@@ -883,21 +1019,103 @@ function loadXb(profile) {
     replacements[id] = entry;
   }
 
+  /*
+   * The chapter tree, the course packs and the download lists all point at
+   * lessons by name.  Some of those names belong to lessons that are not on
+   * this machine — they are the ones the platform only lends out.  A chapter
+   * that names such a lesson promises a course that cannot be opened, and a
+   * counter that counts it says "six lessons" where there is none.  So the
+   * lists are cut down to the lessons that are really here, and the counters
+   * are counted again from what is left.
+   */
+  const live = new Set(products.map((p) => p.id));
+  const curriculum = catalog.curriculum
+    ? {
+        ...catalog.curriculum,
+        chapters: (catalog.curriculum.chapters || [])
+          .map((chapter) => {
+            const topics = (chapter.topics || [])
+              .map((topic) => ({
+                ...topic,
+                courseIds: (topic.courseIds || []).filter((id) => live.has(id)),
+              }))
+              .filter((topic) => topic.courseIds.length);
+            return { ...chapter, topics };
+          })
+          .filter((chapter) => chapter.topics.length),
+      }
+    : catalog.curriculum;
+
+  const bundles = (catalog.bundles || []).map((bundle) => {
+    const productIds = (bundle.productIds || []).filter((id) => live.has(id));
+    return {
+      id: bundle.id,
+      title: bundle.title,
+      subject: lqSubjectLabel(bundle.subject),
+      stages: bundle.stages || [],
+      stage: bundle.stage || '',
+      stageSubjects: lqStageSubjects(bundle.stageSubjects),
+      productIds,
+      count: productIds.length,
+    };
+  });
+
+  const downloadScopes = (catalog.downloadScopes || []).map((scope) => {
+    const productIds = (scope.productIds || []).filter((id) => live.has(id));
+    return {
+      id: scope.id,
+      title: scope.title,
+      subject: lqSubjectLabel(scope.subject),
+      stage: scope.stage || '',
+      productIds,
+      count: productIds.length,
+    };
+  });
+
   state.catalog = {
-    ...catalog,
     serverTime: Date.now(),
     products,
     courseReplacements: replacements,
+    curriculum,
+    bundles,
+    downloadScopes,
     selling: false,
     salesMode: 'local',
     siteMode: 'local',
     downloadMode: true,
+    /*
+     * The library keeps the name and the filing number of the house it
+     * belongs to, and nothing else of the shop it grew out of: no card
+     * prices, no plan sheets, no refund rules, no back office.
+     */
+    seller: catalog.seller || '',
+    support: catalog.support || '',
+    creditCode: catalog.creditCode || '',
+    icp: catalog.icp || '',
+    securityNumber: catalog.securityNumber || '',
     localReplica: {
       installedCount: installed.size,
       totalCount: products.length,
       coursewareDir: 'mirror/xbjiaoyu/courseware',
     },
   };
+  /*
+   * The catalogue is the one answer every page waits for, so it is worked
+   * out once and kept: the text it is written in, and the mark that says
+   * whether a reader already has it.
+   *
+   * The mark is worked out from the answer itself, not from the file it was
+   * made from.  The file does not change when the answer does — the answer
+   * is cut down to the lessons that are really here — and a mark taken from
+   * the file would tell a reader that the copy they hold is still the good
+   * one when it is not.
+   */
+  state.catalogBody = Buffer.from(JSON.stringify(state.catalog), 'utf8');
+  state.catalogTag = `"${crypto
+    .createHash('sha1')
+    .update(state.catalogBody)
+    .digest('hex')
+    .slice(0, 16)}"`;
   state.loaded = true;
 }
 
@@ -1173,6 +1391,46 @@ function refreshCsp(html) {
 
   const newTag = tag.replace(/(content=)(["'])([\s\S]*?)\2/i, (_all, head, q) => head + q + policy + q);
   return html.slice(0, meta.index) + newTag + html.slice(meta.index + tag.length);
+}
+
+/*
+ * A lesson as this library hands it out.
+ *
+ * The body on disk still points at the platform it came from: its classroom
+ * handshake carries that platform's address, and its files live under that
+ * platform's file service.  Both are turned to point here instead, and the
+ * rules that would keep the lesson from running on its own are lifted.  The
+ * lesson itself is left exactly as it is.
+ *
+ * The reading is done off the main thread: the biggest bodies here run to
+ * twenty-five megabytes, and a plain read of one of them would hold up
+ * every other reader for as long as it took.
+ */
+async function readPatchedCourseware(file, id, profile, origin) {
+  const html = await fsp.readFile(file, 'utf8');
+  let patched = html.replace(
+    /("origin"\s*:\s*)"https:\/\/xbjiaoyu\.com"/g,
+    `$1${JSON.stringify(origin)}`
+  );
+  patched = patched.replace(
+    /("origin"\s*:\s*)"__LQ_ORIGIN__"/g,
+    `$1${JSON.stringify(origin)}`
+  );
+  if (profile.kind === 'leqixiang') {
+    patched = rewriteCoursewareUrls(patched, id);
+    patched = patchLqBody(patched, id);
+    patched = injectLocalCdnShim(patched, id);
+    /*
+     * A lesson asks the page that holds it whether it may run.  In
+     * the classroom that answer comes from the platform; here the
+     * page is the library itself, and there is no ticket to ask for.
+     * So a lesson opened on its own is let in straight away, and one
+     * opened inside the library is let in by the library.
+     */
+    patched = releaseLocalClassroom(patched);
+    patched = refreshCsp(patched);
+  }
+  return Buffer.from(patched, 'utf8');
 }
 
 /*
@@ -2507,6 +2765,7 @@ async function handleXbInner(req, res, url, profile) {
     // platform it came from. Rebind it to this local origin so the parent
     // shell can grant access. Everything else stays untouched.
     const origin = publicOrigin(req, profile.port);
+    warmCoursewareCache(profile, origin);
     /*
      * The rewritten body depends on the address the reader came from and
      * on nothing else, so it is kept in its finished form.  The second
@@ -2515,35 +2774,20 @@ async function handleXbInner(req, res, url, profile) {
     const stat = await fsp.stat(file);
     const key = `${file}|${origin}`;
     let entry = cachedPacked(key, stat.mtimeMs);
-    let raw = entry ? entry.raw : null;
-    let gz = entry ? entry.gz : null;
-    if (!raw) {
-      const html = fs.readFileSync(file, 'utf8');
-      let patched = html.replace(
-        /("origin"\s*:\s*)"https:\/\/xbjiaoyu\.com"/g,
-        `$1${JSON.stringify(origin)}`
-      );
-      patched = patched.replace(
-        /("origin"\s*:\s*)"__LQ_ORIGIN__"/g,
-        `$1${JSON.stringify(origin)}`
-      );
-      if (profile.kind === 'leqixiang') {
-        patched = rewriteCoursewareUrls(patched, id);
-        patched = patchLqBody(patched, id);
-        patched = injectLocalCdnShim(patched, id);
-        /*
-         * A lesson asks the page that holds it whether it may run.  In
-         * the classroom that answer comes from the platform; here the
-         * page is the library itself, and there is no ticket to ask for.
-         * So a lesson opened on its own is let in straight away, and one
-         * opened inside the library is let in by the library.
-         */
-        patched = releaseLocalClassroom(patched);
-        patched = refreshCsp(patched);
+    let raw = null;
+    let tag = entry ? entry.etag : '';
+    if (!entry) {
+      raw = await readPatchedCourseware(file, id, profile, origin);
+      tag = `"${stat.size.toString(16)}-${crypto
+        .createHash('sha1')
+        .update(raw)
+        .digest('hex')
+        .slice(0, 16)}"`;
+      const gz = await packAsync(raw, raw.length > 2 * 1024 * 1024 ? 1 : 6);
+      if (gz && gz.length <= PACKED_CACHE_ENTRY_BYTES) {
+        cachePacked(key, stat.mtimeMs, gz, tag);
+        entry = cachedPacked(key, stat.mtimeMs);
       }
-      raw = Buffer.from(patched, 'utf8');
-      gz = pack(raw);
-      cachePacked(key, stat.mtimeMs, raw, gz);
     }
     /*
      * The mark of the reply is worked out from the text that is actually
@@ -2551,11 +2795,6 @@ async function handleXbInner(req, res, url, profile) {
      * source; the copy the reader gets is the source with its addresses
      * rewritten, and the two are not the same bytes.
      */
-    const tag = `"${stat.size.toString(16)}-${crypto
-      .createHash('sha1')
-      .update(raw)
-      .digest('hex')
-      .slice(0, 16)}"`;
     if (String(req.headers['if-none-match'] || '') === tag) {
       return send(res, 304, Buffer.alloc(0), {
         ETag: tag,
@@ -2569,13 +2808,22 @@ async function handleXbInner(req, res, url, profile) {
       Vary: 'Accept-Encoding',
     };
     if (method === 'HEAD') {
-      headers['Content-Length'] = raw.length;
+      headers['Content-Length'] = entry ? entry.gz.length : raw.length;
       return send(res, 200, Buffer.alloc(0), headers);
     }
-    if (gz && wantsGzip(req)) {
+    if (entry && entry.gz && wantsGzip(req)) {
       headers['Content-Encoding'] = 'gzip';
-      headers['Content-Length'] = gz.length;
-      return send(res, 200, gz, headers);
+      headers['Content-Length'] = entry.gz.length;
+      return send(res, 200, entry.gz, headers);
+    }
+    if (!raw) raw = await readPatchedCourseware(file, id, profile, origin);
+    if (wantsGzip(req)) {
+      const gz = await packAsync(raw, raw.length > 2 * 1024 * 1024 ? 1 : 6);
+      if (gz) {
+        headers['Content-Encoding'] = 'gzip';
+        headers['Content-Length'] = gz.length;
+        return send(res, 200, gz, headers);
+      }
     }
     headers['Content-Length'] = raw.length;
     return send(res, 200, raw, headers);
@@ -2764,18 +3012,45 @@ async function handleXbApi(req, res, pathname, profile) {
     if (method !== 'GET') return notFound();
     /*
      * The catalogue is the one answer every page waits for, so it is given
-     * a number of its own: a browser that has it does not ask again.
+     * a number of its own: a browser that has it does not ask again — but
+     * it is asked to say whether its copy is still the good one, and it is
+     * told to come back for the answer whenever the library has changed.
      */
-    const body = Buffer.from(JSON.stringify(profile.state.catalog));
-    const tag = `"${body.length.toString(16)}-${profile.state.catalog.products.length.toString(16)}"`;
+    loadXb(profile);
+    const body = profile.state.catalogBody;
+    const tag = profile.state.catalogTag;
     if (String(req.headers['if-none-match'] || '') === tag) {
-      return send(res, 304, Buffer.alloc(0), { ETag: tag, 'Cache-Control': 'no-cache' });
+      return send(res, 304, Buffer.alloc(0), {
+        ETag: tag,
+        'Cache-Control': 'no-store',
+      });
     }
-    return send(res, 200, body, {
+    const headers = {
       'Content-Type': 'application/json; charset=utf-8',
       ETag: tag,
-      'Cache-Control': 'no-cache',
+      /*
+       * The catalogue is the answer to "what is in this library", and it
+       * changes whenever the library changes.  A browser that is allowed to
+       * keep a copy of it will go on showing the library it saw last time —
+       * lessons that have since been removed, chapters that have since
+       * been filled in.  So the answer is not kept: it is asked for, and
+       * what it says at that moment is what the reader sees.
+       */
+      'Cache-Control': 'no-store',
       Vary: 'Accept-Encoding',
+    };
+    /* The answer is a good two megabytes of text, so it travels packed. */
+    if (!profile.state.catalogGz) {
+      profile.state.catalogGz = await packAsync(body, 6);
+    }
+    if (profile.state.catalogGz && wantsGzip(req)) {
+      headers['Content-Encoding'] = 'gzip';
+      headers['Content-Length'] = profile.state.catalogGz.length;
+      return send(res, 200, profile.state.catalogGz, headers);
+    }
+    headers['Content-Length'] = body.length;
+    return send(res, 200, body, {
+      ...headers,
     });
   }
   if (pathname === '/api/session') {
@@ -2908,13 +3183,15 @@ async function handleXbApi(req, res, pathname, profile) {
     const stat = fs.statSync(file);
     const key = `${file}|standalone`;
     let entry = cachedPacked(key, stat.mtimeMs);
-    let raw = entry ? entry.raw : null;
-    let gz = entry ? entry.gz : null;
-    if (!raw) {
-      const html = releaseLocalClassroom(fs.readFileSync(file, 'utf8'));
+    let raw = null;
+    if (!entry) {
+      const html = releaseLocalClassroom(await fsp.readFile(file, 'utf8'));
       raw = Buffer.from(html, 'utf8');
-      gz = pack(raw);
-      cachePacked(key, stat.mtimeMs, raw, gz);
+      const gz = await packAsync(raw, raw.length > 2 * 1024 * 1024 ? 1 : 6);
+      if (gz && gz.length <= PACKED_CACHE_ENTRY_BYTES) {
+        cachePacked(key, stat.mtimeMs, gz, '');
+        entry = cachedPacked(key, stat.mtimeMs);
+      }
     }
     const headers = {
       'Content-Type': 'text/html; charset=utf-8',
@@ -2923,10 +3200,16 @@ async function handleXbApi(req, res, pathname, profile) {
       'Cache-Control': 'private, max-age=600',
       Vary: 'Accept-Encoding',
     };
-    if (gz && wantsGzip(req)) {
+    if (entry && entry.gz && wantsGzip(req)) {
       headers['Content-Encoding'] = 'gzip';
-      headers['Content-Length'] = gz.length;
-      return send(res, 200, gz, headers);
+      headers['Content-Length'] = entry.gz.length;
+      return send(res, 200, entry.gz, headers);
+    }
+    if (!raw) {
+      raw = Buffer.from(
+        releaseLocalClassroom(await fsp.readFile(file, 'utf8')),
+        'utf8'
+      );
     }
     headers['Content-Length'] = raw.length;
     return send(res, 200, raw, headers);
@@ -3019,6 +3302,74 @@ const xbServer = http.createServer((req, res) => {
     sendJson(res, 500, { error: String(err.message || err) });
   });
 });
+
+/*
+ * A connection that is kept open.
+ *
+ * The browser holds a connection to the library and reuses it.  The server
+ * used to close an idle connection after five seconds, which is very close
+ * to the four seconds the browser waits before it does the same — and a
+ * request that arrives exactly as the other side closes the connection is
+ * lost.  A reader would see a lesson that would not open and a picture
+ * that would not arrive.  The server now waits far longer than the
+ * browser does, so the browser is always the one to close.
+ */
+xbServer.keepAliveTimeout = 72000;
+xbServer.headersTimeout = 75000;
+xbServer.requestTimeout = 120000;
+
+/*
+ * The library warms itself up.
+ *
+ * A lesson is read, rewritten and packed the first time it is asked for.
+ * That work is now done away from the other readers, but the reader who
+ * asks first still waits for it.  So once a reader has arrived, the rest
+ * of the library is prepared in the background, one lesson at a time, and
+ * every later visit is answered straight away.
+ *
+ * Only the ordinary-sized lessons are prepared this way; the few very
+ * large ones are left to be handled when they are asked for.
+ */
+const warmedOrigins = new Set();
+
+function warmCoursewareCache(profile, origin) {
+  if (warmedOrigins.has(origin)) return;
+  warmedOrigins.add(origin);
+  const dir = profile.coursewareDir;
+  let names;
+  try {
+    names = fs.readdirSync(dir).filter((f) => f.endsWith('.html'));
+  } catch {
+    return;
+  }
+  let index = 0;
+  const step = async () => {
+    if (index >= names.length) return;
+    const name = names[index++];
+    const file = path.join(dir, name);
+    const id = name.replace(/\.html$/, '');
+    try {
+      const stat = await fsp.stat(file);
+      if (stat.size > 2 * 1024 * 1024) return void step();
+      const key = `${file}|${origin}`;
+      if (cachedPacked(key, stat.mtimeMs)) return void step();
+      const raw = await readPatchedCourseware(file, id, profile, origin);
+      const gz = await packAsync(raw, 6);
+      if (gz && gz.length <= PACKED_CACHE_ENTRY_BYTES) {
+        const tag = `"${stat.size.toString(16)}-${crypto
+          .createHash('sha1')
+          .update(raw)
+          .digest('hex')
+          .slice(0, 16)}"`;
+        cachePacked(key, stat.mtimeMs, gz, tag);
+      }
+    } catch {
+      /* A lesson that cannot be prepared is left for the next request. */
+    }
+    setTimeout(step, 5);
+  };
+  setTimeout(step, 1000);
+}
 
 /*
  * Where the library listens.

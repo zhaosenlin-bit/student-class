@@ -23,10 +23,16 @@ const reports = process.argv[2]
       )
       .slice(0, 1);
 for (const f of reports) {
-  const list = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+  const parsed = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+  /*
+   * The report grew a shape: the summary of a full run is an object
+   * with the failures in it, and an older report is a plain list of
+   * rows.  Both are read here, so the tool works on either.
+   */
+  const list = Array.isArray(parsed) ? parsed : parsed.failures || [];
   rows.push(...list);
   for (const row of list) {
-    for (const line of row.failed || []) {
+    for (const line of row.failed || row.lines || []) {
       const m = /^(\d{3}) (\S+)/.exec(line);
       if (!m) continue;
       const [, code, url] = m;

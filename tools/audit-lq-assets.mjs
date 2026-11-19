@@ -29,6 +29,34 @@ function resolveRef(fromDir, ref) {
   return candidates;
 }
 
+/*
+ * A lesson body is a program, and a program talks about files in
+ * strings that are not addresses: "url(t)", "sound!TAMBO/beep.wav",
+ * "{{placeholder}}".  Those are not missing files, and counting them
+ * buries the ones that are.  So a reference has to look like a path
+ * before it is looked for.
+ */
+const NOT_A_PATH = /[{}<>|\\^`\s()[\]=+;]/;
+const looksLikeAPath = (ref) => {
+  if (!ref) return false;
+  if (/^\{\{.*\}\}$/.test(ref)) return false;
+  if (ref.includes('!')) return false;
+  if (NOT_A_PATH.test(ref)) return false;
+  if (!ref.includes('/')) return /\.(glb|gltf|bin|ktx2|png|jpe?g|webp|gif|svg|mp3|wav|ogg|m4a|mp4|webm|json|wasm|woff2?|ttf|otf|css|html|js)$/i.test(ref);
+  return true;
+};
+
+/* Addresses the library answers itself, not files that should be on disk. */
+const SERVED_BY_THE_LIBRARY = [
+  /^\/api\//,
+  /^\/brand\//,
+  /^\/images\//,
+  /^\/courseware\//,
+  /^\/license\.html$/,
+  /^\/license\.json$/,
+  /^\/favicon\.ico$/,
+];
+
 for (const f of files) {
   const full = path.join(CW, f);
   const html = fs.readFileSync(full, 'utf8');
@@ -49,6 +77,8 @@ for (const f of files) {
   const missing = [];
   for (const ref of refs) {
     if (/^(https?:)?\/\//i.test(ref) || ref.startsWith('data:') || ref.startsWith('blob:') || ref.startsWith('#')) continue;
+    if (!looksLikeAPath(ref)) continue;
+    if (SERVED_BY_THE_LIBRARY.some((re) => re.test(ref))) continue;
     const cands = resolveRef(baseDir, ref);
     if (!cands) continue;
     const ok = cands.some((c) => {

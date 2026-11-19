@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { spawnSync } from 'node:child_process';
 import { translate3jcnTitle } from './3jcn-titles.mjs';
+import { scrubShopCopy } from '../server/lq-shop-copy.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const XB = path.join(ROOT, 'mirror', 'xbjiaoyu');
@@ -2534,6 +2535,12 @@ for (const p of products) {
   ]) {
     if (typeof p[key] === 'string') p[key] = scrubVisible(p[key]);
   }
+  /*
+   * A note about the price belongs to the shelf the lesson was sold on.
+   * Here every lesson is free and always open, so those sentences go.
+   */
+  if (typeof p.description === 'string') p.description = scrubShopCopy(p.description);
+  if (typeof p.tagline === 'string') p.tagline = scrubShopCopy(p.tagline);
   for (const key of ['stages', 'features']) {
     if (Array.isArray(p[key])) p[key] = p[key].map(scrubVisible);
   }
