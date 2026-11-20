@@ -19,7 +19,7 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
-import { scrubShopCopy } from './lq-shop-copy.mjs';
+import { scrubShopCopy, trimLibraryNote } from './lq-shop-copy.mjs';
 
 /*
  * The repository root is found from this file's own location, so a fresh
@@ -1015,7 +1015,7 @@ function loadXb(profile) {
       gradeLabel,
       stageSubjects: lqStageSubjects(p.stageSubjects),
       /* The note about the price belongs to the shelf it was sold on. */
-      description: scrubShopCopy(p.description),
+      description: trimLibraryNote(scrubShopCopy(p.description)),
       tagline: scrubShopCopy(p.tagline),
       // No commerce locally: every entry is presented as free to use.
       mode: 'free',
@@ -3061,9 +3061,13 @@ async function handleXbApi(req, res, pathname, profile) {
   if (pathname === '/api/version') {
     if (method !== 'GET' && method !== 'HEAD') return notFound();
     loadXb(profile);
+    const build = readBuildMark(profile);
+    /* The mark is a timestamp; a reader wants it as a date. */
+    const stamp = /^lq-(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(build || '');
     const body = Buffer.from(
       JSON.stringify({
-        build: readBuildMark(profile),
+        build,
+        version: stamp ? `${stamp[1]}-${stamp[2]}-${stamp[3]} ${stamp[4]}:${stamp[5]}` : '',
         courses: profile.state.catalog.products.length,
       }),
       'utf8',
@@ -3089,7 +3093,7 @@ async function handleXbApi(req, res, pathname, profile) {
     if (String(req.headers['if-none-match'] || '') === tag) {
       return send(res, 304, Buffer.alloc(0), {
         ETag: tag,
-        'Cache-Control': 'no-store',
+        'Cache-Control': 'no-cache',
       });
     }
     const headers = {
@@ -3102,8 +3106,14 @@ async function handleXbApi(req, res, pathname, profile) {
        * lessons that have since been removed, chapters that have since
        * been filled in.  So the answer is not kept: it is asked for, and
        * what it says at that moment is what the reader sees.
+       *
+       * "no-cache" is not "do not keep": the browser may keep a copy, but
+       * it has to ask whether that copy is still the good one before
+       * using it.  The answer is two hundred kilobytes, and the question
+       * is one line, so a reader who comes back pays almost nothing and
+       * still never sees a library that has moved on.
        */
-      'Cache-Control': 'no-store',
+      'Cache-Control': 'no-cache',
       Vary: 'Accept-Encoding',
     };
     /* The answer is a good two megabytes of text, so it travels packed. */

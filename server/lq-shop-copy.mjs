@@ -127,3 +127,23 @@ export function scrubShopCopy(html) {
   return out || html;
 }
 
+/*
+ * The note that used to sit at the end of a description.
+ *
+ * A few lessons were written with a sentence saying where they live:
+ * "（已完整下载到本地，可直接在线使用，也可下载后离线打开）" or
+ * "（正文尚未收录到本地）".  Both sentences describe a shelf and a
+ * warehouse, and neither is true of this library: every lesson here is
+ * on this machine and can be opened and taken away.  So the note goes
+ * and the description keeps the part that names the lesson.
+ */
+const LIBRARY_NOTE =
+  /[（(]\s*(已完整下载到本地[^）)]*|正文尚未收录到本地|线上暂未开放[^）)]*|暂未开放[^）)]*)\s*[）)]\s*/g;
+
+export function trimLibraryNote(html) {
+  if (typeof html !== 'string' || !html) return html;
+  if (!LIBRARY_NOTE.test(html)) return html;
+  LIBRARY_NOTE.lastIndex = 0;
+  return html.replace(LIBRARY_NOTE, '').trim();
+}
+

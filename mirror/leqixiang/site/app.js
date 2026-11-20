@@ -1,5 +1,5 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611202015';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611202015';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611200855';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611200855';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
 /*
@@ -24,7 +24,7 @@ import {showHome} from './home.js?v=mobile-20261019';
 import {createCourseNavigation} from './course-navigation.js?v=mobile-20261019';
 import {prepareSiteEntry} from './site-entry.js?v=download-cdn-20261020.1';
 import {attachCoursewareDelivery,detachCoursewareDelivery} from './courseware-load.js?v=apple-startup-20261026.1';
-import {mountSaveHost} from './lq-save-host.js?v=lq-202611202015';
+import {mountSaveHost} from './lq-save-host.js?v=lq-202611200855';
 import './course-operation-guides.js?v=20261002';
 prepareSiteEntry({location,history});
 // Wait for the catalogue mode before starting the optional home animation.
@@ -97,7 +97,7 @@ const showCatalogUse=p=>p.accessible===true||p.mode==='free';
 const priceText=p=>'本地可用';
 const catalogBuyText=p=>'本地已收录';
 const size=n=>`${(n/1024/1024).toFixed(1)} MB`;
-async function api(url,body){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined,cache:'no-store'});const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
+async function api(url,body,options){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined,cache:options?.cache||'no-store'});const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
 function toast(text){clearTimeout(toastTimer);$('#toast').textContent=text;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,4300);}
 function modal(html){clearInterval(timer);timer=null;$('#dialog-body').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
 function close(){authSerial++;phone.cancel();clearInterval(timer);timer=null;$('#dialog').close();}
@@ -331,7 +331,7 @@ const policies={
   terms:['使用说明','<p>课件仅供课堂教学与个人学习使用，请勿公开传播、转售，或用于对外的商业培训分发。</p><p>课件正文保留原作者的署名与许可协议，说明见「许可与署名」页面。</p><p>本课件库不对课件内容作担保；如发现内容有误，或与许可要求不符，请以原作者的说明为准。</p>']};
 function policyBody(name){return policies[name][1];}function policy(name){const title=policies[name][0],body=policyBody(name);modal(`<div class="dialog-content policy"><h2>${title}</h2>${body}${info.seller?`<p>经营主体：${esc(info.seller)}</p>`:''}${info.support?`<p>联系邮箱：${esc(info.support)}</p>`:''}</div>`);}
 function about(){modal('<div class="dialog-content"><div class="profile"><img src="/brand/brand-mark.png" alt="乐启享机器人 Logo" width="56" height="56"><div><p class="eyebrow">关于我们</p><h2>乐启享机器人</h2></div></div><p>乐启享机器人专注 3-16 岁少儿科技素养教育，以工程实践与项目制学习，让孩子在搭建、调试、协作、展示中真正学会创造。</p><p class="subtle">从乐高启蒙 到 AI 创造</p><p><a class="button secondary small" href="https://codebn.cn/" target="_blank" rel="noreferrer">官网 codebn.cn ↗</a></p></div>');}
-async function refreshCatalog(){info=await api('/api/catalog');syncPromotionClock(info.serverTime);catalog=info.products;downloadBulk.invalidate();legalFooter();}
+async function refreshCatalog(){info=await api('/api/catalog',null,{cache:'no-cache'});syncPromotionClock(info.serverTime);catalog=info.products;downloadBulk.invalidate();legalFooter();}
 async function route(){const serial=++routeSerial;let [page,id]=(location.hash.slice(1)||'works').split('/');if(page==='purchase'&&id){history.replaceState(null,'','#course/'+id);page='course';}else if(page==='purchase'){history.replaceState(null,'','#catalog');page='catalog';id='';}else if(['unlocked','purchases','admin','moderation','creator','owner-login','refunds','refund-admin','feedback-admin','account-safety','bulk-download-admin','teachers'].includes(page)){history.replaceState(null,'','#catalog');page='catalog';id='';}document.body.classList.toggle('download-mode',info.downloadMode===true);
  if(info.downloadMode&&['purchase','bundle','play','classroom','unlocked'].includes(page)&&!(['play','classroom'].includes(page)&&id&&product(id)?.onlineAccessible)){
    showHome(false);stopTrial();document.body.dataset.page=page;$('#main').className='';
@@ -407,21 +407,51 @@ async function watchBuild(){
     const res=await fetch('/api/version',{cache:'no-store'});
     if(!res.ok)return;
     const now=await res.json();
-    if(!now.build||now.build===mine)return;
+    if(!now.build)return;
+    buildStamp(now,mine);
+    if(now.build===mine)return;
     if(currentLesson)return;
-    let seen='';
-    try{seen=sessionStorage.getItem('lq-build-seen')||'';}catch{}
-    if(seen===now.build)return;
-    try{sessionStorage.setItem('lq-build-seen',now.build);}catch{}
+    /*
+     * The page carries the build it was made from and the server names
+     * the build it is serving now.  They differ, so this page is old and
+     * has to go.  After the reload the two agree again, so nothing loops.
+     */
     toast('课件库已更新，正在刷新…');
     setTimeout(()=>location.reload(),900);
   }catch{}
 }
 
+/*
+ * A quiet mark in the footer says which version of the library is on
+ * screen.  When the library has moved on, the mark turns into a button:
+ * the page is old, and one click brings it back to date.
+ */
+function buildStamp(now,mine){
+  const el=$('#lq-build-stamp');
+  if(!el)return;
+  el.hidden=false;
+  if(now.build!==mine){
+    el.classList.add('is-stale');
+    el.textContent='课件库已更新 · 点击刷新';
+    el.title='这个页面还是旧版本，点一下就能看到最新的课件';
+    el.onclick=()=>location.reload();
+    return;
+  }
+  el.classList.remove('is-stale');
+  el.textContent=now.version?'资源版本 '+now.version:'';
+  el.title='当前课件库的版本';
+  el.onclick=null;
+}
+
 startPromotionCountdowns({onExpire:async()=>{await refreshCatalog();if(info.downloadMode)await downloadUI.refreshPricing();if(!currentLesson&&!$('#dialog').open)await route();}});
-try{const results=await Promise.all([api('/api/catalog'),api('/api/session')]);info=results[0];syncPromotionClock(info.serverTime);catalog=info.products;user=results[1].user;await phone.refresh();accountLabel();legalFooter();await route();}catch(e){$('#main').innerHTML='<div class="empty"><h3>暂时无法连接课件网站</h3><p>请检查连接后重新加载。</p><button class="button" data-action="reload">重新加载</button></div>';}
+try{const results=await Promise.all([api('/api/catalog',null,{cache:'no-cache'}),api('/api/session')]);info=results[0];syncPromotionClock(info.serverTime);catalog=info.products;user=results[1].user;await phone.refresh();accountLabel();legalFooter();await route();}catch(e){$('#main').innerHTML='<div class="empty"><h3>暂时无法连接课件网站</h3><p>请检查连接后重新加载。</p><button class="button" data-action="reload">重新加载</button></div>';}
 watchBuild();
 setInterval(watchBuild,60000);
+/* A tab that has been in the background asks again the moment it is
+   looked at, so a reader who comes back to an old page is not left
+   looking at an old library. */
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)watchBuild();});
+window.addEventListener('focus',watchBuild);
 
 /* The disclosures keep their state across the re-render. */
 document.addEventListener('toggle',e=>{const el=e.target;if(!el||!el.classList)return;if(el.classList.contains('download-subject-more'))subjectsOpen=el.open;},true);
