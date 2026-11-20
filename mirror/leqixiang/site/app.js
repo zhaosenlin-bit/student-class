@@ -1,5 +1,5 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611200855';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611200855';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611200928';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611200928';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
 /*
@@ -24,7 +24,7 @@ import {showHome} from './home.js?v=mobile-20261019';
 import {createCourseNavigation} from './course-navigation.js?v=mobile-20261019';
 import {prepareSiteEntry} from './site-entry.js?v=download-cdn-20261020.1';
 import {attachCoursewareDelivery,detachCoursewareDelivery} from './courseware-load.js?v=apple-startup-20261026.1';
-import {mountSaveHost} from './lq-save-host.js?v=lq-202611200855';
+import {mountSaveHost} from './lq-save-host.js?v=lq-202611200928';
 import './course-operation-guides.js?v=20261002';
 prepareSiteEntry({location,history});
 // Wait for the catalogue mode before starting the optional home animation.
