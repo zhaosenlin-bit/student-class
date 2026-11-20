@@ -193,6 +193,32 @@ Aviary、Blockly Games。取回的方式是**原样托管站点已经发布的�
 讲义页的仿真框画得出来，纯文字课按新判据（有结构、有内容、没有
 "找不到"）也算活的。
 
+### 五、剩下那 944 门，一门白捡的都没有
+
+目录里没有的 944 门，这一版挨个问过线上一次（`tools/sweep-missing-free.mjs`，
+被限流的那 187 门再慢慢问一遍，`tools/sweep-missing-retry.mjs`）。答案
+分两类：
+
+| 来源 | 门数 | 线上怎么说 |
+| --- | --- | --- |
+| 小白教育 | 497 | `410`「此课件请下载后使用；标为免费的课件可在线体验」—— 在线预览不给，要先有下载权益 |
+| 图灵智赋 | 447 | `401 login_required` —— 先登录，登录之后大部分是付费精品课 |
+
+**白捡的：0 门。** 也就是说，这 944 门没有一门是"忘了收录"的免费课 ——
+每一门都要么要下载权益，要么要账号 + 付费。本库不绕这道墙，目录里也就不
+列它们。缺的那 944 门要补，只有两条正路：在这个平台上买下载权益，或者
+把课程内容重新做成自己的课件（后者也是这个库真正该长的方向）。
+
+### 六、开一次有多快
+
+`tools/check-lq-speed.mjs` 量三个时刻：
+
+| 时刻 | 实测 |
+| --- | --- |
+| 目录页打开 | DOMContentLoaded **189 ms**、load **193 ms**，页面本身只带走 300 字节 |
+| 目录数据再问一次 | **3 ms**，只带 300 字节（ETag 一致就回 304，不再搬 1.6 MB） |
+| 打开一门课 | 课件帧 `readyState=complete`，295 个节点、3 块画布 |
+
 ### 这一版的口径
 
 | 查什么 | 怎么查 | 结果 |
@@ -200,6 +226,8 @@ Aviary、Blockly Games。取回的方式是**原样托管站点已经发布的�
 | 全库每门课在浏览器里真的画得出来 | `tools/verify-lq-courses.mjs --all --conc 8` | **1426/1426 全绿，0 门坏** |
 | 目录页的封面、按钮、话 | `tools/audit-lq-catalog-ui.mjs` | 裂图 0、缺预览 0、缺下载 0、商店的话 0 |
 | 1972 张封面逐张取回 | `tools/check-lq-covers.mjs` | **1972 张全好** |
+| 没收录的 944 门有没有白捡的 | `tools/sweep-missing-free.mjs`、`tools/sweep-missing-retry.mjs` | **0 门**（497 要下载权益、447 要账号） |
+| 打开一次有多快 | `tools/check-lq-speed.mjs` | 目录页 189 ms、目录数据再问 3 ms、课件画得出来 |
 | 旧页面能不能自己认出自己旧了 | `tools/check-lq-build-reload.mjs` | 绿灯 |
 | 页脚的版本标记 | `tools/check-lq-build-stamp.mjs` | 绿灯 |
 | 页面脚本读不读得懂 | `tools/check-lq-site-syntax.mjs` | 20 个脚本 0 问题 |
@@ -2835,6 +2863,10 @@ node server/server.mjs
 | `tools/audit-lq-404.mjs` | 汇总验收报告里所有 404，逐条对到本地文件 |
 | `tools/audit-lq-assets.mjs` | 体检每个课件的素材目录，列出缺的文件 |
 | `tools/audit-lq-catalog-ui.mjs` | 开浏览器把目录页整个走一遍：数清课件、点开全部"继续加载"，查封面裂图、查每张卡片有没有预览和下载、查页面上还有没有商店的话 |
+| `tools/sweep-missing-free.mjs` | 挨个问线上那 944 门还没收录的课，看哪些是免费的（白捡的）、哪些要下载权益、哪些要账号 |
+| `tools/sweep-missing-retry.mjs` | 把上面被限流的那一批慢慢重问一遍，答案写回同一份报告 |
+| `tools/check-lq-speed.mjs` | 量三个时刻：目录页打开、目录数据再问一次、打开一门课，各花多久 |
+| `tools/shot-lq-preview-page.mjs` | 按读者的动作打开一门课并截图，用来核对"它到底打开了没有" |
 | `tools/stamp-lq-build.mjs` | 给这一版打上构建标记：写进页面 `head`，同时当脚本的缓存版本号，页面和脚本一起换 |
 | `tools/check-lq-build-stamp.mjs` | 读页脚那枚版本标记，看它显示的是哪一版 |
 | `tools/check-lq-build-reload.mjs` | 把页面改成旧版本再叫醒它，看它会不会自己认出自己旧了并刷新回来 |
