@@ -16,7 +16,7 @@ const OUT = path.join(ROOT, 'recon', 'scratch', 'afe-token.txt');
 const SHOT = path.join(ROOT, 'recon', 'scratch', 'afe-login-qr.png');
 const TIMEOUT_MS = Number(process.argv[2] || 10 * 60 * 1000);
 
-const page = await connect(9222, 'aifunengjiaoyu.com');
+const page = await connect(Number(process.env.CDP_PORT || 9222), 'aifunengjiaoyu.com');
 console.log('page:', await page.evaluate('document.title'));
 
 const qrAlready = await page.evaluate(

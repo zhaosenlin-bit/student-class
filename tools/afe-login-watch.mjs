@@ -17,7 +17,7 @@ const OUT = path.join(ROOT, 'recon', 'scratch', 'afe-token.txt');
 const SHOT = path.join(ROOT, 'recon', 'scratch', 'afe-qr.png');
 const REFRESH_MS = Number(process.env.REFRESH_MS || 70000);
 
-const page = await connect(9222, 'aifunengjiaoyu.com');
+const page = await connect(Number(process.env.CDP_PORT || 9222), 'aifunengjiaoyu.com');
 
 async function openLogin() {
   await page.evaluate(`(() => {
