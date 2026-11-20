@@ -219,11 +219,25 @@ Aviary、Blockly Games。取回的方式是**原样托管站点已经发布的�
 | 目录数据再问一次 | **3 ms**，只带 300 字节（ETag 一致就回 304，不再搬 1.6 MB） |
 | 打开一门课 | 课件帧 `readyState=complete`，295 个节点、3 块画布 |
 
+### 七、一排卡片里的两个按钮对齐了
+
+卡片的正文区是竖着排的，但中间那一段说明没有把卡片剩下的空隙撑开，
+于是标题只有一行的卡片，它的两个按钮会浮在半空里，比旁边那张标题
+两行的卡片高一截 —— 一排卡片看上去是歪的。
+
+给动作区加一道 `margin-top:auto`，两个按钮就都落在卡片的底边上。
+量过了：桌面 1440 宽，一排四张卡片的按钮都在 691；手机 414 宽，一排
+两张的按钮都在 687、1062。
+
+`tools/check-lq-card-grid.mjs` 量这张表，`tools/check-lq-card-parts.mjs`
+量卡片每一块落在哪儿。
+
 ### 这一版的口径
 
 | 查什么 | 怎么查 | 结果 |
 | --- | --- | --- |
 | 全库每门课在浏览器里真的画得出来 | `tools/verify-lq-courses.mjs --all --conc 8` | **1426/1426 全绿，0 门坏** |
+| 全库每门课的预览与下载都通 | `tools/check-lq-all-courses.mjs --conc 8` | **1426/1426 绿灯**（165 秒，4064 MB） |
 | 目录页的封面、按钮、话 | `tools/audit-lq-catalog-ui.mjs` | 裂图 0、缺预览 0、缺下载 0、商店的话 0 |
 | 1972 张封面逐张取回 | `tools/check-lq-covers.mjs` | **1972 张全好** |
 | 没收录的 944 门有没有白捡的 | `tools/sweep-missing-free.mjs`、`tools/sweep-missing-retry.mjs` | **0 门**（497 要下载权益、447 要账号） |
@@ -2867,6 +2881,8 @@ node server/server.mjs
 | `tools/sweep-missing-retry.mjs` | 把上面被限流的那一批慢慢重问一遍，答案写回同一份报告 |
 | `tools/check-lq-speed.mjs` | 量三个时刻：目录页打开、目录数据再问一次、打开一门课，各花多久 |
 | `tools/shot-lq-preview-page.mjs` | 按读者的动作打开一门课并截图，用来核对"它到底打开了没有" |
+| `tools/check-lq-card-grid.mjs` | 量一排卡片是不是一样高、两个按钮是不是在同一条线上（桌面和手机各量一遍） |
+| `tools/check-lq-card-parts.mjs` | 量卡片每一块（封面、标题、说明、按钮）分别落在哪儿、各占多高 |
 | `tools/stamp-lq-build.mjs` | 给这一版打上构建标记：写进页面 `head`，同时当脚本的缓存版本号，页面和脚本一起换 |
 | `tools/check-lq-build-stamp.mjs` | 读页脚那枚版本标记，看它显示的是哪一版 |
 | `tools/check-lq-build-reload.mjs` | 把页面改成旧版本再叫醒它，看它会不会自己认出自己旧了并刷新回来 |
