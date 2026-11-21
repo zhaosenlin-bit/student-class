@@ -106,7 +106,10 @@ const alive = (p) => {
    * else.
    */
   const words = p.head || '';
-  const dead = /未找到|找不到|404|缺少|无法打开|打开失败|加载失败|不存在/.test(words);
+  const dead =
+    /未找到|找不到|404|缺少|无法打开|打开失败|加载失败|不存在|没有收录|本机还没有/.test(
+      words
+    );
   if (dead) return false;
   return painted > 0 || nodes > 40 || text > 40;
 };
@@ -165,6 +168,26 @@ async function worker() {
       probe = { error: e.message };
     } finally {
       await p.close();
+    }
+    /*
+     * A handful of lessons freeze themselves when the network is being
+     * watched — they read the extra work on their own requests as a
+     * debugger sitting next to them and lock up the tab.  A teacher
+     * never sees that, so the lesson is opened a second time without
+     * the watcher before it is written off as broken.
+     */
+    if (/timeout/i.test(probe?.error || '')) {
+      let q = null;
+      try {
+        q = await connect(CDP, null, { quiet: true });
+        await q.goto(`http://localhost:${PORT}/courseware/${id}.html`);
+        await sleep(WAIT);
+        probe = await q.evaluate(PROBE).catch((e) => ({ error: e.message }));
+      } catch (e) {
+        probe = { error: e.message };
+      } finally {
+        await q?.close();
+      }
     }
     const rep = { id, ok: alive(probe) && failed.length === 0, probe, failed };
     results.push(rep);

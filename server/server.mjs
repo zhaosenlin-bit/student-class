@@ -929,11 +929,56 @@ function lqStageSubjects(raw) {
   return out;
 }
 
+/*
+ * The signature of what is on this disk.
+ *
+ * The catalogue is worked out from two things: the file that lists the
+ * lessons and the folder that holds them.  A reader can add a lesson to
+ * that folder, or the list can be rewritten, while the server is running,
+ * and the answer has to follow.  So the two are stamped here and compared
+ * on every question; when they differ the catalogue is worked out again.
+ */
+function diskSignature(profile) {
+  try {
+    const list = fs.statSync(profile.catalogFile);
+    const body = fs.statSync(profile.coursewareDir);
+    return `${list.mtimeMs}:${list.size}:${body.mtimeMs}`;
+  } catch {
+    return 'missing';
+  }
+}
+
 function loadXb(profile) {
   const state = profile.state;
-  if (state.loaded) return;
-  const raw = fs.readFileSync(profile.catalogFile, 'utf8');
-  const catalog = JSON.parse(raw);
+  const signature = diskSignature(profile);
+  if (state.loaded && state.signature === signature) return;
+  /*
+   * The lesson bodies that were read the last time round are read again, so
+   * the catalogue can never point at a lesson that has since been taken
+   * off the disk.
+   */
+  state.loaded = false;
+  let catalog = null;
+  try {
+    catalog = JSON.parse(fs.readFileSync(profile.catalogFile, 'utf8'));
+  } catch (e) {
+    /*
+     * The list is a couple of megabytes of text and a rebuild rewrites it
+     * in place.  A reader that catches the middle of that write gets half
+     * a file, and the answer it can still give is the one it had before.
+     */
+    if (!state.catalogBody) {
+      /* Nothing has been read yet, so the only honest answer is an empty one. */
+      const empty = Buffer.from(JSON.stringify({ products: [] }), 'utf8');
+      state.catalogBody = empty;
+      state.catalogTag = `"${crypto
+        .createHash('sha1')
+        .update(empty)
+        .digest('hex')
+        .slice(0, 16)}"`;
+    }
+    return;
+  }
   const cwDir = profile.coursewareDir;
   const installed = new Set();
   if (fs.existsSync(cwDir)) {
@@ -1121,7 +1166,7 @@ function loadXb(profile) {
     localReplica: {
       installedCount: installed.size,
       totalCount: products.length,
-      coursewareDir: 'mirror/xbjiaoyu/courseware',
+      coursewareDir: 'mirror/leqixiang/courseware',
     },
   };
   /*
@@ -1136,11 +1181,14 @@ function loadXb(profile) {
    * one when it is not.
    */
   state.catalogBody = Buffer.from(JSON.stringify(state.catalog), 'utf8');
+  /* The packed copy belongs to the body above, so it is packed again. */
+  state.catalogGz = null;
   state.catalogTag = `"${crypto
     .createHash('sha1')
     .update(state.catalogBody)
     .digest('hex')
     .slice(0, 16)}"`;
+  state.signature = signature;
   state.loaded = true;
 }
 

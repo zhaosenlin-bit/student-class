@@ -5,7 +5,7 @@ import fs from 'node:fs';
  * watch the network, and evaluate JavaScript inside child frames.
  */
 
-export async function connect(port = 9222, urlMatch) {
+export async function connect(port = 9222, urlMatch, opts = {}) {
   const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
   const bws = new WebSocket(version.webSocketDebuggerUrl);
   await new Promise((res, rej) => {
@@ -79,7 +79,13 @@ export async function connect(port = 9222, urlMatch) {
 
   await send('Runtime.enable');
   await send('Page.enable');
-  await send('Network.enable');
+  /*
+   * Watching the network adds a little work to every request the page
+   * makes, and a few lessons take that as a sign that a debugger is
+   * watching them and freeze themselves.  A quiet client leaves the
+   * network alone, so those lessons open as they would for a teacher.
+   */
+  if (!opts.quiet) await send('Network.enable');
   /*
    * Some of the courseware watches for an open debugger: it runs a
    * `debugger` statement on a timer, and a statement like that stops the
@@ -87,11 +93,13 @@ export async function connect(port = 9222, urlMatch) {
    * the tab stops answering.  A teacher opens the course, not a debugger,
    * so the pauses are skipped here and the page keeps running.
    */
-  try {
-    await send('Debugger.enable');
-    await send('Debugger.setSkipAllPauses', { skip: true });
-  } catch {
-    /* Not every build of Chrome allows it; the page still opens. */
+  if (!opts.quiet) {
+    try {
+      await send('Debugger.enable');
+      await send('Debugger.setSkipAllPauses', { skip: true });
+    } catch {
+      /* Not every build of Chrome allows it; the page still opens. */
+    }
   }
 
   const evaluate = async (expr, ctxId) => {

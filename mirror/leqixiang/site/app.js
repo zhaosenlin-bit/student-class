@@ -1,5 +1,5 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611201239';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611201239';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611211506';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611211506';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
 const classroomReply=async()=>{};const isClassroomRequest=()=>false;
@@ -7,7 +7,7 @@ import {showHome} from './home.js?v=mobile-20261019';
 import {createCourseNavigation} from './course-navigation.js?v=mobile-20261019';
 import {prepareSiteEntry} from './site-entry.js?v=download-cdn-20261020.1';
 import {attachCoursewareDelivery,detachCoursewareDelivery} from './courseware-load.js?v=apple-startup-20261026.1';
-import {mountSaveHost} from './lq-save-host.js?v=lq-202611201239';
+import {mountSaveHost} from './lq-save-host.js?v=lq-20261113';
 import './course-operation-guides.js?v=20261002';
 prepareSiteEntry({location,history});
 // Wait for the catalogue mode before starting the optional home animation.
@@ -16,7 +16,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const richText=value=>{const raw=String(value??"");if(!raw)return "";const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;const open=whole=>whole.replace(/&lt;/g,"<").replace(/&gt;/g,">");if(/&lt;[a-z]/i.test(raw))return raw.replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);if(!/<[a-z][a-z0-9]*>/i.test(raw))return esc(raw);return esc(raw).replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);};
 let authSerial=0;
-let catalog=[],info={},user=null,filter='全部',stage='全部',search='',timer=null,toastTimer=null,currentLesson=null,routeSerial=0,frameTimer=null,activePage='works',originFilter='全部',sortBy='default',authorFilter='',subjectsOpen=false;
+let catalog=[],catalogEtag='',info={},user=null,filter='全部',stage='全部',search='',timer=null,toastTimer=null,currentLesson=null,routeSerial=0,frameTimer=null,activePage='works',originFilter='全部',sortBy='default',authorFilter='',subjectsOpen=false;
 /*
  * The catalogue holds well over a thousand lessons.  Drawing all of them
  * at once makes the page heavy to open and heavy to scroll, so the grid
@@ -79,7 +79,7 @@ const showCatalogUse=p=>p.accessible===true||p.mode==='free';
 const priceText=p=>'本地可用';
 const catalogBuyText=p=>'本地已收录';
 const size=n=>`${(n/1024/1024).toFixed(1)} MB`;
-async function api(url,body){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined});const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
+async function api(url,body){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined});rememberEtag(r,url);const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
 function toast(text){clearTimeout(toastTimer);$('#toast').textContent=text;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,4300);}
 function modal(html){clearInterval(timer);timer=null;$('#dialog-body').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
 function close(){authSerial++;phone.cancel();clearInterval(timer);timer=null;$('#dialog').close();}
@@ -121,7 +121,7 @@ async function openLesson(id,serial,takeover=false){
  const access=await api(`/api/access/${encodeURIComponent(id)}`);if(serial!==routeSerial)return;Object.assign(p,access);
  if(!(info.downloadMode?access.onlineAccessible:access.accessible)){stopTrial();if(!user){auth();return;}detail(id);return;}
  stopTrial();let launch;
- try{launch=await api(`/api/launch/${encodeURIComponent(id)}`,{tabId,...(takeover?{takeover:true}:{})});}catch(error){if(serial!==routeSerial)return;if(error.code==='CLASSROOM_IN_USE'){introPage(id);classroomOccupied(id);return;}if(error.code==='PHONE_VERIFICATION_REQUIRED'){introPage(id);await phone.open('safety',{target:{id,takeover}});return;}if(error.code==='PHONE_BINDING_REQUIRED'){introPage(id);await phone.open('bind');return;}throw error;}
+ try{launch=await api(`/api/launch/${encodeURIComponent(id)}`,{tabId,...(takeover?{takeover:true}:{})});}catch(error){if(serial!==routeSerial)return;if(error.code==='CLASSROOM_IN_USE'){introPage(id);classroomOccupied(id);return;}if(error.code==='PHONE_VERIFICATION_REQUIRED'){introPage(id);await phone.open('safety',{target:{id,takeover}});return;}if(error.code==='PHONE_BINDING_REQUIRED'){introPage(id);await phone.open('bind');return;}if(error.status===404){$('#main').innerHTML='<div class="empty"><h2>这份课件不在本地课件库里</h2><a class="button" href="#catalog">返回课件库</a></div>';return;}throw error;}
  if(serial!==routeSerial){if(launch.lease)fetch('/api/classroom/release',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'studio'},body:JSON.stringify({tabId,leaseToken:launch.lease.token}),keepalive:true}).catch(()=>{});return;}
  lease=launch.lease||null;leaseExpired=false;if(lease){armLeaseDeadline();heartbeatTimer=setInterval(renewLease,Math.max(15,Number(lease.heartbeatSeconds)||45)*1000);}
  currentLesson=id;document.title=`${p.title} · 乐启享`;$('#classroom').hidden=false;lockClassroomScroll();document.body.classList.add('classroom-active');const back=courseNavigation.target(id,true);$('#player-back').href=back.href;$('#player-back').textContent='← '+back.label;$('#player-back').dataset.action='course-return';$('#lesson-loading').hidden=false;$('#lesson-loading').classList.remove('error-state');$('#lesson-loading').textContent='正在打开课件…';
@@ -304,8 +304,13 @@ const policies={
   terms:['使用说明','<p>课件仅供课堂教学与个人学习使用，请勿公开传播、转售，或用于对外的商业培训分发。</p><p>课件正文保留原作者的署名与许可协议，说明见「许可与署名」页面。</p><p>本课件库不对课件内容作担保；如发现内容有误，或与许可要求不符，请以原作者的说明为准。</p>']};
 function policyBody(name){return policies[name][1];}function policy(name){const title=policies[name][0],body=policyBody(name);modal(`<div class="dialog-content policy"><h2>${title}</h2>${body}${info.seller?`<p>经营主体：${esc(info.seller)}</p>`:''}${info.support?`<p>联系邮箱：${esc(info.support)}</p>`:''}</div>`);}
 function about(){modal('<div class="dialog-content"><div class="profile"><img src="/brand/brand-mark.png" alt="乐启享机器人 Logo" width="56" height="56"><div><p class="eyebrow">关于我们</p><h2>乐启享机器人</h2></div></div><p>乐启享机器人专注 3-16 岁少儿科技素养教育，以工程实践与项目制学习，让孩子在搭建、调试、协作、展示中真正学会创造。</p><p class="subtle">从乐高启蒙 到 AI 创造</p><p><a class="button secondary small" href="https://codebn.cn/" target="_blank" rel="noreferrer">官网 codebn.cn ↗</a></p></div>');}
+
+/* The mark of the catalogue this page is holding. */
+const rememberEtag=(r,url)=>{if(url!=='/api/catalog')return;const e=r.headers.get('etag');if(e)catalogEtag=e;};
+/* Ask the server whether the list in this page is still the good one. */
+async function syncCatalog(){try{const r=await fetch('/api/catalog',{headers:catalogEtag?{'If-None-Match':catalogEtag}:{}});if(r.status===304||!r.ok)return false;const data=await r.json();rememberEtag(r,'/api/catalog');info=data;syncPromotionClock(data.serverTime);catalog=data.products;downloadBulk.invalidate();legalFooter();return true;}catch{return false;}}
 async function refreshCatalog(){info=await api('/api/catalog');syncPromotionClock(info.serverTime);catalog=info.products;downloadBulk.invalidate();legalFooter();}
-async function route(){const serial=++routeSerial;let [page,id]=(location.hash.slice(1)||'works').split('/');if(page==='purchase'&&id){history.replaceState(null,'','#course/'+id);page='course';}else if(page==='purchase'){history.replaceState(null,'','#catalog');page='catalog';id='';}else if(['unlocked','purchases','admin','moderation','creator','owner-login','refunds','refund-admin','feedback-admin','account-safety','bulk-download-admin','teachers'].includes(page)){history.replaceState(null,'','#catalog');page='catalog';id='';}document.body.classList.toggle('download-mode',info.downloadMode===true);
+async function route(){const serial=++routeSerial;await syncCatalog();let [page,id]=(location.hash.slice(1)||'works').split('/');if(page==='purchase'&&id){history.replaceState(null,'','#course/'+id);page='course';}else if(page==='purchase'){history.replaceState(null,'','#catalog');page='catalog';id='';}else if(['unlocked','purchases','admin','moderation','creator','owner-login','refunds','refund-admin','feedback-admin','account-safety','bulk-download-admin','teachers'].includes(page)){history.replaceState(null,'','#catalog');page='catalog';id='';}document.body.classList.toggle('download-mode',info.downloadMode===true);
  if(info.downloadMode&&['purchase','bundle','play','classroom','unlocked'].includes(page)&&!(['play','classroom'].includes(page)&&id&&product(id)?.onlineAccessible)){
    showHome(false);stopTrial();document.body.dataset.page=page;$('#main').className='';
    if(page==='purchase'){downloadUI.purchase(id);return;}

@@ -34,12 +34,12 @@ node server/server.mjs
 
 ## 库里有什么
 
-**1449 门**课件，每一门都真的能打开、能预览、能下载。
+**1450 门**课件，每一门都真的能打开、能预览、能下载。
 
 | | |
 | --- | --- |
-| 目录条目 | 2393 条 |
-| 本地可玩 | 1449 门 |
+| 目录条目 | 2394 条 |
+| 本地可玩 | 1450 门 |
 | 语言 | 以中文课件为主 |
 | 形态 | 3D 仿真、互动实验、物理游戏、课堂演示、精品课、积木编程 |
 
@@ -94,6 +94,8 @@ node tools\check-lq-covers.mjs
 node tools\audit-lq-catalog-ui.mjs
 node tools\audit-lq-sensitive.mjs
 node tools\check-lq-copy.mjs
+node tools\check-lq-shared-ext.mjs        # 公共素材目录齐全
+node tools\check-lq-catalogue-sync.mjs --cdp 9222   # 改动目录后页面自动跟上
 ```
 
 ### 修补
@@ -102,6 +104,7 @@ node tools\check-lq-copy.mjs
 node tools\repair-lq-assets.mjs        # 按验收报告里的 404 逐个回源
 node tools\fetch-lq-missing.mjs        # 补课件引用的公共文件
 node tools\sync-lq-ext-back.mjs        # 回写源镜像，重建不丢
+node tools\apply-app-sync.mjs          # 把页面同步补丁打到已生成的站点上
 node tools\brand-scrub.mjs             # 清掉页面里的第三方角标与统计脚本
 node tools\strip-lq-shop-data.mjs      # 去掉目录数据里的付费、试看与退款字段
 node tools\quality-gate.mjs --apply    # 按质检结论收课或剔课

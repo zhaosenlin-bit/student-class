@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { spawnSync } from 'node:child_process';
 import { translate3jcnTitle } from './3jcn-titles.mjs';
+import { patchAppSync } from './lq-app-sync.mjs';
 import { scrubShopCopy } from '../server/lq-shop-copy.mjs';
 import { stripShopData } from '../server/lq-shop-data.mjs';
 
@@ -1171,6 +1172,18 @@ const swapLine = (source, head, replacement) => {
   }
 }
 
+/* ------------------------------------------------------- staying in step ---
+ *
+ * The page and the library have to agree on which lessons are here; the
+ * words that make them agree are written out in tools/lq-app-sync.mjs.
+ */
+{
+  const p = path.join(SITE, 'app.js');
+  let js = read(p);
+  js = patchAppSync(js);
+  write(p, js);
+}
+
 /* download-store.js: the card, the detail panel and the download. */
 {
   /*
@@ -1708,6 +1721,19 @@ const cover = (url) => (coverOnDisk(url) ? url : COVER_FALLBACK);
   }
 }
 
+/*
+ * The lessons the quality check turned down.
+ *
+ * The note beside the list of decisions says that a lesson which is
+ * dropped does not enter the catalogue and does not stay on this machine.
+ * So the list is read before anything is copied over, and a turned-down
+ * lesson is never brought in — otherwise it would be copied again at the
+ * next build and sit in the folder for ever with nothing pointing at it.
+ */
+const gateFile = path.join(LQ, 'quality-decisions.json');
+const gate = fs.existsSync(gateFile) ? JSON.parse(read(gateFile)) : { drop: {} };
+const droppedIds = new Set(Object.keys(gate.drop || {}));
+
 /* ------------------------------------------------------------ courseware */
 
 /* The courseware copy is the slow half of the build, so it can be skipped
@@ -1721,6 +1747,7 @@ if (!process.env.LQ_SITE_ONLY) {
 
   /* 图灵智赋 bodies are re-numbered so both sources live in one namespace. */
   for (const w of afeWorks) {
+    if (droppedIds.has(`afe-${w.id}`)) continue;
     const src = path.join(AFE, 'courseware', `${w.id}.html`);
     if (!fs.existsSync(src)) continue;
     /* A few works only answer with a bootstrap that redirects to the platform.
@@ -1740,6 +1767,7 @@ if (!process.env.LQ_SITE_ONLY) {
      prefix is enough to keep both families in one namespace. */
   for (const c of afePremium.courses || []) {
     if (!c.programId) continue;
+    if (droppedIds.has(`afe-${c.programId}`)) continue;
     const src = path.join(AFE, 'courseware', `${c.programId}.html`);
     if (!fs.existsSync(src)) continue;
     fs.copyFileSync(src, path.join(CW, `afe-${c.programId}.html`));
@@ -1872,17 +1900,20 @@ if (!process.env.LQ_SITE_ONLY) {
     const jcnShared = path.join(THREEJCN, 'shared');
     if (fs.existsSync(jcnShared)) {
       /*
-       * The shared folder is copied on top of what is already there, so
-       * a host folder that the source no longer carries would stay in
-       * the site forever.  Anything in the output that the source does
-       * not have is left over and goes.
+       * The shared folder holds the public files the lessons ask for: the
+       * scripts, the stylesheets and the pictures a page loads from a
+       * content delivery network.  The source of the 3D laboratories is
+       * copied on top afterwards, which is how new and corrected files get
+       * in.
+       *
+       * Nothing is removed here.  Several of the fetching tools share this
+       * folder as their cache, and some lessons build the address of a file
+       * while the page runs — the address of an avatar, for one, is put
+       * together out of pieces that only read as a name once they are
+       * joined.  A folder that no longer looks used can still be the one
+       * a lesson asks for at run time, so the safe thing to do is to write
+       * over what is known and leave the rest alone.
        */
-      const sharedOut = path.join(LQ, '_shared-ext');
-      for (const entry of fs.readdirSync(sharedOut, { withFileTypes: true })) {
-        if (!entry.isDirectory()) continue;
-        if (fs.existsSync(path.join(jcnShared, entry.name))) continue;
-        fs.rmSync(path.join(sharedOut, entry.name), { recursive: true, force: true });
-      }
       copyDir(jcnShared, path.join(LQ, '_shared-ext'), () => true);
     }
     const jcnBrand = path.join(THREEJCN, 'brand');
@@ -2531,9 +2562,6 @@ for (const lesson of blocklyCatalog) {
     console.log(`  重复条目合并: ${before - products.length} 条`);
 }
 
-const gateFile = path.join(LQ, 'quality-decisions.json');
-const gate = fs.existsSync(gateFile) ? JSON.parse(read(gateFile)) : { drop: {} };
-const droppedIds = new Set(Object.keys(gate.drop || {}));
 if (droppedIds.size) {
   const before = products.length;
   for (let i = products.length - 1; i >= 0; i--) {
@@ -2815,9 +2843,9 @@ write(path.join(LQ, 'catalog.json'), JSON.stringify(stripShopData(merged)));
 
 const installed = products.filter((p) => p.localInstalled).length;
 console.log(`catalogue: ${products.length} entries, ${installed} playable`);
-console.log(`  互动课件: ${products.filter((p) => p.source === 'xbjiaoyu').length}`);
+console.log(`  互动课件: ${products.filter((p) => p.source === 'library').length}`);
 console.log(
-  `  课堂作品: ${products.filter((p) => p.source === 'aifunengjiaoyu' && p.kind !== '精品课').length}`
+  `  课堂作品: ${products.filter((p) => p.source === 'studio' && p.kind !== '精品课').length}`
 );
 console.log(`  精品课: ${products.filter((p) => p.kind === '精品课').length}`);
 console.log(
