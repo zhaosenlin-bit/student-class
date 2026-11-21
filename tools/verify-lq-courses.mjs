@@ -31,6 +31,14 @@ const OUT = arg('out', '');
 
 /* The ids come from the command line, or from the bad list of a report. */
 let ids = args.filter((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'));
+if (!ids.length && arg('ids-file', '')) {
+  /* A long list does not fit on one command line; a file does. */
+  ids = fs
+    .readFileSync(path.resolve(ROOT, arg('ids-file', '')), 'utf8')
+    .split(/\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 if (!ids.length) {
   const from = arg('from', '');
   if (from) {

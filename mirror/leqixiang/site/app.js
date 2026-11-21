@@ -1,30 +1,13 @@
-import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611200928';
-import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611200928';
+import {createDownloadUI,matchesDownloadEdition,validDownloadEdition} from './download-store.js?v=lq-202611201239';
+import {createCourseTools,pptMarkup} from './course-tools.js?v=lq-202611201239';
 const promotionNow=()=>Date.now();const syncPromotionClock=()=>{};const startPromotionCountdowns=()=>{};
 import {browseCatalog,courseAuthors,isTeacherCourse,matchesOrigin} from './catalog-browse.js?v=delivery-parity-20261023.1';
-/*
- * A lesson asks the shell whether it may run: "leqixiang:classroom-access".
- * There is no account here and no session to rent, so the answer is always
- * yes — the local library is there to be opened, and a lesson that asks is
- * let in.
- */
-const classroomReply=(event,{frame,courseId,expiresAt=Date.now()+600000,active=true})=>{
- const target=(frame&&frame.contentWindow)||event.source;
- if(!target||!event.data)return;
- const ttlMs=active?Math.max(1000,Math.min(600000,expiresAt-Date.now())):0;
- target.postMessage({type:'leqixiang:classroom-access',version:1,courseId:event.data.courseId||courseId,deliveryId:event.data.deliveryId,requestId:event.data.requestId,state:active?'active':'blocked',ttlMs},'*');
-};
-const isClassroomRequest=(event,frame,courseId)=>{
- if(!frame||!courseId||!event.data)return false;
- if(event.source!==frame.contentWindow)return false;
- const d=event.data;
- return d.type==='leqixiang:classroom-access'&&d.version===1&&d.courseId===courseId&&!!d.deliveryId;
-};
+const classroomReply=async()=>{};const isClassroomRequest=()=>false;
 import {showHome} from './home.js?v=mobile-20261019';
 import {createCourseNavigation} from './course-navigation.js?v=mobile-20261019';
 import {prepareSiteEntry} from './site-entry.js?v=download-cdn-20261020.1';
 import {attachCoursewareDelivery,detachCoursewareDelivery} from './courseware-load.js?v=apple-startup-20261026.1';
-import {mountSaveHost} from './lq-save-host.js?v=lq-202611200928';
+import {mountSaveHost} from './lq-save-host.js?v=lq-202611201239';
 import './course-operation-guides.js?v=20261002';
 prepareSiteEntry({location,history});
 // Wait for the catalogue mode before starting the optional home animation.
@@ -34,13 +17,6 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const richText=value=>{const raw=String(value??"");if(!raw)return "";const allowed=/^(?:p|br|b|strong|i|em|u|h3|h4|h5|ul|ol|li|div|span|small|sup|sub)$/;const open=whole=>whole.replace(/&lt;/g,"<").replace(/&gt;/g,">");if(/&lt;[a-z]/i.test(raw))return raw.replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);if(!/<[a-z][a-z0-9]*>/i.test(raw))return esc(raw);return esc(raw).replace(/&lt;(\/?)([a-z][a-z0-9]*)&gt;/gi,(whole,slash,tag)=>allowed.test(tag.toLowerCase())?open(whole):whole);};
 let authSerial=0;
 let catalog=[],info={},user=null,filter='全部',stage='全部',search='',timer=null,toastTimer=null,currentLesson=null,routeSerial=0,frameTimer=null,activePage='works',originFilter='全部',sortBy='default',authorFilter='',subjectsOpen=false;
-/*
- * The frame that is on screen right now. A lesson asks the page whether it
- * may run, and it may ask before the browser has finished parsing it — so
- * the answer must go to the frame we are holding, not to whatever the page
- * happens to be showing at that moment.
- */
-let currentFrame=null;
 /*
  * The catalogue holds well over a thousand lessons.  Drawing all of them
  * at once makes the page heavy to open and heavy to scroll, so the grid
@@ -70,18 +46,24 @@ document.addEventListener('click',e=>{if(e.defaultPrevented||e.button!==0||e.ctr
 const newTabId=()=>{if(globalThis.crypto?.randomUUID)return crypto.randomUUID();if(globalThis.crypto?.getRandomValues)return [...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);};
 const tabIdentity={id:newTabId(),ready:Promise.resolve(newTabId()),suspend:()=>{},resume:()=>{}};
 let tabId=tabIdentity.id;
+const viewerChecks=new WeakMap();
+const freeViewerDeadline=courseId=>{const end=product(courseId)?.timedFree?.endsAt;return Date.now()+(Number.isSafeInteger(end)?Math.max(0,Math.min(600000,end-promotionNow())):600000);};
 async function replyViewer(event,frame,courseId,kind){
  if(!isClassroomRequest(event,frame,courseId))return;
- /*
-  * The local library has no account and no session to hand out, so the
-  * lesson is let in as soon as it asks.  The grace lasts long enough for
-  * a long lesson, and it is renewed every time the lesson asks again.
-  */
- classroomReply(event,{frame,courseId,expiresAt:Date.now()+600000,active:true});
+ let check=viewerChecks.get(frame);if(!check||check.courseId!==courseId){check={courseId,expiresAt:freeViewerDeadline(courseId),checkedAt:0,pending:null,revoked:false};viewerChecks.set(frame,check);}
+ check.expiresAt=Math.min(check.expiresAt,freeViewerDeadline(courseId));
+ if(Date.now()-check.checkedAt>=30000&&!check.pending){
+  check.checkedAt=Date.now();check.pending=api('/api/classroom/viewer-check',{productId:courseId,kind}).then(result=>{check.expiresAt=result.expiresAt;check.revoked=false;}).catch(error=>{if([401,403,404,409].includes(error.status)){check.revoked=true;check.expiresAt=0;}}).finally(()=>{check.pending=null;});
+ }
+ // The already authorized response remains usable during short outages. Never
+ // await an unbounded network request before acknowledging this existing grace.
+ const reply=()=>{if(frame.isConnected&&viewerChecks.get(frame)===check)classroomReply(event,{frame,courseId,expiresAt:check.expiresAt,active:!check.revoked});};
+ if(check.pending)check.pending.then(()=>{if(frame.isConnected&&check.revoked)frame.contentWindow.postMessage({type:'leqixiang:classroom-access',version:1,courseId,deliveryId:event.data.deliveryId,requestId:event.data.requestId,state:'blocked',ttlMs:0},'*');});
+ reply();
 }
 window.addEventListener('message',event=>{
  if(event.data?.type!=='leqixiang:classroom-access')return;
-  const frame=currentFrame,time=Date.now();
+ const frame=$('#lesson-frame iframe'),time=Date.now();
  if(isClassroomRequest(event,frame,currentLesson)){
   if(lease)classroomReply(event,{frame,courseId:currentLesson,expiresAt:lease.expiresAt,active:!leaseExpired&&!$('#classroom').hidden,now:time});
   else if(currentLesson&&!$('#classroom').hidden)replyViewer(event,frame,currentLesson,'classroom');return;
@@ -97,7 +79,7 @@ const showCatalogUse=p=>p.accessible===true||p.mode==='free';
 const priceText=p=>'本地可用';
 const catalogBuyText=p=>'本地已收录';
 const size=n=>`${(n/1024/1024).toFixed(1)} MB`;
-async function api(url,body,options){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined,cache:options?.cache||'no-store'});const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
+async function api(url,body){const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Requested-With':'studio'}:undefined,body:body?JSON.stringify(body):undefined});const data=await r.json();if(!r.ok){const error=Error(data.error||'暂时无法完成，请稍后重试');Object.assign(error,{status:r.status,code:data.code,canTakeover:data.canTakeover,phoneMasked:data.phoneMasked,bound:data.bound,support:data.support,currentAmount:data.currentAmount});throw error;}return data;}
 function toast(text){clearTimeout(toastTimer);$('#toast').textContent=text;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,4300);}
 function modal(html){clearInterval(timer);timer=null;$('#dialog-body').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
 function close(){authSerial++;phone.cancel();clearInterval(timer);timer=null;$('#dialog').close();}
@@ -105,15 +87,15 @@ function legalFooter(){for(const [id,key]of [['business','seller'],['icp','icp']
 const accountDisplay=()=>/^phone_[a-f0-9]+$/.test(user?.username||'')?(phone.phoneMasked||'我的账号'):user?.username;
 function accountLabel(){const el=$('#account');if(el)el.textContent='乐启享';}
 function coverAlt(p){return `${p.title}课件画面`;}
-const lessonSubject=p=>stage!=='全部'?(p.stageSubjects?.[stage]||p.subjectKey||p.subject):(p.subjectKey||p.subject);
-const stageLabel=p=>[...(p.stages||[]),p.gradeLabel].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' · ');
+const lessonSubject=p=>stage!=='全部'?(p.stageSubjects?.[stage]||p.subject):p.subject;
+const stageLabel=p=>(p.stages||[]).join(' · ');
 function detail(id){if(!product(id))return;close();return courseNavigation.navigate('course',id);}
 function trial(id){close();return courseNavigation.navigate('play',id);}
 function releaseLease(){clearInterval(heartbeatTimer);clearTimeout(leaseDeadlineTimer);leaseDeadlineTimer=null;heartbeatTimer=null;leaseExpired=false;const previous=lease;lease=null;if(previous)fetch('/api/classroom/release',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'studio'},body:JSON.stringify({tabId,leaseToken:previous.token}),keepalive:true}).catch(()=>{});}
-function stopTrial(){detachCoursewareDelivery();releaseLease();clearTimeout(frameTimer);currentFrame=null;$('#lesson-frame').replaceChildren();$('#classroom').hidden=true;unlockClassroomScroll();document.body.classList.remove('classroom-active');currentLesson=null;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});document.title='乐启享 · 互动课件';}
+function stopTrial(){detachCoursewareDelivery();releaseLease();clearTimeout(frameTimer);$('#lesson-frame').replaceChildren();$('#classroom').hidden=true;unlockClassroomScroll();document.body.classList.remove('classroom-active');currentLesson=null;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});document.title='乐启享 · 互动课件';}
 function classroomOccupied(id,replaced=false){modal(`<div class="dialog-content"><h2>${replaced?'课件已在其他窗口打开':'账号正在使用课件'}</h2><p>${replaced?'当前窗口已停止。需要继续在这里上课时，可将课堂切换回来。':'可以将课堂切换到当前窗口，原窗口将停止使用。'}</p><div class="actions"><button class="button" data-action="takeover" data-id="${esc(id)}">在这里继续</button><button class="button secondary" data-action="close">暂不切换</button></div></div>`);}
 function stopExpiredLesson(){
- if(!lease||!currentLesson||leaseExpired)return;detachCoursewareDelivery();leaseExpired=true;clearTimeout(frameTimer);currentFrame=null;$('#lesson-frame').replaceChildren();$('#lesson-loading').hidden=false;$('#lesson-loading').classList.add('error-state');$('#lesson-loading').innerHTML='<span>连接已中断，请重新连接后继续。</span><small>重新打开后，实验将回到初始状态。</small><button class="button" data-action="reconnect-classroom">重新连接</button>';
+ if(!lease||!currentLesson||leaseExpired)return;detachCoursewareDelivery();leaseExpired=true;clearTimeout(frameTimer);$('#lesson-frame').replaceChildren();$('#lesson-loading').hidden=false;$('#lesson-loading').classList.add('error-state');$('#lesson-loading').innerHTML='<span>连接已中断，请重新连接后继续。</span><small>重新打开后，实验将回到初始状态。</small><button class="button" data-action="reconnect-classroom">重新连接</button>';
 }
 function checkLeaseDeadline(){if(lease&&Date.now()>=Number(lease.expiresAt))stopExpiredLesson();}
 function armLeaseDeadline(){clearTimeout(leaseDeadlineTimer);if(!lease)return;const active=lease;leaseDeadlineTimer=setTimeout(()=>{if(lease!==active)return;if(Date.now()>=Number(active.expiresAt))stopExpiredLesson();else armLeaseDeadline();},Math.max(0,Number(active.expiresAt)-Date.now()));}
@@ -143,21 +125,14 @@ async function openLesson(id,serial,takeover=false){
  if(serial!==routeSerial){if(launch.lease)fetch('/api/classroom/release',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'studio'},body:JSON.stringify({tabId,leaseToken:launch.lease.token}),keepalive:true}).catch(()=>{});return;}
  lease=launch.lease||null;leaseExpired=false;if(lease){armLeaseDeadline();heartbeatTimer=setInterval(renewLease,Math.max(15,Number(lease.heartbeatSeconds)||45)*1000);}
  currentLesson=id;document.title=`${p.title} · 乐启享`;$('#classroom').hidden=false;lockClassroomScroll();document.body.classList.add('classroom-active');const back=courseNavigation.target(id,true);$('#player-back').href=back.href;$('#player-back').textContent='← '+back.label;$('#player-back').dataset.action='course-return';$('#lesson-loading').hidden=false;$('#lesson-loading').classList.remove('error-state');$('#lesson-loading').textContent='正在打开课件…';
- const plain=/^(afe-|openlab-|phet-|tongjiang-|labsims-|aviary-|lab-|blocklygames-)/.test(id);
  const frame=document.createElement('iframe');frame.title=`${p.title}在线课件`;frame.setAttribute('sandbox','allow-scripts allow-forms allow-pointer-lock allow-downloads'+(launch.allowSameOrigin===true?' allow-same-origin':''));frame.setAttribute('allow','autoplay; fullscreen');frame.allowFullscreen=true;
- /*
-  * The frame goes into the page before it is given anything to load. A
-  * lesson may ask the page whether it may run while the browser is still
-  * reading it, and the answer is only given to a frame that is already
-  * on screen.
-  */
- $('#lesson-frame').append(frame);currentFrame=frame;
- if(plain)mountSaveHost(frame,id);
- attachCoursewareDelivery({frame,courseId:id,seriesId:p.splitFrom||id,launch,plain,stillActive:()=>currentLesson===id&&serial===routeSerial&&!leaseExpired,
+ const plain=/^(afe-|openlab-|phet-|tongjiang-|labsims-|aviary-|lab-|blocklygames-)/.test(id);attachCoursewareDelivery({frame,courseId:id,seriesId:p.splitFrom||id,launch,plain,stillActive:()=>currentLesson===id&&serial===routeSerial&&!leaseExpired,
   requestLaunch:()=>api(`/api/launch/${encodeURIComponent(id)}`,{tabId}),
   onLaunch:next=>{lease=next.lease||null;if(lease)armLeaseDeadline();},
   onStage:stage=>{$('#lesson-loading').textContent=stage==='reconnecting'?'正在重新连接课件…':'正在打开课件…';},
   onReady:()=>{$('#lesson-loading').hidden=true;},onError:showLessonError});
+ $('#lesson-frame').append(frame);
+ if(plain)mountSaveHost(frame,id);
   let dismissed=false;try{dismissed=sessionStorage.getItem('orientation-hint')==='1';}catch{}$('#orientation-hint').hidden=dismissed||!matchMedia('(max-width:600px) and (orientation:portrait)').matches;
 }
 window.addEventListener('pagehide',()=>{releaseLease();tabIdentity.suspend();});
@@ -229,21 +204,19 @@ function downloadGalleryFilters(){
   const open=window.lqFiltersOpen===true;
   return `<section class="download-gallery-filters" data-collapsed="${open?'false':'true'}"><div class="download-gallery-toolbar"><label class="download-gallery-search"><span aria-hidden="true">⌕</span><input class="search" id="search" type="search" placeholder="搜索课件或知识点" aria-label="搜索课件或知识点" value="${esc(search)}"></label><button type="button" class="download-gallery-filters-toggle" data-lq-fold-toggle aria-expanded="${open?'true':'false'}"><span>筛选</span><small>${esc(summaryText)}</small></button><label class="download-sort">排序 <select id="course-sort" aria-label="课件排序"><option value="default" ${sortBy==='default'?'selected':''}>${search.trim()?'相关度':'目录顺序'}</option><option value="newest" ${sortBy==='newest'?'selected':''}>最近更新</option></select></label></div><div class="download-gallery-controls"><div class="download-stage-tabs" role="group" aria-label="按学段筛选">${stages.map(s=>`<button type="button" data-action="stage" data-value="${s}" aria-pressed="${stage===s}">${s==='全部'?'全部学段':s}</button>`).join('')}</div><div class="download-subject-options" role="group" aria-label="按学科筛选">${chip('全部')}${common.map(chip).join('')}</div>${extra.length?`<details class="download-subject-more" ${subjectsOpen?'open':''}><summary><span>更多学科</span><small>${extra.length}</small></summary><div class="download-subject-options" role="group" aria-label="更多学科筛选">${extra.map(chip).join('')}</div></details>`:''}</div></section>`;
 }function curriculumChapters(){
- /* Only the lessons that are really on this machine may be counted. */
- const live=new Set(catalog.map(p=>p.id));
- const fixed=(info.downloadMode&&editionFilter!=='standalone'?[]:info.curriculum?.chapters||[]).map(ch=>({...ch,subject:'物理',stage:'初中',topics:(ch.topics||[]).map(t=>({...t,courseIds:(t.courseIds||[]).filter(id=>live.has(id))})).filter(t=>t.courseIds.length)})).filter(ch=>ch.topics.length);
+ const fixed=(info.downloadMode&&editionFilter!=='standalone'?[]:info.curriculum?.chapters||[]).map(ch=>({...ch,subject:'物理',stage:'初中'}));
  let chapters=originFilter!=='教师课件'&&(stage==='全部'||stage==='初中')&&(filter==='全部'||filter==='物理')?[...fixed]:[];
  const derived=new Map();
- for(const p of catalog){if(info.downloadMode&&!matchesDownloadEdition(p,editionFilter))continue;if(!matchesOrigin(p,originFilter)||authorFilter&&String(p.creatorId)!==authorFilter)continue;if(stage!=='全部'&&!p.stages?.includes(stage))continue;const subject=stage!=='全部'?(p.stageSubjects?.[stage]||p.subjectKey||p.subject):(p.subjectKey||p.subject);if(filter!=='全部'&&subject!==filter)continue;
-  const mappings=p.taxonomy?.length?p.taxonomy:[{domain:p.gradeLabel||(p.stages||[])[0]||subject,chapter:p.title,topics:[p.title]}];
+ for(const p of catalog){if(info.downloadMode&&!matchesDownloadEdition(p,editionFilter))continue;if(!matchesOrigin(p,originFilter)||authorFilter&&String(p.creatorId)!==authorFilter)continue;if(stage!=='全部'&&!p.stages?.includes(stage))continue;const subject=stage!=='全部'?(p.stageSubjects?.[stage]||p.subject):p.subject;if(filter!=='全部'&&subject!==filter)continue;
+  const mappings=p.taxonomy?.length?p.taxonomy:[{domain:subject,chapter:p.title,topics:p.features||[p.title]}];
   for(const item of mappings){const common=/初高中通用/.test(item.domain||''),senior=!common&&/高中|必修|选择性/.test(item.domain||'');if(stage==='高中'&&!senior&&!common||stage==='初中'&&senior)continue;if(subject==='物理'&&fixed.length&&!senior&&!common&&stage!=='高中')continue;const key=`${subject}|${item.domain}|${item.chapter}`;let chapter=derived.get(key);if(!chapter){chapter={id:'extra-'+key,domain:item.domain||subject,title:item.chapter||p.title,subject,topics:[]};derived.set(key,chapter);}
    for(const title of item.topics||[]){let topic=chapter.topics.find(t=>t.title===title);if(!topic){topic={id:'extra-'+key+'|'+title,title,courseIds:[],status:'available'};chapter.topics.push(topic);}if(!topic.courseIds.includes(p.id))topic.courseIds.push(p.id);}
   }
  }
- return chapters.concat([...derived.values()].filter(ch=>ch.topics.length));
+ return chapters.concat([...derived.values()]);
 }
-function treeMarkup(){const chapters=curriculumChapters(),groups=new Map();for(const c of chapters){const key=`${c.subject} · ${c.domain}`;if(!groups.has(key))groups.set(key,{label:c.domain&&c.domain!==c.subject?key:c.subject,list:[]});groups.get(key).list.push(c);}
- return `<details class="curriculum-panel" ${matchMedia('(min-width:901px)').matches?'open':''}><summary class="curriculum-mobile-toggle"><span>章节目录</span><span aria-hidden="true">⌄</span></summary><div class="curriculum-body"><div class="curriculum-title"><h2>章节目录</h2><button class="text-button" data-action="clear-chapter">全部课件</button></div>${[...groups.values()].map((group,index)=>`<details class="curriculum-volume" ${(index===0||group.list.some(c=>c.id===chapterFilter))?'open':''}><summary>${esc(group.label)}</summary><div class="curriculum-chapters">${group.list.map(ch=>{const ids=[...new Set(ch.topics.flatMap(t=>t.courseIds||[]))];return `<button class="curriculum-chapter-button ${ch.id===chapterFilter?'selected':''}" data-action="chapter" data-value="${esc(ch.id)}" aria-pressed="${ch.id===chapterFilter}"><span>${esc(ch.title)}</span><small>${ids.length?ids.length:'暂无'}</small></button>`;}).join('')}</div></details>`).join('')||'<p class="subtle">本学科暂无章节目录。</p>'}</div></details>`;
+function treeMarkup(){const chapters=curriculumChapters(),groups=new Map();for(const c of chapters){const key=`${c.subject} · ${c.domain}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);}
+ return `<details class="curriculum-panel" ${matchMedia('(min-width:901px)').matches?'open':''}><summary class="curriculum-mobile-toggle"><span>章节目录</span><span aria-hidden="true">⌄</span></summary><div class="curriculum-body"><div class="curriculum-title"><h2>章节目录</h2><button class="text-button" data-action="clear-chapter">全部课件</button></div>${[...groups.entries()].map(([name,list],index)=>`<details class="curriculum-volume" ${(index===0||list.some(c=>c.id===chapterFilter))?'open':''}><summary>${esc(name)}</summary><div class="curriculum-chapters">${list.map(ch=>{const ids=[...new Set(ch.topics.flatMap(t=>t.courseIds||[]))];return `<button class="curriculum-chapter-button ${ch.id===chapterFilter?'selected':''}" data-action="chapter" data-value="${esc(ch.id)}" aria-pressed="${ch.id===chapterFilter}"><span>${esc(ch.title)}</span><small>${ids.length?ids.length:'暂无'}</small></button>`;}).join('')}</div></details>`).join('')||'<p class="subtle">本学科暂无章节目录。</p>'}</div></details>`;
 }
 function renderTree(){
  const host=$('#curriculum');if(!host)return;
@@ -331,7 +304,7 @@ const policies={
   terms:['使用说明','<p>课件仅供课堂教学与个人学习使用，请勿公开传播、转售，或用于对外的商业培训分发。</p><p>课件正文保留原作者的署名与许可协议，说明见「许可与署名」页面。</p><p>本课件库不对课件内容作担保；如发现内容有误，或与许可要求不符，请以原作者的说明为准。</p>']};
 function policyBody(name){return policies[name][1];}function policy(name){const title=policies[name][0],body=policyBody(name);modal(`<div class="dialog-content policy"><h2>${title}</h2>${body}${info.seller?`<p>经营主体：${esc(info.seller)}</p>`:''}${info.support?`<p>联系邮箱：${esc(info.support)}</p>`:''}</div>`);}
 function about(){modal('<div class="dialog-content"><div class="profile"><img src="/brand/brand-mark.png" alt="乐启享机器人 Logo" width="56" height="56"><div><p class="eyebrow">关于我们</p><h2>乐启享机器人</h2></div></div><p>乐启享机器人专注 3-16 岁少儿科技素养教育，以工程实践与项目制学习，让孩子在搭建、调试、协作、展示中真正学会创造。</p><p class="subtle">从乐高启蒙 到 AI 创造</p><p><a class="button secondary small" href="https://codebn.cn/" target="_blank" rel="noreferrer">官网 codebn.cn ↗</a></p></div>');}
-async function refreshCatalog(){info=await api('/api/catalog',null,{cache:'no-cache'});syncPromotionClock(info.serverTime);catalog=info.products;downloadBulk.invalidate();legalFooter();}
+async function refreshCatalog(){info=await api('/api/catalog');syncPromotionClock(info.serverTime);catalog=info.products;downloadBulk.invalidate();legalFooter();}
 async function route(){const serial=++routeSerial;let [page,id]=(location.hash.slice(1)||'works').split('/');if(page==='purchase'&&id){history.replaceState(null,'','#course/'+id);page='course';}else if(page==='purchase'){history.replaceState(null,'','#catalog');page='catalog';id='';}else if(['unlocked','purchases','admin','moderation','creator','owner-login','refunds','refund-admin','feedback-admin','account-safety','bulk-download-admin','teachers'].includes(page)){history.replaceState(null,'','#catalog');page='catalog';id='';}document.body.classList.toggle('download-mode',info.downloadMode===true);
  if(info.downloadMode&&['purchase','bundle','play','classroom','unlocked'].includes(page)&&!(['play','classroom'].includes(page)&&id&&product(id)?.onlineAccessible)){
    showHome(false);stopTrial();document.body.dataset.page=page;$('#main').className='';
@@ -391,67 +364,8 @@ window.addEventListener('message',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#dialog').open&&!$('#classroom').hidden&&!document.fullscreenElement){$('#classroom').classList.remove('toolbar-hidden');$('#show-toolbar').hidden=true;}});
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState!=='visible'||!currentLesson)return;renewLease();const id=currentLesson;try{const access=await api(`/api/access/${id}`);if(id===currentLesson&&!access.accessible){stopTrial();toast('使用权限已更新，请重新打开课件');await refreshCatalog();location.hash='#catalog';}}catch{}});
-
-/*
- * The library is rebuilt from time to time.  A page that was left open
- * over a rebuild keeps showing the library it was handed then, and that
- * reads as a fault in the library rather than as an old page — so the
- * page asks the server which build is current and reloads itself when
- * the two differ.  A lesson that is open is never thrown away for it.
- */
-async function watchBuild(){
-  try{
-    const meta=document.querySelector('meta[name="lq-build"]');
-    const mine=meta?meta.content:'';
-    if(!mine)return;
-    const res=await fetch('/api/version',{cache:'no-store'});
-    if(!res.ok)return;
-    const now=await res.json();
-    if(!now.build)return;
-    buildStamp(now,mine);
-    if(now.build===mine)return;
-    if(currentLesson)return;
-    /*
-     * The page carries the build it was made from and the server names
-     * the build it is serving now.  They differ, so this page is old and
-     * has to go.  After the reload the two agree again, so nothing loops.
-     */
-    toast('课件库已更新，正在刷新…');
-    setTimeout(()=>location.reload(),900);
-  }catch{}
-}
-
-/*
- * A quiet mark in the footer says which version of the library is on
- * screen.  When the library has moved on, the mark turns into a button:
- * the page is old, and one click brings it back to date.
- */
-function buildStamp(now,mine){
-  const el=$('#lq-build-stamp');
-  if(!el)return;
-  el.hidden=false;
-  if(now.build!==mine){
-    el.classList.add('is-stale');
-    el.textContent='课件库已更新 · 点击刷新';
-    el.title='这个页面还是旧版本，点一下就能看到最新的课件';
-    el.onclick=()=>location.reload();
-    return;
-  }
-  el.classList.remove('is-stale');
-  el.textContent=now.version?'资源版本 '+now.version:'';
-  el.title='当前课件库的版本';
-  el.onclick=null;
-}
-
 startPromotionCountdowns({onExpire:async()=>{await refreshCatalog();if(info.downloadMode)await downloadUI.refreshPricing();if(!currentLesson&&!$('#dialog').open)await route();}});
-try{const results=await Promise.all([api('/api/catalog',null,{cache:'no-cache'}),api('/api/session')]);info=results[0];syncPromotionClock(info.serverTime);catalog=info.products;user=results[1].user;await phone.refresh();accountLabel();legalFooter();await route();}catch(e){$('#main').innerHTML='<div class="empty"><h3>暂时无法连接课件网站</h3><p>请检查连接后重新加载。</p><button class="button" data-action="reload">重新加载</button></div>';}
-watchBuild();
-setInterval(watchBuild,60000);
-/* A tab that has been in the background asks again the moment it is
-   looked at, so a reader who comes back to an old page is not left
-   looking at an old library. */
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)watchBuild();});
-window.addEventListener('focus',watchBuild);
+try{const results=await Promise.all([api('/api/catalog'),api('/api/session')]);info=results[0];syncPromotionClock(info.serverTime);catalog=info.products;user=results[1].user;await phone.refresh();accountLabel();legalFooter();await route();}catch(e){$('#main').innerHTML='<div class="empty"><h3>暂时无法连接课件网站</h3><p>请检查连接后重新加载。</p><button class="button" data-action="reload">重新加载</button></div>';}
 
 /* The disclosures keep their state across the re-render. */
 document.addEventListener('toggle',e=>{const el=e.target;if(!el||!el.classList)return;if(el.classList.contains('download-subject-more'))subjectsOpen=el.open;},true);

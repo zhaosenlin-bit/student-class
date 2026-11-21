@@ -31,12 +31,8 @@ async function retry(ctx){
 window.addEventListener('message',event=>{
  const ctx=active,data=event.data;
  if(!ctx||!isActive(ctx)||event.source!==ctx.frame.contentWindow||!data||data.version!==1||ctx.retrying)return;
- // The frame is the lesson we opened, and it is the only thing in it that
- // may speak for it. Some lessons answer under the number of the lesson
- // they belong to rather than their own, so the name they use is not
- // checked — the frame is.
- if(data.type==='leqixiang:cdn-fallback'){retry(ctx);return;}
- if(data.type!=='leqixiang:courseware-startup')return;
+ if(data.type==='leqixiang:cdn-fallback'&&data.courseId===ctx.courseId){retry(ctx);return;}
+ if(data.type!=='leqixiang:courseware-startup'||![ctx.courseId,ctx.seriesId].includes(data.courseId))return;
  if(data.phase==='error'){fail(ctx,data.detail||{});return;}
  if(ctx.failed||ctx.ready)return;
  if(data.phase==='ready'){

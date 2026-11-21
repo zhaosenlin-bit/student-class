@@ -218,7 +218,7 @@ function contentDisposition(filename) {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }
 
-/* The 图灵智赋 bodies address a few libraries through paths that carry no
+/* The studio-pack bodies address a few libraries through paths that carry no
    file name at all (jsdelivr's "+esm" bundle). They are modules, so they
    need a JavaScript content type. */
 function mimeForAsset(p) {
@@ -256,7 +256,7 @@ function mimeForAsset(p) {
 
 /*
  * The two sites hand out different Content-Type headers for the very same
- * file extension: 小白教育 serves .js as text/javascript, while 图灵智赋
+ * file extension: the lab pack serves .js as text/javascript, while the studio pack
  * serves it as application/javascript (and both spell the charset as UTF-8).
  * Static replies therefore need a per-site table.
  */
@@ -345,7 +345,7 @@ function sendMissingCourseware(res, id) {
 }
 
 /*
- * Express's own "no such route" page.  The live 图灵智赋 site answers every
+ * Express's own "no such route" page.  The live source site answers every
  * path it does not know — including a known route called with the wrong
  * method — with exactly this HTML, so the front-end's JSON parse fails the
  * same way online and offline.
@@ -865,7 +865,7 @@ async function servePath(res, file, options) {
 }
 
 /* ------------------------------------------------------------------ *
- * 小白教育 (xbjiaoyu.com)
+ * The lab pack
  * ------------------------------------------------------------------ */
 
 const xb = {
@@ -1160,7 +1160,7 @@ const XB_LOCAL_NOTICE = `
 </script>`;
 
 /*
- * The 图灵智赋 bodies load their own assets from two places: the
+ * The studio-pack bodies load their own assets from two places: the
  * /api/program-assets/<program>/t/<lease>/… prefix and a couple of public
  * CDNs.  Both are mirrored next to the body, so every absolute URL is
  * rewritten to its local twin before the document is handed out.
@@ -1214,7 +1214,7 @@ function rewriteCoursewareUrls(html, localId) {
   for (const host of LQ_EXT_HOSTS) {
     out = out.split(host).join(`/api/program-assets/${localId}/_ext/${host.replace(/^https?:\/\//, '')}`);
   }
-  /* The 图灵智赋 CDN keeps its URL shape under /prod/uploads/. */
+  /* The source CDN keeps its URL shape under /prod/uploads/. */
   out = out.split('https://static.aifunengjiaoyu.com/').join('/prod/uploads/');
   /*
    * One lesson draws the portraits of its characters from an avatar
@@ -1265,7 +1265,7 @@ const DICE_BEAR_LOCAL = [
 ].join('');
 
 /*
- * A few of the 图灵智赋 works reach out to a third party at runtime: the
+ * A few of the studio-pack works reach out to a third party at runtime: the
  * 长征 save client announces itself without the list of keys it is allowed
  * to write. That is rewritten here so a saved session can be restored.
  */
@@ -1507,10 +1507,10 @@ Element.prototype.setAttribute=function(n,v){if((n==='src'||n==='href')&&typeof 
 }
 
 /*
- * The 小白教育 courseware expects a classroom host and shows a "please
+ * The lab-pack courseware expects a classroom host and shows a "please
  * reopen it in the library" screen when there is none. A copy that is opened
  * straight from disk has no host, so that screen is taken out. The patch is
- * applied to the raw script and to the escaped copy of it that the 图灵智赋
+ * applied to the raw script and to the escaped copy of it that the studio pack
  * documents carry inside a string.
  */
 function relaxStandaloneGuard(html) {
@@ -1759,7 +1759,7 @@ function fontSheet(mergedFile, pieceRe, query, forArchive = false) {
 }
 
 /*
- * A 图灵智赋 work is a document plus a folder of assets, so the offline copy
+ * A studio-pack work is a document plus a folder of assets, so the offline copy
  * is handed over as a zip. Every path inside the document is rewritten to a
  * relative one, and the platform check is relaxed for file:// documents.
  */
@@ -2991,7 +2991,7 @@ async function handleXbInner(req, res, url, profile) {
 }
 
 /*
- * The live 小白教育 site checks that a POST really came from its own
+ * The live source site checks that a POST really came from its own
  * front-end: the browser sends a matching Origin, and the front-end adds
  * X-Requested-With: studio.  A POST without both is turned away with 403
  * before the route is even looked at.
@@ -3184,8 +3184,8 @@ async function handleXbApi(req, res, pathname, profile) {
       url: `/courseware/${id}?local=1`,
       expiresAt: Date.now() + 600000,
       lease: null,
-      // The 图灵智赋 works read their own origin and talk to the host page
-      // over postMessage, so they need a same-origin frame. The 小白教育
+      // The studio-pack works read their own origin and talk to the host page
+      // over postMessage, so they need a same-origin frame. The lab pack
       // bodies keep the sandbox the published site hands them.
       allowSameOrigin:
         profile.kind === 'leqixiang' &&
@@ -3316,9 +3316,9 @@ const XB_PORT = Number(process.env.XB_PORT || process.env.PORT || 4173);
 const LQ_PORT = Number(process.env.LQ_PORT || XB_PORT);
 
 /*
- * The 乐启享 library: the 小白教育 shell carrying both courseware sources,
+ * The 乐启享 library: the shell carrying both courseware sources,
  * rebranded.  A profile keeps every path in one place, so the same handlers
- * can also serve the original 小白教育 replica.
+ * can also serve the original upstream replica.
  */
 function makeProfile(opts) {
   return {

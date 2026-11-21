@@ -39,6 +39,8 @@ const BRANDS = [
   ['Turing', /\bturing\b/gi],
   ['小白', /小白(?!教育)/g],
   ['小白教育', /小白教育/g],
+  ['飞象老师', /飞象老师/g],
+  ['feixianglaoshi', /feixianglaoshi/gi],
   ['Y(^|ue)xiang', /yuexiang/gi],
 ];
 

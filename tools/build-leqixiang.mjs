@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process';
 import { spawnSync } from 'node:child_process';
 import { translate3jcnTitle } from './3jcn-titles.mjs';
 import { scrubShopCopy } from '../server/lq-shop-copy.mjs';
+import { stripShopData } from '../server/lq-shop-data.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const XB = path.join(ROOT, 'mirror', 'xbjiaoyu');
@@ -1870,6 +1871,18 @@ if (!process.env.LQ_SITE_ONLY) {
     }
     const jcnShared = path.join(THREEJCN, 'shared');
     if (fs.existsSync(jcnShared)) {
+      /*
+       * The shared folder is copied on top of what is already there, so
+       * a host folder that the source no longer carries would stay in
+       * the site forever.  Anything in the output that the source does
+       * not have is left over and goes.
+       */
+      const sharedOut = path.join(LQ, '_shared-ext');
+      for (const entry of fs.readdirSync(sharedOut, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (fs.existsSync(path.join(jcnShared, entry.name))) continue;
+        fs.rmSync(path.join(sharedOut, entry.name), { recursive: true, force: true });
+      }
       copyDir(jcnShared, path.join(LQ, '_shared-ext'), () => true);
     }
     const jcnBrand = path.join(THREEJCN, 'brand');
@@ -2491,6 +2504,33 @@ for (const lesson of blocklyCatalog) {
  * The ones it turned away do not go into the catalogue and do not stay
  * on the disk, so the library only ever shows what is worth opening.
  */
+
+/*
+ * One course, two cards.
+ *
+ * The platform hangs a work under more than one package when it belongs
+ * to two grade bands — 《物理弹珠实验室》 is listed under both the
+ * grade-eight and the grade-nine package, and both entries carry the
+ * same programme number.  Merged into one catalogue that is the same
+ * lesson twice, so the shelf shows two identical cards and the reader
+ * wonders why.  Only the first of a pair stays.
+ */
+{
+  const seenIds = new Set();
+  const before = products.length;
+  const kept = [];
+  for (const p of products) {
+    /* The first entry wins: the works list carries the fuller text. */
+    if (seenIds.has(p.id)) continue;
+    seenIds.add(p.id);
+    kept.push(p);
+  }
+  products.length = 0;
+  products.push(...kept);
+  if (before !== products.length)
+    console.log(`  重复条目合并: ${before - products.length} 条`);
+}
+
 const gateFile = path.join(LQ, 'quality-decisions.json');
 const gate = fs.existsSync(gateFile) ? JSON.parse(read(gateFile)) : { drop: {} };
 const droppedIds = new Set(Object.keys(gate.drop || {}));
@@ -2589,7 +2629,13 @@ const merged = {
   downloadWarning:
     '本地离线副本，保存后用浏览器打开即可。仅供教学使用。',
 };
-write(path.join(LQ, 'catalog.json'), JSON.stringify(merged));
+/*
+ * The catalogue the browser downloads must not carry the desk behind
+ * the library either.  Every lesson here is open and free, so the
+ * prices, the paid course packs, the trial clock and the refund
+ * wording come out of the file — not just off the page.
+ */
+write(path.join(LQ, 'catalog.json'), JSON.stringify(stripShopData(merged)));
 
 /*
  * The shell is read by a teacher, not by a colleague.  Nothing that

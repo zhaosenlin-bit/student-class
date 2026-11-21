@@ -1,0 +1,11 @@
+// Rectilinear window on a 180-degree cylindrical painting. Preserve puppet height in screen space.
+(()=>{const frame=$('frame'),world=$('world'),v=$('film'),cv=document.createElement('canvas');cv.setAttribute('aria-hidden','true');Object.assign(cv.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none'});frame.insertBefore(cv,world);world.style.background='transparent';v.style.opacity='0';const cx=cv.getContext('2d',{alpha:false});let key='',prevTime=-1,prevYaw=NaN,prevW=0,prevH=0,lastDraw=0;const posters={};let ro=new ResizeObserver(()=>prevW=0);ro.observe(frame);
+function step(now){requestAnimationFrame(step);let yaw=+$('yaw').value*40/52,fw=frame.clientWidth,fh=frame.clientHeight;if(!fw||!fh)return;
+let poster=posters[scene.key];if(!poster){poster=new Image();poster.crossOrigin="anonymous";poster.src=v.poster;posters[scene.key]=poster}const src=v.readyState>=2?v:(poster.complete&&poster.naturalWidth?poster:null);if(!src)return;
+let change=scene.key!==key||yaw!==prevYaw||fw!==prevW||fh!==prevH;
+if(!change&&(now-lastDraw<48||prevTime===v.currentTime))return;
+key=scene.key;prevYaw=yaw;prevW=fw;prevH=fh;prevTime=v.currentTime;lastDraw=now;
+let W=Math.min(1450,Math.round(fw*Math.min(devicePixelRatio,1.25))),H=Math.round(fh*W/fw);if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}const sw=src.videoWidth||src.naturalWidth,sh=src.videoHeight||src.naturalHeight,rad=Math.PI/180,half=Math.tan(50*rad),ang=x=>Math.atan((x/W*2-1)*half)/rad,syH=Math.min(sh,sw*H/W*.585);
+for(let x=0;x<W;x+=6){let end=Math.min(x+6,W),a=ang(x),b=ang(end),u=Math.max(0,Math.min(sw-.01,(yaw+a+90)/180*sw)),right=Math.max(u+.01,Math.min(sw,(yaw+b+90)/180*sw)),subH=Math.min(sh,syH*Math.cos((a+b)/2*rad)),y0=Math.max(0,(sh-subH)*.59);cx.drawImage(src,u,y0,right-u,subH,x,0,end-x+.15,H)}
+const worldLeft=(50-40*(+$('yaw').value)/52)-90;for(const [i,a] of scene.actors.entries()){let phi=(a[3]/100*180-90-yaw)*rad,at=(1+Math.tan(phi)/half)*50,b=$('actors').children[i];if(!b)continue;b.style.left=(at-worldLeft)/1.8+'%';b.style.visibility=Math.abs(phi)>=Math.PI/2?'hidden':'visible';if(scene.key==='sea')b.style.bottom=(i?15:10)+'%';if(scene.key==='lake')b.style.bottom='30%'}
+}requestAnimationFrame(step)})();

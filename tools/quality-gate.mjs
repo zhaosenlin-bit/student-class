@@ -246,6 +246,7 @@ const rmFile = (file) => {
 
 /* Every mirror that holds a copy of the body has to let it go too. */
 const SOURCES = [
+  ['aifunengjiaoyu', 'afe-'],
   ['aviary', 'aviary-'],
   ['3jcn', 'lab-'],
   ['labsims', 'labsims-'],
