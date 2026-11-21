@@ -60,7 +60,7 @@ node server/server.mjs
 | `mirror/leqixiang/` | 合并后的站点：外壳、目录数据、课件正文与素材 |
 | `mirror/<各来源>/` | 各来源的镜像与素材，以及 `NOTICE.md` 署名说明 |
 | `tools/` | 重建、修补、验收这一整套脚本 |
-| `recon/` | 过程中的报告与证据（markdown / json） |
+| `recon/scratch/` | 这一版的验收报告（各门课的预览与下载结果） |
 
 课件正文一律落在 `mirror/leqixiang/courseware/` 下，一门课一个
 `<id>.html` 加一个同名 `<id>.assets/` 素材目录。
@@ -92,6 +92,8 @@ node tools\verify-lq-courses.mjs --all --conc 6 --cdp 9222
 # 封面、可见文案、按钮、分类
 node tools\check-lq-covers.mjs
 node tools\audit-lq-catalog-ui.mjs
+node tools\check-lq-search.mjs --cdp 9222   # 关键词能不能搜到、能不能收窄
+node tools\check-broken-refs.mjs            # 脚本之间的引用有没有断
 node tools\audit-lq-sensitive.mjs
 node tools\check-lq-copy.mjs
 node tools\check-lq-shared-ext.mjs        # 公共素材目录齐全
