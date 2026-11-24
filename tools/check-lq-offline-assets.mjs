@@ -23,6 +23,7 @@ const arg = (name, fallback) => {
 };
 const PORT = Number(arg('lq', 4173));
 const CONC = Number(arg('conc', 12));
+const REPORT = arg('report', '');
 const BASE = `http://127.0.0.1:${PORT}`;
 
 const cat = JSON.parse(
@@ -108,6 +109,25 @@ await pool(
 
 console.log('');
 console.log(`课程 ${checked} 门，本地副本地址 ${seen.size} 个`);
+
+if (REPORT) {
+  fs.writeFileSync(
+    REPORT,
+    JSON.stringify(
+      {
+        checkedAt: new Date().toISOString(),
+        courses: checked,
+        localCopies: seen.size,
+        externalHits: bad.length,
+        broken,
+      },
+      null,
+      1
+    )
+  );
+  console.log(`报告写入 ${REPORT}`);
+}
+
 if (broken.length) {
   console.log(`缺 ${broken.length} 个：`);
   for (const b of broken.slice(0, 40)) console.log(`  ${b.status} ${b.url}  (${b.course})`);

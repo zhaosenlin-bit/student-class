@@ -35,6 +35,12 @@ node tools\check-lq-all-courses.mjs --conc 12   # 全库验收：预览 + 下载
 node tools\check-lq-offline-assets.mjs          # 离线素材检查
 ```
 
+逐门在浏览器里打开，用调试端口连上 Chrome 后再跑：
+
+```powershell
+node tools\verify-lq-courses.mjs --cdp 9333 --all
+```
+
 ## 说明
 
 课件内容来自公开发布的课件与开放许可的开源课堂，本项目做的是**整理、
