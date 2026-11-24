@@ -26,13 +26,28 @@ $logDir = Join-Path $root 'work\logs'
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 $outLog = Join-Path $logDir 'lq-server.log'
 $errLog = Join-Path $logDir 'lq-server.err'
-$proc = Start-Process -FilePath $node -ArgumentList $server -WorkingDirectory $root `
-  -WindowStyle Hidden -PassThru `
-  -RedirectStandardOutput $outLog -RedirectStandardError $errLog
-Write-Output "server pid=$($proc.Id)"
-Start-Sleep -Seconds 3
+
+# The server is started through the WMI provider and not through
+# Start-Process: a child started that way inherits the handles of the
+# shell that started it, so the caller's pipe stays open and the command
+# never returns. Started this way it stands on its own.
+$cmd = '"{0}" "{1}" >> "{2}" 2>> "{3}"' -f $node, $server, $outLog, $errLog
+$created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create `
+  -Arguments @{ CommandLine = "cmd /s /c `"$cmd`""; CurrentDirectory = $root }
+Write-Output "server pid=$($created.ProcessId)"
 
 if (-not $Quiet) {
+  # The library reads a few tens of thousands of files before it answers,
+  # so the first request has to wait for it.
+  $ready = $false
+  for ($i = 0; $i -lt 60 -and -not $ready; $i++) {
+    Start-Sleep -Seconds 1
+    try {
+      $null = Invoke-WebRequest -Uri 'http://127.0.0.1:4173/api/catalog' `
+        -UseBasicParsing -TimeoutSec 10
+      $ready = $true
+    } catch { }
+  }
   foreach ($u in @('http://127.0.0.1:4173/', 'http://127.0.0.1:4173/api/catalog')) {
     try {
       $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 15

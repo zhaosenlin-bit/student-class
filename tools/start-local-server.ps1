@@ -32,7 +32,7 @@ $outLog = Join-Path $logDir 'server.log'
 $errLog = Join-Path $logDir 'server.err.log'
 $cmd = '"{0}" "{1}" >> "{2}" 2>> "{3}"' -f $node, $server, $outLog, $errLog
 $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create `
-  -Arguments @{ CommandLine = "cmd /c $cmd"; CurrentDirectory = $root }
+  -Arguments @{ CommandLine = "cmd /s /c `"$cmd`""; CurrentDirectory = $root }
 $pid1 = $created.ProcessId
 
 Write-Output "server pid=$pid1"
