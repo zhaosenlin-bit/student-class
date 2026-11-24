@@ -49,6 +49,7 @@ node tools\verify-lq-courses.mjs --cdp 9333 --all
 
 每一份素材的来源、许可与署名，逐条写在对应来源目录下的 `NOTICE.md` 里，
 目录数据的 `author` / `license` / `sourceUrl` 字段也记着同样的信息。
-请一并保留这些说明。
+仓库根目录的 [NOTICE.md](NOTICE.md) 写明了哪一部分适用 MIT 许可、
+哪一部分沿用原作者的许可。请一并保留这些说明。
 
 页面上的《许可与署名》列出了完整的来源清单。
