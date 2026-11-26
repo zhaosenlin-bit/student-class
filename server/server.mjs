@@ -1231,6 +1231,12 @@ const LQ_EXT_HOSTS = [
   'https://appsj.cdn-ebook.local/',
   'https://www.cdn-ebook.local/',
   'https://images.cdn-ebook.local/',
+  'https://threejsfundamentals.org/',
+  'https://s3-us-west-2.amazonaws.com/',
+  'https://images.pexels.com/',
+  'https://www.new3jcn.com/',
+  'https://registry.npmmirror.com/',
+  'https://tuxiaoling-glb-2026.oss-cn-shenzhen.aliyuncs.com/',
 ];
 
 function rewriteCoursewareUrls(html, localId) {
@@ -1541,8 +1547,20 @@ function cdnShim(map) {
   return `<script>(function(){
 var map=${JSON.stringify(map)};
 function fix(u){
-  if(typeof u!=='string')return u;
-  for(var i=0;i<map.length;i++){if(u.indexOf(map[i][0])===0)return map[i][1]+u.slice(map[i][0].length);}
+  if(typeof u==='string'){
+    for(var i=0;i<map.length;i++){if(u.indexOf(map[i][0])===0)return map[i][1]+u.slice(map[i][0].length);}
+    return u;
+  }
+  /*
+   * A library that draws with three.js does not hand its address over
+   * as a piece of text: it wraps it in a request and hands that over.
+   * The address is taken out of the request and put back in, so that
+   * the copy that lies next to the document is the one that is asked
+   * for.
+   */
+  if(typeof Request!=='undefined'&&u instanceof Request){
+    try{return new Request(fix(u.url),u);}catch(e){return u;}
+  }
   return u;
 }
 var f=window.fetch;
@@ -1555,6 +1573,19 @@ var s=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,'src');
 if(s&&s.set){Object.defineProperty(HTMLScriptElement.prototype,'src',{get:s.get,set:function(v){s.set.call(this,fix(v));}});}
 var l=Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype,'href');
 if(l&&l.set){Object.defineProperty(HTMLLinkElement.prototype,'href',{get:l.get,set:function(v){l.set.call(this,fix(v));}});}
+var md=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'src');
+if(md&&md.set){Object.defineProperty(HTMLMediaElement.prototype,'src',{get:md.get,set:function(v){md.set.call(this,fix(v));}});}
+/*
+ * A work that wants a picture or a sound often builds it while it runs:
+ * "new Image()" and "new Audio()" take the address as they are made,
+ * and the address is put inside them without going through any of the
+ * ways out that are closed above.  Both are wrapped here, so that the
+ * copy that lies next to the document is the one that is asked for.
+ */
+var I=window.Image;
+if(I){var WI=function(u){var i=new I();if(u){try{i.src=fix(u);}catch(e){}}return i;};WI.prototype=I.prototype;window.Image=WI;}
+var A=window.Audio;
+if(A){var WA=function(u){var a=new A();if(u){try{a.src=fix(u);}catch(e){}}return a;};WA.prototype=A.prototype;window.Audio=WA;}
 var sa=Element.prototype.setAttribute;
 Element.prototype.setAttribute=function(n,v){if((n==='src'||n==='href')&&typeof v==='string'){try{v=fix(v);}catch(e){}}return sa.call(this,n,v);};
 })();</script>`;
@@ -1992,6 +2023,33 @@ function buildLqZip(id) {
     if (/\.(?:js|mjs|css|json|html?)$/i.test(file.name)) {
       const text = data.toString('utf8');
       let rewritten = rewriteCoursewareUrls(text, id);
+      /*
+       * The folder the archive gives to the program is the folder the
+       * platform serves it from, so a name that begins with the
+       * platform's address for that folder names a file that lies
+       * inside it.  The name is counted from the folder of the file
+       * that holds it: a file that lies in a sub-folder of the
+       * program must not be told to look for its neighbour one level
+       * too high.
+       */
+      /*
+       * A script is counted from the file that holds it, so a script
+       * that lies in a sub-folder of the program must not be told to
+       * look for its neighbour one level too high.  A file of data is
+       * not read that way: the program that reads it counts the names
+       * it holds from the base of the lesson, so the names in it are
+       * written from that base as well.
+       */
+      const from = /\.json$/i.test(file.name)
+        ? []
+        : file.name.split('/').slice(0, -1);
+      const insideProgram = (rest) => {
+        const to = rest.split('/').filter(Boolean);
+        let at = 0;
+        while (at < from.length && at < to.length && from[at] === to[at]) at++;
+        const rel = [...from.slice(at).map(() => '..'), ...to.slice(at)].join('/');
+        return rel.startsWith('.') ? rel : `./${rel}`;
+      };
       for (const prefix of [
         `/api/program-assets/${numeric}/`,
         `/api/program-assets/${id}/`,
@@ -2005,11 +2063,13 @@ function buildLqZip(id) {
          */
         const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         rewritten = rewritten.replace(
-          new RegExp(escaped + 't/[^"\'\\x60/]+/', 'g'),
-          './'
+          new RegExp(escaped + 't/[^"\'\\x60/]+/([^"\'\\x60]*)', 'g'),
+          (all, rest) => insideProgram(rest)
         );
-        rewritten = rewritten.split(`${prefix}_ext/`).join('./_ext/');
-        rewritten = rewritten.split(prefix).join('./');
+        rewritten = rewritten.replace(
+          new RegExp(escaped + '([^"\'\\x60]*)', 'g'),
+          (all, rest) => insideProgram(rest)
+        );
       }
       /*
        * The guard may sit in a file of its own — a chapter course keeps
@@ -3284,6 +3344,15 @@ async function handleXbApi(req, res, pathname, profile) {
   if (pathname.startsWith('/api/downloads/file/')) {
     if (method !== 'GET' && method !== 'HEAD') return notFound();
     const id = decodeURIComponent(pathname.slice('/api/downloads/file/'.length));
+    /*
+     * A copy of the library that is handed over as a folder of files
+     * wants every work as a complete archive, and not only the ones
+     * that were published as a package.  The question is asked for with
+     * "pack=1"; without it the old rule stands and a single document
+     * is still handed over as a single document.
+     */
+    const forced =
+      new URL(req.url, 'http://x').searchParams.get('pack') === '1';
     const product = profile.state.catalog.products.find((p) => p.id === id);
     const title = product ? String(product.title || id) : id;
     /*
@@ -3291,7 +3360,7 @@ async function handleXbApi(req, res, pathname, profile) {
      * an open simulation that asks for a copy of three.js: a single file
      * would lose the library and stop drawing.
      */
-    if (isPackagedCourse(id)) {
+    if (isPackagedCourse(id) || forced) {
       const zip = zipFor(id);
       if (!zip) return sendJson(res, 404, { error: '本地没有安装这份课件。' });
       return send(res, 200, zip, {
