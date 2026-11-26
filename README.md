@@ -37,6 +37,15 @@ node tools/restore-missing.mjs --root dist --receipts receipts/static-site.json
 只有跑起来才会露出来。`restore-missing.mjs` 照着验收记录把它们放回去，
 一个字都不差地放，放完再验一遍就干净了。
 
+打成部署包：
+
+```powershell
+node tools/pack-static.mjs --root dist --out <放包的地方>
+```
+
+包里最外面一层是 `leqixiang/`，解开就是能直接挂到网站目录下的那一层。
+打完包会解开核对一遍，名字和内容都要和成品一样才算过。
+
 ### 挂到官网目录下
 
 把 `dist/` 整个传成官网根目录下的 `leqixiang/`，再把
@@ -109,6 +118,7 @@ node tools/serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port
 node tools\check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333   # 逐门课件预览
 node tools\check-shell-ui.mjs --base http://127.0.0.1:4180 --cdp 9333      # 目录、筛选、搜索、打不开的路由
 node tools\check-oss-mirror.mjs --root dist --prefix leqixiang-courseware   # 桶里的文件和本地逐一对照
+node tools\check-covers.mjs --root dist                                     # 每一门课的封面图在不在
 node tools\check-nginx-mount.mjs --site <官网的 nginx.conf>                 # 上线后每一个文件会不会被挡
 ```
 
