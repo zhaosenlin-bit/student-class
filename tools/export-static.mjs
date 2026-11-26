@@ -22,6 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { isPlatformFile } from './platform-files.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LQ = path.join(ROOT, 'mirror', 'leqixiang');
@@ -1911,6 +1912,9 @@ async function main() {
         /* The page of the lesson is written last: a file of the lesson
            that carries the same name must not take its place. */
         if (name === 'index.html' || name === 'index.htm') continue;
+        /* The shop's own machinery does not belong to a lesson.  It is
+           never asked for, and it would go out with every download. */
+        if (isPlatformFile(name)) continue;
         write(path.join(dir, name), data);
         manifest.push([name, name]);
       }
