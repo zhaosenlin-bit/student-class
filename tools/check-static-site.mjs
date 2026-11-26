@@ -36,6 +36,13 @@ const WAIT = Number(arg('wait', 12000));
 const OUT = arg('out', '');
 const ONLY = arg('only', '');
 const SHOTS = arg('shots', '');
+/*
+ * The list of files every lesson hands out is checked by
+ * tools/check-oss-mirror.mjs, which compares it against the real
+ * names on the server instead of asking for them one by one.  When
+ * that has been done, this part can be left out.
+ */
+const SKIP_FILES = args.includes('--skip-files');
 
 /*
  * A lesson that is left open keeps drawing, and a browser full of
@@ -171,31 +178,35 @@ console.log('外壳、目录与助手就位。');
 console.log('检查每门课件的文件是否齐全…');
 const missing = [];
 let entryCount = 0;
-for (const id of ids) {
-  const res = await fetch(`${BASE}/courseware/${encodeURIComponent(id)}/download.json`);
-  if (!res.ok) {
-    missing.push({ id, file: 'download.json', status: res.status });
-    continue;
-  }
-  const manifest = await res.json();
-  for (const [name, from] of manifest.entries) {
-    entryCount++;
-    const head = await fetch(`${BASE}/courseware/${encodeURIComponent(id)}/${from}`, {
-      method: 'GET',
-    });
-    if (!head.ok) {
-      missing.push({ id, file: name, status: head.status });
-      if (missing.length > 40) break;
-    }
-  }
-  if (missing.length > 40) break;
-}
-if (missing.length) {
-  console.log(`文件缺失 ${missing.length} 处：`);
-  for (const m of missing.slice(0, 20)) console.log(`  ${m.id} ${m.file} ${m.status}`);
-  process.exitCode = 1;
+if (SKIP_FILES) {
+  console.log('（这一段跳过了，名单由 tools/check-oss-mirror.mjs 对过。）');
 } else {
-  console.log(`每门课件的文件齐全，共 ${entryCount} 个。`);
+  for (const id of ids) {
+    const res = await fetch(`${BASE}/courseware/${encodeURIComponent(id)}/download.json`);
+    if (!res.ok) {
+      missing.push({ id, file: 'download.json', status: res.status });
+      continue;
+    }
+    const manifest = await res.json();
+    for (const [name, from] of manifest.entries) {
+      entryCount++;
+      const head = await fetch(`${BASE}/courseware/${encodeURIComponent(id)}/${from}`, {
+        method: 'GET',
+      });
+      if (!head.ok) {
+        missing.push({ id, file: name, status: head.status });
+        if (missing.length > 40) break;
+      }
+    }
+    if (missing.length > 40) break;
+  }
+  if (missing.length) {
+    console.log(`文件缺失 ${missing.length} 处：`);
+    for (const m of missing.slice(0, 20)) console.log(`  ${m.id} ${m.file} ${m.status}`);
+    process.exitCode = 1;
+  } else {
+    console.log(`每门课件的文件齐全，共 ${entryCount} 个。`);
+  }
 }
 
 /* --------------------------------------------------------- lessons -- */

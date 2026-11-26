@@ -15,6 +15,7 @@
  *   --dry            只说要传哪些东西，不真的传
  *   --conc 8         同时传几个文件
  *   --match 关键字    只传路径里带这个字的文件
+ *   --list 文件名     只传这个清单里写的文件（每行一个相对路径）
  *   --clean          把桶里这个前缀下、这次没有的旧文件删掉
  *   --skip-shared    不传 shared/ 那一层（调试时用）
  *   --public         把桶设成公开可读，课件才能让别人直接打开
@@ -23,6 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { listObjects, deleteObject } from './oss-prefix.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -34,9 +36,10 @@ const flag = (name) => args.includes(`--${name}`);
 
 const ROOT = path.resolve(arg('root', path.join(HERE, '..', 'dist')));
 const REGION = arg('region', process.env.OSS_REGION || 'oss-cn-hangzhou');
-const BUCKET = arg('bucket', process.env.OSS_BUCKET || '');
+let BUCKET = arg('bucket', process.env.OSS_BUCKET || '');
 const PREFIX = String(arg('prefix', 'site')).replace(/^\/+|\/+$/g, '');
 const MATCH = arg('match', '');
+const LIST = arg('list', '');
 const CONC = Number(arg('conc', 8));
 const DRY = flag('dry');
 const CLEAN = flag('clean');
@@ -58,6 +61,8 @@ function readConfig(file) {
 const cfg = readConfig(arg('config', path.join(HERE, '..', 'work', 'oss.txt')));
 const AK = process.env.OSS_ACCESS_KEY_ID || cfg.OSS_ACCESS_KEY_ID || '';
 const SK = process.env.OSS_ACCESS_KEY_SECRET || cfg.OSS_ACCESS_KEY_SECRET || '';
+/* 桶名也可以写在配置文件里，命令行不用再写一遍。 */
+if (!BUCKET && cfg.OSS_BUCKET) BUCKET = cfg.OSS_BUCKET;
 
 if (!AK || !SK) {
   console.error('没有找到对象存储的账号。请给 --config 指向一个配置文件，或者设好环境变量。');
@@ -170,6 +175,23 @@ let files = walk(ROOT);
 if (SKIP_SHARED) files = files.filter((f) => !f.rel.startsWith('shared/'));
 /* 只传一部分的时候，用 --match 挑出需要的那些。 */
 if (MATCH) files = files.filter((f) => f.rel.includes(MATCH));
+/* 或者照着清单传：清单里没写的就不动。 */
+if (LIST) {
+  const want = new Set(
+    fs
+      .readFileSync(LIST, 'utf8')
+      .split(/\r?\n/)
+      .map((s) => s.trim().replace(/\\/g, '/'))
+      .filter(Boolean)
+  );
+  files = files.filter((f) => want.has(f.rel.replace(/\\/g, '/')));
+  const missing = [...want].filter((w) => !files.some((f) => f.rel.replace(/\\/g, '/') === w));
+  if (missing.length) {
+    console.error(`清单里有 ${missing.length} 个文件本地没有：`);
+    for (const m of missing.slice(0, 20)) console.error('   ' + m);
+    process.exit(1);
+  }
+}
 
 const keyOf = (rel) => (PREFIX ? PREFIX + '/' : '') + rel;
 const total = files.reduce((s, f) => s + f.size, 0);
@@ -309,31 +331,11 @@ if (CLEAN && MATCH) {
 
 if (CLEAN && !failed) {
   const keep = new Set(files.map((f) => keyOf(f.rel)));
-  let token = null;
+  const onBucket = await listObjects(PREFIX ? PREFIX + '/' : '');
   let removed = 0;
-  for (;;) {
-    const url = new URL(`https://${host}/`);
-    url.searchParams.set('prefix', PREFIX ? PREFIX + '/' : '');
-    url.searchParams.set('max-keys', '1000');
-    if (token) url.searchParams.set('marker', token);
-    const signed = sign('GET', '', {});
-    const res = await fetch(url, { headers: signed.headers });
-    if (!res.ok) {
-      console.error('列清单失败：' + res.status);
-      break;
-    }
-    const body = await res.json();
-    for (const item of body.Contents || []) {
-      if (keep.has(item.Key)) continue;
-      const d = sign('DELETE', item.Key, {});
-      await fetch(`https://${host}/${item.Key.split('/').map(encodeURIComponent).join('/')}`, {
-        method: 'DELETE',
-        headers: d.headers,
-      });
-      removed++;
-    }
-    if (!body.IsTruncated) break;
-    token = body.NextMarker;
+  for (const item of onBucket) {
+    if (keep.has(item.Key)) continue;
+    if ((await deleteObject(item.Key)) === 204) removed++;
   }
   console.log(`清掉 ${removed} 个旧文件`);
 }

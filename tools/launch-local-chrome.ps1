@@ -11,6 +11,10 @@ $chrome = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not (Test-Path $chrome)) { throw "Chrome not found at $chrome" }
 
+# A relative profile path makes Chrome fall back to the window that is
+# already open, and then the debugging port never comes up.  Always hand
+# it a full path.
+$Profile = [System.IO.Path]::GetFullPath($Profile)
 New-Item -ItemType Directory -Force -Path $Profile | Out-Null
 
 $args = @(

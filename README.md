@@ -23,7 +23,7 @@ node tools/export-static.mjs --out dist --slim
 ```
 
 `--slim` 会把各门课件里重复的那份素材收进 `dist/shared/`，只留一份。
-1450 门课件原本 7.1 GB，收拢之后 3.5 GB，课件照旧能打开、能下载——
+1450 门课件原本 7.1 GB，收拢之后 3.7 GB，课件照旧能打开、能下载——
 验收全库 1450 门全部通过，页面不往外发一个请求。
 
 把 `dist/` 整个目录放到网站目录下即可，例如 `https://codebn.cn/leqixiang/`。
@@ -32,16 +32,34 @@ node tools/export-static.mjs --out dist --slim
 ### 放到对象存储上
 
 课件库有点大，放在自己的服务器上不划算。传到对象存储更合适——
-课件资源放在账号下自己的前缀 `leqixiang-courseware/` 里，
-和这个账号下别的系统的资源完全分开：
+课件资源放在账号下**自己的前缀** `leqixiang-courseware/` 里，
+和同一个账号下别的系统的资源各走各的，互不掺和：
 
 ```powershell
-node tools/upload-oss.mjs --root dist --bucket teaching-platform-files --prefix leqixiang-courseware
+node tools/upload-oss.mjs --root dist --prefix leqixiang-courseware --clean
 ```
 
-账号写在 `work/oss.txt`（不进仓库）或者环境变量里。桶要设成「公共读」，
-别人才能直接打开。转发到官网目录下的写法见 `deploy/nginx-oss.conf`：
-服务器上不占地方，只是把请求转过去。
+桶名、区域和账号写在 `work/oss.txt`（不进仓库）或者环境变量里，
+命令行不用再写。桶要设成「公共读」，别人才能直接打开。
+`--clean` 会把前缀下多出来的旧文件清掉，让桶里的东西和 `dist/` 完全一致。
+
+服务器上不占地方，只是把请求转过去，写法见 `deploy/nginx-oss.conf`。
+转发的时候要去掉一个头：
+
+```nginx
+proxy_hide_header Content-Disposition;
+proxy_hide_header x-oss-force-download;
+```
+
+桶上开了「强制下载」，回来的每个对象都带着 `Content-Disposition: attachment`，
+浏览器会把它当文件下载，而不是打开成网页——网页就白费了。课件自己的
+「下载」按钮不受影响：那一份是在浏览器里打包的。
+
+想照着线上的样子在本地看，就起这个：
+
+```powershell
+node tools\serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port 4181
+```
 
 ## 目录
 
@@ -59,7 +77,14 @@ node tools/upload-oss.mjs --root dist --bucket teaching-platform-files --prefix 
 
 ```powershell
 node tools\check-lq-all-courses.mjs --conc 12   # 本地服务：逐门预览 + 下载
-node tools\check-static-site.mjs --base http://127.0.0.1:4180/leqixiang --cdp 9333
+node tools\check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333
+```
+
+放到对象存储上以后，把地址换成对象存储的那个，一样逐门走查：
+
+```powershell
+node tools\check-static-site.mjs --base https://<桶名>.oss-cn-hangzhou.aliyuncs.com/leqixiang-courseware --cdp 9333
+node tools\check-oss-mirror.mjs --root dist --prefix leqixiang-courseware   # 桶里的文件和本地逐一对照
 ```
 
 ## 说明

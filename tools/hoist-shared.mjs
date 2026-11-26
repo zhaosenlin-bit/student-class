@@ -649,17 +649,38 @@ for (const [key] of [...hoist]) {
 /* 收走以后放在哪里：同名同路的第一份，其余的按指纹分开放。 */
 function assignDest() {
   const dest = new Map();
-  const byRel = new Map();
+  /*
+   * 大小写不算新的名字。在 Windows 上 Audio 和 audio 是同一个地方，
+   * 在对象存储上是两个地方——两份都占那个位置的话，后写的那份会盖掉
+   * 前一份，课件里指过去的名字就有一半走不通了。
+   * 所以按不挑大小写的名字归组：组里最常用的那个写法作准，别的写法
+   * 一律指到它那儿；内容确实不一样的，另按指纹分开放。
+   */
+  const byBucket = new Map();
   for (const [key, ids] of hoist) {
     const g = groupInfo.get(key);
-    if (!byRel.has(g.rel)) byRel.set(g.rel, []);
-    byRel.get(g.rel).push([key, ids.size]);
+    const bucket = g.rel.toLowerCase();
+    if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+    byBucket.get(bucket).push([key, ids.size, g.hash]);
   }
-  for (const [rel, list] of byRel) {
+  for (const list of byBucket.values()) {
     list.sort((a, b) => (b[1] - a[1]) || (a[0] < b[0] ? -1 : 1));
-    list.forEach(([key], index) => {
+    /* 这一组里最常用的那个写法作准。 */
+    const canonical = groupInfo.get(list[0][0]).rel;
+    const byHash = new Map();
+    list.forEach(([key, , hash], index) => {
       const g = groupInfo.get(key);
-      dest.set(key, index === 0 ? rel : '~' + g.hash.slice(0, 8) + '/' + rel);
+      /*
+       * 内容一样的，只是写法不一样——指到同一个地方去。
+       * 内容不一样的，另开一个地方，两边都不覆盖。
+       */
+      if (byHash.has(hash)) {
+        dest.set(key, byHash.get(hash));
+        return;
+      }
+      const place = index === 0 ? canonical : '~' + hash.slice(0, 8) + '/' + canonical;
+      byHash.set(hash, place);
+      dest.set(key, place);
     });
   }
   return dest;
@@ -997,14 +1018,26 @@ for (const [id, files] of lessons) {
   const realPath = new Map();
   for (const rel of files.keys()) realPath.set(rel.toLowerCase(), rel);
   const kept = [];
+  const names = new Set();
   for (const entry of data.entries || []) {
     if (!Array.isArray(entry) || typeof entry[1] !== 'string') {
       kept.push(entry);
       continue;
     }
+    /* 清单里的名字有两个斜杠的时候，先摆正，压缩包里才不会有两个同名的东西。 */
+    if (typeof entry[0] === 'string' && entry[0].includes('//')) {
+      entry[0] = posix.normalize(entry[0]);
+      touched = true;
+    }
     /* 有些清单里的路径写着双斜杠或者反斜杠，先摆正了再找。 */
-    const raw = entry[1].split('#')[0].split('?')[0];
-    let target = posix.normalize(raw.replace(/\\/g, '/'));
+    const full = entry[1];
+    const raw = full.split('#')[0].split('?')[0];
+    const slashed = raw.replace(/\\/g, '/');
+    let target = posix.normalize(slashed);
+    if (target !== slashed) {
+      entry[1] = target + full.slice(raw.length);
+      touched = true;
+    }
     if (!files.has(target)) {
       const real = realPath.get(target.toLowerCase());
       if (real) {
@@ -1022,6 +1055,15 @@ for (const [id, files] of lessons) {
     if (moved) {
       entry[1] = relativeTo('courseware/' + id + '/', moved);
       touched = true;
+    }
+    /* 摆正之后会有两个名字变成一样的，压缩包里只留一个。 */
+    if (typeof entry[0] === 'string') {
+      if (names.has(entry[0])) {
+        manifestDropped += 1;
+        touched = true;
+        continue;
+      }
+      names.add(entry[0]);
     }
     kept.push(entry);
   }
