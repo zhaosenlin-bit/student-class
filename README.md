@@ -37,6 +37,25 @@ node tools/restore-missing.mjs --root dist --receipts receipts/static-site.json
 只有跑起来才会露出来。`restore-missing.mjs` 照着验收记录把它们放回去，
 一个字都不差地放，放完再验一遍就干净了。
 
+### 挂到官网目录下
+
+把 `dist/` 整个传成官网根目录下的 `leqixiang/`，再把
+[deploy/nginx-static-subfolder.conf](deploy/nginx-static-subfolder.conf)
+里的几段加进 codebn.cn 的 server 段，课件库就挂在
+`https://codebn.cn/leqixiang/` 下面。
+
+那几段里的 `^~` 不能去掉。官网原有的规则会挡掉课件自带的
+`启动课件.sh`，少了 `^~`，有 393 门课的下载包会是坏的（浏览器打包时
+不报错，把 403 的错误页当文件内容收进去了）。
+
+这个坑有一道专门的检查：照着 nginx 的定位匹配规则，把官网配置和
+挂载配置放在一起，把每一个文件过一遍，看有没有被挡掉的、有没有
+拿错内容的。
+
+```powershell
+node tools/check-nginx-mount.mjs --site <官网的 nginx.conf>
+```
+
 ### 放到对象存储上
 
 课件有点大，放在自己的服务器上不划算。传到对象存储更合适——
@@ -53,6 +72,7 @@ node tools/upload-oss.mjs --root dist --prefix leqixiang-courseware --skip-uncha
 `--clean` 把前缀下多出来的旧文件清掉，让桶里的东西和 `dist/` 完全一致。
 
 服务器上不占地方，只是把请求转过去，写法见 `deploy/nginx-oss.conf`。
+那一段里的 `^~` 同样不能去掉，道理和上面一样。
 转发的时候要去掉一个头：
 
 ```nginx

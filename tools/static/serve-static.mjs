@@ -7,6 +7,13 @@
  * that every address in it has to be relative to be of any use.
  *
  *   node tools/static/serve-static.mjs --root work/webroot --port 4180
+ *
+ * A library that is put in a folder of a website is reached through
+ * that folder, not through the root of the site.  The mount says
+ * where it hangs, so that the addresses inside it can be looked at
+ * the way a reader would meet them:
+ *
+ *   node tools/static/serve-static.mjs --root dist --port 4182 --mount /leqixiang
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +28,7 @@ const arg = (name, fallback) => {
 };
 const ROOT = path.resolve(arg('root', path.join(HERE, '..', '..')));
 const PORT = Number(arg('port', 4180));
+const MOUNT = '/' + String(arg('mount', '')).replace(/^\/+|\/+$/g, '');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -68,6 +76,18 @@ http
     } catch {
       res.writeHead(400).end('bad address');
       return;
+    }
+    /* The folder the library hangs in is not part of its own name. */
+    if (MOUNT !== '/') {
+      if (name === MOUNT) {
+        res.writeHead(302, { Location: `${MOUNT}/` }).end();
+        return;
+      }
+      if (!name.startsWith(`${MOUNT}/`)) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('not found');
+        return;
+      }
+      name = name.slice(MOUNT.length);
     }
     let file = path.join(ROOT, name.replace(/^\/+/, ''));
     if (!file.startsWith(ROOT)) {
