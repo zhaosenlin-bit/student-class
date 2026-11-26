@@ -19,20 +19,41 @@ node server/server.mjs
 挂在任意域名下。
 
 ```powershell
-node tools/export-static.mjs --out dist
+node tools/export-static.mjs --out dist --slim
 ```
+
+`--slim` 会把各门课件里重复的那份素材收进 `dist/shared/`，只留一份。
+1450 门课件原本 7.1 GB，收拢之后 3.5 GB，课件照旧能打开、能下载——
+验收全库 1450 门全部通过，页面不往外发一个请求。
 
 把 `dist/` 整个目录放到网站目录下即可，例如 `https://codebn.cn/leqixiang/`。
 目录里所有地址都是相对的，放在任意路径、任意域名下都能打开。
+
+### 放到对象存储上
+
+课件库有点大，放在自己的服务器上不划算。传到对象存储更合适——
+课件资源放在账号下自己的前缀 `leqixiang-courseware/` 里，
+和这个账号下别的系统的资源完全分开：
+
+```powershell
+node tools/upload-oss.mjs --root dist --bucket teaching-platform-files --prefix leqixiang-courseware
+```
+
+账号写在 `work/oss.txt`（不进仓库）或者环境变量里。桶要设成「公共读」，
+别人才能直接打开。转发到官网目录下的写法见 `deploy/nginx-oss.conf`：
+服务器上不占地方，只是把请求转过去。
 
 ## 目录
 
 | 目录 | 内容 |
 | --- | --- |
 | `server/` | 本地服务（单文件，无依赖） |
-| `mirror/` | 课件正文、素材与目录数据 |
 | `tools/` | 重建、修补、验收脚本 |
+| `deploy/` | 上线用的转发配置 |
 | `receipts/` | 最近一次全库验收的记录 |
+
+课件正文、素材与目录数据放在 `mirror/`：它是出包用的素材，不进仓库，
+也不在 GitHub 上。成品是 `dist/`，成品里的资源在对象存储上。
 
 ## 验收
 

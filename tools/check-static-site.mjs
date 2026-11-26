@@ -131,7 +131,17 @@ console.log(`地址 ${BASE}`);
 
 /* --------------------------------------------------------- the shell -- */
 
-const shell = await fetch(`${BASE}/`);
+/*
+ * A plain web server answers a directory with index.html.  A bucket of
+ * objects does not, so the home page of the library is the file
+ * index.html.  Both are tried, the one that answers is the home.
+ */
+let HOME = `${BASE}/`;
+let shell = await fetch(HOME);
+if (!shell.ok) {
+  HOME = `${BASE}/index.html`;
+  shell = await fetch(HOME);
+}
 if (!shell.ok) {
   console.error(`主页返回 ${shell.status}`);
   process.exitCode = 1;
@@ -201,7 +211,7 @@ if (missing.length) {
   const p = await connect(CDP);
   const shellProblems = [];
   try {
-    await p.goto(`${BASE}/`);
+    await p.goto(HOME);
     for (let i = 0; i < 40; i++) {
       const ready = await p
         .evaluate(`(() => {

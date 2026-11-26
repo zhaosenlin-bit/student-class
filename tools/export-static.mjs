@@ -758,7 +758,13 @@ function buildLesson(id, entries, known) {
   const files = new Map();
   let html = null;
   for (const entry of entries) {
-    if (entry.name === `${id}.html`) {
+    /*
+     * A name with two slashes in it is the same file as the name with
+     * one.  A web server says so, a bucket of objects does not, so the
+     * name is put back into shape before anything is written down.
+     */
+    const name = entry.name.replace(/\/{2,}/g, '/');
+    if (name === `${id}.html`) {
       html = decodeText(entry.name, entry.data).toString('utf8');
       continue;
     }
@@ -768,16 +774,19 @@ function buildLesson(id, entries, known) {
      * because a question is not a letter a disk will take.  The
      * longer copy is the one that is kept: it holds more of the sheet.
      */
-    const qAt = entry.name.indexOf('?');
+    const qAt = name.indexOf('?');
     if (qAt > 0) {
-      const clean = entry.name.slice(0, qAt);
+      const clean = name.slice(0, qAt);
       const prev = files.get(clean);
       if (!prev || prev.length < entry.data.length) {
         files.set(clean, decodeText(clean, entry.data));
       }
       continue;
     }
-    files.set(entry.name, decodeText(entry.name, entry.data));
+    const prev = files.get(name);
+    if (!prev || prev.length < entry.data.length) {
+      files.set(name, decodeText(name, entry.data));
+    }
   }
   if (html === null) throw new Error(`the archive of ${id} holds no lesson`);
 
@@ -2128,7 +2137,28 @@ function copyShell() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(async () => {
+    /*
+     * The same library, the same font and the same picture are copied
+     * into every lesson that uses them.  Half of the folder is those
+     * copies.  They are gathered into one shared folder, so the folder
+     * that goes on the server is about half the size.
+     */
+    if (!args.includes('--slim')) return;
+    console.log('收拢重复的素材…');
+    const { execFileSync } = await import('node:child_process');
+    execFileSync(
+      process.execPath,
+      [
+        path.join(path.dirname(fileURLToPath(import.meta.url)), 'hoist-shared.mjs'),
+        '--root',
+        OUT,
+      ],
+      { stdio: 'inherit' }
+    );
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
