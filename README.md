@@ -26,6 +26,17 @@ node tools/export-static.mjs --out dist --slim
 字节一样却存了两遍的，改成硬链接，磁盘上同样只占一份。
 1450 门课件原本 7.1 GB，成品 3.5 GB，课件照旧能打开、能下载。
 
+出包之后要跑一遍验收，再把验收里报出来的缺文件放回课件自己的目录：
+
+```powershell
+node tools/check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333 --out receipts/static-site.json
+node tools/restore-missing.mjs --root dist --receipts receipts/static-site.json
+```
+
+有的课件会在运行的时候才去找某张图，这种名字静态看不见，
+只有跑起来才会露出来。`restore-missing.mjs` 照着验收记录把它们放回去，
+一个字都不差地放，放完再验一遍就干净了。
+
 ### 放到对象存储上
 
 课件有点大，放在自己的服务器上不划算。传到对象存储更合适——
