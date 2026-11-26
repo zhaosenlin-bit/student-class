@@ -13,7 +13,7 @@ import path from 'node:path';
 const DRY = process.argv.includes('--dry');
 
 const catalog = JSON.parse(
-  fs.readFileSync('mirror/leqixiang/catalog.json', 'utf8')
+  fs.readFileSync('catalog/catalog.json', 'utf8')
 );
 const title = new Map();
 for (const p of catalog.products) {

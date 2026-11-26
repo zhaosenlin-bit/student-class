@@ -20,7 +20,7 @@ const arg = (name, fallback) => {
 const has = (name) => args.includes(`--${name}`);
 
 const CDP = Number(arg('cdp', 9226));
-const LQ = Number(arg('lq', 4173));
+const LQ = Number(arg('lq', 4180));
 const WAIT = Number(arg('wait', 4200));
 const OUT = arg('out', 'work/lq-visible-english.json');
 const CONC = Number(arg('conc', 4));
@@ -135,7 +135,7 @@ function findInFile(text, phrase) {
 }
 
 const catalog = JSON.parse(
-  fs.readFileSync('mirror/leqixiang/catalog.json', 'utf8')
+  fs.readFileSync('catalog/catalog.json', 'utf8')
 );
 let ids = catalog.products.filter((p) => p.localInstalled).map((p) => p.id);
 
@@ -162,7 +162,7 @@ const worker = async () => {
     if (!fs.existsSync(file)) continue;
     const text = fs.readFileSync(file, 'utf8');
     try {
-      await page.goto(`http://127.0.0.1:${LQ}/courseware/${id}.html`);
+      await page.goto(`http://127.0.0.1:${LQ}/courseware/${id}/index.html`);
       await sleep(WAIT);
       const raw = await page.evaluate(READ_TEXT);
       const seen = new Set();

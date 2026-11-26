@@ -126,9 +126,6 @@
           onlineAccessible: product.onlineAccessible,
           launchUrl: lessonUrl(id),
           available: product.available,
-          canPurchase: false,
-          canFeedback: false,
-          feedbackRequiresPurchase: false,
         });
       });
     }

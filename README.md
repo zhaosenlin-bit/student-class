@@ -1,47 +1,45 @@
 # 乐启享课件库
 
-一个**交互课件库**，收录 1450 门课件。课件正文、封面与素材全部落在本机，
-打开就能用：**看目录 → 在线预览 → 下载**。不需要登录，不收费。
+一个**交互课件库**，收录 1450 门课件。看目录 → 在线预览 → 下载，
+打开就能用，不需要登录，不收费。
 
 ## 本地运行
 
-只用 Node 自带模块，不需要 `npm install`：
+只用 Node 自带模块，不用 `npm install`：
 
 ```powershell
-node server/server.mjs
+node tools/static/serve-static.mjs --root dist --port 4180
 ```
 
-打开 <http://localhost:4173/>。
+打开 <http://127.0.0.1:4180/>。
 
-## 部署到网站
+## 部署
 
-课件库是**纯静态**的：没有后端、没有数据库、没有登录，写成文件夹就能直接
-挂在任意域名下。
+课件库是**纯静态**的：没有后端、没有数据库、没有登录。成品是一个文件夹，
+放在任意域名下都能打开——里面所有地址都是相对的。
 
 ```powershell
 node tools/export-static.mjs --out dist --slim
 ```
 
-`--slim` 会把各门课件里重复的那份素材收进 `dist/shared/`，只留一份。
-1450 门课件原本 7.1 GB，收拢之后 3.7 GB，课件照旧能打开、能下载——
-验收全库 1450 门全部通过，页面不往外发一个请求。
-
-把 `dist/` 整个目录放到网站目录下即可，例如 `https://codebn.cn/leqixiang/`。
-目录里所有地址都是相对的，放在任意路径、任意域名下都能打开。
+`--slim` 会把各门课件里重复的那份素材收进 `dist/shared/`，只留一份；
+字节一样却存了两遍的，改成硬链接，磁盘上同样只占一份。
+1450 门课件原本 7.1 GB，成品 3.5 GB，课件照旧能打开、能下载。
 
 ### 放到对象存储上
 
-课件库有点大，放在自己的服务器上不划算。传到对象存储更合适——
+课件有点大，放在自己的服务器上不划算。传到对象存储更合适——
 课件资源放在账号下**自己的前缀** `leqixiang-courseware/` 里，
-和同一个账号下别的系统的资源各走各的，互不掺和：
+和这个账号下的别的东西各走各的，互不掺和：
 
 ```powershell
-node tools/upload-oss.mjs --root dist --prefix leqixiang-courseware --clean
+node tools/upload-oss.mjs --root dist --prefix leqixiang-courseware --skip-unchanged --clean
 ```
 
 桶名、区域和账号写在 `work/oss.txt`（不进仓库）或者环境变量里，
 命令行不用再写。桶要设成「公共读」，别人才能直接打开。
-`--clean` 会把前缀下多出来的旧文件清掉，让桶里的东西和 `dist/` 完全一致。
+`--skip-unchanged` 会跳过桶里和本地一模一样的文件；
+`--clean` 把前缀下多出来的旧文件清掉，让桶里的东西和 `dist/` 完全一致。
 
 服务器上不占地方，只是把请求转过去，写法见 `deploy/nginx-oss.conf`。
 转发的时候要去掉一个头：
@@ -58,33 +56,34 @@ proxy_hide_header x-oss-force-download;
 想照着线上的样子在本地看，就起这个：
 
 ```powershell
-node tools\serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port 4181
+node tools/serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port 4181
 ```
 
 ## 目录
 
 | 目录 | 内容 |
 | --- | --- |
-| `server/` | 本地服务（单文件，无依赖） |
+| `site/` | 站点外壳（页面、样式、脚本） |
+| `catalog/` | 课件目录数据（1450 门课目的元信息） |
 | `tools/` | 重建、修补、验收脚本 |
 | `deploy/` | 上线用的转发配置 |
 | `receipts/` | 最近一次全库验收的记录 |
 
-课件正文、素材与目录数据放在 `mirror/`：它是出包用的素材，不进仓库，
-也不在 GitHub 上。成品是 `dist/`，成品里的资源在对象存储上。
+课件正文与素材放在 `mirror/`：它是出包用的素材，不进仓库，也不在 GitHub 上。
+成品是 `dist/`，成品里的资源在对象存储上。
 
 ## 验收
 
 ```powershell
-node tools\check-lq-all-courses.mjs --conc 12   # 本地服务：逐门预览 + 下载
-node tools\check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333
+node tools\check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333   # 逐门课件预览
+node tools\check-shell-ui.mjs --base http://127.0.0.1:4180 --cdp 9333      # 目录、筛选、搜索、打不开的路由
+node tools\check-oss-mirror.mjs --root dist --prefix leqixiang-courseware   # 桶里的文件和本地逐一对照
 ```
 
 放到对象存储上以后，把地址换成对象存储的那个，一样逐门走查：
 
 ```powershell
 node tools\check-static-site.mjs --base https://<桶名>.oss-cn-hangzhou.aliyuncs.com/leqixiang-courseware --cdp 9333
-node tools\check-oss-mirror.mjs --root dist --prefix leqixiang-courseware   # 桶里的文件和本地逐一对照
 ```
 
 ## 说明

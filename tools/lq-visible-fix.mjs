@@ -34,7 +34,7 @@ const arg = (name, fallback) => {
 const has = (name) => args.includes(`--${name}`);
 
 const CDP = Number(arg('cdp', 9226));
-const LQ = Number(arg('lq', 4173));
+const LQ = Number(arg('lq', 4180));
 const WAIT = Number(arg('wait', 3800));
 const CONC = Number(arg('conc', 4));
 const MODEL = arg('model', 'gpt-5.6');
@@ -144,7 +144,7 @@ function staticText(html) {
 /* ------------------------------------------------------------------ */
 
 if (has('collect')) {
-  const catalog = JSON.parse(fs.readFileSync('mirror/leqixiang/catalog.json', 'utf8'));
+  const catalog = JSON.parse(fs.readFileSync('catalog/catalog.json', 'utf8'));
   let ids = catalog.products.filter((p) => p.localInstalled).map((p) => p.id);
   const only = arg('ids', '');
   if (only) {
@@ -182,7 +182,7 @@ if (has('collect')) {
         if (static_) {
           pieces = staticText(text);
         } else {
-          await page.goto(`http://127.0.0.1:${LQ}/courseware/${id}.html`);
+          await page.goto(`http://127.0.0.1:${LQ}/courseware/${id}/index.html`);
           await sleep(WAIT);
           /* A lesson that will not answer is left for another time. */
           const raw = await Promise.race([

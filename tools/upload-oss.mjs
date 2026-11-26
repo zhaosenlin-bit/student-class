@@ -18,6 +18,7 @@
  *   --list 文件名     只传这个清单里写的文件（每行一个相对路径）
  *   --clean          把桶里这个前缀下、这次没有的旧文件删掉
  *   --skip-shared    不传 shared/ 那一层（调试时用）
+ *   --skip-unchanged 桶里和本地一模一样的就不重传
  *   --public         把桶设成公开可读，课件才能让别人直接打开
  */
 import fs from 'node:fs';
@@ -45,6 +46,7 @@ const DRY = flag('dry');
 const CLEAN = flag('clean');
 const SKIP_SHARED = flag('skip-shared');
 const PUBLIC = flag('public');
+const SKIP_UNCHANGED = flag('skip-unchanged');
 
 /* ------------------------------------------------------- 账号与配置 --- */
 
@@ -172,6 +174,7 @@ if (!fs.existsSync(ROOT)) {
 }
 
 let files = walk(ROOT);
+const allFiles = files;
 if (SKIP_SHARED) files = files.filter((f) => !f.rel.startsWith('shared/'));
 /* 只传一部分的时候，用 --match 挑出需要的那些。 */
 if (MATCH) files = files.filter((f) => f.rel.includes(MATCH));
@@ -194,6 +197,30 @@ if (LIST) {
 }
 
 const keyOf = (rel) => (PREFIX ? PREFIX + '/' : '') + rel;
+
+/*
+ * 桶里已经有的、而且和本地一模一样的，就不必再传一遍。
+ * 上传用的是一次 PUT，桶那边的校验值就是整份文件的 MD5，
+ * 和本地算出来的一样，就说明两边是同一份东西。
+ */
+if (SKIP_UNCHANGED && !DRY) {
+  const onBucket = await listObjects(PREFIX ? PREFIX + '/' : '');
+  const etagOf = new Map();
+  for (const item of onBucket) {
+    if (!item.ETag) continue;
+    etagOf.set(PREFIX ? item.Key.slice(PREFIX.length + 1) : item.Key, item.ETag);
+  }
+  const before = files.length;
+  files = files.filter((f) => {
+    const key = f.rel.replace(/\\/g, '/');
+    const etag = etagOf.get(key);
+    if (!etag) return true;
+    const md5 = crypto.createHash('md5').update(fs.readFileSync(f.abs)).digest('hex');
+    return md5 !== etag;
+  });
+  console.log(`桶里已经有 ${before - files.length} 个和本地一模一样的，不用重传。`);
+}
+
 const total = files.reduce((s, f) => s + f.size, 0);
 console.log(`要传 ${files.length} 个文件，${(total / 1048576).toFixed(0)} MB`);
 console.log(`桶 ${BUCKET}，前缀 ${PREFIX ? PREFIX + '/' : '(根)'}`);
@@ -330,7 +357,8 @@ if (CLEAN && MATCH) {
 }
 
 if (CLEAN && !failed) {
-  const keep = new Set(files.map((f) => keyOf(f.rel)));
+  /* 清理按"本地一共有什么"算，不能按"这次传了哪些"算。 */
+  const keep = new Set(allFiles.map((f) => keyOf(f.rel)));
   const onBucket = await listObjects(PREFIX ? PREFIX + '/' : '');
   let removed = 0;
   for (const item of onBucket) {

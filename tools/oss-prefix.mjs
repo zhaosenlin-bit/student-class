@@ -78,8 +78,17 @@ export async function listObjects(prefix, delimiter = '') {
     if (!raw.includes('<ListBucketResult>')) {
       throw new Error('列清单失败：' + res.status + ' ' + raw.slice(0, 200));
     }
-    for (const m of raw.matchAll(/<Key>([\s\S]*?)<\/Key>[\s\S]*?<Size>(\d+)<\/Size>/g)) {
-      items.push({ Key: m[1], Size: Number(m[2]) });
+    /*
+     * 每一项照着 <Contents> 分开看，名字、大小、校验值各归各的。
+     * 校验值（ETag）是一整份上传的 MD5，和本地算出来的对得上，
+     * 就说明桶里的这份和本地一模一样。
+     */
+    for (const block of raw.split('<Contents>').slice(1)) {
+      const key = /<Key>([\s\S]*?)<\/Key>/.exec(block);
+      const size = /<Size>(\d+)<\/Size>/.exec(block);
+      const etag = /<ETag>"?([0-9a-fA-F]+)"?<\/ETag>/.exec(block);
+      if (!key || !size) continue;
+      items.push({ Key: key[1], Size: Number(size[1]), ETag: etag ? etag[1].toLowerCase() : '' });
     }
     if (!/<IsTruncated>true<\/IsTruncated>/.test(raw)) break;
     const next = /<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/.exec(raw);

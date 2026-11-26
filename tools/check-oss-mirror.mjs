@@ -14,6 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { listObjects } from './oss-prefix.mjs';
 
@@ -50,7 +51,7 @@ const onBucket = await listObjects(PREFIX ? PREFIX + '/' : '');
 const bucket = new Map();
 for (const item of onBucket) {
   const key = PREFIX ? item.Key.slice(PREFIX.length + 1) : item.Key;
-  bucket.set(key.replace(/\\/g, '/'), item.Size);
+  bucket.set(key.replace(/\\/g, '/'), { size: item.Size, etag: item.ETag || '' });
 }
 console.log(`桶里 ${bucket.size} 个文件。`);
 
@@ -61,6 +62,26 @@ for (const key of local.keys()) if (!bucket.has(key)) missing.push(key);
 /* 桶里有、本地没有：上一次上传留下的旧东西。 */
 const extra = [];
 for (const key of bucket.keys()) if (!local.has(key)) extra.push(key);
+
+/*
+ * 内容对不上：名字在、大小也一样，可内容其实改了。
+ * 上传是一次 PUT，桶那边的校验值就是整份文件的 MD5，
+ * 拿它和本地算出来的比，才能看出这种"大小没变、内容变了"的情况。
+ */
+const differs = [];
+for (const [key, size] of local) {
+  const item = bucket.get(key);
+  if (!item) continue;
+  if (item.size !== size) {
+    differs.push({ key, why: `大小不一样（本地 ${size}，桶里 ${item.size}）` });
+    continue;
+  }
+  if (!item.etag) continue;
+  const md5 = crypto.createHash('md5').update(fs.readFileSync(path.join(ROOT, key))).digest('hex');
+  if (md5 !== item.etag) differs.push({ key, why: '内容不一样（校验值对不上）' });
+}
+console.log(`内容对不上：${differs.length} 个`);
+for (const d of differs.slice(0, 30)) console.log(`  - ${d.key}  ${d.why}`);
 
 /*
  * 每一门课件的下载清单：清单里写着的名字，桶里必须都在。
@@ -95,8 +116,9 @@ for (const id of fs.readdirSync(courses)) {
       continue;
     }
     const want = local.get(key);
-    if (want !== undefined && bucket.get(key) !== want) {
-      broken.push({ id, file: name, why: `大小不一样（本地 ${want}，桶里 ${bucket.get(key)}）` });
+    const item = bucket.get(key);
+    if (want !== undefined && item && item.size !== want) {
+      broken.push({ id, file: name, why: `大小不一样（本地 ${want}，桶里 ${item.size}）` });
     }
   }
 }
@@ -120,6 +142,7 @@ if (OUT) {
         onBucket: bucket.size,
         missing,
         extra,
+        differs,
         broken,
         entries,
       },
@@ -130,6 +153,6 @@ if (OUT) {
   console.log(`\n报告写入 ${OUT}`);
 }
 
-const ok = !missing.length && !extra.length && !broken.length;
+const ok = !missing.length && !extra.length && !differs.length && !broken.length;
 console.log(ok ? '\n桶里的这一份和本地完全一致。' : '\n还有对不上的地方。');
 process.exit(ok ? 0 : 1);

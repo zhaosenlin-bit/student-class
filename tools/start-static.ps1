@@ -1,5 +1,5 @@
 param(
-  [string]$Site = 'work\webroot',
+  [string]$Site = 'dist',
   [int]$Port = 4180
 )
 

@@ -1755,6 +1755,25 @@ function setBase(html, baseDir) {
 
 /* ------------------------------------------------------------ main ---- */
 
+/*
+ * The catalogue of the library.
+ *
+ * It is kept as a file of the project (catalog/catalog.json), because
+ * a folder of plain files has no server behind it that could answer
+ * the question.  A library that is being read over the network can
+ * still be asked, and then its answer is used instead.
+ */
+async function readCatalog() {
+  const file = arg('catalog', path.join(ROOT, 'catalog', 'catalog.json'));
+  if (fs.existsSync(file)) {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return { ...raw, serverTime: Date.now() };
+  }
+  const res = await fetchWithRetry(`${BASE}/api/catalog`);
+  if (!res.ok) throw new Error('the library is not answering; start it first');
+  return JSON.parse(await res.text());
+}
+
 async function main() {
   console.log('写出静态课件库 ->', OUT);
   /*
@@ -1771,9 +1790,7 @@ async function main() {
   mkdir(OUT);
 
   /* The catalogue is the one answer every page waits for. */
-  const catalogRes = await fetchWithRetry(`${BASE}/api/catalog`);
-  if (!catalogRes.ok) throw new Error('the library is not answering; start it first');
-  const catalog = JSON.parse(await catalogRes.text());
+  const catalog = await readCatalog();
   /*
    * The pictures the catalogue shows are named from the root of a
  * domain.  In a folder that sits inside a website that root is
@@ -1806,6 +1823,15 @@ async function main() {
   };
   const catalogText = JSON.stringify(rewriteValue(catalog));
   write(path.join(OUT, 'catalog.json'), catalogText);
+  /*
+   * Sometimes only the catalogue is of interest — when the list is
+   * checked on its own, or when it is compared with a copy that is
+   * already out.  The rest of the folder is left alone then.
+   */
+  if (args.includes('--catalog-only')) {
+    console.log('只写出目录。');
+    return;
+  }
   const ids = catalog.products.filter((p) => p.localInstalled).map((p) => p.id);
   const only = arg('only', '');
   const limit = Number(arg('limit', 0));
@@ -2152,6 +2178,23 @@ main()
       process.execPath,
       [
         path.join(path.dirname(fileURLToPath(import.meta.url)), 'hoist-shared.mjs'),
+        '--root',
+        OUT,
+      ],
+      { stdio: 'inherit' }
+    );
+
+    /*
+     * Some material is still in two places: in the shared folder and in
+     * the lesson that uses it.  The bytes are the same, so the second
+     * copy is turned into a link to the first.  Both paths stay where
+     * they were, only the disk stops keeping two copies.
+     */
+    console.log('合并一样的素材…');
+    execFileSync(
+      process.execPath,
+      [
+        path.join(path.dirname(fileURLToPath(import.meta.url)), 'link-duplicates.mjs'),
         '--root',
         OUT,
       ],

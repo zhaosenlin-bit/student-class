@@ -103,7 +103,7 @@ const strip = (html) => {
 };
 
 const cat = JSON.parse(
-  fs.readFileSync('mirror/leqixiang/catalog.json', 'utf8')
+  fs.readFileSync('catalog/catalog.json', 'utf8')
 );
 const wanted = new Set(
   cat.products.filter((p) => p.localInstalled).map((p) => p.id)
