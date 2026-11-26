@@ -109,6 +109,7 @@ node tools/serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port
 node tools\check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333   # 逐门课件预览
 node tools\check-shell-ui.mjs --base http://127.0.0.1:4180 --cdp 9333      # 目录、筛选、搜索、打不开的路由
 node tools\check-oss-mirror.mjs --root dist --prefix leqixiang-courseware   # 桶里的文件和本地逐一对照
+node tools\check-nginx-mount.mjs --site <官网的 nginx.conf>                 # 上线后每一个文件会不会被挡
 ```
 
 放到对象存储上以后，把地址换成对象存储的那个，一样逐门走查：
