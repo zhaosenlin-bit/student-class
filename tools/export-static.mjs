@@ -1310,6 +1310,16 @@ function buildLesson(id, entries, known) {
   html = setBase(html, baseDir);
 
   /*
+   * A lesson may point at another lesson by a name that stands at the
+   * root of a site.  Here every lesson lies in a folder of its own,
+   * so such a name is counted from the folder of this lesson.
+   */
+  html = html.replace(
+    /(?<![\w.)\/])\/courseware\/([A-Za-z0-9_-]+)\.html\b/g,
+    (all, other) => relativeTo(baseDir, `courseware/${other}/index.html`)
+  );
+
+  /*
    * The lesson carries a small helper that turns the address of a
    * public library into the copy that lies next to it.  Those copies
    * are counted from the base of the lesson, so the address in the
@@ -1813,8 +1823,22 @@ async function main() {
    */
   const wantedCovers = new Set();
   for (const product of catalog.products || []) {
-    const cover = String(product.cover || '').replace(/^\.\//, '');
-    if (cover) wantedCovers.add(cover);
+    /*
+     * A name in the catalogue may come with a leading "/", with a
+     * leading "./", and with the parts of it written as codes (a
+     * Chinese name travels as %E5...).  The files on disk carry the
+     * plain name, so the name is put in one plain shape before it is
+     * compared with anything.
+     */
+    const raw = String(product.cover || '').replace(/^\.?\//, '');
+    if (!raw) continue;
+    let plain = raw;
+    try {
+      plain = decodeURIComponent(raw);
+    } catch {
+      /* a name that is not a code is already plain */
+    }
+    wantedCovers.add(plain);
   }
   for (const [prefix, dir] of [
     ['brand', path.join(LQ, 'brand')],

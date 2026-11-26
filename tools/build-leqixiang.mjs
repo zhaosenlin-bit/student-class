@@ -281,7 +281,7 @@ fs.copyFileSync(path.join(ROOT, 'tools', 'lq-catalog.css'), path.join(SITE, 'lq-
 </head>
 <body>
 <main>
-  <a class="back" href="/">← 返回课件库</a>
+  <a class="back" href="./index.html">← 返回课件库</a>
   <p class="eyebrow">${BRAND.name}</p>
   <h1>许可与署名</h1>
   <p>本课件库由${BRAND.name}整理并本地化制作，全部课程可在线预览、可下载使用。
