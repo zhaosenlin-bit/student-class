@@ -87,6 +87,20 @@ export async function connect(port = 9222, urlMatch, opts = {}) {
    */
   if (!opts.quiet) await send('Network.enable');
   /*
+   * The cache is turned off on purpose.  A file that was changed on the
+   * server keeps its old name, and a browser that has it in the cache
+   * would go on using the old one — the check would then report on a
+   * version of the lesson that nobody can see any more.  Every check
+   * wants to look at what is really on the server now.
+   */
+  if (!opts.quiet) {
+    try {
+      await send('Network.setCacheDisabled', { cacheDisabled: true });
+    } catch {
+      /* An older build of Chrome does not know this one. */
+    }
+  }
+  /*
    * Some of the courseware watches for an open debugger: it runs a
    * `debugger` statement on a timer, and a statement like that stops the
    * page dead the moment a debugger is attached — the course freezes and

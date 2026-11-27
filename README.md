@@ -68,11 +68,11 @@ node tools/check-nginx-mount.mjs --site <官网的 nginx.conf>
 ### 放到对象存储上
 
 课件有点大，放在自己的服务器上不划算。传到对象存储更合适——
-课件资源放在账号下**自己的前缀** `leqixiang-courseware/` 里，
+课件资源放在账号下**自己的前缀** `leqixiang/` 里，
 和这个账号下的别的东西各走各的，互不掺和：
 
 ```powershell
-node tools/upload-oss.mjs --root dist --prefix leqixiang-courseware --skip-unchanged --clean
+node tools/upload-oss.mjs --root dist --prefix leqixiang --skip-unchanged --clean
 ```
 
 桶名、区域和账号写在 `work/oss.txt`（不进仓库）或者环境变量里，
@@ -80,7 +80,8 @@ node tools/upload-oss.mjs --root dist --prefix leqixiang-courseware --skip-uncha
 `--skip-unchanged` 会跳过桶里和本地一模一样的文件；
 `--clean` 把前缀下多出来的旧文件清掉，让桶里的东西和 `dist/` 完全一致。
 
-服务器上不占地方，只是把请求转过去，写法见 `deploy/nginx-oss.conf`。
+服务器上不占地方，只是把请求转过去，写法见 `deploy/nginx-oss.conf`，
+一步一步怎么上线见 [deploy/部署说明.md](deploy/部署说明.md)。
 那一段里的 `^~` 同样不能去掉，道理和上面一样。
 转发的时候要去掉一个头：
 
@@ -93,10 +94,13 @@ proxy_hide_header x-oss-force-download;
 浏览器会把它当文件下载，而不是打开成网页——网页就白费了。课件自己的
 「下载」按钮不受影响：那一份是在浏览器里打包的。
 
+`proxy_pass` 后面**不要带路径**，浏览器发来的地址原样转过去，
+课件里那些中文、空格、表情符号的文件名才对得上。
+
 想照着线上的样子在本地看，就起这个：
 
 ```powershell
-node tools/serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port 4181
+node tools/serve-oss.mjs --prefix leqixiang --mount /leqixiang --port 4181
 ```
 
 ## 目录
@@ -117,15 +121,17 @@ node tools/serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port
 ```powershell
 node tools\check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333   # 逐门课件预览
 node tools\check-shell-ui.mjs --base http://127.0.0.1:4180 --cdp 9333      # 目录、筛选、搜索、打不开的路由
-node tools\check-oss-mirror.mjs --root dist --prefix leqixiang-courseware   # 桶里的文件和本地逐一对照
+node tools\check-oss-mirror.mjs --root dist --prefix leqixiang             # 桶里的文件和本地逐一对照
 node tools\check-covers.mjs --root dist                                     # 每一门课的封面图在不在
+node tools\check-font-links.mjs --root dist                                # 样式表和字体地址有没有断链
+node tools\fix-shared-refs.mjs --root dist --dry                           # 有没有地址跑出课件目录
 node tools\check-nginx-mount.mjs --site <官网的 nginx.conf>                 # 上线后每一个文件会不会被挡
 ```
 
 放到对象存储上以后，把地址换成对象存储的那个，一样逐门走查：
 
 ```powershell
-node tools\check-static-site.mjs --base https://<桶名>.oss-cn-hangzhou.aliyuncs.com/leqixiang-courseware --cdp 9333
+node tools\check-static-site.mjs --base https://<桶名>.oss-cn-hangzhou.aliyuncs.com/leqixiang --cdp 9333
 ```
 
 ## 说明

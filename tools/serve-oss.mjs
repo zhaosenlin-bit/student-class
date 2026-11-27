@@ -10,7 +10,7 @@
  *   Content-Disposition: attachment，浏览器会把它当文件下载而不是
  *   打开成网页。转发的时候把这个头去掉，网页才是网页。
  *
- *   node tools/serve-oss.mjs --prefix leqixiang-courseware --mount /leqixiang --port 4181
+ *   node tools/serve-oss.mjs --prefix leqixiang --mount /leqixiang --port 4181
  */
 import http from 'node:http';
 import fs from 'node:fs';

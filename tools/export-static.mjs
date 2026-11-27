@@ -23,6 +23,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { isPlatformFile } from './platform-files.mjs';
+import { fixRoot } from './lq-plus-paths.mjs';
+import { fixFonts } from './lq-fonts.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LQ = path.join(ROOT, 'mirror', 'leqixiang');
@@ -1951,6 +1953,36 @@ async function main() {
     for (const [id, why] of failed) console.log('  ', id, why);
   }
 
+  /*
+   * One piece of a public package carries a name with a plus sign in
+   * it.  A plus sign in an address is read as a space, so the file
+   * cannot be fetched, and the browser will not take it for a script
+   * either.  It is given the other name the publisher uses for the
+   * very same file.
+   */
+  {
+    const plus = fixRoot(OUT);
+    if (plus.renamed.length || plus.removed.length || plus.edited.length) {
+      console.log(
+        `收拾带加号的地址：改名 ${plus.renamed.length} 个，去重 ${plus.removed.length} 个，改地址 ${plus.edited.length} 个文件`
+      );
+    }
+  }
+
+  /*
+   * The web fonts are fetched from the font site and the stylesheet that
+   * names them has no extension, so the server cannot tell what kind of
+   * file it is and the browser throws the whole sheet away.  The sheets are
+   * gathered into the shared folder, the font files are kept next to them,
+   * and the names get the .css ending.
+   */
+  {
+    const fonts = await fixFonts(OUT);
+    console.log(
+      `收拾字体：归并 ${fonts.merged.length} 张样式表，补下 ${fonts.downloaded.length} 个字体文件，改名 ${fonts.renamed.length} 张样式表，改地址 ${fonts.refs.length} 个文件`
+    );
+  }
+
   console.log('写出课程清单…');
   write(
     path.join(OUT, 'courses.json'),
@@ -2199,6 +2231,25 @@ main()
       process.execPath,
       [
         path.join(path.dirname(fileURLToPath(import.meta.url)), 'link-duplicates.mjs'),
+        '--root',
+        OUT,
+      ],
+      { stdio: 'inherit' }
+    );
+
+    /*
+     * The pages count their names from the place they stand in, and a
+     * few of the scripts count theirs from the page that opened them.
+     * When the shared material was gathered the two were mixed up in a
+     * few places, and a name that climbs above the folder of the lesson
+     * lands outside the site — the sound, the picture or the module it
+     * points at is simply not there any more.  Those names are put back.
+     */
+    console.log('收拾跑出目录的地址…');
+    execFileSync(
+      process.execPath,
+      [
+        path.join(path.dirname(fileURLToPath(import.meta.url)), 'fix-shared-refs.mjs'),
         '--root',
         OUT,
       ],
