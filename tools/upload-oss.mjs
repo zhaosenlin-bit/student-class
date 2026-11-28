@@ -48,6 +48,15 @@ const SKIP_SHARED = flag('skip-shared');
 const PUBLIC = flag('public');
 const SKIP_UNCHANGED = flag('skip-unchanged');
 
+/*
+ * 改了缓存的规矩之后，已经传过的文件也要重传一遍——文件本身没变，
+ * 但桶里记着的「缓存多久」是老的。
+ */
+const REFRESH_CACHE = flag('refresh-cache');
+
+/* 页面和清单本来就是五分钟的缓存；脚本、样式和启动脚本这一回换了规矩。 */
+const SHORT_CACHE = /\.(?:js|mjs|css|cmd|sh|py)$/i;
+
 /* ------------------------------------------------------- 账号与配置 --- */
 
 function readConfig(file) {
@@ -149,9 +158,18 @@ function typeOf(file) {
   return 'application/octet-stream';
 }
 
-/* 页面和清单改得勤，缓存短一点；其余的按长期缓存走。 */
+/*
+ * 页面、清单、脚本和样式改得勤，缓存短一点；其余的按长期缓存走。
+ *
+ * 素材（图、模型、字体、视频）传上去就不再动了，一年 immutable 是对的。
+ * 但脚本和样式是要改的——改完还让浏览器拿旧的一份，课件就会停在改
+ * 之前的样子，看起来就是「加载不出来」。所以这几类只缓存五分钟。
+ *
+ * 启动脚本（.cmd / .sh / .py）也算在里头：它们跟着课件一起下载，改了
+ * 以后要是还被浏览器存着，用户拿到的就是旧的那一份。
+ */
 function cacheOf(file) {
-  if (/\.(?:html?|json)$/i.test(file)) return 'public, max-age=300';
+  if (/\.(?:html?|json|js|mjs|css|cmd|sh|py)$/i.test(file)) return 'public, max-age=300';
   return 'public, max-age=31536000, immutable';
 }
 
@@ -215,6 +233,11 @@ if (SKIP_UNCHANGED && !DRY) {
     const key = f.rel.replace(/\\/g, '/');
     const etag = etagOf.get(key);
     if (!etag) return true;
+    /*
+     * 缓存的规矩改了的时候，文件本身没变，但桶里存的那条「缓存多久」
+     * 还是老规矩。这时候要重传一遍，把新的规矩写进去。
+     */
+    if (REFRESH_CACHE && SHORT_CACHE.test(key)) return true;
     const md5 = crypto.createHash('md5').update(fs.readFileSync(f.abs)).digest('hex');
     return md5 !== etag;
   });

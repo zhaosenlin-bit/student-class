@@ -165,3 +165,41 @@ export async function connect(port = 9222, urlMatch, opts = {}) {
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/*
+ * 给某个地址开权限（比如摄像头）。
+ *
+ * 有些课件要摄像头才能跑起来（手势、AR 一类的）。浏览器默认会把
+ * 摄像头请求挂在「等用户点同意」上，课件就停在那里不动。检查的时候
+ * 没有人来点，就只能先替它同意。
+ *
+ * 权限是按站点给的，得走浏览器那一层的连接，页面那一层不行。
+ */
+export async function grantPermissions(port, origin, permissions = ['camera']) {
+  const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+  const bws = new WebSocket(version.webSocketDebuggerUrl);
+  await new Promise((res, rej) => {
+    bws.addEventListener('open', res, { once: true });
+    bws.addEventListener('error', rej, { once: true });
+  });
+  const id = 1;
+  bws.send(
+    JSON.stringify({
+      id,
+      method: 'Browser.grantPermissions',
+      params: { origin, permissions },
+    })
+  );
+  await new Promise((res) => {
+    const on = (e) => {
+      const x = JSON.parse(e.data);
+      if (x.id === id) {
+        bws.removeEventListener('message', on);
+        res(x);
+      }
+    };
+    bws.addEventListener('message', on);
+    setTimeout(res, 5000);
+  });
+  bws.close();
+}

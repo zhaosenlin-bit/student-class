@@ -30,6 +30,14 @@ const ROOT = path.resolve(arg('root', path.join(HERE, '..', '..')));
 const PORT = Number(arg('port', 4180));
 const MOUNT = '/' + String(arg('mount', '')).replace(/^\/+|\/+$/g, '');
 
+/*
+ * 这个服务是谁，用一个头说明白。
+ *
+ * 启动脚本靠它认出「已经有同一个课件库在跑」，不用靠端口猜——别的程序
+ * 占着同一个端口是很正常的事。
+ */
+const OWNER = encodeURIComponent(ROOT);
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -112,6 +120,7 @@ http
       'Content-Length': body.length,
       'Cache-Control': 'no-cache',
       'Access-Control-Allow-Origin': '*',
+      'X-LQ-Root': OWNER,
     });
     res.end(body);
   })

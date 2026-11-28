@@ -84,6 +84,36 @@ for (const f of files) {
   }
   if (!text.includes('fonts.googleapis.com')) continue;
   const dir = path.dirname(f);
+
+  /*
+   * 下载清单里的每一行是一对名字：前一个是压缩包里的名字，本来就不在
+   * 磁盘上；后一个才是真正去取的地方。这里按清单本来的意思去看，
+   * 只查后一个，免得把「压缩包里的名字」当成断掉的地址。
+   */
+  if (f.endsWith('.json')) {
+    let manifest = null;
+    try {
+      manifest = JSON.parse(text);
+    } catch {
+      manifest = null;
+    }
+    if (manifest && Array.isArray(manifest.entries)) {
+      for (const entry of manifest.entries) {
+        const src = Array.isArray(entry) ? entry[1] : null;
+        if (!src || !/fonts\.googleapis\.com/i.test(src)) continue;
+        if (/^https?:\/\//i.test(src)) continue;
+        checked++;
+        const abs = path.resolve(dir, src.split(/[?#]/)[0]);
+        if (!fs.existsSync(abs)) {
+          missing.push(
+            path.relative(root, f).replace(/\\/g, '/') + '  ->  ' + src,
+          );
+        }
+      }
+      continue;
+    }
+  }
+
   for (const raw of tokens(text)) {
     if (/^https?:\/\//i.test(raw)) continue;
     const p = raw.split(/[?#]/)[0];

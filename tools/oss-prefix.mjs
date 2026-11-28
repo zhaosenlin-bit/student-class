@@ -61,6 +61,28 @@ export function sign(method, key, headers = {}, sub = '') {
   return { Date: date, ...headers, Authorization: `OSS ${AK}:${signature}` };
 }
 
+/*
+ * 到对象存储的这一段路上偶尔会有人把连接掐断（TLS 握手中断、
+ * 连接被重置）。这是网络的事，不是桶里的东西不对，可是不重试的话
+ * 一次抖动就会让整批文件看起来「都丢了」。所以这里重试几次，
+ * 每次之间歇一会儿，让抖动自己过去。
+ */
+export async function fetchRetry(url, init = {}, tries = 5) {
+  let last = null;
+  for (let i = 0; i < tries; i++) {
+    if (i) await new Promise((r) => setTimeout(r, 400 * i));
+    try {
+      return await fetch(url, init);
+    } catch (e) {
+      last = e;
+      /* 证书、鉴权、地址不对这类问题重试也没用，直接放弃。 */
+      const why = String(e?.cause?.message || e?.message || '');
+      if (/ENOTFOUND|ERR_TLS_CERT|certificate/i.test(why)) break;
+    }
+  }
+  throw last;
+}
+
 /* 桶里的清单接口说的是 xml，一页一页地要。 */
 export async function listObjects(prefix, delimiter = '') {
   const items = [];
@@ -73,7 +95,7 @@ export async function listObjects(prefix, delimiter = '') {
     if (delimiter) url.searchParams.set('delimiter', delimiter);
     if (token) url.searchParams.set('continuation-token', token);
     const sub = token ? `?continuation-token=${encodeURIComponent(token)}` : '';
-    const res = await fetch(url, { headers: sign('GET', '', {}, sub) });
+    const res = await fetchRetry(url, { headers: sign('GET', '', {}, sub) });
     const raw = await res.text();
     if (!raw.includes('<ListBucketResult>')) {
       throw new Error('列清单失败：' + res.status + ' ' + raw.slice(0, 200));

@@ -1,6 +1,6 @@
 # 乐启享课件库
 
-一个**交互课件库**，收录 1450 门课件。看目录 → 在线预览 → 下载，
+一个**交互课件库**，收录 1448 门课件。看目录 → 在线预览 → 下载，
 打开就能用，不需要登录，不收费。
 
 ## 本地运行
@@ -13,6 +13,10 @@ node tools/static/serve-static.mjs --root dist --port 4180
 
 打开 <http://127.0.0.1:4180/>。
 
+也可以直接双击根目录的 **启动课件库.cmd**：已经在跑就把浏览器打开过去，
+没在跑就把它叫起来，等它能应答了再打开浏览器。关掉它用
+`node tools/launch-library.mjs --stop`。
+
 ## 部署
 
 课件库是**纯静态**的：没有后端、没有数据库、没有登录。成品是一个文件夹，
@@ -24,8 +28,17 @@ node tools/export-static.mjs --out dist --slim
 
 `--slim` 会把各门课件里重复的那份素材收进 `dist/shared/`，只留一份；
 字节一样却存了两遍的，改成硬链接，磁盘上同样只占一份。
-1450 门课件原本 7.1 GB，成品 3.7 GB（磁盘上实际占 3.4 GB），
+1448 门课件原本 7.1 GB，成品 3.6 GB（磁盘上实际占 3.2 GB），
 课件照旧能打开、能下载。
+
+出包以后再收拾两处：
+
+```powershell
+node tools/remove-dead-program-assets.mjs --fix   # 去掉抓取时顺手存下的死文件
+node tools/prune-empty-dirs.mjs --root dist --fix # 去掉空目录
+node tools/fix-download-paths.mjs --root dist --fix # 改掉清单里写坏的路径
+node tools/fix-course-launchers.mjs --root dist   # 课件的启动脚本：已在跑就直接打开
+```
 
 出包之后要跑一遍验收，再把验收里报出来的缺文件放回课件自己的目录：
 
@@ -109,20 +122,24 @@ node tools/serve-oss.mjs --prefix leqixiang --mount /leqixiang --port 4181
 | 目录 | 内容 |
 | --- | --- |
 | `site/` | 站点外壳（页面、样式、脚本） |
-| `catalog/` | 课件目录数据（1450 门课目的元信息） |
+| `catalog/` | 课件目录数据（1448 门课目的元信息） |
 | `tools/` | 重建、修补、验收脚本 |
 | `deploy/` | 上线用的转发配置 |
 | `receipts/` | 最近一次全库验收的记录 |
 
-课件正文与素材放在 `mirror/`：它是出包用的素材，不进仓库，也不在 GitHub 上。
-成品是 `dist/`，成品里的资源在对象存储上。
+成品是 `dist/`，成品里的资源在对象存储上。出包用的原始素材不放在项目里，
+需要重新出包时再从归档中取。
 
 ## 验收
 
 ```powershell
 node tools\check-static-site.mjs --base http://127.0.0.1:4180 --cdp 9333   # 逐门课件预览
+node tools\check-course-health.mjs --base http://127.0.0.1:4180 --cdp 9333 # 逐门课件打开
 node tools\check-shell-ui.mjs --base http://127.0.0.1:4180 --cdp 9333      # 目录、筛选、搜索、打不开的路由
 node tools\check-oss-mirror.mjs --root dist --prefix leqixiang             # 桶里的文件和本地逐一对照
+node tools\check-download-manifests.mjs --root dist                       # 下载清单里的地址有没有写坏
+node tools\check-course-launchers.mjs --root dist --live 3                # 启动脚本：双击能开、重复双击只起一个
+node tools\check-cache-freshness.mjs                                     # 线上发的是最新版还是旧版
 node tools\check-covers.mjs --root dist                                     # 每一门课的封面图在不在
 node tools\check-font-links.mjs --root dist                                # 样式表和字体地址有没有断链
 node tools\fix-shared-refs.mjs --root dist --dry                           # 有没有地址跑出课件目录
@@ -133,6 +150,7 @@ node tools\check-nginx-mount.mjs --site <官网的 nginx.conf>                 #
 
 ```powershell
 node tools\check-static-site.mjs --base https://<桶名>.oss-cn-hangzhou.aliyuncs.com/leqixiang --cdp 9333
+node tools\check-live-downloads.mjs --base https://codebn.cn/leqixiang     # 下载清单里的每个文件都取一遍
 ```
 
 ## 说明

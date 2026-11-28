@@ -30,6 +30,11 @@ $args = @(
   '--disable-background-timer-throttling',
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
+  # 有几门课要摄像头（手势、AR 一类）。这台机器上没有摄像头，
+  # 于是浏览器先把「要不要用摄像头」这一关卡在一边，课件就停住不动。
+  # 造一个假的摄像头，并把询问这一步直接答应下来，课件才能跑起来。
+  '--use-fake-device-for-media-stream',
+  '--use-fake-ui-for-media-stream',
   $StartUrl
 )
 

@@ -13,15 +13,18 @@
  *
  * The placeholders are filled in when the entry page is written:
  *   %%PROGRAM%%   the number of the course
- *   %%RUNTIME%%   the address of the course's own runtime folder
+ *   %%SHARED%%    the address of the shared runtime folder
  */
-import { registerFrame } from '%%RUNTIME%%message-bridge.mjs';
-import { prepareReviewedSession } from '%%RUNTIME%%reviewed-session.mjs';
+import { registerFrame } from '%%SHARED%%message-bridge.mjs';
+import { prepareReviewedSession } from '%%SHARED%%reviewed-session.mjs';
 
 const PROGRAM = '%%PROGRAM%%';
 const select = document.getElementById('chapter');
 const openButton = document.getElementById('open');
 const stage = document.getElementById('stage');
+
+/* The folder that holds the lesson's own files. */
+const root = new URL('./assets/', location.href);
 
 /* A short trace of the handshake, for when the bridge misbehaves. */
 const debug = new URLSearchParams(location.search).has('lqdebug');
@@ -37,7 +40,7 @@ if (debug) {
 /* The adapter names every chapter of the course and where it lives. */
 let adapter = null;
 try {
-  adapter = await (await fetch('%%RUNTIME%%adapter.json')).json();
+  adapter = await (await fetch(new URL('./_course_runtime/adapter.json', root).href)).json();
 } catch {
   adapter = null;
 }
@@ -48,9 +51,8 @@ const chapters = (adapter?.entries || []).map((entry) => ({
   keys: entry.keys || [],
   title: entry.title || entry.id,
 }));
-const byPath = new Map(chapters.map((entry) => [entry.path, entry]));
 const declaration = {
-  schema: 'turing-reviewed-runtime/v1',
+  schema: 'leqixiang-reviewed-runtime/v1',
   entries: chapters.map((entry) => ({
     id: entry.id,
     path: entry.path,
@@ -58,6 +60,29 @@ const declaration = {
     destinations: chapters.map((other) => other.id),
   })),
 };
+
+/*
+ * One address for a chapter, whichever way it was written.
+ *
+ * The adapter names a chapter by its place in the folder of the lesson
+ * — "index.html", "delivery/20260912/index.html".  The page names it by
+ * the address it is opened under, which on the published site is an
+ * address of the platform and in a copy of the library is a path next to
+ * the page.  Both are turned into one address here, so that a chapter
+ * written either way is found.
+ */
+function chapterUrl(value) {
+  const raw = String(value || '');
+  const served = raw.match(/\/api\/program-assets\/[^/]+\/(.+)$/);
+  if (served) return new URL(served[1], root).href;
+  return new URL(raw, document.baseURI).href;
+}
+
+const byUrl = new Map();
+for (const entry of chapters) {
+  byUrl.set(new URL(entry.path, root).href, entry);
+}
+const byPath = new Map(chapters.map((entry) => [entry.path, entry]));
 
 const digest = String(adapter?.runtimeDigest || '');
 const policyDigest = /^[0-9a-f]{64}$/i.test(digest) ? digest : '0'.repeat(64);
@@ -124,7 +149,7 @@ async function prepare(chapter, element) {
     isCurrent: () => true,
     onNavigate: async (target) => {
       if (!target || !byPath.has(target.path)) return;
-      await show(`/api/program-assets/${PROGRAM}/${target.path}`);
+      await show(target.path);
     },
   });
   session = prepared;
@@ -135,12 +160,12 @@ async function prepare(chapter, element) {
 /* Show a chapter. The frame is only told to load once the host is ready
    for it, so the handshake is never missed. */
 async function show(url) {
-  const rel = url.replace(/^.*\/api\/program-assets\/[^/]+\//, '');
-  const chapter = byPath.get(rel);
+  const chapter = byUrl.get(chapterUrl(url));
+  const target = chapter ? new URL(chapter.path, root).href : chapterUrl(url);
   if (!chapter) {
     retire();
     const element = freshFrame();
-    element.src = url;
+    element.src = target;
     stage.replaceChildren(element);
     return;
   }
@@ -150,10 +175,12 @@ async function show(url) {
       retire();
       return prepare(chapter, element);
     })
-    .catch(() => {})
+    .catch((error) => {
+      trace('prepare failed', error && error.message);
+    })
     .then(() => {
-      trace('set src', url, Math.round(performance.now()));
-      element.src = url;
+      trace('set src', target, Math.round(performance.now()));
+      element.src = target;
       stage.replaceChildren(element);
     });
   return opening;
